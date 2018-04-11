@@ -1,0 +1,7 @@
+XLODBC
+1
+DSN=Excel Files;DBQ=D:\OneDrive\OnedriveDocuments\NTU\Work\thesis\vote_record\votingdf_datafile.xlsx;DefaultDir=D:\OneDrive\OnedriveDocuments\NTU\Work\thesis\vote_record;DriverId=1046;MaxBufferSize=2048;PageTimeout=5;
+SELECT `myown$`.billcontent, `votingdf_datafile$`.pp_keyword, `votingdf_datafile$`.votecontent, `myown$`.url, `votingdf_datafile$`.pp_duplicated_item, `votingdf_datafile$`.pp_lawamendment, `votingdf_datafile$`.pp_enactment, `votingdf_datafile$`.pp_enforcement, `votingdf_datafile$`.pp_res_bynew, `votingdf_datafile$`.pp_res_bycompete, `votingdf_datafile$`.pp_groupbased, `votingdf_datafile$`.pp_res_notjudged, `votingdf_datafile$`.pp_committee, `votingdf_datafile$`.pp_related_q, `votingdf_datafile$`.pp_ignored, `myown$`.term, `myown$`.period, `myown$`.meetingno, `myown$`.temp_meeting_no, `myown$`.billn, `myown$`.billresult, `myown$`.date, `votingdf_datafile$`.billconflict  FROM `myown$` `myown$`, `votingdf_datafile$` `votingdf_datafile$`  WHERE `myown$`.term = `votingdf_datafile$`.term AND `myown$`.temp_meeting_no = `votingdf_datafile$`.temp_meeting_no AND `myown$`.meetingno = `votingdf_datafile$`.meetingno AND `myown$`.period = `votingdf_datafile$`.period AND `myown$`.billn = `votingdf_datafile$`.billn
+
+
+billcontent	pp_keyword	votecontent	url	pp_duplicated_item	pp_lawamendment	pp_enactment	pp_enforcement	pp_res_bynew	pp_res_bycompete	pp_groupbased	pp_res_notjudged	pp_committee	pp_related_q	term	period	meetingno	temp_meeting_no	billn	pp_ignored	billconflict	date	billresult
