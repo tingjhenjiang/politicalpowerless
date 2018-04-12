@@ -236,7 +236,7 @@ mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %
   mutate_cond(votedecision=="贊成", opiniondirectionfromlegislator=opiniondirectionfrombill) %>%
   mutate_cond(votedecision=="反對", opiniondirectionfromlegislator=recode(opiniondirectionfrombill,
     "n"="m","m"="n",
-    "cpg"="NOTcpg","NOTcpg"="cpg","envenerg"="NOTenvenerg","NOTenvenerg"="envenerg",
+    "cpg"="NOTcpg","NOTcpg"="cpg","envenerg"="NOTenvenerg","NOTenvenerg"="envenerg","nuenerg"="NOTnuenerg","NOTnuenerg"="nuenerg",
     "crop"="NOTcrop","NOTcrop"="crop","otherenerg"="NOTotherenerg","NOTotherenerg"="otherenerg",
     "NOTgovpushrichpeoplemore"="govpushrichpeoplemore","NOTgovmore"="govmore","NOTnoint"="noint","NOTpoorontheirown"="poorontheirown",
     "govpushrichpeoplemore"="NOTgovpushrichpeoplemore","govmore"="NOTgovmore","noint"="NOTnoint","poorontheirown"="NOTpoorontheirown",
@@ -255,6 +255,14 @@ mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %
   #          "贊成n"=0,"贊成nn"=0,"反對m"=0,"反對mm"=0
   #) %>%
   rename(name=legislator_name)
+
+#可以看到有回應也有不回應
+distinct(mergedf_votes_bills_election_surveyanswer,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfrombill,opiniondirectionfromlegislator,respondopinion) %>%
+  #testdf %>%
+  filter(billid_myown=="9-2-0-16-67",variable_on_q=="pp_related_q_1",value_on_q_variable=="2016citizen@c2") %>%
+  arrange(name,party) %>%
+  View()
+
 #write_csv(mergedf_votes_bills_election_surveyanswer,"new_to_replace_b.csv")
 #mergedf_votes_bills_election_surveyanswer %>%
 #  filter(!is.na(respondopinion),billid_myown=="9-2-0-17-88",variable_on_q=="pp_related_q_1") %>%
@@ -499,8 +507,8 @@ testdf <- testdf %>%
               #"all_direction_on_same_bill_and_interest",
               #"same_direction_on_same_bill_and_interest_in_same_legislator",
               #"all_direction_on_same_bill_and_interest_in_same_legislator"
-              ),funs(as.integer)) %>%
-  filter(!is.na(respondopinion))
+              ),funs(as.integer)) #%>%
+  #filter(!is.na(respondopinion))
 #,"billid_myown"
 #有序factor 無序factor
 
@@ -801,7 +809,7 @@ glmdata <- testdf %>%
   #mutate("same_direction_opinion"=n()) %>%
   #ungroup() %>%
   #name,billid_myown,votedecision,term,SURVEY,variable_on_q,SURVEYQUESTIONID,SURVEYANSWERVALUE,respondopinion
-  group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirection,party) %>%
+  group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirectionfromlegislator,party) %>%
   mutate("same_opinion_from_same_party"=n()) %>%
   ungroup() %>%
   group_by(variable_on_q,billid_myown,value_on_q_variable,party) %>%
@@ -878,7 +886,7 @@ glmdata$percent_of_same_votes_from_same_party<-scale(glmdata$percent_of_same_vot
 
 #累積迴歸
 library(ordinal)
-model <- clm(respondopinion~percent_of_same_votes_from_same_party,
+model <- clm(respondopinion~myown_eduyr,
              data=glmdata)
 summary(model)
 

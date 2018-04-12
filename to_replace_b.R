@@ -29,12 +29,18 @@ intervals_bg<-which(to_replace_b$SURVEYANSWERVALUE==1)
 intervals_end<-which(to_replace_b$SURVEYANSWERVALUE==99)
 for (i in 1:length(intervals_end)) {
   range<-intervals_bg[i]:intervals_end[i]
-  if (to_replace_b$opinionfromconstituent[range]==c("m",	"n",	"x",	"x",	"x",	"x",	"x")
+  if (to_replace_b$opinionfromconstituent[range]==c("mm",	"m",	"b",	"n",	"nn",	"x",	"x",	"x",	"x",	"x",	"x",	"x")
       ) {
-    if (to_replace_b$opinionfrombill[range]==c("n",	"m",	"x",	"x",	"x",	"x",	"x")) {
-      to_replace_b$opinionfrombill[range]<-replace(to_replace_b$opinionfrombill[range],to_replace_b$opinionfrombill[range]=='x','n')
-    } else if(to_replace_b$opinionfrombill[range]==c("m",	"n",	"x",	"x",	"x",	"x",	"x")) {
-      to_replace_b$opinionfrombill[range]<-replace(to_replace_b$opinionfrombill[range],to_replace_b$opinionfrombill[range]=='x','m')
+    if (to_replace_b$opinionfrombill[range]==c("mm",	"m",	"m",	"m",	"m",	"m",	"m",	"m",	"m",	"m",	"m",	"m")) {
+      to_replace_b$opinionfrombill[range]<-replace(to_replace_b$opinionfrombill[range],to_replace_b$opinionfrombill[range]=='x','m') %>%
+        replace(to_replace_b$opinionfrombill[range]=='n','m') %>%
+        replace(to_replace_b$opinionfrombill[range]=='nn','m') %>%
+        replace(to_replace_b$opinionfrombill[range]=='mm','m')
+    } else if(to_replace_b$opinionfrombill[range]==c("n",	"n",	"n",	"n",	"n",	"x",	"x",	"x",	"x",	"x",	"x",	"x")) {
+      to_replace_b$opinionfrombill[range]<-replace(to_replace_b$opinionfrombill[range],to_replace_b$opinionfrombill[range]=='x','n') %>%
+        replace(to_replace_b$opinionfrombill[range]=='m','n') %>%
+        replace(to_replace_b$opinionfrombill[range]=='mm','n') %>%
+        replace(to_replace_b$opinionfrombill[range]=='nn','n')
     }
   } 
   #done above
