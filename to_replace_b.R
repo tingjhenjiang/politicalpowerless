@@ -24,24 +24,36 @@ terms<-c(7,9)
 
 to_replace_b_file <- "to_replace_b.xlsx"
 to_replace_b <- read.xlsx(to_replace_b_file, sheet = 1) %>%
-  select(opinionfromconstituent,opinionfrombill)
-for (i in 3:nrow(to_replace_b)) {
-  currentrow<-to_replace_b[i,]
-  nextrow<-to_replace_b[i+1,]
-  previousrow<-to_replace_b[i-1,]
+  select(SURVEYANSWERVALUE,opinionfromconstituent,opinionfrombill)
+intervals_bg<-which(to_replace_b$SURVEYANSWERVALUE==1)
+intervals_end<-which(to_replace_b$SURVEYANSWERVALUE==99)
+for (i in 1:length(intervals_end)) {
+  range<-intervals_bg[i]:intervals_end[i]
+  if (to_replace_b$opinionfromconstituent[range]==c("m",	"n",	"x",	"x",	"x",	"x",	"x")
+      ) {
+    if (to_replace_b$opinionfrombill[range]==c("n",	"m",	"x",	"x",	"x",	"x",	"x")) {
+      to_replace_b$opinionfrombill[range]<-replace(to_replace_b$opinionfrombill[range],to_replace_b$opinionfrombill[range]=='x','n')
+    } else if(to_replace_b$opinionfrombill[range]==c("m",	"n",	"x",	"x",	"x",	"x",	"x")) {
+      to_replace_b$opinionfrombill[range]<-replace(to_replace_b$opinionfrombill[range],to_replace_b$opinionfrombill[range]=='x','m')
+    }
+  } 
+  #done above
+  #currentrow<-to_replace_b[i,]
+  #nextrow<-to_replace_b[i+1,]
+  #previousrow<-to_replace_b[i-1,]
   
-  two_row_before<-to_replace_b[i-2,]
-  op_from_consti_orb<-two_row_before$opinionfromconstituent
-  op_from_bill_orb<-two_row_before$opinionfrombill
+  #two_row_before<-to_replace_b[i-2,]
+  #op_from_consti_orb<-two_row_before$opinionfromconstituent
+  #op_from_bill_orb<-two_row_before$opinionfrombill
   
-  one_row_before<-to_replace_b[i-1,]
-  op_from_consti_trb<-one_row_before$opinionfromconstituent
-  op_from_bill_trb<-one_row_before$opinionfrombill
+  #one_row_before<-to_replace_b[i-1,]
+  #op_from_consti_trb<-one_row_before$opinionfromconstituent
+  #op_from_bill_trb<-one_row_before$opinionfrombill
   
-  if (op_from_consti_orb=='mm' & op_from_bill_orb=='nn' & currentrow$opinionfrombill=='b') {
-    to_replace_b$opinionfrombill[i]=nextrow$opinionfrombill
-  } else if (op_from_consti_orb=='mm' & op_from_bill_orb=='mm' & currentrow$opinionfrombill=='b') {
-    to_replace_b$opinionfrombill[i]=previousrow$opinionfrombill
-  }
+  #if (op_from_consti_orb=='mm' & op_from_bill_orb=='nn' & currentrow$opinionfrombill=='b') {
+  #  to_replace_b$opinionfrombill[i]=nextrow$opinionfrombill
+  #} else if (op_from_consti_orb=='mm' & op_from_bill_orb=='mm' & currentrow$opinionfrombill=='b') {
+  #  to_replace_b$opinionfrombill[i]=previousrow$opinionfrombill
+  #}
 }
 write_csv(to_replace_b[,c("opinionfromconstituent","opinionfrombill")],"new_to_replace_b.csv")

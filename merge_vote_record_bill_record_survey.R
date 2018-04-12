@@ -459,7 +459,9 @@ testdf <- testdf %>%
               "pp_enforcement","pp_res_bynew","pp_res_bycompete",
               "pp_groupbased","pp_res_notjudged","pp_ignored",
               "billconflict","variable_on_q","value_on_q_variable",
-              "opinionfrombill","respondopinion",
+              "opinionfromconstituent","opinionfrombill",
+              "opiniondirectionfromconstituent","opiniondirectionfrombill",
+              "opiniondirectionfromlegislator","respondopinion",
               "legislator_sex","legislator_party","partyGroup",
               "areaName","leaveFlag","education","incumbent",
               "wonelection","elec_dist_type",
@@ -469,7 +471,7 @@ testdf <- testdf %>%
               "myown_occp","myown_workers_numbers","myown_hire_people_no",
               "myown_manage_people_no","myown_family_income",
               "myown_family_income_ranking","myown_family_income_stdev",
-              "Index","opinionstrength"  #,
+              "opinionstrength"  #,
               #"percent_of_same_vote_from_same_party",
               #"opinion_pressure_from_party"
               #"same_pos_to_all_ratio",
@@ -827,7 +829,7 @@ glmdata <- testdf %>%
 #View()
 
 #可以看到有回應也有不回應
-distinct(testdf,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party) %>%
+distinct(testdf,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfromlegislator,respondopinion) %>%
   #testdf %>%
   filter(billid_myown=="9-2-0-16-67",variable_on_q=="pp_related_q_1",value_on_q_variable=="2016citizen@c2") %>%
   arrange(name,party) %>%
