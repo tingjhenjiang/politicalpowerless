@@ -812,12 +812,19 @@ glmdata <- testdf %>%
   group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirectionfromlegislator,party) %>%
   mutate("same_opinion_from_same_party"=n()) %>%
   ungroup() %>%
-  group_by(variable_on_q,billid_myown,value_on_q_variable,party) %>%
+  group_by(billid_myown,variable_on_q,value_on_q_variable,party) %>%
   mutate("all_opinion_from_same_party"=n()) %>%
   ungroup() %>%
-  mutate("opinion_pressure_from_party"=(all_opinion_from_same_party-same_opinion_from_same_party)/all_opinion_from_same_party) %>%
-  filter(value_on_q_variable %in% c("2016citizen@d5a","2016citizen@d6a","2016citizen@d6b","2016citizen@d6d","2016citizen@d6g","2016citizen@d6h")) %>%   #忽略預算支出題組
-  filter(issue_field1=='公民與政治權' | issue_field2=='公民與政治權')
+  mutate("opinion_pressure_from_party"=same_opinion_from_same_party/all_opinion_from_same_party) %>%
+  group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirectionfromconstituent) %>%
+  mutate("same_opiniondirection_from_constituent_by_nation"=n()) %>%
+  ungroup() %>%
+  group_by(billid_myown,variable_on_q,value_on_q_variable) %>%
+  mutate("all_opiniondirection_from_constituent_by_nation"=n()) %>%
+  ungroup() %>%
+  mutate("opinion_pressure_from_constituent_by_nation"=same_opiniondirection_from_constituent_by_nation/all_opiniondirection_from_constituent_by_nation) %>%
+  filter(value_on_q_variable %in% c("2016citizen@d5a","2016citizen@d6a","2016citizen@d6b","2016citizen@d6d","2016citizen@d6g","2016citizen@d6h")) #%>%   #忽略預算支出題組
+  #filter(issue_field1=='公民與政治權' | issue_field2=='公民與政治權')
   #scale()
 #group_by(billid_myown,variable_on_q,respondopinion) %>%
 #mutate("same_opinion_on_same_bill_and_interest"=n()) %>%
@@ -837,12 +844,18 @@ glmdata <- testdf %>%
 #View()
 
 #可以看到有回應也有不回應
-distinct(testdf,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfromlegislator,respondopinion) %>%
+distinct(testdf,id,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfromlegislator,respondopinion) %>%
   #testdf %>%
   filter(billid_myown=="9-2-0-16-67",variable_on_q=="pp_related_q_1",value_on_q_variable=="2016citizen@c2") %>%
   arrange(name,party) %>%
   View()
-#目標：將立法委員的投票類別化到只剩下一種立場
+
+distinct(glmdata,id,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfromlegislator,same_opinion_from_same_party,all_opinion_from_same_party,opinion_pressure_from_party,respondopinion) %>%
+  group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirectionfromconstituent) %>%
+  #testdf %>%
+  filter(all_opinion_from_same_party!=same_opinion_from_same_party) %>%
+  arrange(name,party) %>%
+  View()
 
 
 #left_join(X2016_citizen_melted_with_restricted, by = c("term", "electionarea", "SURVEY", "SURVEYQUESTIONID","SURVEYANSWERVALUE"))
@@ -883,10 +896,11 @@ contrasts(glmdata$myown_protest)<-contr.treatment(4, base=4)   #以contrast()設
 contrasts(glmdata$myown_pol_efficacy)<-contr.treatment(5, base=5)   #以contrast()設定虛變數classf，contr.treatment()設定三個艙等中，以編碼3當作參考點。
 
 glmdata$percent_of_same_votes_from_same_party<-scale(glmdata$percent_of_same_votes_from_same_party)
+glmdata$myown_family_income<-scale(glmdata$myown_family_income)
 
 #累積迴歸
 library(ordinal)
-model <- clm(respondopinion~myown_eduyr,
+model <- clm(respondopinion~(opinion_pressure_from_party),
              data=glmdata)
 summary(model)
 
@@ -899,7 +913,7 @@ set.seed(22)
 train.index <- sample(x=1:nrow(glmdata), size=ceiling(0.8*nrow(glmdata) ))
 train <- glmdata[train.index, ]
 test <- glmdata[-train.index, ]
-cart.model<- rpart(respondopinion ~ myown_areakind, 
+cart.model<- rpart(respondopinion ~ myown_areakind+myown_sex+myown_dad_ethgroup+myown_mom_ethgroup+myown_marriage+myown_religion+myown_pol_efficacy+myown_approach_to_politician_or_petition+myown_protest+myown_working_status+myown_age+myown_eduyr+myown_occp+myown_family_income+opinionstrength+opinion_pressure_from_party, 
                    data=train)
 prp(cart.model,         # 模型
     faclen=0,           # 呈現的變數不要縮寫
@@ -917,7 +931,7 @@ summary(model)
 
 binaryglmdata<-filter(glmdata,respondopinion %in% c(0,2))
 model<-glm(
-#myown_areakind+myown_sex+myown_dad_ethgroup+myown_mom_ethgroup+myown_marriage+myown_religion+myown_pol_efficacy+myown_approach_to_politician_or_petition+myown_protest+myown_working_status+myown_age+myown_eduyr+myown_occp+myown_family_income+opinionstrength+percent_of_same_vote_from_same_party+same_direction_on_same_bill_and_interest_toall_ratio
+#myown_areakind+myown_sex+myown_dad_ethgroup+myown_mom_ethgroup+myown_marriage+myown_religion+myown_pol_efficacy+myown_approach_to_politician_or_petition+myown_protest+myown_working_status+myown_age+myown_eduyr+myown_occp+myown_family_income+opinionstrength+opinion_pressure_from_party
   formula = respondopinion ~ percent_of_same_votes_from_same_party,
   family = binomial(
     link = "logit"),

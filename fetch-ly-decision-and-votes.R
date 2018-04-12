@@ -1,16 +1,28 @@
-#Sys.setlocale(category='LC_ALL', locale='C')
-#Sys.setlocale(category = "LC_ALL", locale = "cht")
-#Sys.setlocale(category = "LC_ALL", locale ="UTF-8")
-filespath<-"E:\\Software\\scripts\\R\\"
-filespath<-"/mnt/e/Software/scripts/R/"
-#load("meetingdata.RData")
-source(file=paste(filespath,"shared_functions.R",sep=""))
+t_sessioninfo<-sessionInfo()
+t_sessioninfo_running<-gsub(" ","",t_sessioninfo$running)
+t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
+filespath<-switch(t_sessioninfo_running,
+                  Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
+                  Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
+                  Windows10x64build16299 = "E:\\Software\\scripts\\R\\",
+                  Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
+)
+#filespath <- "E:\\Software\\scripts\\R\\"
+#filespath <- "/mnt/e/Software/scripts/R/"
+source(file = paste(filespath, "shared_functions.R", sep = ""))
+dataset_file_directory <- switch(t_sessioninfo_running,
+                                 Windows7x64build7601ServicePack1="C:\\NTUSpace\\dataset\\",
+                                 Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+                                 Windows10x64build16299 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+                                 Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
+)
 no_rollcall<-c()
 urlarr<-as.character(meetingdata$url)
 error_vote_record_from_name<-read_csv("error_vote_record_from_name.csv")
 myown_vote_record_df<-data.frame()
 #第九會期從377開始 //problem:108
-for (urln in 1:length(urlarr)) {
+leave_and_attend_legislators<-data.frame()
+for (urln in 468:length(urlarr)) {
   url<-urlarr[urln]
   if (is.na(url) | urln==478) {
     next
@@ -40,43 +52,28 @@ for (urln in 1:length(urlarr)) {
   if (term==7 & period==1 & meetingno==19) {
     #有一次的表決少了贊成者和棄權者的文字，補上
     #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
-    content<-read_file(ifelse(check_if_windows(),
-                              "E:\\Software\\scripts\\R\\vote_record\\processed_ly_meeting_record\\LCEWC03_070119.htm",
-                              "/mnt/e/Software/scripts/R/vote_record/processed_ly_meeting_record/LCEWC03_070119.htm"
-    )
-    )
+    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070119.htm", sep = ""))
   }
   if (term==7 & period==2 & meetingno==17) {
     #有一次的表決少了贊成者和棄權者的文字，補上
     #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
-    content<-read_file(ifelse(check_if_windows(),
-                              "E:\\Software\\scripts\\R\\vote_record\\processed_ly_meeting_record\\LCEWC03_070119.htm",
-                              "/mnt/e/Software/scripts/R/vote_record/processed_ly_meeting_record/LCEWC03_070217.htm"
-    )
-    )
+    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070119.htm", sep = ""))
   }
   if (term==7 & period==3 & meetingno==5) {
     #表決案數字亂碼修正
     #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
-    content<-read_file(ifelse(check_if_windows(),
-                              "E:\\Software\\scripts\\R\\vote_record\\processed_ly_meeting_record\\LCEWC03_070119.htm",
-                              "/mnt/e/Software/scripts/R/vote_record/processed_ly_meeting_record/LCEWC03_070305.htm"
-    )
-    )
+    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070119.htm", sep = ""))
   }
   if (term==7 & period==3 & meetingno==8) {
     #立法院第7屆第3會期第8次會議議事錄有二個表決紀錄的敘述被合併
     #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
-    content<-read_file(ifelse(check_if_windows(),
-                              "E:\\Software\\scripts\\R\\vote_record\\processed_ly_meeting_record\\LCEWC03_070119.htm",
-                              "/mnt/e/Software/scripts/R/vote_record/processed_ly_meeting_record/LCEWC03_070308.htm"
-    )
-    )
+    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070119.htm", sep = ""))
   }
   
   #paragraph_list[roll_call_list_block_sp:paragraph_list_length]<-customgsub(paragraph_list[roll_call_list_block_sp:paragraph_list_length],"高金素梅　","高金素梅　　")
   content<-customgsub(content,"高金素梅　","高金素梅　　") %>%
     customgsub("Kolas Yotaka　　　　　","Kolas Yotaka　　") %>%
+    customgsub("許舒博（尚未報到）","許舒博") %>%
     customgsub("傅.萁","傅崐萁") %>%
     customgsub("瓦歷斯.貝林","瓦歷斯．貝林") %>%
     customgsub("王雪.","王雪峰") %>%
@@ -146,20 +143,38 @@ for (urln in 1:length(urlarr)) {
   #xpath<-"//p[(contains(.,'時　　間'))]"
   #meetingtimeanddata<-xml_find_all(doc, xpath) %>%
   #  xml_text() %>% getElement(1)
-  xpath<-"//p[(contains(.,'請假委員　'))]"
+  #xpath<-"//p[(contains(.,'請假委員　'))]"
   message("urln=",urln," | 1", meetingname, url)
-  leavelegislator<-xml_find_all(doc, xpath) %>%
-    xml_text()
-  if (length(leavelegislator)>0) {
-    leavelegislator<- leavelegislator %>% strsplit('請假委員　') %>% unlist() %>%
-      strsplit('　　') %>% unlist()
-  }
-  
-  
+
   xpath<-"//p"
   paragraph_list<-xml_find_all(doc, xpath) %>%
     xml_text()
   #paragraph_list_length<-length(paragraph_list)
+  leavelegislator<-customgrep(paragraph_list,"請假委員",value=TRUE)
+  if (identical(leavelegislator,as.character())) {
+    leavelegislator<-data.frame()
+  } else {
+    leavelegislator<-leavelegislator %>%
+      strsplit('請假委員　') %>%
+      unlist() %>%
+      strsplit('　　') %>%
+      unlist() %>%
+      customgrep("[\u4e00-\u9fa5A-aZ-z]",value=TRUE)
+    leavelegislator<-data.frame("term"=term,"period"=period,"temp_meeting_no"=temp_meeting_no,"meetingno"=meetingno,"legislator_name"=leavelegislator,"at_type"="leave")
+  }
+  
+  attendlegislator<-customgrep(paragraph_list,"出席委員",value=TRUE) %>%
+    strsplit('出席委員　') %>%
+    unlist() %>%
+    strsplit('　　') %>%
+    unlist() %>%
+    customgrep("[\u4e00-\u9fa5]",value=TRUE)
+  attendlegislator<-data.frame("term"=term,"period"=period,"temp_meeting_no"=temp_meeting_no,"meetingno"=meetingno,"legislator_name"=attendlegislator,"at_type"="attend")
+
+  leave_and_attend_legislators<-bind_rows(leave_and_attend_legislators,leavelegislator,attendlegislator)
+  #message(leavelegislator,"\n\r",attendegislator,"\n\r")
+  #attendegislator
+  next()
   
   #特別處理
   ##立法院第6屆第2會期第19次會議議事錄
