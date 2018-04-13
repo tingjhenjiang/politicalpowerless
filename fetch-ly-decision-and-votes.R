@@ -41,12 +41,12 @@ replace_troublesome_names<-function(df) {
 #mutate(leave_and_attend_legislators,chichrcount=stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}") ) %>% View()
 filter(leave_and_attend_legislators,stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}")>3 ) %>%
   filter(!is.element(legislator_name, c("高金素梅","周陳秀霞","張廖萬堅","陳賴素美","鄭天財Sra．Kacaw","簡東明Uliw．Qaljupayare","廖國棟Sufin．Siluko","鄭天財Sra．Kacaw","高潞．以用．巴魕剌Kawlo．Iyun．Pacidal","Kolas Yotaka")) | 
-           customgrepl(legislator_name,"　")) %>%
+           customgrepl(legislator_name,"(　|　|　| | )")) %>%
   View()
 #  write_csv(path="leave_and_attend_legislators.csv")
 #第九會期從377開始 //problem:108
 leave_and_attend_legislators<-data.frame()
-for (urln in 1:length(urlarr)) {
+for (urln in 450:451) { #length(urlarr)
   url<-urlarr[urln]
   if (is.na(url) | urln==478) {
     next
@@ -179,7 +179,7 @@ for (urln in 1:length(urlarr)) {
     customgsub("(Siluko){1} {0,1}　{1} {0,1}","Siluko　　") %>%
     customgsub("(Kacaw){1} {0,1}　{1} {0,1}","Kacaw　　") %>%
     customgsub("(Yotaka){1} {0,1}　{1} {0,1}","Yotaka　　") %>%
-    customgsub("(Pacidal){1} {0,1}　{1} {0,1}","Pacidal　　")
+    customgsub("(Pacidal|Pacida){1} {0,1}　{1} {0,1}","Pacidal　　")
   replace_leave_and_attend_legislator_pattern<-filter(error_leave_and_attend_legislators,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no))
   if (nrow(replace_leave_and_attend_legislator_pattern)>0) {
     check_leave_and_attend_legislator_chr_paragraph<- stri_replace_all_fixed(check_leave_and_attend_legislator_chr_paragraph,replace_leave_and_attend_legislator_pattern$legislator_name, replace_leave_and_attend_legislator_pattern$replace_with,vectorize_all=FALSE)
@@ -194,7 +194,9 @@ for (urln in 1:length(urlarr)) {
       unlist() %>%
       strsplit('　　') %>%
       unlist() %>%
-      customgrep("[\u4e00-\u9fa5A-aZ-z]",value=TRUE)
+      customgrep("[\u4e00-\u9fa5A-aZ-z]",value=TRUE) %>%
+      stri_replace_all_fixed("　","") %>%
+      trimws()
     leavelegislator<-data.frame(
       "legislator_name"=leavelegislator,
       "term"=term,
@@ -205,14 +207,17 @@ for (urln in 1:length(urlarr)) {
       "urln"=urln,
       "date"=date
     )
-  }
+  } %>%
+    replace_troublesome_names()
   
   attendlegislator<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"出席委員",value=TRUE) %>%
     strsplit('出席委員　') %>%
     unlist() %>%
     strsplit('　　') %>%
     unlist() %>%
-    customgrep("[\u4e00-\u9fa5]",value=TRUE)
+    customgrep("[\u4e00-\u9fa5]",value=TRUE) %>%
+    stri_replace_all_fixed("　","") %>%
+    trimws()
   attendlegislator<-data.frame(
     "legislator_name"=attendlegislator,
     "term"=term,
@@ -222,12 +227,13 @@ for (urln in 1:length(urlarr)) {
     "url"=url,
     "urln"=urln,
     "date"=date
-  )
+  ) %>%
+    replace_troublesome_names()
   
   leave_and_attend_legislators<-bind_rows(leave_and_attend_legislators,leavelegislator,attendlegislator)
   #message(leavelegislator,"\n\r",attendegislator,"\n\r")
   #attendegislator
-  next()
+  #next()
   
   #特別處理
   ##立法院第6屆第2會期第19次會議議事錄
@@ -409,13 +415,13 @@ for (urln in 1:length(urlarr)) {
     modify_wrong_record_target<-filter(error_vote_record_from_name,term==term,period==period,meetingno==meetingno,temp_meeting_no==temp_meeting_no,billn==billn)
     nrow_modify_wrong_record_target<-nrow(modify_wrong_record_target)
     if (nrow_modify_wrong_record_target>0) {
-      #for (modify_wrong_record_target_i in 1:nrow_modify_wrong_record_target) {
-      #message("urln=",urln," | 4 除錯：原議事錄投票區塊第",billn,"案有文字結構錯誤處 modify ",modify_wrong_record_target_i," times. ", meetingname, url)
-      #modify_wrong_record_target_wrongname<-modify_wrong_record_target$legislator_name[modify_wrong_record_target_i]
-      #modify_wrong_record_target_correctname<-modify_wrong_record_target$correct_legislator_name[modify_wrong_record_target_i]
-      #paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],modify_wrong_record_target_wrongname,modify_wrong_record_target_correctname)
-      #}
-      message("urln=",urln," | 4 除錯：原議事錄投票區塊第",billn,"案有文字結構錯誤處 modify ",modify_wrong_record_target_i," times. ", meetingname, url)
+      ### for (modify_wrong_record_target_i in 1:nrow_modify_wrong_record_target) {
+      ### message("urln=",urln," | 4 除錯：原議事錄投票區塊第",billn,"案有文字結構錯誤處 modify ",modify_wrong_record_target_i," times. ", meetingname, url)
+      ### modify_wrong_record_target_wrongname<-modify_wrong_record_target$legislator_name[modify_wrong_record_target_i]
+      ### modify_wrong_record_target_correctname<-modify_wrong_record_target$correct_legislator_name[modify_wrong_record_target_i]
+      ### paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],modify_wrong_record_target_wrongname,modify_wrong_record_target_correctname)
+      ### }
+      message("urln=",urln," | 4 除錯：原議事錄投票區塊第",billn,"案有文字結構錯誤處 modify ",nrow_modify_wrong_record_target," times. ", meetingname, url)
       paragraph_list[scan_area]<-stri_replace_all_fixed(paragraph_list[scan_area],modify_wrong_record_target$legislator_name,modify_wrong_record_target$correct_legislator_name, vectorize_all=FALSE)
     }
     paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],"(Kolas Yotaka).+?([\u4e00-\u9fa5]{3})","\\1　　\\2")
@@ -433,20 +439,26 @@ for (urln in 1:length(urlarr)) {
       giveup_voter_area<-seq(from=giveup_voter_area_start,to=giveup_voter_area_end)
       message("urln=",urln," | 5 有棄權者 ", meetingname, url)
       exact_giveup_voter<-paragraph_list[giveup_voter_area] %>%
-        strsplit('　　') %>% unlist() %>% trim() %>%
+        strsplit('　　') %>% unlist() %>% trimws() %>%
         customgsub("[\r\n]+","") %>%
-        customgrep("[\u4e00-\u9fa5]",value=TRUE)
+        customgrep("[\u4e00-\u9fa5]",value=TRUE) %>%
+        stri_replace_all_fixed("　","") %>%
+        trimws()
     }
     message("urln=",urln," | 6 抓取同意者及反對者（第", billn, "案）", meetingname, url)
     exact_agree_voter<-paragraph_list[agree_voter_area] %>%
-      strsplit('　　') %>% unlist() %>% trim() %>%
+      strsplit('　　') %>% unlist() %>% trimws() %>%
       customgsub("[\r\n]+","") %>%
-      customgrep("[\u4e00-\u9fa5]",value=TRUE)
+      customgrep("[\u4e00-\u9fa5]",value=TRUE) %>%
+      stri_replace_all_fixed("　","") %>%
+      trimws()
     
     exact_dissent_voter<-paragraph_list[dissent_voter_area] %>%
-      strsplit('　　') %>% unlist() %>% trim() %>%
+      strsplit('　　') %>% unlist() %>% trimws() %>%
       customgsub("[\r\n]+","") %>%
-      customgrep("[\u4e00-\u9fa5]",value=TRUE)
+      customgrep("[\u4e00-\u9fa5]",value=TRUE) %>%
+      stri_replace_all_fixed("　","") %>%
+      trimws()
     #exact_giveup_voter<-intersect(giveup_voters,checkarea) #沒有交集會傳回integer(0)
     #exact_dissent_voter<-dissent_voters[n]
     #exact_giveup_voter<-ifelse(is.integer(exact_giveup_voter),
@@ -455,27 +467,30 @@ for (urln in 1:length(urlarr)) {
     #)
     billresult<-ifelse(length(exact_agree_voter)>length(exact_dissent_voter),"Passed","NotPassed")
     exact_giveup_voter_df<-if (length(exact_giveup_voter)==0) {
-      data.frame()
-    } else {
-      cbind("votedecision"="棄權",
-            "legislator_name"=exact_giveup_voter,
-            "term"=term,
-            "period"=period,
-            "meetingno"=meetingno,
-            "temp_meeting_no"=temp_meeting_no,
-            "billn"=billn,
-            "billcontent"=bill_list[billn],
-            "billresult"=billresult,
-            "url"=url,
-            "urln"=urln,
-            "date"=date
-      )
-    } %>%
-      replace_troublesome_names()
+        data.frame()
+      } else {
+        data.frame("votedecision"="棄權",
+              "legislator_name"=exact_giveup_voter,
+              "term"=term,
+              "period"=period,
+              "meetingno"=meetingno,
+              "temp_meeting_no"=temp_meeting_no,
+              "billn"=billn,
+              "billcontent"=bill_list[billn],
+              "billresult"=billresult,
+              "url"=url,
+              "urln"=urln,
+              "date"=date
+        ) %>%
+          mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer)) %>%
+          mutate_at(c("legislator_name","billcontent","url","date"),funs(as.character)) %>%
+          replace_troublesome_names()
+      }
+    
     exact_agree_voter_df<-if (length(exact_agree_voter)==0) {
       data.frame()
     } else {
-      cbind("votedecision"="贊成",
+      data.frame("votedecision"="贊成",
             "legislator_name"=exact_agree_voter,
             "term"=term,
             "period"=period,
@@ -487,13 +502,15 @@ for (urln in 1:length(urlarr)) {
             "url"=url,
             "urln"=urln,
             "date"=date
-      )
-    } %>%
-      replace_troublesome_names()
+      )  %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer)) %>%
+        mutate_at(c("legislator_name","billcontent","url","date"),funs(as.character)) %>%
+        replace_troublesome_names()
+    }
     exact_dissent_voter_df<-if (length(exact_dissent_voter)==0) {
       data.frame()
     } else {
-      cbind("votedecision"="反對",
+      data.frame("votedecision"="反對",
             "legislator_name"=exact_dissent_voter,
             "term"=term,
             "period"=period,
@@ -505,36 +522,48 @@ for (urln in 1:length(urlarr)) {
             "url"=url,
             "urln"=urln,
             "date"=date
-      )
-    } %>%
-      replace_troublesome_names()
+      ) %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer)) %>%
+        mutate_at(c("legislator_name","billcontent","url","date"),funs(as.character)) %>%
+        replace_troublesome_names()
+    }
+    
     #exact_agree_voter<-paragraph_list[from] %>%
     #  strsplit('　　') %>% getElement(1)
     #exact_dissent_voter<-paragraph_list[exact_dissent_voter] %>%
     #  strsplit('　　') %>% getElement(1)
     attend_but_not_vote_df<-data.frame(
+      "term"=term,
+      "period"=period,
+      "meetingno"=meetingno,
+      "temp_meeting_no"=temp_meeting_no,
       "billn"=billn,
       "billcontent"=bill_list[billn],
       "billresult"=billresult
     ) %>%
-      bind_cols(attendlegislator) %>%
+      right_join(attendlegislator) %>%
       mutate("votedecision"="未投票") %>%
-      anti_join(exact_giveup_voter_df) %>%
-      anti_join(exact_agree_voter_df) %>%
-      anti_join(exact_dissent_voter_df)
-    leavelegislator_df<-if(nrow(leavelegislator_df)>0) {
+      anti_join(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+      anti_join(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+      anti_join(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name"))
+
+    leavelegislator_df<-if(nrow(leavelegislator)>0) {
       data.frame(
+        "term"=term,
+        "period"=period,
+        "meetingno"=meetingno,
+        "temp_meeting_no"=temp_meeting_no,
         "billn"=billn,
         "billcontent"=bill_list[billn],
         "billresult"=billresult
       ) %>%
-        bind_cols(leavelegislator) %>%
+        right_join(leavelegislator) %>%
         mutate("votedecision"="未出席") %>%
-        anti_join(exact_giveup_voter_df) %>%
-        anti_join(exact_agree_voter_df) %>%
-        anti_join(exact_dissent_voter_df)
+        anti_join(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+        anti_join(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+        anti_join(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name"))
     } else {
-      leavelegislator
+      data.frame()
     }
     myown_vote_record_df<-bind_rows(
       myown_vote_record_df,
@@ -544,6 +573,7 @@ for (urln in 1:length(urlarr)) {
       attend_but_not_vote_df,
       leavelegislator_df
     )
+
   }
   
   
