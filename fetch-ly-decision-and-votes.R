@@ -20,9 +20,12 @@ no_rollcall<-c()
 urlarr<-as.character(meetingdata$url)
 error_vote_record_from_name<-read_csv("error_vote_record_from_name.csv")
 myown_vote_record_df<-data.frame()
+
+#mutate(leave_and_attend_legislators,chichrcount=stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}") ) %>% View()
+mutate(leave_and_attend_legislators,chichrcount=stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]+") ) %>% filter(chichrcount>3) %>% View()
 #第九會期從377開始 //problem:108
 leave_and_attend_legislators<-data.frame()
-for (urln in 468:length(urlarr)) {
+for (urln in 1:length(urlarr)) {
   url<-urlarr[urln]
   if (is.na(url) | urln==478) {
     next
@@ -160,7 +163,16 @@ for (urln in 468:length(urlarr)) {
       strsplit('　　') %>%
       unlist() %>%
       customgrep("[\u4e00-\u9fa5A-aZ-z]",value=TRUE)
-    leavelegislator<-data.frame("term"=term,"period"=period,"temp_meeting_no"=temp_meeting_no,"meetingno"=meetingno,"legislator_name"=leavelegislator,"at_type"="leave")
+    leavelegislator<-data.frame(
+      "legislator_name"=leavelegislator,
+      "term"=term,
+      "period"=period,
+      "temp_meeting_no"=temp_meeting_no,
+      "meetingno"=meetingno,
+      "url"=url,
+      "urln"=urln,
+      "date"=date
+    )
   }
   
   attendlegislator<-customgrep(paragraph_list,"出席委員",value=TRUE) %>%
@@ -169,8 +181,17 @@ for (urln in 468:length(urlarr)) {
     strsplit('　　') %>%
     unlist() %>%
     customgrep("[\u4e00-\u9fa5]",value=TRUE)
-  attendlegislator<-data.frame("term"=term,"period"=period,"temp_meeting_no"=temp_meeting_no,"meetingno"=meetingno,"legislator_name"=attendlegislator,"at_type"="attend")
-
+  attendlegislator<-data.frame(
+    "legislator_name"=attendlegislator,
+    "term"=term,
+    "period"=period,
+    "temp_meeting_no"=temp_meeting_no,
+    "meetingno"=meetingno,
+    "url"=url,
+    "urln"=urln,
+    "date"=date
+  )
+  
   leave_and_attend_legislators<-bind_rows(leave_and_attend_legislators,leavelegislator,attendlegislator)
   #message(leavelegislator,"\n\r",attendegislator,"\n\r")
   #attendegislator
@@ -453,11 +474,37 @@ for (urln in 468:length(urlarr)) {
     #  strsplit('　　') %>% getElement(1)
     #exact_dissent_voter<-paragraph_list[exact_dissent_voter] %>%
     #  strsplit('　　') %>% getElement(1)
-    myown_vote_record_df<-rbind(
+    attend_but_not_vote_df<-data.frame(
+      "billn"=billn,
+      "billcontent"=bill_list[billn],
+      "billresult"=billresult
+    ) %>%
+      bind_cols(attendlegislator) %>%
+      mutate("votedecision"="未投票") %>%
+      anti_join(exact_giveup_voter_df) %>%
+      anti_join(exact_agree_voter_df) %>%
+      anti_join(exact_dissent_voter_df)
+    leavelegislator_df<-if(nrow(leavelegislator_df)>0) {
+      data.frame(
+        "billn"=billn,
+        "billcontent"=bill_list[billn],
+        "billresult"=billresult
+      ) %>%
+        bind_cols(leavelegislator) %>%
+        mutate("votedecision"="未出席") %>%
+        anti_join(exact_giveup_voter_df) %>%
+        anti_join(exact_agree_voter_df) %>%
+        anti_join(exact_dissent_voter_df)
+    } else {
+      leavelegislator
+    }
+    myown_vote_record_df<-bind_rows(
       myown_vote_record_df,
       exact_agree_voter_df,
       exact_dissent_voter_df,
-      exact_giveup_voter_df
+      exact_giveup_voter_df,
+      attend_but_not_vote_df,
+      leavelegislator_df
     )
   }
   
