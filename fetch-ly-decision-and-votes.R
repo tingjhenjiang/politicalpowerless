@@ -22,7 +22,10 @@ error_vote_record_from_name<-read_csv("error_vote_record_from_name.csv")
 myown_vote_record_df<-data.frame()
 
 #mutate(leave_and_attend_legislators,chichrcount=stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}") ) %>% View()
-mutate(leave_and_attend_legislators,chichrcount=stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]+") ) %>% filter(chichrcount>3) %>% View()
+mutate(leave_and_attend_legislators,chichrcount=stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}") ) %>%
+  filter(chichrcount>3) %>%
+  filter(!is.element(legislator_name, c("高金素梅","周陳秀霞","張廖萬堅","陳賴素美","鄭天財Sra．Kacaw","簡東明Uliw．Qaljupayare","廖國棟Sufin．Siluko","鄭天財Sra．Kacaw","Kolas Yotaka"))) %>%
+  View()
 #第九會期從377開始 //problem:108
 leave_and_attend_legislators<-data.frame()
 for (urln in 1:length(urlarr)) {
@@ -153,7 +156,13 @@ for (urln in 1:length(urlarr)) {
   paragraph_list<-xml_find_all(doc, xpath) %>%
     xml_text()
   #paragraph_list_length<-length(paragraph_list)
-  leavelegislator<-customgrep(paragraph_list,"請假委員",value=TRUE)
+  check_leave_and_attend_legislator_chr_paragraph<-paragraph_list[1:15] %>%
+    customgsub("(Siluko){1} {0,1}　{1} {0,1}","Siluko　　") %>%
+    customgsub("(Kacaw){1} {0,1}　{1} {0,1}","Kacaw　　") %>%
+    customgsub("(Yotaka){1} {0,1}　{1} {0,1}","Yotaka　　") %>%
+    customgsub("(Pacidal){1} {0,1}　{1} {0,1}","Pacidal　　")
+    
+  leavelegislator<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"請假委員",value=TRUE)
   if (identical(leavelegislator,as.character())) {
     leavelegislator<-data.frame()
   } else {
@@ -175,7 +184,7 @@ for (urln in 1:length(urlarr)) {
     )
   }
   
-  attendlegislator<-customgrep(paragraph_list,"出席委員",value=TRUE) %>%
+  attendlegislator<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"出席委員",value=TRUE) %>%
     strsplit('出席委員　') %>%
     unlist() %>%
     strsplit('　　') %>%
