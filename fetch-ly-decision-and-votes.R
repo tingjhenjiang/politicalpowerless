@@ -37,6 +37,13 @@ replace_troublesome_names<-function(df) {
     mutate_cond(term==9 & customgrepl(legislator_name,"陳秀霞"),legislator_name="周陳秀霞")
   return(df)
 }
+anti_join_with_nrow_zero<-function(X,Y,by=c()) {
+  if (nrow(Y)>0) {
+    return(anti_join(X,Y,by))
+  } else {
+    return(X)
+  }
+}
 
 #mutate(leave_and_attend_legislators,chichrcount=stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}") ) %>% View()
 filter(leave_and_attend_legislators,stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}")>3 ) %>%
@@ -45,8 +52,9 @@ filter(leave_and_attend_legislators,stri_count(legislator_name,regex="[\u4e00-\u
   View()
 #  write_csv(path="leave_and_attend_legislators.csv")
 #第九會期從377開始 //problem:108
+myown_vote_record_df<-data.frame()
 leave_and_attend_legislators<-data.frame()
-for (urln in 450:451) { #length(urlarr)
+for (urln in 1:length(urlarr)) { #length(urlarr)
   url<-urlarr[urln]
   if (is.na(url) | urln==478) {
     next
@@ -543,9 +551,9 @@ for (urln in 450:451) { #length(urlarr)
     ) %>%
       right_join(attendlegislator) %>%
       mutate("votedecision"="未投票") %>%
-      anti_join(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-      anti_join(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-      anti_join(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name"))
+      anti_join_with_nrow_zero(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+      anti_join_with_nrow_zero(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+      anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name"))
 
     leavelegislator_df<-if(nrow(leavelegislator)>0) {
       data.frame(
@@ -559,9 +567,9 @@ for (urln in 450:451) { #length(urlarr)
       ) %>%
         right_join(leavelegislator) %>%
         mutate("votedecision"="未出席") %>%
-        anti_join(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-        anti_join(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-        anti_join(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name"))
+        anti_join_with_nrow_zero(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+        anti_join_with_nrow_zero(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+        anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name"))
     } else {
       data.frame()
     }
@@ -579,7 +587,7 @@ for (urln in 450:451) { #length(urlarr)
   
 }
 
-
+myown_vote_record_df<-filter(myown_vote_record_df,!is.na(legislator_name))
 #save(myown_vote_record_df,file="myown_vote_record_df.RData")
 
 
