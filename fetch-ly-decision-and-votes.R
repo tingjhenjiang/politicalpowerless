@@ -420,7 +420,7 @@ for (urln in 1:length(urlarr)) { #length(urlarr)
     #modify_wrong_record_target<-modify_wrong_record_target[modify_wrong_record_target$meetingno==meetingno,]
     #modify_wrong_record_target<-modify_wrong_record_target[modify_wrong_record_target$temp_meeting_no==temp_meeting_no,]
     #modify_wrong_record_target<-modify_wrong_record_target[modify_wrong_record_target$billn==billn,]
-    modify_wrong_record_target<-filter(error_vote_record_from_name,term==term,period==period,meetingno==meetingno,temp_meeting_no==temp_meeting_no,billn==billn)
+    modify_wrong_record_target<-filter(error_vote_record_from_name,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no),billn==UQ(billn))
     nrow_modify_wrong_record_target<-nrow(modify_wrong_record_target)
     if (nrow_modify_wrong_record_target>0) {
       ### for (modify_wrong_record_target_i in 1:nrow_modify_wrong_record_target) {
