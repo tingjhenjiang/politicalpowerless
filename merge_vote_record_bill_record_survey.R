@@ -246,7 +246,7 @@ mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %
   #==opiniondirectionfrombill & !(opiniondirectionfrombill %in% c('b','x')), respondopinion=2
   # 反對核電怎麼編碼？
   mutate_cond(opiniondirectionfromconstituent=='x' | opiniondirectionfrombill=='x', respondopinion=NA) %>%
-  mutate_cond(votedecision=='棄權', respondopinion=1) %>%
+  mutate_cond(votedecision %in% c("棄權","未投票","未出席"), respondopinion=1, opiniondirectionfromconstituent='giveup') %>%
   mutate_cond(opiniondirectionfromconstituent==opiniondirectionfromlegislator, respondopinion=2) %>%
   mutate_cond(opiniondirectionfromconstituent!=opiniondirectionfromlegislator, respondopinion=0) %>%
   #mutate_at("respondopinion",funs(recode(respondopinion)),
@@ -809,13 +809,13 @@ glmdata <- testdf %>%
   #mutate("same_direction_opinion"=n()) %>%
   #ungroup() %>%
   #name,billid_myown,votedecision,term,SURVEY,variable_on_q,SURVEYQUESTIONID,SURVEYANSWERVALUE,respondopinion
-  group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirectionfromlegislator,party) %>%
-  mutate("same_opinion_from_same_party"=n()) %>%
-  ungroup() %>%
-  group_by(billid_myown,variable_on_q,value_on_q_variable,party) %>%
-  mutate("all_opinion_from_same_party"=n()) %>%
-  ungroup() %>%
-  mutate("opinion_pressure_from_party"=same_opinion_from_same_party/all_opinion_from_same_party) %>%
+  #group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirectionfromlegislator,party) %>%
+  #mutate("same_opinion_from_same_party"=n()) %>%
+  #ungroup() %>%
+  #group_by(billid_myown,variable_on_q,value_on_q_variable,party) %>%
+  #mutate("all_opinion_from_same_party"=n()) %>%
+  #ungroup() %>%
+  #mutate("opinion_pressure_from_party"=same_opinion_from_same_party/all_opinion_from_same_party) %>%
   group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirectionfromconstituent) %>%
   mutate("same_opiniondirection_from_constituent_by_nation"=n()) %>%
   ungroup() %>%
@@ -823,7 +823,7 @@ glmdata <- testdf %>%
   mutate("all_opiniondirection_from_constituent_by_nation"=n()) %>%
   ungroup() %>%
   mutate("opinion_pressure_from_constituent_by_nation"=same_opiniondirection_from_constituent_by_nation/all_opiniondirection_from_constituent_by_nation) %>%
-  filter(value_on_q_variable %in% c("2016citizen@d5a","2016citizen@d6a","2016citizen@d6b","2016citizen@d6d","2016citizen@d6g","2016citizen@d6h")) #%>%   #忽略預算支出題組
+  filter(!(value_on_q_variable %in% c("2016citizen@d5a","2016citizen@d6a","2016citizen@d6b","2016citizen@d6d","2016citizen@d6g","2016citizen@d6h"))) #%>%   #忽略預算支出題組
   #filter(issue_field1=='公民與政治權' | issue_field2=='公民與政治權')
   #scale()
 #group_by(billid_myown,variable_on_q,respondopinion) %>%
@@ -897,13 +897,13 @@ contrasts(glmdata$myown_pol_efficacy)<-contr.treatment(5, base=5)   #以contrast
 
 glmdata$percent_of_same_votes_from_same_party<-scale(glmdata$percent_of_same_votes_from_same_party)
 glmdata$myown_family_income<-scale(glmdata$myown_family_income)
-
+glmdata$percent_of_same_votes_from_same_party<-glmdata$percent_of_same_votes_from_same_party/100
 #累積迴歸
 library(ordinal)
-model <- clm(respondopinion~(opinion_pressure_from_party),
+model <- clm(respondopinion~(vote_along_with_majority_in_party)+opinion_pressure_from_constituent_by_nation,
              data=glmdata)
 summary(model)
-
+#glmdata$vote_along_with_majority_in_party
 glmdata$percent_of_same_votes_from_same_party %>% scale() %>% table()
 
 #決策樹
@@ -924,7 +924,7 @@ prp(cart.model,         # 模型
 
 #累積迴歸
 require(MASS)
-2## fit ordered logit model and store results 'm'
+## fit ordered logit model and store results 'm'
 model <- polr(respondopinion ~ myown_family_income, data = glmdata, Hess=TRUE)
 ## view a summary of the model
 summary(model)
@@ -960,21 +960,15 @@ distinct(legislators_with_election, term, name) %>% View()
 filter(mergedf_votes_bills_election_surveyanswer, customgrepl(name, "高潞")) %>%
   distinct(name)
 
+##############################################################################
+# 第O部份：產出報告
+##############################################################################
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+library(rmarkdown)
+render(input='analysis_result.Rmd',output_dir=getwd(),encoding="UTF-8")
+getwd()
 
 
 

@@ -1,8 +1,11 @@
 ---
-title: "thesis"
+title: "Research Analysis and Result"
+author:
+- name: 江廷振
+  affiliation: 國立臺灣大學法律學系碩士班
 output:
   html_document:
-    df_print: paged
+    keep_md: yes
   word_document: default
 ---
 
@@ -10,37 +13,71 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+```{r}
+Sys.setlocale(category = "LC_ALL", locale = "cht")
+print("你")
+```
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+## Test Source
+It is a test
+
+## 資料來源及處理
+
+首先利用立法院議事暨公報管理系統 <https://lci.ly.gov.tw/LyLCEW/lcivAgendarecMore.action> 檢索立法院院會的議事錄網址，利用R軟體爬蟲取得各個議事錄的HTML原始碼，接著將議事錄中文件結尾處的記名表決結果名單內容結構化處理，並透過修正議事錄中出現的一些不規律的文字表述結構、比對議事錄內容中出現記名表決關鍵字（以正規表達式搜尋）以及事後檢查檢核，形成一個包含有立法院屆次、會期、會議次、臨時會次、案由、投票表決議案編號、概略案由、立法委員姓名與投票決定（包含贊成、反對、棄權、未出席、未投票）的立法院表決紀錄資料集（原本本研究要利用g0v的「立委投票指南網站」（<https://vote.ly.g0v.tw/>）的資料集，但後來發現有錯誤，於是僅部分參考其公開的程式碼中的演算法與靈感，並修正其錯誤）。接著與立法院開放資料服務平台提供的歷屆委員資料 <http://data.ly.gov.tw/listcatelog.action?catCd=2> －－包含屆別、姓名、性別、黨籍、黨團、選區名稱、學經歷－－等屬性的資料集串連以增加立委個人基本資料的欄位。
+
+接著，本研究透過向SRDA學術調查研究資料庫<https://srda.sinica.edu.tw/>申請臺灣社會變遷基本調查「2016第七期第二次：公民與國家組」、「2010第六期第一次：環境組」、「2010第六期第一次：綜合組」的限制版資料，作為民意資料，同時將各問卷以「2016第七期第二次：公民與國家組」的過錄編碼簿標準合併。限制版的資料與一般版不同處在於包含有受訪對象的戶籍地村里層級資料，藉此可以與準確地與選區資料合併。研究上選擇這三組調查樣本，第一是因為這三組資料均同時含有基本資料（人口變項）、政策議題調查以及政治參與的資料，第二是因為這三組資料的政策意向問題較多涵蓋層面較廣而全面（2010年兩組樣本的政策意向問題合併後共有101題、2016公民與國家組的政策意向約共有76題），能夠貼近人們的政策偏好不僅限單一面向的情形。
+
+在民意資料中：
+
+* 政黨傾向：2016公民與國家組的臺灣社會變遷基本調查資料集中，首先依據「請問在這次區域立委選舉,您投給哪一個政黨的候選人?」以及「請問在這次區域立委選舉,您投給哪一個政黨的候選人?(90)忘記或不知道政黨,請記錄候選人姓名」等題項決定有關選民投票支持的區域立法委員候選人黨籍；接著進行檢誤，如果經檢誤發現受訪對象回答的政黨在受訪對象的戶籍地（zip欄位）並未派出候選人（例如大同區在2016年並無國民黨候選人參選，但戶籍位於該區的受訪者回答投票給國民黨候選人）參選時，則與「忘記了、不知道」、「跳答」、「拒答」、「遺漏值」等選項一併視為遺漏值。接著透過「請問您投票給哪一組候選人?」、「請問在這次區域立委選舉,您投給哪一個政黨的候選人?」、「下面我們列出這次參加不分區立委選舉的政黨,請問您把票投給哪一個政黨?」、「國內的政黨都有他們的支持者,請問您是哪一個政黨的支持者?」、「一般而言,請問您會比較偏向哪一個政黨?」等題目所回答的答案計算政黨傾向，每一題計算一分，分為泛藍傾向（較支持國民黨、親民黨、新黨等政黨及其候選人）得分以及泛綠傾向（較支持民進黨、臺灣團結聯盟、時代力量與綠黨等政黨及其候選人）得分。最後以R語言軟體mice套件中的隨機森林（random forests）演算法依據「郵遞區號」、「泛藍傾向得分」、「泛綠傾向得分」等自變項進行機器學習的遺漏值填補，填補後並進行觀察，如果泛藍或泛綠傾向大於3分卻填補為非自身傾向的候選人，或是填補的值仍然沒有該政黨的候選人參選時，將填補的答案重新處理為遺漏值後再一次重新填補，以迴圈方式反覆進行。在2016公民與國家組1966個觀察值中共有656個遺漏值，填補至剩下17個遺漏值。2010綜合的調查資料也用同樣的方式處理，在1967個觀察值中將952個遺漏值填補到剩下39個遺漏值。
+* 族群（認同）：三個問卷的問題皆有共同的「父母親是哪裡人」的選擇題及開放填充題，我將此題目依據答案重新編碼為台灣閩南人、台灣客家人、大陸各省市、台灣原住民、原國籍為東南亞國家的新移民、原國籍為東南亞以外國家的新移民、前述分類以外的臺灣人（例如有部分受訪者的父母親是「外省人第二代」，而在開放填充題中回答臺灣人）。
+* 教育程度：則以受教育年數為準（2016的問題為「從國小一年級算起,請問您總共受幾年的學校教育?」，其優點為可轉換為連續變項較為準確且反應人力資本的投資程度），2010環境組與綜合組則依據無/不識字0、自修(識字/私塾)0、小學6、國(初)中9、初職9、高中12、綜合高中12、高職12、士官學校14、五專14、二專14、三專15、軍警校專修班13、軍警校專科班14、空中行(商)專15、空中大學16、軍警官學校/大學16、技術學院,科大16、大學16、碩士19、博士23重新編碼為受教育年數。
+* 所得：資料主要依據的問卷問題為「包括各種收入來源,您全家人的所有收入,每個月大約多少元?」，原調查得到的資料為根據每組不同所得範圍的區間，此處重新根據各組組中點的編碼為收入，最低一組（無收入）為0，收入最高一組（100萬元以上）編碼為150,000。
+* 職業：還沒轉
+* 社經地位：因素分析（Factor Analysis），透過收入、職業、受教育年數、轉換出的職業聲望、轉軸出社經地位，還沒轉
+* 政治效能感（political efficacy）：主要依據題目為「請問您同不同意以下的說法?在台灣,一般民眾影響環保政策的機會非常有限」（2010環境）、「請問您贊不贊成一般公民也可以影響政府的決策的說法?」（2010綜合）、「一般公民對政治都有相當的影響力」（2016公民）作為標準。這部分比較偏向的的是外部效能感。另外以「請問您覺得自己平日的環保行為,對於改善台灣的環境品質有沒有用?」（2010環境）、「請問您贊不贊成只要經常提出意見,像我們這樣的人也能影響社會的發展的說法?」（2010綜合）、「像您這樣的人,對政府的作為沒有任何影響力」（2016公民）作為內在效能感指標。
+* 相對剝奪感／評價：還沒編。您覺得政府現行的環境保護政策符不符合公平正義的原則?
+* 政治參與：由於三份問卷的政治參與題目不同，經檢視分析後，為保留最大資訊量，重新構建出幾個概念變數：
+    + 是否投票：包含2010綜合的「前年立法委員選舉(民國97年1月)的時候,請問您有沒有去投票?」、2010環境的「請問您上一次總統選舉(97年3月)有沒有去投票?」、2016公民的「在這一次(一月十六日)舉行的總統大選中,請問您有沒有去投票?」
+    + 是否曾經透過接觸政治人物如民意代表或政府官員提出訴求，或者連署及請願：包含2010綜合的「在過去的一年,您有沒有向政府官員,民意代表或政黨反映意見提出要求?」、2010環境的「在過去五年間,請問您有沒有做過以下的事情:連署一份有關環保議題的請願書」、2016公民的「您過去有沒有做過或將來會不會做這些事?a請願(簽名)連署／e找政治人物或公職人員表達您的看法」。
+    + 是否曾經參與集會遊行抗議：包含2010綜合「在過去的一年,您有沒有參加遊行,示威,靜坐或其他自力救濟方式?」、2010環境「在過去五年間,請問您有沒有做過以下的事情:參加有關環保議題的抗議行動或遊行」、2016公民的「您過去有沒有做過或將來會不會做這些事?c 參加示威遊行／b 參加抗議不公不義的活動」
+
+myown_pol_efficacy
+myown_approach_to_politician_or_petition
+myown_protest
+
+myown_working_status
+total_votes_from_same_party
+same_votes_from_same_party
+percent_of_same_votes_from_same_party
+vote_along_with_majority_in_party
+issue_field1
+opiniondirectionfromconstituent
+opiniondirectionfrombill
+opiniondirectionfromlegislator
+respondopinion
+same_opiniondirection_from_constituent_by_nation
+all_opiniondirection_from_constituent_by_nation
+opinion_pressure_from_constituent_by_nation
+最後，中央選舉委員會在政府資料開放平台釋出選舉資料庫 <https://data.gov.tw/dataset/13119>，
+
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r}
-load(file="thesis_output.RData")
-getwd()
-#nrow(glmdata)
-#setwd("~/foo/")
-#getwd()
-```
+```{r echo=FALSE}
 
-```{r pander}
-library(stargazer)
-#summary(model)
-#https://cran.r-project.org/web/packages/stargazer/vignettes/stargazer.pdf
-stargazer(model,type="html",dep.var.labels=c("議員是否回應民意"))
 ```
 
 ## Including Plots
 
 You can also embed plots, for example:
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r echo=TRUE}
+getwd()
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## sessionInfo()
 
-#render("result_analysis.doc")
-render("analysis_result.Rmd")
-
+```{r, echo=FALSE}
+sessionInfo()
+```
