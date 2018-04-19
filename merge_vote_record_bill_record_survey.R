@@ -151,7 +151,7 @@ partyseats <- data.frame(
   "term"=7,
   "party"=c("中國國民黨","民主進步黨","無黨團結聯盟","親民黨","無黨籍及未經政黨推薦"),                       
   "seats"=c(81,27,3,1,1),
-  "rulingparty"=c(1,0,0,0,0),
+  "rulingparty"=factor(c(1,0,0,0,0)),
   "seatsdifftorulingpart"=c(0,54,78,80,80)
   ) %>%
   bind_rows(
@@ -159,7 +159,7 @@ partyseats <- data.frame(
       "term"=9,
       "party"=c("中國國民黨","民主進步黨","時代力量","親民黨","無黨團結聯盟","無黨籍及未經政黨推薦"),
       "seats"=c(35,68,5,3,1,1),
-      "rulingparty"=c(0,1,0,0,0,0),
+      "rulingparty"=factor(c(0,1,0,0,0,0)),
       "seatsdifftorulingpart"=c(33,0,63,65,67,67)
       )
   ) 
@@ -397,63 +397,75 @@ legislators_with_election <- legislators_with_election[!is.na(legislators_with_e
          legislator_party=party.x,election_party=party.y,
          legislator_age=age
          )
-distinct(legislators_with_election,term,name,degree,experience,education) %>%
+legislators_additional_attr<-distinct(legislators_with_election,term,name,degree,experience,education) %>%
   mutate(legislator_eduyr=NA,legislator_occp=NA,legislator_ses=NA,legislator_ethnicity=NA) %>%
   mutate_at("legislator_occp",funs(as.character)) %>%
-  mutate_cond(customgrepl(education,"中學|高中"), legislator_eduyr=12) %>%
-  mutate_cond(customgrepl(education,"大專|大學|專科"), legislator_eduyr=16) %>%
-  mutate_cond(customgrepl(education,"碩士|研究所"), legislator_eduyr=19) %>%
-  mutate_cond(customgrepl(education,"博士"), legislator_eduyr=23) %>%
-  mutate_cond(customgrepl(name,"蔡煌瑯"), legislator_eduyr=12) %>%
-  mutate_cond(customgrepl(name,"王幸男"), legislator_eduyr=13) %>%
-  mutate_cond(customgrepl(name,"陳節如"), legislator_eduyr=16) %>%
-  mutate_cond(customgrepl(name,"王廷升|張顯耀"), experience=paste0(experience,"副教授 助理教授"), education="博士") %>%
-  mutate_cond(customgrepl(name,"王幸男|江玲君|吳清池|邱鏡淳|邱議瑩|林益世|林淑芬|余政道|呂學樟|翁重鈞|郭玟成|陳明文|陳杰|陳啟昱|陳瑩|馬文君|康世儒|黃昭順|楊瓊瓔|蔡煌瑯|鄭汝芬|鄭金玲|鄭麗文|劉銓忠|潘孟安|潘維剛|盧嘉辰"), experience=paste0(experience,"職業民意代表")) %>%
-  mutate_cond(customgrepl(name,"余天"), experience=paste0(experience,"藝人")) %>%
+  mutate_cond(customgrepl(name,"周陳秀霞"), legislator_eduyr=9) %>%
+  mutate_cond(customgrepl(name,"蔡煌瑯|劉銓忠"), legislator_eduyr=12) %>%
+  mutate_cond(customgrepl(name,"王幸男|蕭景田"), legislator_eduyr=13) %>%
+  mutate_cond(customgrepl(name,"陳節如|林岱樺|林淑芬|陳明文|馬文君|劉建國|賴坤成|康世儒"), legislator_eduyr=16) %>%
+  mutate_cond(customgrepl(name,"郭榮宗|許添財|黃仁杼|蔣乃辛|簡肇棟"), legislator_eduyr=19) %>%
+  mutate_cond(customgrepl(name,"彭紹瑾"), legislator_eduyr=23) %>%
+  mutate_cond(customgrepl(name,"王廷升|張顯耀|費鴻泰"), experience=paste0(experience,"副教授 助理教授"), education="博士") %>%
+  mutate_cond(customgrepl(name,"王幸男|江玲君|吳清池|邱鏡淳|邱議瑩|林益世|林淑芬|余政道|呂學樟|翁重鈞|郭玟成|陳明文|陳杰|陳啟昱|陳瑩|馬文君|康世儒|黃昭順|楊瓊瓔|蔡煌瑯|鄭汝芬|鄭金玲|鄭麗文|劉銓忠|潘孟安|潘維剛|盧嘉辰|蕭景田|羅明才|王定宇|何欣純|蘇震清|吳思瑤|吳琪銘|呂孫綾|李俊俋|李彥秀|李應元|周陳秀霞|林俊憲|林為洲|林德福|段宜康|徐榛蔚|陳超明|張宏陸|黃秀芳|許淑華|鄭麗君|蕭美琴|蘇治芬|蘇嘉全"), experience=paste0(experience,"職業民意代表")) %>%
+  mutate_cond(customgrepl(name,"余天|高金素梅"), experience=paste0(experience,"藝人")) %>%
   mutate_cond(customgrepl(name,"林滄敏"), experience=paste0(experience,"商店售貨")) %>%
-  mutate_cond(customgrepl(name,"柯建銘"), experience=paste0(experience,"醫師")) %>%
+  mutate_cond(customgrepl(name,"柯建銘|涂醒哲"), experience=paste0(experience,"醫師")) %>%
   mutate_cond(customgrepl(name,"孫大千"), experience=paste0(experience,"化工研究員")) %>%
   mutate_cond(customgrepl(name,"徐少萍"), experience=paste0(experience,"國中教師")) %>%
   mutate_cond(customgrepl(name,"劉盛良"), experience=paste0(experience,"高中教師")) %>%
   mutate_cond(customgrepl(name,"吳清池"), experience=paste0(experience,"固定攤販與市場售貨")) %>%
-  mutate_cond(customgrepl(name,"林炳坤|郭素春|張花冠"), experience=paste0(experience,"總經理")) %>%
-  mutate_cond(customgrepl(name,"徐耀昌|張慶忠"), experience=paste0(experience,"董事長")) %>%
-  mutate_cond(customgrepl(name,"涂醒哲"), experience=paste0(experience,"醫師")) %>%
-  mutate_cond(customgrepl(name,"李俊毅|黃偉哲"), experience=paste0(experience,"國會助理")) %>%
+  mutate_cond(customgrepl(name,"林炳坤|郭素春|張花冠|王金平|許毓仁"), experience=paste0(experience,"總經理 創業主管")) %>%
+  mutate_cond(customgrepl(name,"徐耀昌|張慶忠|薛凌|顏清標|余宛如|呂玉玲"), experience=paste0(experience,"董事長")) %>%
+  mutate_cond(customgrepl(name,"李俊毅|黃偉哲|鍾紹和|洪宗熠|蔡適應|鄭運鵬|鍾佳濱|顏寬恒|蔡其昌"), experience=paste0(experience,"國會助理")) %>%
   mutate_cond(customgrepl(name,"林岱樺|吳育昇|林鴻池|陳淑慧|葉宜津"), experience=paste0(experience,"訓練班教師")) %>%
-  mutate_cond(customgrepl(name,"林明溱|曾永權|黃義交|蔣乃辛|蔣孝嚴"), experience=paste0(experience,"公務員")) %>%
-  mutate_cond(customgrepl(name,"吳志揚"), experience=paste0(experience,"律師")) %>%
-  mutate_cond(customgrepl(name,"李復興|曹爾忠"), experience=paste0(experience,"課長 股長")) %>%
-  mutate_cond(customgrepl(name,"侯彩鳳"), experience=paste0(experience,"工程師")) %>%
+  mutate_cond(customgrepl(name,"吳志揚"), experience=paste0(customgsub(experience,"教授",""),"律師")) %>%
+  mutate_cond(customgrepl(name,"黃義交|蔣孝嚴|鄭天財"), experience=paste0(experience,"主管級公務員")) %>%
+  mutate_cond(customgrepl(name,"林明溱|蔣乃辛"), experience=paste0(experience,"事務工作公務員")) %>%
+  mutate_cond(customgrepl(name,"李復興|李嘉進|郭榮宗|曹爾忠|曾永權|陳雪生|陳歐珀|楊曜"), experience=paste0(experience,"科長 課長 股長 組長 辦公室監督")) %>%
+  mutate_cond(customgrepl(name,"侯彩鳳|許智傑|劉世芳"), experience=paste0(experience,"工程師")) %>%
   mutate_cond(customgrepl(name,"陳根德"), experience=paste0(experience,"漁民")) %>%
   mutate_cond(customgrepl(name,"傅崐萁"), experience=paste0(experience,"監察人")) %>%
   mutate_cond(customgrepl(name,"黃志雄"), experience=paste0(experience,"職業選手")) %>%
   mutate_cond(customgrepl(name,"廖婉汝"), experience=paste0(experience,"托兒所負責人")) %>%
-  mutate_cond(customgrepl(name,"田秋堇|陳節如|黃淑英"), experience=paste0(experience,"NGO理事長")) %>%
+  mutate_cond(customgrepl(name,"陳賴素美"), experience=paste0(experience,"地政士")) %>%
+  mutate_cond(customgrepl(name,"張麗善"), experience=paste0(experience,"護理師")) %>%
+  mutate_cond(customgrepl(name,"陳亭妃|陳學聖|張廖萬堅|趙天麟"), experience=paste0(experience,"記者")) %>%
+  mutate_cond(customgrepl(name,"田秋堇|陳節如|黃淑英|王育敏|王榮璋|吳玉琴|李麗芬|林麗蟬|陳曼麗|高潞|鍾孔炤"), experience=paste0(experience,"NGO理事長 NGO執行長 NGO秘書長 工會理事長")) %>%
+  mutate_cond(customgrepl(education,"中學|高中"), legislator_eduyr=12) %>%
+  mutate_cond(customgrepl(education,"大專|大學|專科"), legislator_eduyr=16) %>%
+  mutate_cond(customgrepl(education,"碩士|研究所"), legislator_eduyr=19) %>%
+  mutate_cond(customgrepl(education,"博士"), legislator_eduyr=23) %>%
   mutate_cond(customgrepl(experience,"漁民"), legislator_occp=620, legislator_ses=65.9) %>%
   mutate_cond(customgrepl(experience,"固定攤販與市場售貨"), legislator_occp=532, legislator_ses=67.3) %>%
   mutate_cond(customgrepl(experience,"商店售貨"), legislator_occp=531, legislator_ses=71.8) %>%
   mutate_cond(customgrepl(experience,"電器維修工"), legislator_occp=720, legislator_ses=74.2) %>%
-  mutate_cond(customgrepl(experience,"辦公室事務性工作|公所秘書"), legislator_occp=410, legislator_ses=76.5) %>%
+  mutate_cond(customgrepl(experience,"辦公室事務性工作|公所秘書|事務工作公務員"), legislator_occp=410, legislator_ses=76.5) %>%
   mutate_cond(customgrepl(experience,"職業選手"), legislator_occp=322, legislator_ses=77.5) %>%
   mutate_cond(customgrepl(experience,"補習班教師|訓練班教師"), legislator_occp=303, legislator_ses=78.4) %>%
+  mutate_cond(customgrepl(experience,"護理師"), legislator_occp=223, legislator_ses=79.1) %>%
   mutate_cond(customgrepl(experience,"記者|主播|採訪中心主任"), legislator_occp=212, legislator_ses=80.1) %>%
   mutate_cond(customgrepl(experience,"藝人|主唱"), legislator_occp=213, legislator_ses=80.0) %>%
-  mutate_cond(customgrepl(experience,"國會助理"), legislator_occp=311, legislator_ses=80.1) %>%
-  mutate_cond(customgrepl(experience,"高中教師|中學教師|國中教師|國小教師|國中小教師"), legislator_occp=202, legislator_ses=81.1) %>%
+  mutate_cond(customgrepl(experience,"國會助理|省議員助理"), legislator_occp=311, legislator_ses=80.1) %>%
+  mutate_cond(customgrepl(experience,"高中教師|中學教師|國中教師|國小教師|國中小教師|商工教師"), legislator_occp=202, legislator_ses=81.1) %>%
   mutate_cond(customgrepl(experience,"股長|襄理|課長|科長|副理"), legislator_occp=370, legislator_ses=81.9) %>%
   mutate_cond(customgrepl(experience,"專案經理"), legislator_occp=120, legislator_ses=81.4) %>%
   mutate_cond(customgrepl(experience,"測量技士|土木技師|化工研究員|工程師"), legislator_occp=250, legislator_ses=83.2) %>%
-  mutate_cond(customgrepl(experience,"基金會{0}董事長|總經理|監察人|托兒所{0,1}負責人"), legislator_occp=110, legislator_ses=83.3) %>%
-  mutate_cond(customgrepl(experience,"法官|律師"), legislator_occp=211, legislator_ses=86.0) %>%
-  mutate_cond(customgrepl(experience,"醫師|產科主任"), legislator_occp=221, legislator_ses=86.0) %>%
+  mutate_cond(customgrepl(experience,"(基金會){0}(集團){0,1}(托兒所){0,1}董事長|總經理|監察人|(托兒所){0,1}負責人"), legislator_occp=110, legislator_ses=83.3) %>%
+  mutate_cond(customgrepl(experience,"會計師"), legislator_occp=230, legislator_ses=85.1) %>%
+  mutate_cond(customgrepl(experience,"法官|律師|地政士") | customgrepl(name,"吳志揚") & !customgrepl(name,"鄭天財Sra．Kacaw"), legislator_occp=211, legislator_ses=86.0) %>%
   mutate_cond(customgrepl(experience,"教授|學系主任|系主任"), legislator_occp=201, legislator_ses=87.9) %>%
+  mutate_cond(customgrepl(experience,"醫師|產科主任"), legislator_occp=221, legislator_ses=86.0) %>%
   mutate_cond(customgrepl(experience,"旅長"), legislator_occp="012", legislator_ses=87.9) %>%
-  mutate_cond(customgrepl(experience,"職業民意代表") | customgrepl(name,"劉建國"), legislator_occp=140, legislator_ses=81.4) %>%
-  write.xlsx(file=paste0(dataset_file_directory,"legislator_additional_attributes.xlsx"))
+  mutate_cond(customgrepl(experience,"NGO理事長|主管級公務員|職業民意代表") | customgrepl(name,"劉建國"), legislator_occp=140, legislator_ses=81.4) %>%
+  mutate_cond(!is.na(legislator_ses), legislator_ses=(legislator_ses-55)*3) %>%
+  select(term,name,legislator_eduyr,legislator_occp,legislator_ses,legislator_ethnicity)
+
+write.xlsx(legislators_additional_attr,file=paste0(dataset_file_directory,"legislator_additional_attributes.xlsx"))
   
 
 testdf <- left_join(mergedf_votes_bills_election_surveyanswer, legislators_with_election) %>%
+  left_join(legislators_additional_attr) %>%
   mutate_at("SURVEYANSWERVALUE", funs(as.character))#%>%
 #沒有投票權也會串到立委，也就是只串選區的串法
 testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionarea", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE"))
@@ -475,6 +487,9 @@ testdf <- testdf %>%
   mutate_cond(myown_int_pol_efficacy %in% c(94:99,996:999,9996:9999), myown_int_pol_efficacy=NA) %>%
   mutate_cond(myown_working_status %in% c(96:99,996:999,9996:9999), myown_working_status=NA) %>%
   mutate_cond(SURVEYANSWERVALUE %in% c(96:99,996:999,9996:9999), respondopinion=NA, opiniondirection=NA) %>%
+  mutate(eduyrgap=NA,sesgap=NA) %>%
+  mutate_cond(!is.na(myown_eduyr), eduyrgap=abs(myown_eduyr-legislator_eduyr)) %>%
+  mutate_cond(!is.na(myown_ses), sesgap=abs(myown_ses-legislator_ses)) %>%
   mutate_cond(respondopinion=="x", respondopinion=NA) %>%
   mutate_at(c("SURVEY","zip","stratum2","myown_areakind","psu","ssu",
               "myown_sex","myown_dad_ethgroup","myown_mom_ethgroup",
@@ -900,6 +915,7 @@ testdf <- filter(testdf, !is.na(respondopinion))# %>%
 
 
 contrasts(glmdata$respondopinion)<-contr.treatment(3, base=1)
+contrasts(glmdata$rulingparty)<-contr.treatment(2, base=2)
 contrasts(glmdata$myown_approach_to_politician_or_petition)<-contr.treatment(2, base=2)
 contrasts(glmdata$myown_protest)<-contr.treatment(2, base=2)
 contrasts(glmdata$myown_ext_pol_efficacy)<-contr.treatment(5, base=5)
@@ -934,7 +950,7 @@ g + geom_bar(stat = "identity")
 
 #累積迴歸
 library(ordinal)
-model <- clm(respondopinion~(vote_along_with_majority_in_party)+opinion_pressure_from_constituent_by_nation,
+model <- clm(respondopinion~scale(sesgap),
              data=glmdata)
 summary(model)
 #glmdata$vote_along_with_majority_in_party
@@ -959,14 +975,20 @@ prp(cart.model,         # 模型
 #累積迴歸
 require(MASS)
 ## fit ordered logit model and store results 'm'
-model <- polr(respondopinion ~ myown_family_income, data = glmdata, Hess=TRUE)
+model <- polr(respondopinion ~ opinion_pressure_from_constituent_by_nation, data = glmdata, Hess=TRUE)
 ## view a summary of the model
 summary(model)
+#view coef and pvalue
+model.coef <- data.frame(coef(summary(model)))
+model.coef$pval <- round((pnorm(abs(model.coef$t.value),lower.tail= FALSE) * 2), 4)
+model.coef
 
-binaryglmdata<-filter(glmdata,respondopinion %in% c(0,2))
+binaryglmdata<-filter(glmdata,respondopinion %in% c(0,2)) #,term==7,party=="中國國民黨"
+binaryglmdata$respondopinion<-factor(binaryglmdata$respondopinion)
+contrasts(binaryglmdata$respondopinion)<-contr.treatment(2, base=2) #
 model<-glm(
   #myown_areakind+myown_sex+myown_dad_ethgroup+myown_mom_ethgroup+myown_marriage+myown_religion+myown_pol_efficacy+myown_approach_to_politician_or_petition+myown_protest+myown_working_status+myown_age+myown_eduyr+myown_occp+myown_family_income+opinionstrength+opinion_pressure_from_party
-  formula = respondopinion ~ percent_of_same_votes_from_same_party,
+  formula = respondopinion ~ opinion_pressure_from_constituent_by_nation+rulingparty,
   family = binomial(
     link = "logit"),
   data = binaryglmdata)
