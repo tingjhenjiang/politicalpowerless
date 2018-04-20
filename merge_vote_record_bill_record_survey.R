@@ -152,7 +152,7 @@ partyseats <- data.frame(
   "party"=c("中國國民黨","民主進步黨","無黨團結聯盟","親民黨","無黨籍及未經政黨推薦"),                       
   "seats"=c(81,27,3,1,1),
   "rulingparty"=factor(c(1,0,0,0,0)),
-  "seatsdifftorulingpart"=c(0,54,78,80,80)
+  "seatsgaptorulingparty"=c(0,54,78,80,80)
   ) %>%
   bind_rows(
     data.frame(
@@ -160,7 +160,7 @@ partyseats <- data.frame(
       "party"=c("中國國民黨","民主進步黨","時代力量","親民黨","無黨團結聯盟","無黨籍及未經政黨推薦"),
       "seats"=c(35,68,5,3,1,1),
       "rulingparty"=factor(c(0,1,0,0,0,0)),
-      "seatsdifftorulingpart"=c(33,0,63,65,67,67)
+      "seatsgaptorulingparty"=c(33,0,63,65,67,67)
       )
   ) 
 #bills_answer_to_bill <- read.xlsx(myown_vote_bills_file, sheetIndex = 3, encoding = "UTF-8", endRow = 5144)
@@ -251,8 +251,9 @@ mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %
   #==opiniondirectionfrombill & !(opiniondirectionfrombill %in% c('b','x')), respondopinion=2
   # 反對核電怎麼編碼？
   mutate_cond(opiniondirectionfromconstituent!=opiniondirectionfromlegislator, respondopinion=0) %>%
-  mutate_cond(opiniondirectionfromconstituent==opiniondirectionfromlegislator, respondopinion=2) %>%
-  mutate_cond(votedecision %in% c("棄權","未投票","未出席"), respondopinion=1, opiniondirectionfromlegislator='giveup', respondopinion=1) %>%
+  mutate_cond(opiniondirectionfromconstituent==opiniondirectionfromlegislator, respondopinion=3) %>%
+  mutate_cond(votedecision %in% c("未投票","未出席"), respondopinion=1, opiniondirectionfromlegislator='ignore', respondopinion=1) %>%
+  mutate_cond(votedecision=="棄權", respondopinion=1, opiniondirectionfromlegislator='giveup', respondopinion=2) %>%
   mutate_cond(opiniondirectionfromconstituent=='x' | opiniondirectionfrombill=='x', respondopinion=NA) %>%
   #mutate_at("respondopinion",funs(recode(respondopinion)),
   #          "反對n"=2,"反對nn"=2,"贊成m"=2,"贊成mm"=2,
@@ -480,6 +481,8 @@ testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionar
 
 sapply(testdf,class)
 
+beforecleannames<-names(testdf)
+
 testdf <- testdf %>%
   select(-billcontent.y,-billcontent.x) %>%
   mutate_cond(myown_eduyr %in% c(96:99,996:999,9996:9999), myown_eduyr=NA) %>%
@@ -487,9 +490,12 @@ testdf <- testdf %>%
   mutate_cond(myown_int_pol_efficacy %in% c(94:99,996:999,9996:9999), myown_int_pol_efficacy=NA) %>%
   mutate_cond(myown_working_status %in% c(96:99,996:999,9996:9999), myown_working_status=NA) %>%
   mutate_cond(SURVEYANSWERVALUE %in% c(96:99,996:999,9996:9999), respondopinion=NA, opiniondirection=NA) %>%
-  mutate(eduyrgap=NA,sesgap=NA) %>%
-  mutate_cond(!is.na(myown_eduyr), eduyrgap=abs(myown_eduyr-legislator_eduyr)) %>%
+  mutate(eduyrgap=NA,sesgap=NA,sexgap=NA,agegap=NA) %>%
+  mutate_cond(!is.na(myown_age), ageyrgap=abs(myown_age-legislator_age)) %>%
   mutate_cond(!is.na(myown_ses), sesgap=abs(myown_ses-legislator_ses)) %>%
+  mutate_cond((myown_sex==1 & legislator_sex=="男") | (myown_sex==2 & legislator_sex=="女"), sexgap=0) %>%
+  mutate_cond((myown_sex==2 & legislator_sex=="男") | (myown_sex==1 & legislator_sex=="女"), sexgap=1) %>%
+  mutate_at("sexgap",funs(as.factor)) %>%
   mutate_cond(respondopinion=="x", respondopinion=NA) %>%
   mutate_at(c("SURVEY","zip","stratum2","myown_areakind","psu","ssu",
               "myown_sex","myown_dad_ethgroup","myown_mom_ethgroup",
@@ -534,6 +540,9 @@ testdf <- testdf %>%
               "billn","urln","pp_duplicated_item",
               "legislator_age","plranking"  #,
               ),funs(as.integer)) #%>%
+
+aftercleannames<-names(testdf)
+setdiff(aftercleannames,beforecleannames)
 #"total_votes_from_same_party",
 #"same_pos_from_same_party",
 #"all_pos_on_same_q",
@@ -868,6 +877,8 @@ glmdata <- testdf %>%
   mutate("all_opiniondirection_from_constituent_by_electionarea"=n()) %>%
   ungroup() %>%
   mutate("opinion_pressure_from_constituent_by_electionarea"=same_opiniondirection_from_constituent_by_electionarea/all_opiniondirection_from_constituent_by_electionarea) %>%
+  mutate("majority_opinion_from_constituent_by_electionarea"=ifelse(opinion_pressure_from_constituent_by_electionarea>=0.5,1,0)) %>%
+  mutate_at("majority_opinion_from_constituent_by_electionarea",funs(as.factor)) %>%
   filter(!(value_on_q_variable %in% c("2016citizen@d5a","2016citizen@d6a","2016citizen@d6b","2016citizen@d6d","2016citizen@d6g","2016citizen@d6h"))) #%>%   #忽略預算支出題組
   #filter(issue_field1=='公民與政治權' | issue_field2=='公民與政治權')
   #scale()
@@ -914,7 +925,8 @@ testdf <- filter(testdf, !is.na(respondopinion))# %>%
 
 
 
-contrasts(glmdata$respondopinion)<-contr.treatment(3, base=1)
+contrasts(glmdata$respondopinion)<-contr.treatment(4, base=1)
+glmdata$respondopinion<-ordered(glmdata$respondopinion,levels=c(0,1,2,3),labels=c("Reject","Ignore","Giveup","Respond"))
 contrasts(glmdata$rulingparty)<-contr.treatment(2, base=2)
 contrasts(glmdata$myown_approach_to_politician_or_petition)<-contr.treatment(2, base=2)
 contrasts(glmdata$myown_protest)<-contr.treatment(2, base=2)
@@ -975,7 +987,7 @@ prp(cart.model,         # 模型
 #累積迴歸
 require(MASS)
 ## fit ordered logit model and store results 'm'
-model <- polr(respondopinion ~ opinion_pressure_from_constituent_by_nation, data = glmdata, Hess=TRUE)
+model <- polr(respondopinion ~ myown_protest, data = glmdata, Hess=TRUE)
 ## view a summary of the model
 summary(model)
 #view coef and pvalue
@@ -983,12 +995,12 @@ model.coef <- data.frame(coef(summary(model)))
 model.coef$pval <- round((pnorm(abs(model.coef$t.value),lower.tail= FALSE) * 2), 4)
 model.coef
 
-binaryglmdata<-filter(glmdata,respondopinion %in% c(0,2)) #,term==7,party=="中國國民黨"
-binaryglmdata$respondopinion<-factor(binaryglmdata$respondopinion)
+binaryglmdata<-filter(glmdata,respondopinion %in% c("Reject","Respond")) #,term==7,party=="中國國民黨"
+binaryglmdata$respondopinion<-ordered(binaryglmdata$respondopinion)
 contrasts(binaryglmdata$respondopinion)<-contr.treatment(2, base=2) #
 model<-glm(
   #myown_areakind+myown_sex+myown_dad_ethgroup+myown_mom_ethgroup+myown_marriage+myown_religion+myown_pol_efficacy+myown_approach_to_politician_or_petition+myown_protest+myown_working_status+myown_age+myown_eduyr+myown_occp+myown_family_income+opinionstrength+opinion_pressure_from_party
-  formula = respondopinion ~ opinion_pressure_from_constituent_by_nation+rulingparty,
+  formula = respondopinion ~ sexgap,
   family = binomial(
     link = "logit"),
   data = binaryglmdata)

@@ -23,6 +23,9 @@ print("你")
 ## 研究設計
 
 基於研究探討的是立法委員回應民意的各種現象前提下，顧及民意變動的速度以及變動的可能，為準確、精準探討現象，將立法委員行為與民意對應的範圍限縮至問卷調查做成後一年內的投票表決行為。
+
+我透過向SRDA學術調查研究資料庫<https://srda.sinica.edu.tw/>申請臺灣社會變遷基本調查「2016第七期第二次：公民與國家組」、「2010第六期第一次：環境組」、「2010第六期第一次：綜合組」的限制版資料，作為民意資料，同時將各問卷以「2016第七期第二次：公民與國家組」的過錄編碼簿標準合併。限制版的資料與一般版不同處在於包含有受訪對象的戶籍地村里層級資料，藉此可以與準確地與選區資料合併。研究上選擇這三組調查樣本，第一是因為這三組資料均同時含有基本資料（人口變項）、政策議題調查以及政治參與的資料，第二是因為這三組資料的政策意向問題較多，涵蓋層面較廣而全面（2010年兩組樣本的政策意向問題合併後共有101題、2016公民與國家組的政策意向約共有76題），能夠貼近人們的政策偏好不僅限單一面向或群體利益導向政策的情形，同時對於研究工作而言也能夠在一次的議案編碼後對應比較多問卷調查題目而比較有效率，研究發現與結論有較高的建構效度。
+
 控制選區：控制選區的重要性在於不同的選區會有不同的議題導向與利益需求，農業縣與都會商業區可能選民意向以及利益就截然不同。為了排除此項因素的干擾，更聚焦於選民對於立法委員的影響，此處會對於選區控制區別。
 
 驗證方向：
@@ -32,17 +35,18 @@ print("你")
 
 也可以透過與不分區立委（政黨紀律較高因而partisanship較高）與區域立委回應選民的程度對照，若區域立委回應程度較高，也顯示多元主義論較優，菁英論較劣。
 
+在驗證理論外，並同時探索影響回應性的因素。
+
 ## 資料來源、處理以及變項的建立
 
-首先利用立法院議事暨公報管理系統 <https://lci.ly.gov.tw/LyLCEW/lcivAgendarecMore.action> 檢索立法院院會的議事錄網址，利用R軟體爬蟲取得各個議事錄的HTML原始碼，接著將議事錄中文件結尾處的記名表決結果名單內容結構化處理，並透過比對議事錄內容中記名表決關鍵字（以正規表達式搜尋）以及事後檢查檢核並修正議事錄中出現的一些規律的文字表述結構，形成一個包含有立法院屆次、會期、會議次、臨時會次、案由、投票表決議案編號、概略案由、立法委員姓名與投票決定（包含贊成、反對、棄權、未出席、未投票）的立法院表決紀錄資料集（原本研究要利用g0v的「立委投票指南網站」（<https://vote.ly.g0v.tw/>）的資料集，但後來發現有錯誤，於是僅部分參考其公開的程式碼中的演算法與靈感，並修正其錯誤）。接著與立法院開放資料服務平台提供的歷屆委員資料 <http://data.ly.gov.tw/listcatelog.action?catCd=2> －－包含屆別、姓名、性別、黨籍、黨團、選區名稱、學經歷－－等屬性的資料集以及中央選舉委員會的選舉資料庫資料集<https://data.gov.tw/dataset/13119>、選舉資料庫<http://db.cec.gov.tw/histCand.jsp>、歷史選舉公報<http://bulletin.cec.gov.tw/bin/home.php>串連以增加立委個人基本資料的欄位。此處並建立以下變項：
+首先利用立法院議事暨公報管理系統 <https://lci.ly.gov.tw/LyLCEW/lcivAgendarecMore.action> 檢索立法院院會的議事錄網址，以R軟體爬蟲取得各個議事錄的HTML原始碼，接著將議事錄中文件結尾處的記名表決結果名單內容結構化處理，並透過比對議事錄內容中記名表決關鍵字（以正規表達式搜尋）以及事後檢查檢核並修正議事錄中出現的一些規律的文字表述結構，形成一個包含有立法院屆次、會期、會議次、臨時會次、案由、投票表決議案編號、概略案由、立法委員姓名與投票決定（包含贊成、反對、棄權、未出席、未投票）的立法院表決紀錄資料集（原本研究要利用g0v的「立委投票指南網站」（<https://vote.ly.g0v.tw/>）的資料集，但後來發現有錯誤，於是僅部分參考其公開的程式碼中的演算法與靈感，並修正其錯誤）。接著與立法院開放資料服務平台提供的歷屆委員資料 <http://data.ly.gov.tw/listcatelog.action?catCd=2> －－包含屆別、姓名、性別、黨籍、黨團、選區名稱、學經歷－－等屬性的資料集以及中央選舉委員會的選舉資料庫資料集<https://data.gov.tw/dataset/13119>、選舉資料庫<http://db.cec.gov.tw/histCand.jsp>、歷史選舉公報<http://bulletin.cec.gov.tw/bin/home.php>串連以增加立委個人基本資料的欄位。此處並建立以下變項：
 
-* 立法委員受教育年數：根據中選會資料以及立法院的立法委員個人資料，以國中9、高中/高職12、大專/專科/大學16、研究所/碩士19、博士23編碼。
+* 立法委員性別：根據中選會資料以及立法院的立法委員個人資料判斷編碼。
+* 立法委員受教育年數：根據中選會資料以及立法院的立法委員個人資料判斷，以國中9、高中/高職12、大專/專科/大學16、研究所/碩士19、博士23編碼。
 * 立法委員院外／從政前社經地位：除去立法委員身份，依據立法委員主要的院外職業或是擔任立法委員前主要的經歷與職業，參考{黃毅志, 2008 #12731}編碼得出連續變項。盡量蒐集並依據最早期從政參選時的選舉公報資料為主。若僅有黨職、聯誼性社團經歷而無其他經歷時，則定位其職業為民意代表，大部分有此類特徵者在選舉公報上面的職業都記載社會服務或是政治工作，地方派系勢力、年輕從政的政二代也多是此模式；如果是從政治人物幕僚開始一路往上爬的政治人物，未經過國會助理（不包含國會辦公室主任此一管理職）或是智庫研究員歷練的也編入民意代表。
 * 立法委員所屬族群（還沒編）：依據資料來源為選舉公報、新聞、網頁資料進行編碼，客家政治人物資料來源並參考{何來美, 2017 #12749}，分為台灣閩南人、台灣客家人、大陸各省市、台灣原住民、原國籍為東南亞國家的新移民、原國籍為東南亞以外國家的新移民、前述分類以外的臺灣人。
 * 立法委員傾向政黨立場比率（自變項）：參考{黃秀端, 2006 #12613}的作法，依據一表決議案中與觀察值立法委員做出相同立場投票（決定）的同黨籍立法委員數，除以該議案中同黨籍立法委員的決定總數的數值連續變項編碼。此變項其實也相當於政黨動員比率／政黨施壓率。分母所謂同黨籍立法委員的決定總數，也把未出席院會、棄權、出席院會但不投票也視為一種決定。
 * 立法委員的議案決定是否屬於同黨籍立法委員多數意見（自變項）：用以類比對照前述立法委員傾向政黨立場比率，如果立法委員傾向政黨立場比率大於0.5，編碼為是，否則為否的類別變項。
-
-接著，我透過向SRDA學術調查研究資料庫<https://srda.sinica.edu.tw/>申請臺灣社會變遷基本調查「2016第七期第二次：公民與國家組」、「2010第六期第一次：環境組」、「2010第六期第一次：綜合組」的限制版資料，作為民意資料，同時將各問卷以「2016第七期第二次：公民與國家組」的過錄編碼簿標準合併。限制版的資料與一般版不同處在於包含有受訪對象的戶籍地村里層級資料，藉此可以與準確地與選區資料合併。研究上選擇這三組調查樣本，第一是因為這三組資料均同時含有基本資料（人口變項）、政策議題調查以及政治參與的資料，第二是因為這三組資料的政策意向問題較多，涵蓋層面較廣而全面（2010年兩組樣本的政策意向問題合併後共有101題、2016公民與國家組的政策意向約共有76題），能夠貼近人們的政策偏好不僅限單一面向或群體利益導向政策的情形，同時對於研究工作而言也能夠在一次的議案編碼後對應比較多問卷調查題目而比較有效率。
 
 在民意資料中，將整個民意資料集以各個政策意向的問題為對照基礎，將資料從短資料轉換為長資料－－也就是一個觀察值從代表一個受訪者的全部變數，轉換為代表一個政策議題意向的全部變數－－，並且選擇以下幾個與本研究有關的項目並處理編碼：
 
@@ -50,7 +54,8 @@ print("你")
 * 議題領域：分為經濟、公民與政治權、社會福利、財政、內政、兩岸、環境、經濟社會文化權。
 * 同政策意向者佔全國／全選區整體意向比率（自變項）：分別以全國／全選區層級中與觀察對象持同方向政策意向者人數除以全部人數所得數值編碼。Likert量表設計的問題中，將回答非常贊成與贊成某政策者編為同一類，非常反對／反對某政策者編為同一類。這個指標也就是要衡量觀察對象的政策意向連結整體層級的民意強度。
 * 意向強度（自變項）：如果題目問題設計以五等Likert量表或四等強迫回答（選邊站）設計的問題中，贊成、反對等選項編碼為1，非常贊成、非常反對等選項編碼為2。若題目設計僅有三等（贊成、反對、無意見）或強迫回答的二等時，均編碼為1，其餘無意見或遺漏值編碼為0，為依順序變項。
-* 族群／認同（自變項）：三個問卷的問題皆有共同的「父母親是哪裡人」的兩個選擇題及開放填充題，我將此題目依據答案重新編碼為父母親分別為台灣閩南人、台灣客家人、大陸各省市、台灣原住民、原國籍為東南亞國家的新移民、原國籍為東南亞以外國家的新移民、前述分類以外的臺灣人（例如有部分受訪者的父母親是「外省人第二代」，而在開放填充題中回答臺灣人）。
+* 族群（自變項）：三個問卷的問題皆有共同的「父母親是哪裡人」的兩個選擇題及開放填充題，我將此題目依據答案重新編碼為父母親分別為台灣閩南人、台灣客家人、大陸各省市、台灣原住民、外裔或原國籍為外籍或原國籍中國大陸的新移民、前述分類以外的臺灣人（例如有部分受訪者的父母親是「外省人第二代」，而在開放填充題中回答臺灣人）。接著依照廣義的原生論（primordialism），只要父母有其一為人口比例較少的較少數族群者，則一律視為較少數族群。
+* 所屬族群人口比例（自變項）：將前述的族群類別變項，依據各族群佔全國人口比例編碼為數值的連續變項。人口比例的資料來自於行政院客家委員會委託研究的「99年至100年全國客家人口基礎資料調查研究」以及「105年度全國客家人口暨語言調查研究報告」<https://www.hakka.gov.tw/Content/Content?NodeID=626&PageID=37585>、內政部戶政司人口資料庫<https://www.ris.gov.tw/zh_TW/346>、內政部移民署業務統計資料<https://www.immigration.gov.tw/lp.asp?ctNode=29699&CtUnit=16434&BaseDSD=7&mp=1>。
 * 教育程度（自變項）：以受教育年數為準（2016的問題為「從國小一年級算起,請問您總共受幾年的學校教育?」，其優點為可轉換為連續變項較為準確且反應人力資本的投資程度），2010環境組與綜合組資料則依據無/不識字0、自修(識字/私塾)0、小學6、國(初)中9、初職9、高中12、綜合高中12、高職12、士官學校14、五專14、二專14、三專15、軍警校專修班13、軍警校專科班14、空中行(商)專15、空中大學16、軍警官學校/大學16、技術學院,科大16、大學16、碩士19、博士23重新編碼為受教育年數。
 * 所得（自變項）：主要依據為家庭收入，問卷問題為「包括各種收入來源,您全家人的所有收入,每個月大約多少元?」，原調查得到的資料為根據每組不同所得範圍的區間，此處重新根據各組組中點的編碼為收入，最低一組（無收入）為0，最高一組（100萬元以上）編碼為150,000。
 * 社經地位（自變項）：~~因素分析（Factor Analysis），透過收入、職業、受教育年數、轉軸後萃取出社經地位，還沒轉~~ 以各問卷中的「工作主要的職位和工作內容是?變遷職位碼」欄位參考黃毅志（2008）轉換得出一社經地位的量化連續尺度變項。
@@ -66,11 +71,13 @@ print("你")
 
 在上述資料集處理完成後分別將各個資料集串聯中央選舉委員會在政府資料開放平台釋出的選舉資料庫<https://data.gov.tw/dataset/13119>（並且修正若干錯誤）後將各個資料集增加選舉屬性資料。接著，選擇各個民意調查做成後一年期間（也就是2010年7月至2011年6月、2016年8月至2017年5月）內的表決紀錄資料，以這段期間的資料為準再將資料串連合併。串聯合併條件分別是將選區選民（受訪者）和該選區立法委員串在一起，以及不分選區將所有立法委員和所有選民串在一起，這也分別就是立法委員代表全國選民以及立法委員代表選區選民的情形，同時也落實前面研究設計所提到的控制選區的問題；串聯方式為inner join，也就是僅留存有共同欄位的值相同的觀察值。總計在此期間內有147個表決議案可以對應到問卷的問題。建立變項如下：
 
-* 立法委員性別與選民性別是否一致：一致編碼為1，不一致編碼為0，為測量敘述代表性的類別變項。
-* 立法委員社經地位與選民社經地位差距（自變項，還沒編）：以前述建立的立法委員院外社經地位，減去選民的社經地位後，取絕對值。為測量敘述代表性的連續變項。
-* 立法委員受教育年數與選民受教育年數差距（自變項，還沒編）：以前述建立的立法委員受教育年數，減去選民的受教育年數後，取絕對值。為測量敘述代表性的連續變項。~~透過立法委員與選民間的受教育年數差距、職業五等分差距，因素分析後萃取出N個因素~~
-* 立法委員族群與選民族群是否一致（自變項，還沒編）：依據先前所建立的立法委員族群以及選民族群變項進行判斷，一致編碼為1，不一致編碼為0，為測量敘述代表性的類別變項。選民族群部分，若選民的父母親有其一為人口比例較少的較少數族群者，則一律視為較少數族群。
-* 是否回應民意（應變項）：對照前述處理資料所建立的「議案的立場」，若選民的立場與議案的立場一致，而立法委員投票贊成時，編碼為2（回應），投票反對時編碼為0（不回應）；選民的立場與議案的立場相反而立法委員投票反對時，編碼為2（回應），投票贊成時編碼為0（不回應）；立法委員未出席會議、出席會議但未投票或投下棄權票時，編碼為1（部分回應）；選民並未持特定立場或立場為遺漏值時，編碼為遺漏值。此為一順序（ordinal）變項。
+* 立法委員與選民年齡差距（自變項）：以立法委員的年齡減去選民的年齡後，取絕對值。為測量敘述代表性的連續變項。
+* 立法委員性別與選民性別是否一致（自變項）：一致編碼為1，不一致編碼為0，為測量敘述代表性的類別變項。
+* 立法委員社經地位與選民社經地位差距（自變項）：以前述建立的立法委員院外社經地位，減去選民的社經地位後，取絕對值。為測量敘述代表性的連續變項。
+* 立法委員受教育年數與選民受教育年數差距（自變項）：以前述建立的立法委員受教育年數，減去選民的受教育年數後，取絕對值。為測量敘述代表性的連續變項。~~透過立法委員與選民間的受教育年數差距、職業五等分差距，因素分析後萃取出N個因素~~
+* 立法委員族群與選民族群是否一致（自變項，還沒編）：依據先前所建立的立法委員族群以及選民族群變項進行判斷，一致編碼為1，不一致編碼為0，為測量敘述代表性的類別變項。
+* ~~立法委員與選民敘述代表性整體差距：因素分析萃取~~
+* 是否回應民意（應變項）：對照前述處理資料所建立的「議案的立場」，若選民的立場與議案的立場一致，而立法委員投票贊成時，編碼為3（回應），投票反對時編碼為0（拒絕）；選民的立場與議案的立場相反而立法委員投票反對時，編碼為3（回應），投票贊成時編碼為0（拒絕）；立法委員未出席會議、出席會議但未投票或投下棄權票時，編碼為2（棄權）；選民並未持特定立場或立場為遺漏值時，編碼為1（忽略）。研究在此先將「忽略」的情形獨立出來，僅於必要以及敘述統計時利用外。其餘的「拒絕」、「棄權」以及「忽略」，則有明顯的順序關係，此為一有順序（ordinal）關係的類別變項。
 
 每一個觀察值代表一個意見，共計觀察值數目：
 ```{r echo=FALSE}
@@ -84,12 +91,14 @@ sapply(glmdata, function(x) sum(is.na(x)))
 
 ## 模型與研究假設
 
-由於應變項為次序變項，不同類別之間雖有次序關係但間隔可能不等距，迴歸分析使用Cumulative Logit Models{Agresti, 2010 #12745}
+由於應變項為次序變項，不同類別之間雖有次序關係但間隔可能不等距，迴歸分析使用ordinal logit models{Agresti, 2010 #12745}
 
 有沒有需要使用Structural  Equation  Model,  SEM或是Multilevel Model, MLM(可能不同選區有不同選區的特性？)
 
 ```{r echo=FALSE}
+library(dplyr)
 library(ordinal)
+require(MASS)
 library(stargazer)
 library(ggplot2)
 ```
@@ -113,64 +122,98 @@ standardized beta coefficient
 https://www.princeton.edu/~otorres/LogitR101.pdf
 https://stats.idre.ucla.edu/r/dae/ordinal-logistic-regression/
 
-首先發現一個值得注意的現象。選民影響力與國會議員行為研究間關係的始祖{Miller, 1963 #12740}發現，民意在一定程度上會影響國會議員的行為。但在研究發現顯示，在這與2016年8月至2017年5月兩段期間中，民意是否佔多數對於國會議員是否回應民意而言，有完全不同的影響情形，2010年7月至2011年6月（以下簡稱第七屆）立委的行為與多數民意呈現顯著方向相反的影響，2016年8月至2017年5月（以下簡稱第九屆）立委的行為則是顯著跟著民意多數走。但是，即便上述效果不同，同樣當立法委員意向越傾向政黨（stronger partisanship）時，越傾向不回應民意。（report 統計指標）
+https://www.jakeruss.com/cheatsheets/stargazer/
 
+### 立法委員回應民意的情形會因為執政與在野不同，且不一定受民意多數的影響
 
+首先發現一個值得注意的現象。選民影響力與國會議員行為研究間關係的始祖{Miller, 1963 #12740}發現，民意在一定程度上會影響民意代表的行為。但在本研究發現顯示，在這與2016年8月至2017年5月兩段期間中，民意是否佔多數對於立法委員是否回應民意而言，影響程度卻是顯著不多。2010年7月至2011年6月（以下簡稱第七屆研究範圍期間）立委的行為與多數民意甚至呈現顯著方向相反的影響，2016年8月至2017年5月（以下簡稱第九屆研究範圍期間）立委的行為則是顯著跟著民意多數走。但是，即便上述效果不同，同樣當立法委員意向越傾向政黨（stronger partisanship）時，越傾向不回應民意。（立法委員回應民意與民意多數、政黨意見多數間關係分析表；report其他統計指標）
 
 ```{r echo=FALSE}
 testdata.kmt.ruling<-filter(glmdata,term==7)
 testdata.dpp.ruling<-filter(glmdata,term==9)
+testdata.kmt.ruling.noignore<-filter(testdata.kmt.ruling,respondopinion!=1) %>%
+  mutate_at("respondopinion",funs(factor))
+testdata.dpp.ruling.noignore<-filter(testdata.dpp.ruling,respondopinion!=1) %>%
+  mutate_at("respondopinion",funs(factor))
+  
+model_influce_from_p_p.k.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation,
+             data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.k.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation,
+             data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.k.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea,
+             data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.k.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea,
+             data=testdata.kmt.ruling.noignore, Hess=TRUE)
 
-model_influce_from_p_p.k.2 <- clm(respondopinion~scale(percent_of_same_votes_from_same_party)+scale(opinion_pressure_from_constituent_by_nation),
-             data=testdata.kmt.ruling)
-model_influce_from_p_p.k.3 <- clm(respondopinion~scale(opinion_pressure_from_constituent_by_nation),
-             data=testdata.kmt.ruling)
 
-model_influce_from_p_p.d.2 <- clm(respondopinion~scale(percent_of_same_votes_from_same_party)+scale(opinion_pressure_from_constituent_by_nation),
-             data=testdata.dpp.ruling)
-model_influce_from_p_p.d.3 <- clm(respondopinion~scale(opinion_pressure_from_constituent_by_nation),
-             data=testdata.dpp.ruling)
+model_influce_from_p_p.d.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation,
+             data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.d.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation,
+             data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.d.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea,
+             data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.d.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea,
+             data=testdata.dpp.ruling.noignore, Hess=TRUE)
 
 ```
 
 ```{r, results='asis'}
-stargazer(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3, title="Results", align=TRUE, type = 'html', summary=TRUE)
+stargazer(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.k.4,model_influce_from_p_p.k.5,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3,model_influce_from_p_p.d.4,model_influce_from_p_p.d.5, title="立法委員回應民意與民意多數、政黨意見多數間關係分析表", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
 ```
 
-
-將資料重塑為「民意是否為多數意見」以及「立法委員投票是否跟隨政黨多數意見」的兩個類別變項，然後以各政黨分組觀察，以長條圖呈現如下：
+為了探究這種與一般直覺認為民意代表會回應民意相左的原因，此處先以區分時期、區分政黨回應民意的情形，以箱型圖觀察如下：
 
 ```{r}
-g <- testdata.kmt.ruling %>%
-  select(respondopinion,majority_opinion_from_constituent_by_nation,party) %>%
-  table() %>%
-  as.data.frame() %>%
-  ggplot(aes(x=respondopinion, fill=majority_opinion_from_constituent_by_nation, y=Freq))
-g + labs(title = "2010年7月至2011年6月立法委員回應民意與民意多數間關係") + facet_grid(party ~.) + geom_bar(stat = "identity")
+testdata.kmt.ruling %>%
+  filter(!is.na(respondopinion)) %>% ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_nation)) + labs(title = "第七屆研究範圍期間立法委員回應民意與全國多數民意比例間關係") + facet_grid(party ~.) + geom_boxplot()
 
-g <- testdata.dpp.ruling %>%
-  select(respondopinion,majority_opinion_from_constituent_by_nation,party) %>%
-  table() %>%
-  as.data.frame() %>%
-  ggplot(aes(x=respondopinion, fill=majority_opinion_from_constituent_by_nation, y=Freq))
-g + labs(title = "2016年8月至2017年5月立法委員回應民意與民意多數間關係") + facet_grid(party ~.) + geom_bar(stat = "identity")
+testdata.dpp.ruling %>%
+  filter(!is.na(respondopinion)) %>%
+  ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_nation)) + labs(title = "第九屆研究範圍期間立法委員回應民意與全國多數民意比例間關係") + facet_grid(party ~.) + geom_boxplot()
+  
+testdata.kmt.ruling %>%
+  filter(!is.na(respondopinion)) %>%
+  ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_electionarea)) + labs(title = "第七屆研究範圍期間立法委員回應民意與立法委員選區多數民意比例間關係") + facet_grid(party ~.) + geom_boxplot()
+
+testdata.dpp.ruling %>%
+  filter(!is.na(respondopinion)) %>%
+  ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_electionarea)) + labs(title = "第九屆研究範圍期間立法委員回應民意與立法委員選區多數民意比例間關係") + facet_grid(party ~.) + geom_boxplot()
+  
 ```
 
-從圖中可以發現兩個時期的在野黨均明顯較執政黨更回應民意多數。這一點與{Miller, 1963 #12740}的研究發現一致。
-~~進行卡方檢定~~
+從箱型圖中可以發現兩個時期的在野黨均明顯較執政黨更回應民意多數。這一點與{Miller, 1963 #12740}的研究發現指出非現任者會傾向更回應民意一點有相似的現象。
 將政黨席次與執政黨席次的差距作為自變項加回迴歸式進行檢定。
 
-```{r}
-testdata.kmt.ruling.tabledata<-select(testdata.kmt.ruling,respondopinion,vote_along_with_majority_in_party,majority_opinion_from_constituent_by_nation)
-#卡方
-#vote_along_with_majority_in_party
-#majority_opinion_from_constituent_by_nation
+```{r, echo=FALSE}
+model_influce_from_p_p_s.k.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,
+             data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.k.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,
+             data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.k.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,
+             data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.k.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,
+             data=testdata.kmt.ruling.noignore, Hess=TRUE)
+
+model_influce_from_p_p_s.d.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,
+             data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.d.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,
+             data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.d.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,
+             data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.d.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,
+             data=testdata.dpp.ruling.noignore, Hess=TRUE)
 ```
 
+``````{r, results='asis'}
+stargazer(model_influce_from_p_p_s.k.2,model_influce_from_p_p_s.k.3,model_influce_from_p_p_s.k.4,model_influce_from_p_p_s.k.5,model_influce_from_p_p_s.d.2,model_influce_from_p_p_s.d.3,model_influce_from_p_p_s.d.4,model_influce_from_p_p_s.d.5, title="立法委員回應民意與民意多數、政黨意見多數及及所屬政黨與執政黨間席次差距關係分析", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
+```
+
+以上分析表示民意的強度（人數）並不當然能夠影響到民意代表的行為。
 
 binary logistic
 ```{r echo=FALSE}
-binaryglmdata<-filter(glmdata,respondopinion %in% c(0,2))
+binaryglmdata<-filter(glmdata,respondopinion %in% c("Reject","Respond")) #,term==7,party=="中國國民黨"
+binaryglmdata$respondopinion<-ordered(binaryglmdata$respondopinion)
 model_influence_from_pp.1<-glm(
   formula = respondopinion ~ opinion_pressure_from_constituent_by_electionarea,
   family = binomial(
