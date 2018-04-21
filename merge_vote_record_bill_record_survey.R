@@ -673,6 +673,14 @@ ggplot(filter(glmdata,!is.na(respondopinion)),
        )
 ) + labs(title = "有無抗議") + facet_grid(term ~ party) + geom_count()
 
+#Feature Selection
+library(party)
+compactglmdata<-dplyr::select(glmdata,respondopinion,myown_areakind,myown_sex,myown_age,myown_dad_ethgroup,myown_mom_ethgroup,myown_marriage,myown_religion,myown_eduyr,myown_int_pol_efficacy,myown_ext_pol_efficacy,myown_approach_to_politician_or_petition,myown_protest,myown_vote,myown_constituency_party_vote,myown_working_status,myown_industry,myown_occp,myown_ses,myown_workers_numbers,myown_family_income,myown_family_income_ranking,myown_family_income_stdev,total_votes_from_same_party,same_votes_from_same_party,percent_of_same_votes_from_same_party,vote_along_with_majority_in_party,seats,rulingparty,seatsgaptorulingparty,opinionstrength,eduyrgap,sesgap,sexgap,agegap,opinion_pressure_from_constituent_by_nation,majority_opinion_from_constituent_by_nation,opinion_pressure_from_constituent_by_electionarea,majority_opinion_from_constituent_by_electionarea) %>%
+  dplyr::filter(respondopinion %in% c("Reject","Giveup","Respond")) %>%
+  mutate_at("respondopinion",funs(ordered))
+cf1 <- cforest(respondopinion ~ . , data= compactglmdata, control=cforest_unbiased(mtry=2,ntree=50)) # fit the random forest
+varimp(cf1)
+
 #累積迴歸
 library(ordinal)
 model <- clm(respondopinion~scale(sesgap),

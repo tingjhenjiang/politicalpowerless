@@ -104,7 +104,6 @@ library(ordinal)
 require(MASS)
 library(stargazer)
 library(ggplot2)
-library(plotly)
 ```
 
 ## 信度檢測（還沒做）
@@ -134,37 +133,37 @@ https://www.jakeruss.com/cheatsheets/stargazer/
 首先發現一個值得注意的現象。選民影響力與國會議員行為研究間關係的始祖{Miller, 1963 #12740}發現，民意在一定程度上會影響民意代表的行為。但在本研究發現顯示，在2010年7月至2011年6月（以下簡稱第七屆研究範圍期間）以及2016年8月至2017年5月（以下簡稱第九屆研究範圍期間）兩段期間中，民意是否佔多數對於立法委員是否回應民意而言，影響程度卻是不一定，包含是否顯著影響、效應的方向及大小皆有不同：第七屆研究範圍期間立委的行為與多數民意呈現顯著方向相反的關係，第九屆研究範圍期間立委的行為則是顯著跟著民意多數變化，但效應不高。但是，同樣當立法委員意向越傾向政黨，黨性越強（stronger partisanship）時，越傾向不回應民意。（立法委員回應民意與民意多數、政黨意見多數間關係分析表；report其他統計指標）
 
 ```{r echo=FALSE}
-#testdata.kmt.ruling<-dplyr::filter(glmdata,term==7)
-#testdata.dpp.ruling<-dplyr::filter(glmdata,term==9)
-#testdata.kmt.ruling.noignore<-dplyr::filter(testdata.kmt.ruling,respondopinion!=1) %>%
-#  mutate_at("respondopinion",funs(factor))
-#testdata.dpp.ruling.noignore<-dplyr::filter(testdata.dpp.ruling,respondopinion!=1) %>%
-#  mutate_at("respondopinion",funs(factor))
+testdata.kmt.ruling<-dplyr::filter(glmdata,term==7)
+testdata.dpp.ruling<-dplyr::filter(glmdata,term==9)
+testdata.kmt.ruling.noignore<-dplyr::filter(testdata.kmt.ruling,respondopinion!=1) %>%
+  mutate_at("respondopinion",funs(factor))
+testdata.dpp.ruling.noignore<-dplyr::filter(testdata.dpp.ruling,respondopinion!=1) %>%
+  mutate_at("respondopinion",funs(factor))
   
-#model_influce_from_p_p.k.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.k.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.k.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.k.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.d.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.d.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.d.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.d.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.k.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.k.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.k.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.k.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.d.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.d.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.d.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p.d.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea,data=testdata.dpp.ruling.noignore, Hess=TRUE)
 
 ```
 
 ```{r, results='asis'}
-#stargazer(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.k.4,model_influce_from_p_p.k.5,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3,model_influce_from_p_p.d.4,model_influce_from_p_p.d.5, title="立法委員回應民意與民意多數、政黨意見多數間關係分析表", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
+stargazer(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.k.4,model_influce_from_p_p.k.5,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3,model_influce_from_p_p.d.4,model_influce_from_p_p.d.5, title="立法委員回應民意與民意佔比、同黨成員意見佔比間關係分析表", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
 ```
 
 為了探究這種與一般直覺相左的原因，瞭解民意代表為何會選擇不回應民意，此處先區分時期、區分政黨回應民意的情形，以箱型圖觀察如下：
 
-```{r}
+```{r, fig.width=14,fig.height=15}
 glmdata %>%
-  dplyr::filter(!is.na(respondopinion)) %>% ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_nation)) + labs(title = "第七屆與第九屆研究範圍期間立法委員回應民意與全國多數民意比例間關係") + facet_grid(term ~ party) + geom_boxplot()
+  dplyr::filter(!is.na(respondopinion)) %>% ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_nation)) + labs(title = "第七屆與第九屆研究範圍期間立法委員回應民意與全國民意佔比間關係") + facet_grid(term ~ party) + geom_boxplot()
 
 glmdata %>%
   dplyr::filter(!is.na(respondopinion)) %>%
-  ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_electionarea)) + labs(title = "第七屆與第九屆研究範圍期間立法委員回應民意與立法委員選區多數民意比例間關係") + facet_grid(term ~ party) + geom_boxplot()
+  ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_electionarea)) + labs(title = "第七屆與第九屆研究範圍期間立法委員回應民意與立法委員選區多數民意佔比間關係") + facet_grid(term ~ party) + geom_boxplot()
 
 ```
 
@@ -172,113 +171,114 @@ glmdata %>%
 將政黨席次與執政黨席次的差距作為自變項加回迴歸式進行檢定。
 
 ```{r, echo=FALSE}
-#model_influce_from_p_p_s.k.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p_s.k.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p_s.k.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p_s.k.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.k.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.k.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.k.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.k.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
 
-#model_influce_from_p_p_s.d.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p_s.d.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p_s.d.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p_s.d.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.d.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.d.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.d.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+model_influce_from_p_p_s.d.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
 ```
 
 ``````{r, results='asis'}
-#stargazer(model_influce_from_p_p_s.k.2,model_influce_from_p_p_s.k.3,model_influce_from_p_p_s.k.4,model_influce_from_p_p_s.k.5,model_influce_from_p_p_s.d.2,model_influce_from_p_p_s.d.3,model_influce_from_p_p_s.d.4,model_influce_from_p_p_s.d.5, title="立法委員回應民意與民意多數、政黨意見多數及及所屬政黨與執政黨間席次差距關係分析", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
+stargazer(model_influce_from_p_p_s.k.2,model_influce_from_p_p_s.k.3,model_influce_from_p_p_s.k.4,model_influce_from_p_p_s.k.5,model_influce_from_p_p_s.d.2,model_influce_from_p_p_s.d.3,model_influce_from_p_p_s.d.4,model_influce_from_p_p_s.d.5, title="立法委員回應民意與民意佔比、政黨成員意見佔比及及所屬政黨與執政黨間席次差距關係分析", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
 ```
 
-以上分析顯示民意的強度乃至於人數並不當然能夠影響到民意代表的行為。(reports odds)這種現象也就隱含著影響立法委員的因素還有其他來源，包含政黨、金錢或是更有影響力的人民。
+以上分析顯示民意的多寡與強度乃至於人數並不當然能夠影響到民意代表的行為。(reports odds)這種現象也就隱含著影響立法委員的因素還有其他來源，也許包含政黨、金錢、媒體、民意傳達成效或是更有影響力的人民。
 
 ## 探索性資料分析
 
 ```{r, fig.width=14,fig.height=37}
-#reshape2::
+binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Respond")) %>%
+  mutate_at("respondopinion",funs(ordered))
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (myown_eduyr)
            )
        ) + labs(title = "受教育年") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (myown_ses)
            )
        ) + labs(title = "社經地位") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (myown_family_income)
            )
        ) + labs(title = "家庭收入") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (myown_family_income_stdev)
            )
        ) + labs(title = "家庭收入多少標準差") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (percent_of_same_votes_from_same_party)
            )
        ) + labs(title = "同黨成員同立場比例") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (seatsgaptorulingparty)
            )
        ) + labs(title = "席次與執政黨差距") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (eduyrgap)
            )
        ) + labs(title = "選民與立法委員教育年差距") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (sesgap)
            )
        ) + labs(title = "選民與立法委員社經地位差距") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (agegap)
            )
        ) + labs(title = "選民與立法委員年齡差距") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = myown_dad_ethgroup,
            fill = (respondopinion)
        )
 ) + labs(title = "父親族群") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = myown_mom_ethgroup,
            fill = (respondopinion)
        )
 ) + labs(title = "母親族群") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = myown_approach_to_politician_or_petition,
            fill = (respondopinion)
        )
 ) + labs(title = "有無請願或找政治人物") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = myown_protest,
            fill = (respondopinion)
        )
 ) + labs(title = "有無抗議") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = myown_vote,
            fill = (respondopinion)
        )
 ) + labs(title = "有無投票") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = sexgap,
            fill = (respondopinion)
        )
@@ -286,7 +286,7 @@ glmdata %>%
 
 ```
 
-## 敘述代表性驗證區
+
 
 ```{r, echo=FALSE}
 #testdata.term7.ruling<-dplyr::filter(testdata.kmt.ruling,rulingparty==1)

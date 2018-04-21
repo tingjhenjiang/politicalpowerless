@@ -390,79 +390,6 @@ print("你")
 有沒有需要使用Structural  Equation  Model,  SEM或是Multilevel Model, MLM(可能不同選區有不同選區的特性？)
 
 
-```
-## 
-## Attaching package: 'ordinal'
-```
-
-```
-## The following object is masked from 'package:dplyr':
-## 
-##     slice
-```
-
-```
-## Loading required package: MASS
-```
-
-```
-## 
-## Attaching package: 'MASS'
-```
-
-```
-## The following object is masked from 'package:dplyr':
-## 
-##     select
-```
-
-```
-## 
-## Please cite as:
-```
-
-```
-##  Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
-```
-
-```
-##  R package version 5.2.1. https://CRAN.R-project.org/package=stargazer
-```
-
-```
-## 
-## Attaching package: 'plotly'
-```
-
-```
-## The following object is masked from 'package:ggplot2':
-## 
-##     last_plot
-```
-
-```
-## The following object is masked from 'package:MASS':
-## 
-##     select
-```
-
-```
-## The following object is masked from 'package:ordinal':
-## 
-##     slice
-```
-
-```
-## The following object is masked from 'package:stats':
-## 
-##     filter
-```
-
-```
-## The following object is masked from 'package:graphics':
-## 
-##     layout
-```
 
 ## 信度檢測（還沒做）
 
@@ -494,8 +421,28 @@ https://www.jakeruss.com/cheatsheets/stargazer/
 
 
 ```r
-#stargazer(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.k.4,model_influce_from_p_p.k.5,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3,model_influce_from_p_p.d.4,model_influce_from_p_p.d.5, title="立法委員回應民意與民意多數、政黨意見多數間關係分析表", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
+stargazer(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.k.4,model_influce_from_p_p.k.5,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3,model_influce_from_p_p.d.4,model_influce_from_p_p.d.5, title="立法委員回應民意與民意多數、政黨意見多數間關係分析表", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
 ```
+
+
+<table style="text-align:center"><caption><strong>立法委員回應民意與民意多數、政黨意見多數間關係分析表</strong></caption>
+<tr><td colspan="9" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="8"><em>Dependent variable:</em></td></tr>
+<tr><td></td><td colspan="8" style="border-bottom: 1px solid black"></td></tr>
+<tr><td style="text-align:left"></td><td colspan="8">respondopinion</td></tr>
+<tr><td style="text-align:left"></td><td>(1)</td><td>(2)</td><td>(3)</td><td>(4)</td><td>(5)</td><td>(6)</td><td>(7)</td><td>(8)</td></tr>
+<tr><td colspan="9" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">percent_of_same_votes_from_same_party</td><td>-0.012<sup>***</sup></td><td></td><td>-0.012<sup>***</sup></td><td></td><td>-0.004<sup>***</sup></td><td></td><td>-0.004<sup>***</sup></td><td></td></tr>
+<tr><td style="text-align:left"></td><td>(0.0001)</td><td></td><td>(0.0001)</td><td></td><td>(0.0001)</td><td></td><td>(0.0001)</td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">opinion_pressure_from_constituent_by_nation</td><td>-1.099<sup>***</sup></td><td>-1.163<sup>***</sup></td><td></td><td></td><td>-0.026</td><td>0.016</td><td></td><td></td></tr>
+<tr><td style="text-align:left"></td><td>(0.017)</td><td>(0.017)</td><td></td><td></td><td>(0.016)</td><td>(0.016)</td><td></td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">opinion_pressure_from_constituent_by_electionarea</td><td></td><td></td><td>-0.922<sup>***</sup></td><td>-0.984<sup>***</sup></td><td></td><td></td><td>0.016</td><td>0.058<sup>***</sup></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td>(0.016)</td><td>(0.016)</td><td></td><td></td><td>(0.016)</td><td>(0.016)</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td colspan="9" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">Observations</td><td>257,097</td><td>257,097</td><td>257,097</td><td>257,097</td><td>216,512</td><td>216,512</td><td>216,512</td><td>216,512</td></tr>
+<tr><td colspan="9" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"><em>Note:</em></td><td colspan="8" style="text-align:right"><sup>*</sup>p<0.1; <sup>**</sup>p<0.05; <sup>***</sup>p<0.01</td></tr>
+<tr><td style="text-align:left"></td><td colspan="8" style="text-align:right">model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間</td></tr>
+</table>
 
 為了探究這種與一般直覺相左的原因，瞭解民意代表為何會選擇不回應民意，此處先區分時期、區分政黨回應民意的情形，以箱型圖觀察如下：
 
@@ -522,8 +469,31 @@ glmdata %>%
 
 
 ```r
-#stargazer(model_influce_from_p_p_s.k.2,model_influce_from_p_p_s.k.3,model_influce_from_p_p_s.k.4,model_influce_from_p_p_s.k.5,model_influce_from_p_p_s.d.2,model_influce_from_p_p_s.d.3,model_influce_from_p_p_s.d.4,model_influce_from_p_p_s.d.5, title="立法委員回應民意與民意多數、政黨意見多數及及所屬政黨與執政黨間席次差距關係分析", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
+stargazer(model_influce_from_p_p_s.k.2,model_influce_from_p_p_s.k.3,model_influce_from_p_p_s.k.4,model_influce_from_p_p_s.k.5,model_influce_from_p_p_s.d.2,model_influce_from_p_p_s.d.3,model_influce_from_p_p_s.d.4,model_influce_from_p_p_s.d.5, title="立法委員回應民意與民意多數、政黨意見多數及及所屬政黨與執政黨間席次差距關係分析", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
 ```
+
+
+<table style="text-align:center"><caption><strong>立法委員回應民意與民意多數、政黨意見多數及及所屬政黨與執政黨間席次差距關係分析</strong></caption>
+<tr><td colspan="9" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="8"><em>Dependent variable:</em></td></tr>
+<tr><td></td><td colspan="8" style="border-bottom: 1px solid black"></td></tr>
+<tr><td style="text-align:left"></td><td colspan="8">respondopinion</td></tr>
+<tr><td style="text-align:left"></td><td>(1)</td><td>(2)</td><td>(3)</td><td>(4)</td><td>(5)</td><td>(6)</td><td>(7)</td><td>(8)</td></tr>
+<tr><td colspan="9" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">percent_of_same_votes_from_same_party</td><td>-0.022<sup>***</sup></td><td></td><td>-0.022<sup>***</sup></td><td></td><td>-0.005<sup>***</sup></td><td></td><td>-0.005<sup>***</sup></td><td></td></tr>
+<tr><td style="text-align:left"></td><td>(0.0001)</td><td></td><td>(0.0001)</td><td></td><td>(0.0001)</td><td></td><td>(0.0001)</td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">opinion_pressure_from_constituent_by_nation</td><td>-1.060<sup>***</sup></td><td>-1.212<sup>***</sup></td><td></td><td></td><td>-0.029<sup>*</sup></td><td>0.020</td><td></td><td></td></tr>
+<tr><td style="text-align:left"></td><td>(0.017)</td><td>(0.017)</td><td></td><td></td><td>(0.016)</td><td>(0.016)</td><td></td><td></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">opinion_pressure_from_constituent_by_electionarea</td><td></td><td></td><td>-0.881<sup>***</sup></td><td>-1.039<sup>***</sup></td><td></td><td></td><td>0.018</td><td>0.067<sup>***</sup></td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td>(0.016)</td><td>(0.016)</td><td></td><td></td><td>(0.016)</td><td>(0.016)</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td style="text-align:left">seatsgaptorulingparty</td><td>0.040<sup>***</sup></td><td>0.021<sup>***</sup></td><td>0.040<sup>***</sup></td><td>0.021<sup>***</sup></td><td>0.007<sup>***</sup></td><td>0.005<sup>***</sup></td><td>0.007<sup>***</sup></td><td>0.005<sup>***</sup></td></tr>
+<tr><td style="text-align:left"></td><td>(0.0003)</td><td>(0.0002)</td><td>(0.0003)</td><td>(0.0002)</td><td>(0.0002)</td><td>(0.0002)</td><td>(0.0002)</td><td>(0.0002)</td></tr>
+<tr><td style="text-align:left"></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+<tr><td colspan="9" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">Observations</td><td>257,097</td><td>257,097</td><td>257,097</td><td>257,097</td><td>216,512</td><td>216,512</td><td>216,512</td><td>216,512</td></tr>
+<tr><td colspan="9" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"><em>Note:</em></td><td colspan="8" style="text-align:right"><sup>*</sup>p<0.1; <sup>**</sup>p<0.05; <sup>***</sup>p<0.01</td></tr>
+<tr><td style="text-align:left"></td><td colspan="8" style="text-align:right">model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間</td></tr>
+</table>
 
 以上分析顯示民意的強度乃至於人數並不當然能夠影響到民意代表的行為。(reports odds)這種現象也就隱含著影響立法委員的因素還有其他來源，包含政黨、金錢或是更有影響力的人民。
 
@@ -531,9 +501,10 @@ glmdata %>%
 
 
 ```r
-#reshape2::
+binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Respond")) %>%
+  mutate_at("respondopinion",funs(ordered))
 
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (myown_eduyr)
            )
@@ -541,13 +512,13 @@ glmdata %>%
 ```
 
 ```
-## Warning: Removed 13249 rows containing non-finite values (stat_boxplot).
+## Warning: Removed 8227 rows containing non-finite values (stat_boxplot).
 ```
 
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-1.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (myown_ses)
            )
@@ -555,13 +526,13 @@ glmdata %>%
 ```
 
 ```
-## Warning: Removed 51121 rows containing non-finite values (stat_boxplot).
+## Warning: Removed 35110 rows containing non-finite values (stat_boxplot).
 ```
 
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-2.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (myown_family_income)
            )
@@ -569,13 +540,13 @@ glmdata %>%
 ```
 
 ```
-## Warning: Removed 84474 rows containing non-finite values (stat_boxplot).
+## Warning: Removed 60641 rows containing non-finite values (stat_boxplot).
 ```
 
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-3.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (myown_family_income_stdev)
            )
@@ -583,13 +554,13 @@ glmdata %>%
 ```
 
 ```
-## Warning: Removed 84474 rows containing non-finite values (stat_boxplot).
+## Warning: Removed 60641 rows containing non-finite values (stat_boxplot).
 ```
 
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-4.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (percent_of_same_votes_from_same_party)
            )
@@ -599,7 +570,7 @@ glmdata %>%
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-5.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (seatsgaptorulingparty)
            )
@@ -609,7 +580,7 @@ glmdata %>%
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-6.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (eduyrgap)
            )
@@ -617,13 +588,13 @@ glmdata %>%
 ```
 
 ```
-## Warning: Removed 13249 rows containing non-finite values (stat_boxplot).
+## Warning: Removed 8227 rows containing non-finite values (stat_boxplot).
 ```
 
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-7.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (sesgap)
            )
@@ -631,13 +602,13 @@ glmdata %>%
 ```
 
 ```
-## Warning: Removed 51121 rows containing non-finite values (stat_boxplot).
+## Warning: Removed 35110 rows containing non-finite values (stat_boxplot).
 ```
 
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-8.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = respondopinion,
            y = (agegap)
            )
@@ -645,13 +616,13 @@ glmdata %>%
 ```
 
 ```
-## Warning: Removed 150 rows containing non-finite values (stat_boxplot).
+## Warning: Removed 110 rows containing non-finite values (stat_boxplot).
 ```
 
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-9.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = myown_dad_ethgroup,
            fill = (respondopinion)
        )
@@ -661,7 +632,7 @@ glmdata %>%
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-10.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = myown_mom_ethgroup,
            fill = (respondopinion)
        )
@@ -671,7 +642,7 @@ glmdata %>%
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-11.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = myown_approach_to_politician_or_petition,
            fill = (respondopinion)
        )
@@ -681,7 +652,7 @@ glmdata %>%
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-12.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = myown_protest,
            fill = (respondopinion)
        )
@@ -691,7 +662,7 @@ glmdata %>%
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-13.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = myown_vote,
            fill = (respondopinion)
        )
@@ -701,7 +672,7 @@ glmdata %>%
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-14.png)<!-- -->
 
 ```r
-(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+(ggplot(binaryglmdata,
        aes(x = sexgap,
            fill = (respondopinion)
        )
@@ -710,7 +681,7 @@ glmdata %>%
 
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-15.png)<!-- -->
 
-## 敘述代表性驗證區
+
 
 
 
