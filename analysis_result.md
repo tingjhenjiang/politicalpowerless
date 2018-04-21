@@ -10,13 +10,23 @@ output:
   github_document: default
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+
+
+
+```r
+Sys.setlocale(category = "LC_ALL", locale = "cht")
 ```
 
-```{r}
-Sys.setlocale(category = "LC_ALL", locale = "cht")
+```
+## [1] "LC_COLLATE=Chinese (Traditional)_Taiwan.950;LC_CTYPE=Chinese (Traditional)_Taiwan.950;LC_MONETARY=Chinese (Traditional)_Taiwan.950;LC_NUMERIC=C;LC_TIME=Chinese (Traditional)_Taiwan.950"
+```
+
+```r
 print("你")
+```
+
+```
+## [1] "你"
 ```
 
 # 實證研究
@@ -83,13 +93,294 @@ print("你")
 * 是否回應民意（應變項）：對照前述處理資料所建立的「議案的立場」，若選民的立場與議案的立場一致，而立法委員投票贊成時，編碼為3（回應），投票反對時編碼為0（拒絕）；選民的立場與議案的立場相反而立法委員投票反對時，編碼為3（回應），投票贊成時編碼為0（拒絕）；立法委員未出席會議、出席會議但未投票或投下棄權票時，編碼為2（棄權）；選民並未持特定立場或立場為遺漏值時，編碼為1（忽略）。研究在此先將「忽略」的情形獨立出來，僅於必要以及敘述統計時利用外。其餘的「拒絕」、「棄權」以及「忽略」，則有明顯的順序關係，此為一有順序（ordinal）關係的類別變項。
 
 每一個觀察值代表一個意見，共計觀察值數目：
-```{r echo=FALSE}
-nrow(glmdata)
+
+```
+## [1] 494101
 ```
 
 資料檢核後，各變項遺漏值如下：
-```{r echo=FALSE}
-sapply(glmdata, function(x) sum(is.na(x)))
+
+```
+##                                                 SURVEY 
+##                                                      0 
+##                                                     id 
+##                                                      0 
+##                                                    zip 
+##                                                      0 
+##                                               stratum2 
+##                                                      0 
+##                                         myown_areakind 
+##                                                      0 
+##                                                    psu 
+##                                                      0 
+##                                                    ssu 
+##                                                   6946 
+##                                                   wsel 
+##                                                      0 
+##                                             myown_wsel 
+##                                                      0 
+##                                                   wave 
+##                                                      0 
+##                                                  qtype 
+##                                                      0 
+##                                                   year 
+##                                                      0 
+##                                                 year_m 
+##                                                      0 
+##                                              myown_sex 
+##                                                      0 
+##                                              myown_age 
+##                                                    150 
+##                                     myown_dad_ethgroup 
+##                                                    884 
+##                                     myown_mom_ethgroup 
+##                                                   1508 
+##                                         myown_marriage 
+##                                                    335 
+##                                         myown_religion 
+##                                                 203245 
+##                                            myown_eduyr 
+##                                                  18363 
+##                                 myown_int_pol_efficacy 
+##                                                  12171 
+##                                 myown_ext_pol_efficacy 
+##                                                  17499 
+##               myown_approach_to_politician_or_petition 
+##                                                   5544 
+##                                          myown_protest 
+##                                                   4009 
+##                                             myown_vote 
+##                                                  14794 
+##                          myown_constituency_party_vote 
+##                                                      0 
+##                                   myown_working_status 
+##                                                    154 
+##                                         myown_industry 
+##                                                  11557 
+##                                             myown_occp 
+##                                                  54797 
+##                                              myown_ses 
+##                                                  54797 
+##                                  myown_workers_numbers 
+##                                                 262843 
+##                                       myown_job_status 
+##                                                 494101 
+##                                   myown_hire_people_no 
+##                                                    479 
+##                                 myown_manage_people_no 
+##                                                   2033 
+##                                    myown_family_income 
+##                                                  93152 
+##                            myown_family_income_ranking 
+##                                                  93152 
+##                              myown_family_income_stdev 
+##                                                  93152 
+##                                                   term 
+##                                                      0 
+##                                           electionarea 
+##                                                      0 
+##                                              admincity 
+##                                                      0 
+##                                            zip3rocyear 
+##                                                      0 
+##                                          admindistrict 
+##                                                      0 
+##                                                village 
+##                                                 494101 
+##                                           adminvillage 
+##                                                 494101 
+##                                       SURVEYQUESTIONID 
+##                                                      0 
+##                                      SURVEYANSWERVALUE 
+##                                                      0 
+##                            all_pos_on_same_q_by_nation 
+##                                                      0 
+##                           same_pos_on_same_q_by_nation 
+##                                                      0 
+##                        same_pos_to_all_ratio_by_nation 
+##                                                      0 
+##                      all_pos_on_same_q_by_electionarea 
+##                                                      0 
+##                     same_pos_on_same_q_by_electionarea 
+##                                                      0 
+##                  same_pos_to_all_ratio_by_electionarea 
+##                                                      0 
+##                                           votedecision 
+##                                                      0 
+##                                                   name 
+##                                                      0 
+##                                                 period 
+##                                                      0 
+##                                              meetingno 
+##                                                      0 
+##                                        temp_meeting_no 
+##                                                      0 
+##                                                  billn 
+##                                                      0 
+##                                             billresult 
+##                                                      0 
+##                                                    url 
+##                                                      0 
+##                                                   urln 
+##                                                      0 
+##                                                   date 
+##                                                      0 
+##                                           billid_myown 
+##                                                      0 
+##                                                  party 
+##                                                      0 
+##                            total_votes_from_same_party 
+##                                                      0 
+##                             same_votes_from_same_party 
+##                                                      0 
+##                  percent_of_same_votes_from_same_party 
+##                                                      0 
+##                      vote_along_with_majority_in_party 
+##                                                      0 
+##                                                  seats 
+##                                                      0 
+##                                            rulingparty 
+##                                                      0 
+##                                  seatsgaptorulingparty 
+##                                                      0 
+##                                             pp_keyword 
+##                                                      0 
+##                                           pp_committee 
+##                                                 186735 
+##                                        pp_lawamendment 
+##                                                   1687 
+##                                            votecontent 
+##                                                 157829 
+##                                     pp_duplicated_item 
+##                                                 485801 
+##                                           pp_enactment 
+##                                                 235515 
+##                                         pp_enforcement 
+##                                                 235515 
+##                                           pp_res_bynew 
+##                                                 255516 
+##                                       pp_res_bycompete 
+##                                                 428993 
+##                                          pp_groupbased 
+##                                                 477287 
+##                                                yrmonth 
+##                                                      0 
+##                                       pp_res_notjudged 
+##                                                 494101 
+##                                             pp_ignored 
+##                                                 494101 
+##                                           billconflict 
+##                                                 418769 
+##                                            billcontent 
+##                                                      0 
+##                                    value_on_q_variable 
+##                                                      0 
+##                                          variable_on_q 
+##                                                      0 
+##                                                  LABEL 
+##                                                      0 
+##                                               QUESTION 
+##                                                      0 
+##                                 opinionfromconstituent 
+##                                                      0 
+##                                        opinionfrombill 
+##                                                      0 
+##                                              pol_score 
+##                                                 494101 
+##                                              eco_score 
+##                                                 494101 
+##                                           issue_field1 
+##                                                      0 
+##                                           issue_field2 
+##                                                 271875 
+##                                        opinionstrength 
+##                                                  52737 
+##                        opiniondirectionfromconstituent 
+##                                                      0 
+##                               opiniondirectionfrombill 
+##                                                      0 
+##                         opiniondirectionfromlegislator 
+##                                                      0 
+##                                         respondopinion 
+##                                                  20492 
+##                                                  ename 
+##                                                      0 
+##                                         legislator_sex 
+##                                                      0 
+##                                       legislator_party 
+##                                                      0 
+##                                             partyGroup 
+##                                                      0 
+##                                               areaName 
+##                                                      0 
+##                                              committee 
+##                                                      0 
+##                                            onboardDate 
+##                                                      0 
+##                                                 degree 
+##                                                   4828 
+##                                             experience 
+##                                                      0 
+##                                                 picUrl 
+##                                                      0 
+##                                              leaveFlag 
+##                                                      0 
+##                                              leaveDate 
+##                                                 492904 
+##                                            leaveReason 
+##                                                 492904 
+##                                               ballotid 
+##                                                      0 
+##                                               birthday 
+##                                                      0 
+##                                         legislator_age 
+##                                                      0 
+##                                             birthplace 
+##                                                      0 
+##                                              education 
+##                                                      0 
+##                                              incumbent 
+##                                                      0 
+##                                            wonelection 
+##                                                      0 
+##                                         election_party 
+##                                                      0 
+##                                              plranking 
+##                                                 494101 
+##                                         elec_dist_type 
+##                                                      0 
+##                                       legislator_eduyr 
+##                                                      0 
+##                                        legislator_occp 
+##                                                      0 
+##                                         legislator_ses 
+##                                                      0 
+##                                   legislator_ethnicity 
+##                                                 494101 
+##                                               eduyrgap 
+##                                                  18363 
+##                                                 sesgap 
+##                                                  54797 
+##                                                 sexgap 
+##                                                      0 
+##                                                 agegap 
+##                                                    150 
+##       same_opiniondirection_from_constituent_by_nation 
+##                                                      0 
+##        all_opiniondirection_from_constituent_by_nation 
+##                                                      0 
+##            opinion_pressure_from_constituent_by_nation 
+##                                                      0 
+##            majority_opinion_from_constituent_by_nation 
+##                                                      0 
+## same_opiniondirection_from_constituent_by_electionarea 
+##                                                      0 
+##  all_opiniondirection_from_constituent_by_electionarea 
+##                                                      0 
+##      opinion_pressure_from_constituent_by_electionarea 
+##                                                      0 
+##      majority_opinion_from_constituent_by_electionarea 
+##                                                      0
 ```
 
 ## 模型與研究假設
@@ -98,13 +389,79 @@ sapply(glmdata, function(x) sum(is.na(x)))
 
 有沒有需要使用Structural  Equation  Model,  SEM或是Multilevel Model, MLM(可能不同選區有不同選區的特性？)
 
-```{r echo=FALSE}
-library(dplyr)
-library(ordinal)
-require(MASS)
-library(stargazer)
-library(ggplot2)
-library(plotly)
+
+```
+## 
+## Attaching package: 'ordinal'
+```
+
+```
+## The following object is masked from 'package:dplyr':
+## 
+##     slice
+```
+
+```
+## Loading required package: MASS
+```
+
+```
+## 
+## Attaching package: 'MASS'
+```
+
+```
+## The following object is masked from 'package:dplyr':
+## 
+##     select
+```
+
+```
+## 
+## Please cite as:
+```
+
+```
+##  Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+```
+
+```
+##  R package version 5.2.1. https://CRAN.R-project.org/package=stargazer
+```
+
+```
+## 
+## Attaching package: 'plotly'
+```
+
+```
+## The following object is masked from 'package:ggplot2':
+## 
+##     last_plot
+```
+
+```
+## The following object is masked from 'package:MASS':
+## 
+##     select
+```
+
+```
+## The following object is masked from 'package:ordinal':
+## 
+##     slice
+```
+
+```
+## The following object is masked from 'package:stats':
+## 
+##     filter
+```
+
+```
+## The following object is masked from 'package:graphics':
+## 
+##     layout
 ```
 
 ## 信度檢測（還沒做）
@@ -133,57 +490,38 @@ https://www.jakeruss.com/cheatsheets/stargazer/
 
 首先發現一個值得注意的現象。選民影響力與國會議員行為研究間關係的始祖{Miller, 1963 #12740}發現，民意在一定程度上會影響民意代表的行為。但在本研究發現顯示，在2010年7月至2011年6月（以下簡稱第七屆研究範圍期間）以及2016年8月至2017年5月（以下簡稱第九屆研究範圍期間）兩段期間中，民意是否佔多數對於立法委員是否回應民意而言，影響程度卻是不一定，包含是否顯著影響、效應的方向及大小皆有不同：第七屆研究範圍期間立委的行為與多數民意呈現顯著方向相反的關係，第九屆研究範圍期間立委的行為則是顯著跟著民意多數變化，但效應不高。但是，同樣當立法委員意向越傾向政黨，黨性越強（stronger partisanship）時，越傾向不回應民意。（立法委員回應民意與民意多數、政黨意見多數間關係分析表；report其他統計指標）
 
-```{r echo=FALSE}
-#testdata.kmt.ruling<-dplyr::filter(glmdata,term==7)
-#testdata.dpp.ruling<-dplyr::filter(glmdata,term==9)
-#testdata.kmt.ruling.noignore<-dplyr::filter(testdata.kmt.ruling,respondopinion!=1) %>%
-#  mutate_at("respondopinion",funs(factor))
-#testdata.dpp.ruling.noignore<-dplyr::filter(testdata.dpp.ruling,respondopinion!=1) %>%
-#  mutate_at("respondopinion",funs(factor))
-  
-#model_influce_from_p_p.k.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.k.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.k.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.k.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.d.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.d.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.d.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p.d.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea,data=testdata.dpp.ruling.noignore, Hess=TRUE)
 
-```
 
-```{r, results='asis'}
+
+```r
 #stargazer(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.k.4,model_influce_from_p_p.k.5,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3,model_influce_from_p_p.d.4,model_influce_from_p_p.d.5, title="立法委員回應民意與民意多數、政黨意見多數間關係分析表", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
 ```
 
 為了探究這種與一般直覺相左的原因，瞭解民意代表為何會選擇不回應民意，此處先區分時期、區分政黨回應民意的情形，以箱型圖觀察如下：
 
-```{r}
+
+```r
 glmdata %>%
   dplyr::filter(!is.na(respondopinion)) %>% ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_nation)) + labs(title = "第七屆與第九屆研究範圍期間立法委員回應民意與全國多數民意比例間關係") + facet_grid(term ~ party) + geom_boxplot()
+```
 
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-7-1.png)<!-- -->
+
+```r
 glmdata %>%
   dplyr::filter(!is.na(respondopinion)) %>%
   ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_electionarea)) + labs(title = "第七屆與第九屆研究範圍期間立法委員回應民意與立法委員選區多數民意比例間關係") + facet_grid(term ~ party) + geom_boxplot()
-
 ```
+
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-7-2.png)<!-- -->
 
 從箱型圖中可以發現兩個時期的在野黨均明顯較執政黨更回應民意多數。這一點與{Miller, 1963 #12740}的研究發現指出非現任者會傾向更回應民意一點有相似的現象。
 將政黨席次與執政黨席次的差距作為自變項加回迴歸式進行檢定。
 
-```{r, echo=FALSE}
-#model_influce_from_p_p_s.k.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p_s.k.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p_s.k.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p_s.k.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
 
-#model_influce_from_p_p_s.d.2 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p_s.d.3 <- polr(respondopinion~opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p_s.d.4 <- polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-#model_influce_from_p_p_s.d.5 <- polr(respondopinion~opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-```
 
-``````{r, results='asis'}
+
+```r
 #stargazer(model_influce_from_p_p_s.k.2,model_influce_from_p_p_s.k.3,model_influce_from_p_p_s.k.4,model_influce_from_p_p_s.k.5,model_influce_from_p_p_s.d.2,model_influce_from_p_p_s.d.3,model_influce_from_p_p_s.d.4,model_influce_from_p_p_s.d.5, title="立法委員回應民意與民意多數、政黨意見多數及及所屬政黨與執政黨間席次差距關係分析", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
 ```
 
@@ -191,7 +529,8 @@ glmdata %>%
 
 ## 探索性資料分析
 
-```{r, fig.width=14,fig.height=37}
+
+```r
 #reshape2::
 
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
@@ -199,118 +538,187 @@ glmdata %>%
            y = (myown_eduyr)
            )
        ) + labs(title = "受教育年") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+```
 
+```
+## Warning: Removed 13249 rows containing non-finite values (stat_boxplot).
+```
+
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-1.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = respondopinion,
            y = (myown_ses)
            )
        ) + labs(title = "社經地位") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+```
 
+```
+## Warning: Removed 51121 rows containing non-finite values (stat_boxplot).
+```
+
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-2.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = respondopinion,
            y = (myown_family_income)
            )
        ) + labs(title = "家庭收入") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+```
 
+```
+## Warning: Removed 84474 rows containing non-finite values (stat_boxplot).
+```
+
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-3.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = respondopinion,
            y = (myown_family_income_stdev)
            )
        ) + labs(title = "家庭收入多少標準差") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+```
 
+```
+## Warning: Removed 84474 rows containing non-finite values (stat_boxplot).
+```
+
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-4.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = respondopinion,
            y = (percent_of_same_votes_from_same_party)
            )
        ) + labs(title = "同黨成員同立場比例") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+```
 
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-5.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = respondopinion,
            y = (seatsgaptorulingparty)
            )
        ) + labs(title = "席次與執政黨差距") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+```
 
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-6.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = respondopinion,
            y = (eduyrgap)
            )
        ) + labs(title = "選民與立法委員教育年差距") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+```
 
+```
+## Warning: Removed 13249 rows containing non-finite values (stat_boxplot).
+```
+
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-7.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = respondopinion,
            y = (sesgap)
            )
        ) + labs(title = "選民與立法委員社經地位差距") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+```
 
+```
+## Warning: Removed 51121 rows containing non-finite values (stat_boxplot).
+```
+
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-8.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = respondopinion,
            y = (agegap)
            )
        ) + labs(title = "選民與立法委員年齡差距") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+```
 
+```
+## Warning: Removed 150 rows containing non-finite values (stat_boxplot).
+```
+
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-9.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = myown_dad_ethgroup,
            fill = (respondopinion)
        )
 ) + labs(title = "父親族群") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
+```
 
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-10.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = myown_mom_ethgroup,
            fill = (respondopinion)
        )
 ) + labs(title = "母親族群") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
+```
 
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-11.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = myown_approach_to_politician_or_petition,
            fill = (respondopinion)
        )
 ) + labs(title = "有無請願或找政治人物") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
+```
 
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-12.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = myown_protest,
            fill = (respondopinion)
        )
 ) + labs(title = "有無抗議") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
+```
 
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-13.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = myown_vote,
            fill = (respondopinion)
        )
 ) + labs(title = "有無投票") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
+```
 
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-14.png)<!-- -->
+
+```r
 (ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
        aes(x = sexgap,
            fill = (respondopinion)
        )
 ) + labs(title = "立法委員和選民性別差異") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
-
 ```
+
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-15.png)<!-- -->
 
 ## 敘述代表性驗證區
 
-```{r, echo=FALSE}
-#testdata.term7.ruling<-dplyr::filter(testdata.kmt.ruling,rulingparty==1)
-#testdata.term7.oppos<-dplyr::filter(testdata.kmt.ruling,rulingparty!=1)
-#testdata.term9.ruling<-dplyr::filter(testdata.dpp.ruling,rulingparty==1)
-#testdata.term9.oppos<-dplyr::filter(testdata.dpp.ruling,rulingparty!=1)
 
-#model.descrpt.repre.1<-
-```
 
 
 
 
 binary logistic
-```{r echo=FALSE}
-#binaryglmdata<-filter(glmdata,respondopinion %in% c("Reject","Respond")) #,term==7,party=="中國國民黨"
-#binaryglmdata$respondopinion<-ordered(binaryglmdata$respondopinion)
-#model_influence_from_pp.1<-glm(
-#  formula = respondopinion ~ #opinion_pressure_from_constituent_by_electionarea,
-#  family = binomial(
-#    link = "logit"),
-#  data = binaryglmdata)
-#summary(model_influence_from_pp.1)
-```
+
 
 
 myown_pol_efficacy
@@ -335,20 +743,60 @@ opinion_pressure_from_constituent_by_nation
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r echo=FALSE}
 
-```
 
 ## Including Plots
 
 You can also embed plots, for example:
 
-```{r echo=TRUE}
+
+```r
 getwd()
+```
+
+```
+## [1] "E:/Software/scripts/R/vote_record"
 ```
 
 ## sessionInfo()
 
-```{r, echo=FALSE}
-sessionInfo()
+
+```
+## R version 3.4.4 (2018-03-15)
+## Platform: x86_64-w64-mingw32/x64 (64-bit)
+## Running under: Windows >= 8 x64 (build 9200)
+## 
+## Matrix products: default
+## 
+## locale:
+## [1] LC_COLLATE=Chinese (Traditional)_Taiwan.950 
+## [2] LC_CTYPE=Chinese (Traditional)_Taiwan.950   
+## [3] LC_MONETARY=Chinese (Traditional)_Taiwan.950
+## [4] LC_NUMERIC=C                                
+## [5] LC_TIME=Chinese (Traditional)_Taiwan.950    
+## 
+## attached base packages:
+## [1] stats     graphics  grDevices utils     datasets  methods   base     
+## 
+## other attached packages:
+##  [1] plotly_4.7.1      ggplot2_2.2.1     stargazer_5.2.1  
+##  [4] MASS_7.3-49       ordinal_2015.6-28 rmarkdown_1.9    
+##  [7] bindrcpp_0.2.2    openxlsx_4.0.17   magrittr_1.5     
+## [10] dplyr_0.7.4       readr_1.1.1       xml2_1.2.0       
+## [13] XML_3.98-1.10     stringi_1.1.7    
+## 
+## loaded via a namespace (and not attached):
+##  [1] Rcpp_0.12.16        pillar_1.2.1        compiler_3.4.4     
+##  [4] plyr_1.8.4          bindr_0.1.1         tools_3.4.4        
+##  [7] digest_0.6.15       viridisLite_0.3.0   jsonlite_1.5       
+## [10] evaluate_0.10.1     tibble_1.4.2        gtable_0.2.0       
+## [13] lattice_0.20-35     ucminf_1.1-4        pkgconfig_2.0.1    
+## [16] rlang_0.2.0         Matrix_1.2-12       yaml_2.1.18        
+## [19] httr_1.3.1          stringr_1.3.0       knitr_1.20         
+## [22] htmlwidgets_1.2     hms_0.4.2           rprojroot_1.3-2    
+## [25] grid_3.4.4          data.table_1.10.4-3 glue_1.2.0         
+## [28] R6_2.2.2            reshape2_1.4.3      tidyr_0.8.0        
+## [31] purrr_0.2.4         backports_1.1.2     scales_0.5.0       
+## [34] htmltools_0.3.6     assertthat_0.2.0    colorspace_1.3-2   
+## [37] labeling_0.3        lazyeval_0.2.1      munsell_0.4.3
 ```

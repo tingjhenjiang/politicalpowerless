@@ -383,8 +383,8 @@ load(paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"
 #legislators_with_election
 #mergedf_votes_bills_election_surveyanswer
 
+#load(paste0(dataset_file_directory,"rdata",slash,"elections_df_test.RData"))
 
-load(paste0(dataset_file_directory,"rdata",slash,"elections_df_test.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"legislators_with_election.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"mergedf_votes_bills_election_surveyanswer.RData"))
 
@@ -479,19 +479,20 @@ testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionar
 # 第O部份：清理資料：設定遺漏值
 ##############################################################################
 
-sapply(testdf,class)
+#sapply(testdf,class)
 
-beforecleannames<-names(testdf)
+#beforecleannames<-names(testdf)
 
 testdf <- testdf %>%
-  select(-billcontent.y,-billcontent.x) %>%
+  dplyr::select(-billcontent.y,-billcontent.x) %>%
   mutate_cond(myown_eduyr %in% c(96:99,996:999,9996:9999), myown_eduyr=NA) %>%
   mutate_cond(myown_ext_pol_efficacy %in% c(94:99,996:999,9996:9999), myown_ext_pol_efficacy=NA) %>%
   mutate_cond(myown_int_pol_efficacy %in% c(94:99,996:999,9996:9999), myown_int_pol_efficacy=NA) %>%
   mutate_cond(myown_working_status %in% c(96:99,996:999,9996:9999), myown_working_status=NA) %>%
   mutate_cond(SURVEYANSWERVALUE %in% c(96:99,996:999,9996:9999), respondopinion=NA, opiniondirection=NA) %>%
   mutate(eduyrgap=NA,sesgap=NA,sexgap=NA,agegap=NA) %>%
-  mutate_cond(!is.na(myown_age), ageyrgap=abs(myown_age-legislator_age)) %>%
+  mutate_cond(!is.na(myown_age), agegap=abs(myown_age-legislator_age)) %>%
+  mutate_cond(!is.na(myown_eduyr), eduyrgap=abs(myown_eduyr-legislator_eduyr)) %>%
   mutate_cond(!is.na(myown_ses), sesgap=abs(myown_ses-legislator_ses)) %>%
   mutate_cond((myown_sex==1 & legislator_sex=="男") | (myown_sex==2 & legislator_sex=="女"), sexgap=0) %>%
   mutate_cond((myown_sex==2 & legislator_sex=="男") | (myown_sex==1 & legislator_sex=="女"), sexgap=1) %>%
@@ -500,7 +501,7 @@ testdf <- testdf %>%
   mutate_at(c("SURVEY","zip","stratum2","myown_areakind","psu","ssu",
               "myown_sex","myown_dad_ethgroup","myown_mom_ethgroup",
               "myown_marriage","myown_religion","myown_ext_pol_efficacy","myown_int_pol_efficacy",
-              "myown_approach_to_politician_or_petition",
+              "myown_approach_to_politician_or_petition","myown_vote",
               "myown_protest","myown_constituency_party_vote",
               "myown_working_status","myown_industry","myown_job_status",
               "term","electionarea","admincity","admindistrict",
@@ -515,18 +516,14 @@ testdf <- testdf %>%
               "legislator_sex","legislator_party","partyGroup",
               "areaName","leaveFlag","education","incumbent",
               "wonelection","elec_dist_type",
-              "vote_along_with_majority_in_party"
+              "vote_along_with_majority_in_party",
+              "issue_field1","issue_field2"
               ), funs(as.factor)) %>%
   mutate_at(c("wsel","myown_wsel","year","year_m","myown_age","myown_eduyr",
               "myown_ses","myown_occp","myown_workers_numbers","myown_hire_people_no",
               "myown_manage_people_no","myown_family_income",
               "myown_family_income_ranking","myown_family_income_stdev",
               "opinionstrength"  #,
-              #"percent_of_same_vote_from_same_party",
-              #"opinion_pressure_from_party"
-              #"same_pos_to_all_ratio",
-              #"same_direction_on_same_bill_and_interest_toall_ratio",
-              #"same_direction_on_same_bill_and_interest_in_same_legislator_toall_ratio"
               ),funs(as.numeric)) %>%
   mutate_at(c("wave","qtype","SURVEYQUESTIONID","SURVEYANSWERVALUE",
               "name","url","date","pp_keyword","votecontent",
@@ -535,51 +532,272 @@ testdf <- testdf %>%
               "leaveReason","ballotid","birthday","birthplace",
               "yrmonth"
               ),funs(as.character)) %>%
-  #,"billcontent.x","billcontent.y"
   mutate_at(c("zip3rocyear","period","meetingno","temp_meeting_no",
               "billn","urln","pp_duplicated_item",
               "legislator_age","plranking"  #,
               ),funs(as.integer)) #%>%
-
-aftercleannames<-names(testdf)
-setdiff(aftercleannames,beforecleannames)
-#"total_votes_from_same_party",
-#"same_pos_from_same_party",
-#"all_pos_on_same_q",
-#"same_pos_on_same_q",
-#"same_opinion_from_same_party",
-#"all_opinion_from_same_party"
-#"same_direction_on_same_bill_and_interest",
-#"all_direction_on_same_bill_and_interest",
-#"same_direction_on_same_bill_and_interest_in_same_legislator",
-#"all_direction_on_same_bill_and_interest_in_same_legislator"
-#filter(!is.na(respondopinion))
-#,"billid_myown"
-#有序factor 無序factor
 
 filter(testdf,is.na(SURVEYANSWERVALUE) | is.na(respondopinion)) %>%
   #distinct(LABEL) %>%
   #unique() %>%
   View()
 
-testdf$myown_pol_efficacy %>% table()
-
 ##
 sapply(testdf, function(x) sum(is.na(x))) %>% View()
 sapply(testdf, function(x) length(unique(x))) %>% View()
-#tmp_realage<-glmdata$r_realage
 #glmdata[]<-lapply(glmdata, car::recode,"94:999=NA")
-#glmdata$r_realage<-tmp_realage
-#glmdata$r_realage[glmdata$r_realage == 997] <- NA
 sapply(glmdata, table)
 sapply(glmdata, class)
 
-#glmdata[glmdata$SURVEYANSWERVALUE %in% c(96:99,996:999,9996:9999),]
 
-for (missingvalue in c(96:99,996:999,9996:9999)) {
-  missingvaluei<-as.numeric(missingvalue)
-  #glmdata[glmdata==missingvaluei] <- NA
-}
+
+
+##############################################################################
+# 第O部份：分析前處理資料
+##############################################################################
+
+#計算出同立場的人數
+glmdata <- testdf %>%
+  group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirectionfromconstituent) %>%
+  mutate("same_opiniondirection_from_constituent_by_nation"=n()) %>%
+  ungroup() %>%
+  group_by(billid_myown,variable_on_q,value_on_q_variable) %>%
+  mutate("all_opiniondirection_from_constituent_by_nation"=n()) %>%
+  ungroup() %>%
+  mutate("opinion_pressure_from_constituent_by_nation"=same_opiniondirection_from_constituent_by_nation/all_opiniondirection_from_constituent_by_nation) %>%
+  mutate("majority_opinion_from_constituent_by_nation"=ifelse(opinion_pressure_from_constituent_by_nation>=0.5,1,0)) %>%
+  mutate_at("majority_opinion_from_constituent_by_nation",funs(as.factor)) %>%
+  group_by(billid_myown,variable_on_q,value_on_q_variable,electionarea,opiniondirectionfromconstituent) %>%
+  mutate("same_opiniondirection_from_constituent_by_electionarea"=n()) %>%
+  ungroup() %>%
+  group_by(billid_myown,variable_on_q,value_on_q_variable,electionarea) %>%
+  mutate("all_opiniondirection_from_constituent_by_electionarea"=n()) %>%
+  ungroup() %>%
+  mutate("opinion_pressure_from_constituent_by_electionarea"=same_opiniondirection_from_constituent_by_electionarea/all_opiniondirection_from_constituent_by_electionarea) %>%
+  mutate("majority_opinion_from_constituent_by_electionarea"=ifelse(opinion_pressure_from_constituent_by_electionarea>=0.5,1,0)) %>%
+  mutate_at("majority_opinion_from_constituent_by_electionarea",funs(as.factor)) %>%
+  filter(!(value_on_q_variable %in% c("2016citizen@d5a","2016citizen@d6a","2016citizen@d6b","2016citizen@d6d","2016citizen@d6g","2016citizen@d6h"))) #%>%   #忽略預算支出題組
+  #filter(issue_field1=='公民與政治權' | issue_field2=='公民與政治權')
+  #scale()
+#group_by(billid_myown,variable_on_q,respondopinion) %>%
+#mutate("same_opinion_on_same_bill_and_interest"=n()) %>%
+#ungroup() %>%
+#group_by(billid_myown,term,SURVEY,variable_on_q,SURVEYQUESTIONID) %>%
+#mutate("all_direction_on_same_bill_and_interest"=n()) %>%
+#ungroup() %>%
+#mutate("same_direction_on_same_bill_and_interest_toall_ratio"=same_direction_on_same_bill_and_interest/all_direction_on_same_bill_and_interest) %>%
+#group_by(name,billid_myown,term,SURVEY,variable_on_q,SURVEYQUESTIONID,respondopinion) %>%
+#mutate("same_direction_on_same_bill_and_interest_in_same_legislator"=n()) %>%
+#ungroup() %>%
+#group_by(name,billid_myown,term,SURVEY,variable_on_q,SURVEYQUESTIONID) %>%
+#mutate("all_direction_on_same_bill_and_interest_in_same_legislator"=n()) %>%
+#ungroup() %>%
+#mutate("same_direction_on_same_bill_and_interest_in_same_legislator_toall_ratio"=same_direction_on_same_bill_and_interest_in_same_legislator/all_direction_on_same_bill_and_interest_in_same_legislator) #%>%
+#magrittr::extract(1:30,)# %>%
+#View()
+
+#可以看到有回應也有不回應
+distinct(testdf,id,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfromlegislator,respondopinion) %>%
+  #testdf %>%
+  filter(billid_myown=="9-2-0-16-67",variable_on_q=="pp_related_q_1",value_on_q_variable=="2016citizen@c2") %>%
+  arrange(name,party) %>%
+  View()
+
+distinct(glmdata,id,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfromlegislator,same_opinion_from_same_party,all_opinion_from_same_party,opinion_pressure_from_party,respondopinion) %>%
+  group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirectionfromconstituent) %>%
+  #testdf %>%
+  filter(all_opinion_from_same_party!=same_opinion_from_same_party) %>%
+  arrange(name,party) %>%
+  View()
+
+
+#left_join(X2016_citizen_melted_with_restricted, by = c("term", "electionarea", "SURVEY", "SURVEYQUESTIONID","SURVEYANSWERVALUE"))
+#分別串分區和全國
+#inner_join可以處理有些立委並無選民在問卷中被涵蓋
+#依變項 respondopinion
+testdf <- filter(testdf, !is.na(respondopinion))# %>%
+#filter(term==9)
+
+
+
+
+
+contrasts(glmdata$respondopinion)<-contr.treatment(4, base=1)
+glmdata$respondopinion<-ordered(glmdata$respondopinion,levels=c(0,1,2,3),labels=c("Reject","Ignore","Giveup","Respond"))
+glmdata$myown_dad_ethgroup<-factor(glmdata$myown_dad_ethgroup,levels=c(1,2,3,4,5,6),labels=c("閩","客","原","外省","移民","其他臺灣人"))
+glmdata$myown_mom_ethgroup<-factor(glmdata$myown_mom_ethgroup,levels=c(1,2,3,4,5,6),labels=c("閩","客","原","外省","移民","其他臺灣人"))
+glmdata$myown_vote<-factor(glmdata$myown_vote,levels=c(1,2,3),labels=c("有投","沒投","沒有投票權"))
+
+contrasts(glmdata$rulingparty)<-contr.treatment(2, base=2)
+contrasts(glmdata$myown_approach_to_politician_or_petition)<-contr.treatment(2, base=2)
+contrasts(glmdata$myown_protest)<-contr.treatment(2, base=2)
+contrasts(glmdata$myown_ext_pol_efficacy)<-contr.treatment(5, base=5)
+contrasts(glmdata$myown_int_pol_efficacy)<-contr.treatment(5, base=5)
+
+glmdata$percent_of_same_votes_from_same_party<-scale(glmdata$percent_of_same_votes_from_same_party)
+glmdata$myown_family_income<-scale(glmdata$myown_family_income)
+glmdata$percent_of_same_votes_from_same_party<-glmdata$percent_of_same_votes_from_same_party/100
+
+
+##############################################################################
+# 第O部份：產出報告
+##############################################################################
+
+
+
+library(rmarkdown)
+render(input='analysis_result.Rmd',output_dir=getwd(),encoding="UTF-8")
+getwd()
+
+##############################################################################
+# 第O部份：分析資料
+##############################################################################
+
+##檢定
+###備份
+
+##探索性資料分析
+library(ggplot2)
+library(plotly)
+(ggplot(dplyr::filter(glmdata,!is.na(respondopinion)),
+       aes(x = respondopinion,
+           y = (myown_ses)
+           )
+       ) + labs(title = "社經地位") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) %>%
+  ggplotly(width=700,height=1600)
+
+
+ggplot(filter(glmdata,!is.na(respondopinion)),
+       aes(x = respondopinion,
+           y = (myown_protest)
+       )
+) + labs(title = "有無抗議") + facet_grid(term ~ party) + geom_count()
+
+#累積迴歸
+library(ordinal)
+model <- clm(respondopinion~scale(sesgap),
+             data=glmdata)
+summary(model)
+#glmdata$vote_along_with_majority_in_party
+glmdata$percent_of_same_votes_from_same_party %>% scale() %>% table()
+
+#決策樹
+require(rpart)
+require(rpart.plot)
+set.seed(22)
+train.index <- sample(x=1:nrow(glmdata), size=ceiling(0.8*nrow(glmdata) ))
+train <- glmdata[train.index, ]
+test <- glmdata[-train.index, ]
+cart.model<- rpart(respondopinion ~ myown_areakind+myown_sex+myown_dad_ethgroup+myown_mom_ethgroup+myown_marriage+myown_religion+myown_pol_efficacy+myown_approach_to_politician_or_petition+myown_protest+myown_working_status+myown_age+myown_eduyr+myown_occp+myown_family_income+opinionstrength+opinion_pressure_from_party, 
+                   data=train)
+prp(cart.model,         # 模型
+    faclen=0,           # 呈現的變數不要縮寫
+    fallen.leaves=TRUE, # 讓樹枝以垂直方式呈現
+    shadow.col="gray",  # 最下面的節點塗上陰影
+    # number of correct classifications / number of observations in that node
+    extra=2)  
+
+#累積迴歸
+require(MASS)
+glmdata.no.ignore<-filter(glmdata,respondopinion!="Ignore",rulingparty==1,term==9)
+glmdata.no.ignore$respondopinion<-ordered(glmdata.no.ignore$respondopinion)
+## fit ordered logit model and store results 'm'
+model <- polr(respondopinion ~ (myown_ses),
+              data = glmdata.no.ignore,
+              na.action=na.omit,
+              Hess=TRUE)
+## view a summary of the model
+summary(model)
+#view coef and pvalue
+model.coef <- data.frame(coef(summary(model))) %>%
+  tibble::rownames_to_column('gene') %>%
+  mutate("pval"=round((pnorm(abs(t.value),lower.tail= FALSE) * 2), 4)) %>%
+  tibble::column_to_rownames('gene')
+#model.coef$pval <- round((pnorm(abs(model.coef$t.value),lower.tail= FALSE) * 2), 4)
+model.coef
+
+#"myown_areakind"
+#"myown_sex"                                             
+#"myown_age"                                             
+#"myown_dad_ethgroup"                                    
+#"myown_mom_ethgroup"                                    
+#"myown_marriage"                                        
+#"myown_religion"                                        
+#"myown_eduyr"                                           
+#"myown_int_pol_efficacy"                                
+#"myown_ext_pol_efficacy"                                
+#"myown_approach_to_politician_or_petition"              
+#"myown_protest"                                         
+#"myown_vote"                                            
+#"myown_constituency_party_vote"                         
+#"myown_working_status"                                  
+#"myown_industry"                                        
+#"myown_occp"                                            
+#"myown_ses"                                             
+#"myown_workers_numbers"                                
+#"myown_family_income"                                   
+#"myown_family_income_ranking"                           
+#"myown_family_income_stdev"                                                   
+#"total_votes_from_same_party"                           
+#"same_votes_from_same_party"                            
+#"percent_of_same_votes_from_same_party"                 
+#"vote_along_with_majority_in_party"                     
+#"seats"                                                 
+#"rulingparty"                                           
+#"seatsgaptorulingparty"                                          
+#"opinionstrength"                                  
+#"eduyrgap"                                              
+#"sesgap"                                                
+#"sexgap"                                                
+#"agegap"       
+#"opinion_pressure_from_constituent_by_nation"           
+#"majority_opinion_from_constituent_by_nation" 
+#"opinion_pressure_from_constituent_by_electionarea"     
+#"majority_opinion_from_constituent_by_electionarea"  
+
+binaryglmdata<-filter(glmdata,respondopinion %in% c("Reject","Respond")) #,term==7,party=="中國國民黨"
+binaryglmdata$respondopinion<-ordered(binaryglmdata$respondopinion)
+contrasts(binaryglmdata$respondopinion)<-contr.treatment(2, base=2) #
+model<-glm(
+  #myown_areakind+myown_sex+myown_dad_ethgroup+myown_mom_ethgroup+myown_marriage+myown_religion+myown_pol_efficacy+myown_approach_to_politician_or_petition+myown_protest+myown_working_status+myown_age+myown_eduyr+myown_occp+myown_family_income+opinionstrength+opinion_pressure_from_party
+  formula = respondopinion ~ sexgap,
+  family = binomial(
+    link = "logit"),
+  data = binaryglmdata)
+summary(model)
+
+
+
+
+#可以看到沒有繼續當的立委沒串到
+distinct(legislators_with_election, term, name) %>%
+  filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞"))
+distinct(mergedf_votes_bills_election_surveyanswer, term, name) %>%
+  filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞"))
+
+
+setdiff(distinct(legislators_with_election, term, name), distinct(mergedf_votes_bills_election_surveyanswer, term, name)) %>%
+  filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞")) #%>%
+#%>% View()
+setdiff(distinct(mergedf_votes_bills_election_surveyanswer, term, name), distinct(legislators_with_election, term, name)) %>%
+  filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞")) #%>%
+#%>% View()
+distinct(legislators_with_election, term, name) %>% View()
+#廖國棟,簡東明,鄭天財,陳秀霞,高潞‧以用‧巴魕剌Kawlo．Iyun．Pacidal
+#簡東明Uliw．Qaljupayare,#廖國棟Sufin．Siluko,#鄭天財Sra．Kacaw,#周陳秀霞,#高潞．以用．巴魕剌Kawlo．Iyun．Pacidal
+filter(mergedf_votes_bills_election_surveyanswer, customgrepl(name, "高潞")) %>%
+  distinct(name)
+
+ggplot(glmdata, aes(x = myown_family_income, y = respondopinion)) +
+  geom_boxplot(size = .75) +
+  geom_jitter(alpha = .5) +
+  #facet_grid(pared ~ public, margins = TRUE) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+#TO SPSS
+library(foreign)
+write.foreign(glmdata, "glmdata.txt", "glmdata.sps",   package="SPSS")
+
 
 
 
@@ -599,7 +817,7 @@ zip_to_party<-distinct(elections_df_test,term,zip,party,wonelection) %>%
   mutate_at("zip",funs(as.character)) %>%
   mutate_at("party",funs(as.character)) %>%
   unique()
-  #正確的選區與參選人
+#正確的選區與參選人
 lieing_check<-read.xlsx(paste(dataset_file_directory,"merger_survey_dataset",slash,"recode_record.xlsx",sep=""), sheet = 4) %>% #, endRow = 1896
   distinct(lieing_check,h5,h6r,h7,h8,h9,id,zip,code) %>% #,h5,h6r,h7,h8,h9 #,v84,v85,v86,v88,v93,v94
   mutate("term"=9) %>%
@@ -671,10 +889,10 @@ exclude_result_green<-cbind("greenpoints"=rep(3:5,each=3),party=c("中國國民�
 correct_check_result<-filter(lieing_check,!(party %in% c("跳答","忘記了、不知道","拒答","忘記了,不知道","跳答或不適用","選人不選黨") ) ) %>% #(v85==99) | 
   semi_join(zip_to_party_with_jump_answer) %>%
   bind_rows(clear_observed_value_green,clear_observed_value_blue)# %>%
-  #mutate("party"=h6r)# %>%
-  #mutate_at("party",funs(as.factor))# %>%
-  #bind_rows(lieing_check_result) %>%
-  #bind_rows(lieing_check_missing)
+#mutate("party"=h6r)# %>%
+#mutate_at("party",funs(as.factor))# %>%
+#bind_rows(lieing_check_result) %>%
+#bind_rows(lieing_check_missing)
 binded_check_result<-bind_rows(correct_check_result,lieing_check_with_value,lieing_check_missing) %>%
   #anti_join(exclude_result_blue) %>%
   #anti_join(exclude_result_green) %>% %>%
@@ -698,9 +916,9 @@ binded_check_result<-bind_rows(correct_check_result,lieing_check_with_value,liei
 #  filter(n()>1) %>%
 #  View()
 #select(X2016_citizen_with_restricted,id) %>%
-  #group_by(id) %>% 
-  #filter(duplicated(id)) %>%
-  #View()
+#group_by(id) %>% 
+#filter(duplicated(id)) %>%
+#View()
 duplicated(X2016_citizen_with_restricted$id)
 length(X2016_citizen_with_restricted$id[duplicated(X2016_citizen_with_restricted$id)])
 
@@ -844,262 +1062,4 @@ complete(mice.X2016_citizen_with_restricted, 1) # 1st data
 complete(mice.X2016_citizen_with_restricted, 2) # 2nd data
 complete(mice.X2016_citizen_with_restricted, 3) # 3rd data
 
-##############################################################################
-# 第O部份：分析前處理資料
-##############################################################################
 
-#計算出同立場的人數
-#total_votes_from_same_party,same_pos_from_same_party,percent_of_same_vote_from_same_party
-glmdata <- testdf %>%
-  #mutate("same_direction_opinion"=n()) %>%
-  #ungroup() %>%
-  #name,billid_myown,votedecision,term,SURVEY,variable_on_q,SURVEYQUESTIONID,SURVEYANSWERVALUE,respondopinion
-  #group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirectionfromlegislator,party) %>%
-  #mutate("same_opinion_from_same_party"=n()) %>%
-  #ungroup() %>%
-  #group_by(billid_myown,variable_on_q,value_on_q_variable,party) %>%
-  #mutate("all_opinion_from_same_party"=n()) %>%
-  #ungroup() %>%
-  #mutate("opinion_pressure_from_party"=same_opinion_from_same_party/all_opinion_from_same_party) %>%
-  group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirectionfromconstituent) %>%
-  mutate("same_opiniondirection_from_constituent_by_nation"=n()) %>%
-  ungroup() %>%
-  group_by(billid_myown,variable_on_q,value_on_q_variable) %>%
-  mutate("all_opiniondirection_from_constituent_by_nation"=n()) %>%
-  ungroup() %>%
-  mutate("opinion_pressure_from_constituent_by_nation"=same_opiniondirection_from_constituent_by_nation/all_opiniondirection_from_constituent_by_nation) %>%
-  mutate("majority_opinion_from_constituent_by_nation"=ifelse(opinion_pressure_from_constituent_by_nation>=0.5,1,0)) %>%
-  mutate_at("majority_opinion_from_constituent_by_nation",funs(as.factor)) %>%
-  group_by(billid_myown,variable_on_q,value_on_q_variable,electionarea,opiniondirectionfromconstituent) %>%
-  mutate("same_opiniondirection_from_constituent_by_electionarea"=n()) %>%
-  ungroup() %>%
-  group_by(billid_myown,variable_on_q,value_on_q_variable,electionarea) %>%
-  mutate("all_opiniondirection_from_constituent_by_electionarea"=n()) %>%
-  ungroup() %>%
-  mutate("opinion_pressure_from_constituent_by_electionarea"=same_opiniondirection_from_constituent_by_electionarea/all_opiniondirection_from_constituent_by_electionarea) %>%
-  mutate("majority_opinion_from_constituent_by_electionarea"=ifelse(opinion_pressure_from_constituent_by_electionarea>=0.5,1,0)) %>%
-  mutate_at("majority_opinion_from_constituent_by_electionarea",funs(as.factor)) %>%
-  filter(!(value_on_q_variable %in% c("2016citizen@d5a","2016citizen@d6a","2016citizen@d6b","2016citizen@d6d","2016citizen@d6g","2016citizen@d6h"))) #%>%   #忽略預算支出題組
-  #filter(issue_field1=='公民與政治權' | issue_field2=='公民與政治權')
-  #scale()
-#group_by(billid_myown,variable_on_q,respondopinion) %>%
-#mutate("same_opinion_on_same_bill_and_interest"=n()) %>%
-#ungroup() %>%
-#group_by(billid_myown,term,SURVEY,variable_on_q,SURVEYQUESTIONID) %>%
-#mutate("all_direction_on_same_bill_and_interest"=n()) %>%
-#ungroup() %>%
-#mutate("same_direction_on_same_bill_and_interest_toall_ratio"=same_direction_on_same_bill_and_interest/all_direction_on_same_bill_and_interest) %>%
-#group_by(name,billid_myown,term,SURVEY,variable_on_q,SURVEYQUESTIONID,respondopinion) %>%
-#mutate("same_direction_on_same_bill_and_interest_in_same_legislator"=n()) %>%
-#ungroup() %>%
-#group_by(name,billid_myown,term,SURVEY,variable_on_q,SURVEYQUESTIONID) %>%
-#mutate("all_direction_on_same_bill_and_interest_in_same_legislator"=n()) %>%
-#ungroup() %>%
-#mutate("same_direction_on_same_bill_and_interest_in_same_legislator_toall_ratio"=same_direction_on_same_bill_and_interest_in_same_legislator/all_direction_on_same_bill_and_interest_in_same_legislator) #%>%
-#magrittr::extract(1:30,)# %>%
-#View()
-
-#可以看到有回應也有不回應
-distinct(testdf,id,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfromlegislator,respondopinion) %>%
-  #testdf %>%
-  filter(billid_myown=="9-2-0-16-67",variable_on_q=="pp_related_q_1",value_on_q_variable=="2016citizen@c2") %>%
-  arrange(name,party) %>%
-  View()
-
-distinct(glmdata,id,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfromlegislator,same_opinion_from_same_party,all_opinion_from_same_party,opinion_pressure_from_party,respondopinion) %>%
-  group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirectionfromconstituent) %>%
-  #testdf %>%
-  filter(all_opinion_from_same_party!=same_opinion_from_same_party) %>%
-  arrange(name,party) %>%
-  View()
-
-
-#left_join(X2016_citizen_melted_with_restricted, by = c("term", "electionarea", "SURVEY", "SURVEYQUESTIONID","SURVEYANSWERVALUE"))
-#分別串分區和全國
-#inner_join可以處理有些立委並無選民在問卷中被涵蓋
-#依變項 respondopinion
-testdf <- filter(testdf, !is.na(respondopinion))# %>%
-#filter(term==9)
-
-
-
-
-
-contrasts(glmdata$respondopinion)<-contr.treatment(4, base=1)
-glmdata$respondopinion<-ordered(glmdata$respondopinion,levels=c(0,1,2,3),labels=c("Reject","Ignore","Giveup","Respond"))
-contrasts(glmdata$rulingparty)<-contr.treatment(2, base=2)
-contrasts(glmdata$myown_approach_to_politician_or_petition)<-contr.treatment(2, base=2)
-contrasts(glmdata$myown_protest)<-contr.treatment(2, base=2)
-contrasts(glmdata$myown_ext_pol_efficacy)<-contr.treatment(5, base=5)
-contrasts(glmdata$myown_int_pol_efficacy)<-contr.treatment(5, base=5)
-
-glmdata$percent_of_same_votes_from_same_party<-scale(glmdata$percent_of_same_votes_from_same_party)
-glmdata$myown_family_income<-scale(glmdata$myown_family_income)
-glmdata$percent_of_same_votes_from_same_party<-glmdata$percent_of_same_votes_from_same_party/100
-
-
-##############################################################################
-# 第O部份：產出報告
-##############################################################################
-
-
-
-library(rmarkdown)
-render(input='analysis_result.Rmd',output_dir=getwd(),encoding="UTF-8")
-getwd()
-
-##############################################################################
-# 第O部份：分析資料
-##############################################################################
-
-##檢定
-###備份
-
-##探索性資料分析
-library(ggplot2)
-g <- ggplot(glmdata, aes(x = myown_family_income, y = respondopinion))
-g + geom_bar(stat = "identity")
-
-#累積迴歸
-library(ordinal)
-model <- clm(respondopinion~scale(sesgap),
-             data=glmdata)
-summary(model)
-#glmdata$vote_along_with_majority_in_party
-glmdata$percent_of_same_votes_from_same_party %>% scale() %>% table()
-
-#決策樹
-require(rpart)
-require(rpart.plot)
-set.seed(22)
-train.index <- sample(x=1:nrow(glmdata), size=ceiling(0.8*nrow(glmdata) ))
-train <- glmdata[train.index, ]
-test <- glmdata[-train.index, ]
-cart.model<- rpart(respondopinion ~ myown_areakind+myown_sex+myown_dad_ethgroup+myown_mom_ethgroup+myown_marriage+myown_religion+myown_pol_efficacy+myown_approach_to_politician_or_petition+myown_protest+myown_working_status+myown_age+myown_eduyr+myown_occp+myown_family_income+opinionstrength+opinion_pressure_from_party, 
-                   data=train)
-prp(cart.model,         # 模型
-    faclen=0,           # 呈現的變數不要縮寫
-    fallen.leaves=TRUE, # 讓樹枝以垂直方式呈現
-    shadow.col="gray",  # 最下面的節點塗上陰影
-    # number of correct classifications / number of observations in that node
-    extra=2)  
-
-#累積迴歸
-require(MASS)
-## fit ordered logit model and store results 'm'
-model <- polr(respondopinion ~ myown_protest, data = glmdata, Hess=TRUE)
-## view a summary of the model
-summary(model)
-#view coef and pvalue
-model.coef <- data.frame(coef(summary(model)))
-model.coef$pval <- round((pnorm(abs(model.coef$t.value),lower.tail= FALSE) * 2), 4)
-model.coef
-
-binaryglmdata<-filter(glmdata,respondopinion %in% c("Reject","Respond")) #,term==7,party=="中國國民黨"
-binaryglmdata$respondopinion<-ordered(binaryglmdata$respondopinion)
-contrasts(binaryglmdata$respondopinion)<-contr.treatment(2, base=2) #
-model<-glm(
-  #myown_areakind+myown_sex+myown_dad_ethgroup+myown_mom_ethgroup+myown_marriage+myown_religion+myown_pol_efficacy+myown_approach_to_politician_or_petition+myown_protest+myown_working_status+myown_age+myown_eduyr+myown_occp+myown_family_income+opinionstrength+opinion_pressure_from_party
-  formula = respondopinion ~ sexgap,
-  family = binomial(
-    link = "logit"),
-  data = binaryglmdata)
-summary(model)
-
-
-
-
-#可以看到沒有繼續當的立委沒串到
-distinct(legislators_with_election, term, name) %>%
-  filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞"))
-distinct(mergedf_votes_bills_election_surveyanswer, term, name) %>%
-  filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞"))
-
-
-setdiff(distinct(legislators_with_election, term, name), distinct(mergedf_votes_bills_election_surveyanswer, term, name)) %>%
-  filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞")) #%>%
-#%>% View()
-setdiff(distinct(mergedf_votes_bills_election_surveyanswer, term, name), distinct(legislators_with_election, term, name)) %>%
-  filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞")) #%>%
-#%>% View()
-distinct(legislators_with_election, term, name) %>% View()
-#廖國棟,簡東明,鄭天財,陳秀霞,高潞‧以用‧巴魕剌Kawlo．Iyun．Pacidal
-#簡東明Uliw．Qaljupayare,#廖國棟Sufin．Siluko,#鄭天財Sra．Kacaw,#周陳秀霞,#高潞．以用．巴魕剌Kawlo．Iyun．Pacidal
-filter(mergedf_votes_bills_election_surveyanswer, customgrepl(name, "高潞")) %>%
-  distinct(name)
-
-ggplot(glmdata, aes(x = myown_family_income, y = respondopinion)) +
-  geom_boxplot(size = .75) +
-  geom_jitter(alpha = .5) +
-  #facet_grid(pared ~ public, margins = TRUE) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
-
-#TO SPSS
-library(foreign)
-write.foreign(glmdata, "glmdata.txt", "glmdata.sps",   package="SPSS")
-
-
-
-
-
-
-
-
-#贊成n=FALSE
-#=TRUE
-#overall 330107 807148
-#testdf <- left_join(X2010_env, legislators_needed)
-#filter(elections_df_test, term == 7, electionarea %in% c('桃園縣第06選區', '桃園縣第3選舉區','桃園縣第2選舉區')) %>%
-#    View()
-
-#除錯，比對問卷,find for duplicated representation
-#zipcode_remove_dupl<-distinct(zipcode_df,Zip3,City,Area)
-#duplicated_area<-left_join(duplicated_area,zipcode_remove_dupl,by=c("縣市名稱"="City","鄉鎮市區名稱"="Area"))
-#troublezip<-intersect(X2010_env$zip,duplicated_area$Zip3)
-#trouble_obs<-filter(X2010_env,zip %in% troublezip)
-#trouble_survey_id<-trouble_obs$id
-
-
-#election_real_elec_dist<-if (elec_dist_type=="區域") {
-#  filter(elections_df_dist,鄉鎮市區=="000",選區別!="00") %>%
-#    select(省市別,縣市別,選區別,名稱) %>%
-#    rename(選舉區名稱=名稱)
-#} else if (elec_dist_type=="山原") {
-#  select(elections_df_dist,省市別,縣市別,選區別) %>%
-#    cbind("選舉區名稱"="山地原住民") %>%
-#    distinct(省市別,縣市別,選區別,名稱,選舉區名稱)
-#} else if (elec_dist_type=="平原") {
-#  select(elections_df_dist,省市別,縣市別,選區別) %>%
-#    cbind("選舉區名稱"="平地原住民") %>%
-#    distinct(省市別,縣市別,選區別,名稱,選舉區名稱)
-#}
-
-
-#    cbind("縣市名稱" = old_all_admin_dist$縣市名稱, "鄉鎮市區名稱" = old_all_admin_dist$鄉鎮市區名稱)
-##縣市改制前郵遞區號開始嘗試
-#oldzipcode_df <- zipcode_df
-#oldzipcode_df$City <- customgsub(zipcode_df$City, "新北市", "臺北縣") %>%
-#    customgsub("桃園市", "桃園縣")
-#臺中縣411-439
-#oldzipcode_df$City[oldzipcode_df$Zip3 >= 411 & oldzipcode_df$Zip3 <= 439] <- customgsub(oldzipcode_df$City[oldzipcode_df$Zip3 >= 411 & oldzipcode_df$Zip3 <= 439], "臺中市", "臺中縣")
-##臺南縣710-745
-#oldzipcode_df$City[oldzipcode_df$Zip3 >= 710 & oldzipcode_df$Zip3 >= 745] <- customgsub(oldzipcode_df$City[oldzipcode_df$Zip3 >= 710 & oldzipcode_df$Zip3 >= 745], "臺南市", "臺南縣")
-##高雄縣814-852
-#oldzipcode_df$City[oldzipcode_df$Zip3 >= 814 & oldzipcode_df$Zip3 >= 852] <- customgsub(oldzipcode_df$City[oldzipcode_df$Zip3 >= 814 & oldzipcode_df$Zip3 >= 852], "高雄市", "高雄縣")
-#oldzipcode_df$City <- stri_sub(oldzipcode_df$City, from = 1, to = -2)
-#oldzipcode_df$Area <- stri_sub(oldzipcode_df$Area, from = 1, to = -2)
-#oldzipcode_df <- distinct(oldzipcode_df, Zip3, City, Area)
-##old_all_admin_dist_try$Area[134],oldzipcode_df$Area[151]都有福興
-##差異：setdiff(oldzipcode_df[, c("City", "Area")], old_all_admin_dist_try[, c("City", "Area")]) %>% View()
-#old_all_admin_dist_try_with_zip <- left_join(old_all_admin_dist_try, oldzipcode_df) %>%
-#    distinct(縣市名稱, 鄉鎮市區名稱, Zip3) %>%
-#    filter(!is.na(鄉鎮市區名稱)) %>%
-#    cbind("term" = "07") %>%
-#    rename(zip = Zip3) %>%
-#    arrange(zip)
-##合併郵遞區號和選區
-#zipcode_df_distinct <- distinct(zipcode_df, Zip3, City, Area) %>%
-#    rename(縣市名稱 = City, 鄉鎮市區名稱 = Area, zip = Zip3) %>%
-#    cbind(term = "09") %>%
-#    rbind(old_all_admin_dist_try_with_zip) %>%
-#    arrange(desc(term), zip)
