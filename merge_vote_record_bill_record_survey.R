@@ -376,13 +376,15 @@ complete_survey_dataset<-complete_survey_dataset[,common_var]
 #save(complete_survey_dataset,file=paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"))
 ##針對調查問卷資料處理變形，以便合併
 #"c1a","c1b","c1c","c1d","c1e","c2","c3","c4","c5","c6","c10","c11","c12","c13","c14","d1","d2a","d2b","d3a","d3b","d4","d5a","d5b","d5c","d5d","d5e","d5f","d6a","d6b","d6c","d6d","d6e","d6f","d6g","d6h","d7a","d7b","d7c","d7d","d7e","d7f","d7g","d7h","d7i","d7j","d7k","d8a","d8b","d8c","d11a","d11b","d12","d13a","d13b","d14a","d14b","d14c","d17a","d17b","d17c","e2a","e2b","e2c","e2d","e2e","e2f","e2g","e2h","e2i","f3","f4","f5","f8","f9","h10","kh10"
+
+gc() #- do it now
+gc(TRUE)
+
+
 load(paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"))
 ##############################################################################
 # 第四部份：總結合併資料階段
 ##############################################################################
-#legislators_with_election
-#mergedf_votes_bills_election_surveyanswer
-
 #load(paste0(dataset_file_directory,"rdata",slash,"elections_df_test.RData"))
 
 load(paste0(dataset_file_directory,"rdata",slash,"legislators_with_election.RData"))
@@ -522,8 +524,8 @@ testdf <- testdf %>%
   mutate_at(c("wsel","myown_wsel","year","year_m","myown_age","myown_eduyr",
               "myown_ses","myown_occp","myown_workers_numbers","myown_hire_people_no",
               "myown_manage_people_no","myown_family_income",
-              "myown_family_income_ranking","myown_family_income_stdev",
-              "opinionstrength"  #,
+              "opinionstrength",
+              "myown_family_income_ranking","myown_family_income_stdev"  #,
               ),funs(as.numeric)) %>%
   mutate_at(c("wave","qtype","SURVEYQUESTIONID","SURVEYANSWERVALUE",
               "name","url","date","pp_keyword","votecontent",
@@ -595,6 +597,7 @@ glmdata <- testdf %>%
 #mutate("same_direction_on_same_bill_and_interest_in_same_legislator_toall_ratio"=same_direction_on_same_bill_and_interest_in_same_legislator/all_direction_on_same_bill_and_interest_in_same_legislator) #%>%
 #magrittr::extract(1:30,)# %>%
 #View()
+
 
 #可以看到有回應也有不回應
 distinct(testdf,id,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfromlegislator,respondopinion) %>%
@@ -675,9 +678,12 @@ ggplot(filter(glmdata,!is.na(respondopinion)),
 
 #Feature Selection
 library(party)
-compactglmdata<-dplyr::select(glmdata,respondopinion,myown_areakind,myown_sex,myown_age,myown_dad_ethgroup,myown_mom_ethgroup,myown_marriage,myown_religion,myown_eduyr,myown_int_pol_efficacy,myown_ext_pol_efficacy,myown_approach_to_politician_or_petition,myown_protest,myown_vote,myown_constituency_party_vote,myown_working_status,myown_industry,myown_occp,myown_ses,myown_workers_numbers,myown_family_income,myown_family_income_ranking,myown_family_income_stdev,total_votes_from_same_party,same_votes_from_same_party,percent_of_same_votes_from_same_party,vote_along_with_majority_in_party,seats,rulingparty,seatsgaptorulingparty,opinionstrength,eduyrgap,sesgap,sexgap,agegap,opinion_pressure_from_constituent_by_nation,majority_opinion_from_constituent_by_nation,opinion_pressure_from_constituent_by_electionarea,majority_opinion_from_constituent_by_electionarea) %>%
+compactglmdata<-dplyr::select(glmdata,term,respondopinion,myown_areakind,myown_sex,myown_age,myown_dad_ethgroup,myown_mom_ethgroup,myown_eduyr,myown_int_pol_efficacy,myown_ext_pol_efficacy,myown_approach_to_politician_or_petition,myown_protest,myown_vote,myown_constituency_party_vote,myown_working_status,myown_ses,myown_family_income,myown_family_income_ranking,myown_family_income_stdev,percent_of_same_votes_from_same_party,rulingparty,opinionstrength,eduyrgap,sesgap,sexgap,agegap,opinion_pressure_from_constituent_by_nation,opinion_pressure_from_constituent_by_electionarea) %>%
   dplyr::filter(respondopinion %in% c("Reject","Giveup","Respond")) %>%
   mutate_at("respondopinion",funs(ordered))
+
+
+gc(reset=TRUE)
 cf1 <- cforest(respondopinion ~ . , data= compactglmdata, control=cforest_unbiased(mtry=2,ntree=50)) # fit the random forest
 varimp(cf1)
 
@@ -692,18 +698,38 @@ glmdata$percent_of_same_votes_from_same_party %>% scale() %>% table()
 #決策樹
 require(rpart)
 require(rpart.plot)
+compactglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Respond")) %>%
+  dplyr::select(term,respondopinion,myown_areakind,myown_sex,myown_age,myown_dad_ethgroup,myown_mom_ethgroup,myown_eduyr,myown_int_pol_efficacy,myown_ext_pol_efficacy,myown_approach_to_politician_or_petition,myown_protest,myown_vote,myown_working_status,myown_ses,myown_family_income,myown_family_income_ranking,myown_family_income_stdev,percent_of_same_votes_from_same_party,rulingparty,eduyrgap,sesgap,sexgap,agegap,opinion_pressure_from_constituent_by_nation,opinion_pressure_from_constituent_by_electionarea,issue_field1,party) %>%
+  mutate_at("respondopinion",funs(ordered))
 set.seed(22)
-train.index <- sample(x=1:nrow(glmdata), size=ceiling(0.8*nrow(glmdata) ))
-train <- glmdata[train.index, ]
-test <- glmdata[-train.index, ]
-cart.model<- rpart(respondopinion ~ myown_areakind+myown_sex+myown_dad_ethgroup+myown_mom_ethgroup+myown_marriage+myown_religion+myown_pol_efficacy+myown_approach_to_politician_or_petition+myown_protest+myown_working_status+myown_age+myown_eduyr+myown_occp+myown_family_income+opinionstrength+opinion_pressure_from_party, 
+train.index <- sample(x=1:nrow(compactglmdata), size=ceiling(0.8*nrow(compactglmdata) ))
+train <- compactglmdata[train.index,1:26]
+test <- compactglmdata[-train.index,1:26]
+cart.model<- rpart(respondopinion ~ ., 
                    data=train)
-prp(cart.model,         # 模型
-    faclen=0,           # 呈現的變數不要縮寫
+rpart.plot::prp(cart.model,         # 模型
+    faclen=3,           # 呈現的變數不要縮寫
     fallen.leaves=TRUE, # 讓樹枝以垂直方式呈現
     shadow.col="gray",  # 最下面的節點塗上陰影
     # number of correct classifications / number of observations in that node
-    extra=2)  
+    extra=2,
+    tweak=2)
+rpart.plot::prp(cart.model, faclen = 0, cex = 0.8, extra = 1)
+rattle::fancyRpartPlot(cart.model, cex=0.5)
+
+only_count <- function(x, labs, digits, varlen)
+{
+  paste(x$frame$n)
+}
+
+boxcols <- c("pink", "palegreen3")[cart.model$frame$yval]
+
+par(xpd=TRUE)
+rpart.plot::prp(cart.model, faclen = 0, cex = 0.8, node.fun=only_count, box.col = boxcols)
+legend("bottomleft", legend = c("died","survived"), fill = c("pink", "palegreen3"),
+       title = "Group")
+
+
 
 #累積迴歸
 require(MASS)

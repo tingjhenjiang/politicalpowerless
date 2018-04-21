@@ -390,6 +390,44 @@ print("你")
 有沒有需要使用Structural  Equation  Model,  SEM或是Multilevel Model, MLM(可能不同選區有不同選區的特性？)
 
 
+```
+## 
+## Attaching package: 'ordinal'
+```
+
+```
+## The following object is masked from 'package:dplyr':
+## 
+##     slice
+```
+
+```
+## Loading required package: MASS
+```
+
+```
+## 
+## Attaching package: 'MASS'
+```
+
+```
+## The following object is masked from 'package:dplyr':
+## 
+##     select
+```
+
+```
+## 
+## Please cite as:
+```
+
+```
+##  Hlavac, Marek (2018). stargazer: Well-Formatted Regression and Summary Statistics Tables.
+```
+
+```
+##  R package version 5.2.1. https://CRAN.R-project.org/package=stargazer
+```
 
 ## 信度檢測（還沒做）
 
@@ -421,11 +459,11 @@ https://www.jakeruss.com/cheatsheets/stargazer/
 
 
 ```r
-stargazer(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.k.4,model_influce_from_p_p.k.5,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3,model_influce_from_p_p.d.4,model_influce_from_p_p.d.5, title="立法委員回應民意與民意多數、政黨意見多數間關係分析表", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
+stargazer(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.k.4,model_influce_from_p_p.k.5,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3,model_influce_from_p_p.d.4,model_influce_from_p_p.d.5, title="立法委員回應民意與民意佔比、同黨成員意見佔比間關係分析表", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
 ```
 
 
-<table style="text-align:center"><caption><strong>立法委員回應民意與民意多數、政黨意見多數間關係分析表</strong></caption>
+<table style="text-align:center"><caption><strong>立法委員回應民意與民意佔比、同黨成員意見佔比間關係分析表</strong></caption>
 <tr><td colspan="9" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="8"><em>Dependent variable:</em></td></tr>
 <tr><td></td><td colspan="8" style="border-bottom: 1px solid black"></td></tr>
 <tr><td style="text-align:left"></td><td colspan="8">respondopinion</td></tr>
@@ -449,7 +487,7 @@ stargazer(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_fr
 
 ```r
 glmdata %>%
-  dplyr::filter(!is.na(respondopinion)) %>% ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_nation)) + labs(title = "第七屆與第九屆研究範圍期間立法委員回應民意與全國多數民意比例間關係") + facet_grid(term ~ party) + geom_boxplot()
+  dplyr::filter(!is.na(respondopinion)) %>% ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_nation)) + labs(title = "第七屆與第九屆研究範圍期間立法委員回應民意與全國民意佔比間關係") + facet_grid(term ~ party) + geom_boxplot()
 ```
 
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-7-1.png)<!-- -->
@@ -457,7 +495,7 @@ glmdata %>%
 ```r
 glmdata %>%
   dplyr::filter(!is.na(respondopinion)) %>%
-  ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_electionarea)) + labs(title = "第七屆與第九屆研究範圍期間立法委員回應民意與立法委員選區多數民意比例間關係") + facet_grid(term ~ party) + geom_boxplot()
+  ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_electionarea)) + labs(title = "第七屆與第九屆研究範圍期間立法委員回應民意與立法委員選區多數民意佔比間關係") + facet_grid(term ~ party) + geom_boxplot()
 ```
 
 ![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-7-2.png)<!-- -->
@@ -469,11 +507,11 @@ glmdata %>%
 
 
 ```r
-stargazer(model_influce_from_p_p_s.k.2,model_influce_from_p_p_s.k.3,model_influce_from_p_p_s.k.4,model_influce_from_p_p_s.k.5,model_influce_from_p_p_s.d.2,model_influce_from_p_p_s.d.3,model_influce_from_p_p_s.d.4,model_influce_from_p_p_s.d.5, title="立法委員回應民意與民意多數、政黨意見多數及及所屬政黨與執政黨間席次差距關係分析", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
+stargazer(model_influce_from_p_p_s.k.2,model_influce_from_p_p_s.k.3,model_influce_from_p_p_s.k.4,model_influce_from_p_p_s.k.5,model_influce_from_p_p_s.d.2,model_influce_from_p_p_s.d.3,model_influce_from_p_p_s.d.4,model_influce_from_p_p_s.d.5, title="立法委員回應民意與民意佔比、政黨成員意見佔比及及所屬政黨與執政黨間席次差距關係分析", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
 ```
 
 
-<table style="text-align:center"><caption><strong>立法委員回應民意與民意多數、政黨意見多數及及所屬政黨與執政黨間席次差距關係分析</strong></caption>
+<table style="text-align:center"><caption><strong>立法委員回應民意與民意佔比、政黨成員意見佔比及及所屬政黨與執政黨間席次差距關係分析</strong></caption>
 <tr><td colspan="9" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left"></td><td colspan="8"><em>Dependent variable:</em></td></tr>
 <tr><td></td><td colspan="8" style="border-bottom: 1px solid black"></td></tr>
 <tr><td style="text-align:left"></td><td colspan="8">respondopinion</td></tr>
@@ -495,14 +533,15 @@ stargazer(model_influce_from_p_p_s.k.2,model_influce_from_p_p_s.k.3,model_influc
 <tr><td style="text-align:left"></td><td colspan="8" style="text-align:right">model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間</td></tr>
 </table>
 
-以上分析顯示民意的強度乃至於人數並不當然能夠影響到民意代表的行為。(reports odds)這種現象也就隱含著影響立法委員的因素還有其他來源，包含政黨、金錢或是更有影響力的人民。
+以上分析顯示民意的多寡與強度乃至於人數並不當然能夠影響到民意代表的行為。(reports odds)這種現象也就隱含著影響立法委員的因素還有其他來源，也許包含政黨、金錢、媒體、民意傳達成效或是更有影響力的人民。
 
 ## 探索性資料分析
 
 
 ```r
 binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Respond")) %>%
-  mutate_at("respondopinion",funs(ordered))
+  dplyr::select(term,respondopinion,myown_areakind,myown_sex,myown_age,myown_dad_ethgroup,myown_mom_ethgroup,myown_eduyr,myown_int_pol_efficacy,myown_ext_pol_efficacy,myown_approach_to_politician_or_petition,myown_protest,myown_vote,myown_working_status,myown_ses,myown_family_income,myown_family_income_ranking,myown_family_income_stdev,percent_of_same_votes_from_same_party,rulingparty,opinionstrength,eduyrgap,sesgap,sexgap,agegap,opinion_pressure_from_constituent_by_nation,opinion_pressure_from_constituent_by_electionarea,issue_field1,party) %>%
+  mutate_at("respondopinion",funs(ordered)) 
 
 (ggplot(binaryglmdata,
        aes(x = respondopinion,
@@ -572,16 +611,6 @@ binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Re
 ```r
 (ggplot(binaryglmdata,
        aes(x = respondopinion,
-           y = (seatsgaptorulingparty)
-           )
-       ) + labs(title = "席次與執政黨差距") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
-```
-
-![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-6.png)<!-- -->
-
-```r
-(ggplot(binaryglmdata,
-       aes(x = respondopinion,
            y = (eduyrgap)
            )
        ) + labs(title = "選民與立法委員教育年差距") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
@@ -591,7 +620,7 @@ binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Re
 ## Warning: Removed 8227 rows containing non-finite values (stat_boxplot).
 ```
 
-![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-7.png)<!-- -->
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-6.png)<!-- -->
 
 ```r
 (ggplot(binaryglmdata,
@@ -605,7 +634,7 @@ binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Re
 ## Warning: Removed 35110 rows containing non-finite values (stat_boxplot).
 ```
 
-![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-8.png)<!-- -->
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-7.png)<!-- -->
 
 ```r
 (ggplot(binaryglmdata,
@@ -619,7 +648,7 @@ binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Re
 ## Warning: Removed 110 rows containing non-finite values (stat_boxplot).
 ```
 
-![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-9.png)<!-- -->
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-8.png)<!-- -->
 
 ```r
 (ggplot(binaryglmdata,
@@ -629,7 +658,7 @@ binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Re
 ) + labs(title = "父親族群") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
 ```
 
-![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-10.png)<!-- -->
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-9.png)<!-- -->
 
 ```r
 (ggplot(binaryglmdata,
@@ -639,7 +668,7 @@ binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Re
 ) + labs(title = "母親族群") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
 ```
 
-![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-11.png)<!-- -->
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-10.png)<!-- -->
 
 ```r
 (ggplot(binaryglmdata,
@@ -649,7 +678,7 @@ binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Re
 ) + labs(title = "有無請願或找政治人物") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
 ```
 
-![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-12.png)<!-- -->
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-11.png)<!-- -->
 
 ```r
 (ggplot(binaryglmdata,
@@ -659,7 +688,7 @@ binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Re
 ) + labs(title = "有無抗議") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
 ```
 
-![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-13.png)<!-- -->
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-12.png)<!-- -->
 
 ```r
 (ggplot(binaryglmdata,
@@ -669,7 +698,7 @@ binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Re
 ) + labs(title = "有無投票") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
 ```
 
-![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-14.png)<!-- -->
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-13.png)<!-- -->
 
 ```r
 (ggplot(binaryglmdata,
@@ -679,9 +708,38 @@ binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Re
 ) + labs(title = "立法委員和選民性別差異") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
 ```
 
-![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-15.png)<!-- -->
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-10-14.png)<!-- -->
+
+## 決策樹
 
 
+```r
+require(rpart)
+```
+
+```
+## Loading required package: rpart
+```
+
+```r
+require(rpart.plot)
+```
+
+```
+## Loading required package: rpart.plot
+```
+
+```r
+set.seed(22)
+train.index <- sample(x=1:nrow(binaryglmdata), size=ceiling(0.8*nrow(binaryglmdata) ))
+train <- binaryglmdata[train.index,1:26]
+test <- binaryglmdata[-train.index,1:26]
+cart.model<- rpart(respondopinion ~ ., 
+                   data=train)
+rattle::fancyRpartPlot(cart.model, cex=1.1,sub="")
+```
+
+![](E:\Software\scripts\R\vote_record\analysis_result_files/figure-html/unnamed-chunk-11-1.png)<!-- -->
 
 
 
@@ -750,24 +808,23 @@ getwd()
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
 ## other attached packages:
-##  [1] plotly_4.7.1      ggplot2_2.2.1     stargazer_5.2.1  
-##  [4] MASS_7.3-49       ordinal_2015.6-28 rmarkdown_1.9    
-##  [7] bindrcpp_0.2.2    openxlsx_4.0.17   magrittr_1.5     
-## [10] dplyr_0.7.4       readr_1.1.1       xml2_1.2.0       
-## [13] XML_3.98-1.10     stringi_1.1.7    
+##  [1] rpart.plot_2.1.2  rpart_4.1-13      ggplot2_2.2.1    
+##  [4] stargazer_5.2.1   MASS_7.3-49       ordinal_2015.6-28
+##  [7] rmarkdown_1.9     bindrcpp_0.2.2    openxlsx_4.0.17  
+## [10] magrittr_1.5      dplyr_0.7.4       readr_1.1.1      
+## [13] xml2_1.2.0        XML_3.98-1.10     stringi_1.1.7    
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] Rcpp_0.12.16        pillar_1.2.1        compiler_3.4.4     
-##  [4] plyr_1.8.4          bindr_0.1.1         tools_3.4.4        
-##  [7] digest_0.6.15       viridisLite_0.3.0   jsonlite_1.5       
-## [10] evaluate_0.10.1     tibble_1.4.2        gtable_0.2.0       
-## [13] lattice_0.20-35     ucminf_1.1-4        pkgconfig_2.0.1    
-## [16] rlang_0.2.0         Matrix_1.2-12       yaml_2.1.18        
-## [19] httr_1.3.1          stringr_1.3.0       knitr_1.20         
-## [22] htmlwidgets_1.2     hms_0.4.2           rprojroot_1.3-2    
-## [25] grid_3.4.4          data.table_1.10.4-3 glue_1.2.0         
-## [28] R6_2.2.2            reshape2_1.4.3      tidyr_0.8.0        
-## [31] purrr_0.2.4         backports_1.1.2     scales_0.5.0       
-## [34] htmltools_0.3.6     assertthat_0.2.0    colorspace_1.3-2   
-## [37] labeling_0.3        lazyeval_0.2.1      munsell_0.4.3
+##  [1] Rcpp_0.12.16       RColorBrewer_1.1-2 pillar_1.2.1      
+##  [4] compiler_3.4.4     plyr_1.8.4         bindr_0.1.1       
+##  [7] tools_3.4.4        digest_0.6.15      evaluate_0.10.1   
+## [10] tibble_1.4.2       gtable_0.2.0       lattice_0.20-35   
+## [13] ucminf_1.1-4       pkgconfig_2.0.1    rlang_0.2.0       
+## [16] Matrix_1.2-12      yaml_2.1.18        RGtk2_2.20.34     
+## [19] stringr_1.3.0      knitr_1.20         hms_0.4.2         
+## [22] rprojroot_1.3-2    grid_3.4.4         glue_1.2.0        
+## [25] R6_2.2.2           reshape2_1.4.3     backports_1.1.2   
+## [28] scales_0.5.0       htmltools_0.3.6    assertthat_0.2.0  
+## [31] rattle_5.1.0       colorspace_1.3-2   labeling_0.3      
+## [34] lazyeval_0.2.1     munsell_0.4.3
 ```
