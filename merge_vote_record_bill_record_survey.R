@@ -656,7 +656,36 @@ getwd()
 # 第O部份：分析資料
 ##############################################################################
 
-##檢定
+##檢定挑選變數
+binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Respond"),myown_mom_ethgroup!="其他臺灣人") %>%
+  dplyr::filter(respondopinion %in% c("Reject","Respond")) %>%
+  dplyr::select(term,respondopinion,myown_sex,myown_age,myown_dad_ethgroup,myown_mom_ethgroup,myown_eduyr,myown_int_pol_efficacy,myown_ext_pol_efficacy,myown_approach_to_politician_or_petition,myown_protest,myown_vote,myown_working_status,myown_ses,myown_family_income,percent_of_same_votes_from_same_party,rulingparty,opinionstrength,eduyrgap,sesgap,sexgap,agegap,opinion_pressure_from_constituent_by_nation,opinion_pressure_from_constituent_by_electionarea,issue_field1,party) %>%
+  mutate_if(is.numeric,scale) %>%
+  mutate_at("respondopinion",funs(ordered)) %>%
+  mutate_at("myown_mom_ethgroup",funs(factor))
+model <- polr(respondopinion ~ .,
+              data = binaryglmdata[,2:25],
+              na.action=na.omit,
+              Hess=TRUE)
+selectedMod<-stepAIC(model)
+model<-glm(
+  formula = respondopinion ~ .,
+  family = binomial(
+    link = "logit"),
+  data = binaryglmdata[,2:24])
+selectedMod <- step(model)
+
+#挑出共線性有問題的 the linearly dependent variables
+ld.vars <- attributes(alias(model)$Complete)$dimnames[[1]]
+
+summary(selectedMod)
+summary(model)
+model <- SignifReg::SignifReg(scope=respondopinion ~ ., data=binaryglmdata[,2:26], alpha=0.05,
+                    direction="forward", criterion="p-value",
+                    correction="FDR")
+car::vif(model)
+car::vif(selectedMod)
+
 ###備份
 
 ##探索性資料分析
@@ -736,8 +765,8 @@ require(MASS)
 glmdata.no.ignore<-filter(glmdata,respondopinion!="Ignore",rulingparty==1,term==9)
 glmdata.no.ignore$respondopinion<-ordered(glmdata.no.ignore$respondopinion)
 ## fit ordered logit model and store results 'm'
-model <- polr(respondopinion ~ (myown_ses),
-              data = glmdata.no.ignore,
+model <- polr(respondopinion ~ .,
+              data = binaryglmdata[,2:27],
               na.action=na.omit,
               Hess=TRUE)
 ## view a summary of the model
