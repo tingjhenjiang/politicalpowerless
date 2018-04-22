@@ -17,8 +17,8 @@ dataset_file_directory <- switch(t_sessioninfo_running,
                                  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
                                  )
 #選舉資料
-overall_elec_dist_types<-c('區域','山原','平原','不分區政黨')
-supplement_election_termseven<-c('補選2009苗栗縣1','補選2009南投縣1','補選2009雲林縣2','補選2009臺北市6','補選2010台中縣3','補選2010花蓮縣','補選2010桃園縣2','補選2010桃園縣3','補選2010新竹縣','補選2010嘉義縣2','補選2010臺東縣','補選2011台南市4','補選2011高雄市4')
+overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
+supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2010hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
 terms<-c(7,9)
 
 ############################################################################################################################################################
@@ -39,16 +39,16 @@ for (termi in 1:length(terms)) {
     message("")
     message("term=",term," AND type=",elec_dist_type," AND nrow=", nrow(elections_df))
     message("")
-    elections_cand_csv <- paste0(dataset_file_directory,"中選會選舉區",slash,"第",term,"屆",slash,elec_dist_type,slash,"elcand.csv")
-    elections_dist_csv <- paste0(dataset_file_directory,"中選會選舉區",slash,"第",term,"屆",slash,elec_dist_type,slash,"elbase.csv")
-    elections_party_csv <- paste0(dataset_file_directory,"中選會選舉區",slash,"第",term,"屆",slash,elec_dist_type,slash,"elpaty.csv")
-    elections_voteresult_csv <- paste0(dataset_file_directory,"中選會選舉區",slash,"第",term,"屆",slash,elec_dist_type,slash,"elprof.csv")
+    elections_cand_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elcand.csv")
+    elections_dist_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elbase.csv")
+    elections_party_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elpaty.csv")
+    elections_voteresult_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elprof.csv")
     elections_df_dist <-read_csv(file=elections_dist_csv,col_types="cccccc")
     elections_df_party <-read_csv(file=elections_party_csv)
     elections_df_cand <-read_csv(file=elections_cand_csv)
     #elections_df_voteresult <-read_csv(file=elections_voteresult_csv)
-    if (elec_dist_type=='不分區政黨') {
-      elections_plcan_csv <- paste0(dataset_file_directory,"中選會選舉區",slash,"第",term,"屆",slash,elec_dist_type,slash,"elrepm.csv")
+    if (elec_dist_type=='partylist') {
+      elections_plcan_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elrepm.csv")
       elections_df_plcan <-read_csv(file=elections_plcan_csv)
       elections_df_plcan$性別<- customgsub(elections_df_plcan$性別,"'(\\d+)","\\1")
       elections_df_plcan$出生日期<- customgsub(elections_df_plcan$出生日期,"'(\\d+)","\\1")
@@ -85,7 +85,7 @@ for (termi in 1:length(terms)) {
     elections_df_cand$省市別<-as.character(elections_df_cand$省市別)
     election_admin_to_elecdist$省市別<-as.character(election_admin_to_elecdist$省市別)
     elections_df_onekind<-left_join(elections_df_cand,election_admin_to_elecdist,by = c("省市別", "縣市別", "選區別"))
-    if (elec_dist_type=='不分區政黨') {
+    if (elec_dist_type=='partylist') {
       elections_df_onekind<-elections_df_onekind[,c("省市別",	"縣市別",	"選區別",	"鄉鎮市區",	"村里別",	"號次",	"政黨代號",	"副手",	"政黨名稱",	"選舉區名稱")]
       elections_df_onekind<-left_join(elections_df_plcan,elections_df_onekind,by = c("政黨代號")) #%>%
       #rename(鄉鎮市區.y=鄉鎮市區.x,村里別.y=村里別.x)
