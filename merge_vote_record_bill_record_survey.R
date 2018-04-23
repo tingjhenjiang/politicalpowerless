@@ -382,6 +382,16 @@ gc(TRUE)
 
 
 load(paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"))
+dataset.for.fa<-select(complete_survey_dataset,SURVEY,id,myown_eduyr,myown_ses,myown_family_income) %>%
+  filter(!is.na(myown_eduyr),!is.na(myown_ses),!is.na(myown_family_income))
+fa.class<-factanal(x= ~myown_eduyr+myown_ses+myown_family_income, 1, data = dataset.for.fa, rotation="varimax", scores=c("regression"),na.action = na.omit)
+left_join(complete_survey_dataset,cbind(dataset.for.fa,"factored_class"=fa.class$scores[,1]),by=c("SURVEY","id")) %>%
+  View()
+install.packages("psy")
+library(psy)
+scree.plot(fa.class$correlations)
+
+
 ##############################################################################
 # 第四部份：總結合併資料階段
 ##############################################################################
