@@ -387,7 +387,7 @@ load(paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"
 #dataset.for.fa<-distinct(complete_survey_dataset,SURVEY,id,myown_eduyr,myown_ses,myown_family_income) %>%
 #  filter(!is.na(myown_eduyr),!is.na(myown_ses),!is.na(myown_family_income))
 #fa.class<-factanal(x= ~myown_eduyr+myown_ses+myown_family_income, 1, data = dataset.for.fa, rotation="varimax", scores=c("regression"),na.action = na.omit)
-#complete_survey_dataset<-left_join(complete_survey_dataset,cbind(dataset.for.fa,"factored_class"=fa.class$scores[,1]),by=c("SURVEY","id"))
+#complete_survey_dataset<-left_join(complete_survey_dataset,cbind(dataset.for.fa,"myown_factoredclass"=fa.class$scores[,1]))
 #install.packages("psy")
 #library(psy)
 #psy::scree.plot(fa.class$correlation)
@@ -536,7 +536,8 @@ testdf <- testdf %>%
               "myown_ses","myown_occp","myown_workers_numbers","myown_hire_people_no",
               "myown_manage_people_no","myown_family_income",
               "opinionstrength",
-              "myown_family_income_ranking","myown_family_income_stdev"  #,
+              "myown_family_income_ranking","myown_family_income_stdev",
+              "myown_factoredclass" #,
               ),funs(as.numeric)) %>%
   mutate_at(c("wave","qtype","SURVEYQUESTIONID","SURVEYANSWERVALUE",
               "name","url","date","pp_keyword","votecontent",
@@ -549,6 +550,14 @@ testdf <- testdf %>%
               "billn","urln","pp_duplicated_item",
               "legislator_age","plranking"  #,
               ),funs(as.integer)) #%>%
+
+#將職業社經地位差距、教育程度差距萃取成為階級差距
+dataset.for.classgap.fa<-distinct(testdf,SURVEY,id,eduyrgap,sesgap) %>%
+  filter(!is.na(eduyrgap),!is.na(sesgap))
+fa.classgap<-factanal(x= ~eduyrgap+sesgap, 1, data = dataset.for.classgap.fa, rotation="varimax", scores=c("regression"),na.action = na.omit)
+testdf<-left_join(testdf,cbind(dataset.for.classgap.fa,"myown_factoredclassgap"=fa.classgap$scores[,1]))
+
+
 
 filter(testdf,is.na(SURVEYANSWERVALUE) | is.na(respondopinion)) %>%
   #distinct(LABEL) %>%
@@ -630,12 +639,14 @@ glmdata <- testdf %>%
 
 
 
-contrasts(glmdata$respondopinion)<-contr.treatment(4, base=1)
+#contrasts(glmdata$respondopinion)<-contr.treatment(4, base=1)
 glmdata$respondopinion<-ordered(glmdata$respondopinion,levels=c(0,1,2,3),labels=c("Reject","Ignore","Giveup","Respond"))
 glmdata$myown_dad_ethgroup<-factor(glmdata$myown_dad_ethgroup,levels=c(1,2,3,4,5,6),labels=c("閩","客","原","外省","移民","其他臺灣人"))
 glmdata$myown_mom_ethgroup<-factor(glmdata$myown_mom_ethgroup,levels=c(1,2,3,4,5,6),labels=c("閩","客","原","外省","移民","其他臺灣人"))
 glmdata$myown_selfid<-factor(glmdata$myown_selfid,levels=c(1,2,3,4,5,6),labels=c("閩","客","原","外省","移民","其他臺灣人"))
 glmdata$myown_vote<-factor(glmdata$myown_vote,levels=c(1,2,3),labels=c("有投","沒投","沒有投票權"))
+glmdata$myown_protest<-factor(glmdata$myown_protest,levels=c(0,1),labels=c("沒抗議","有抗議"))
+glmdata$myown_approach_to_politician_or_petition<-factor(glmdata$myown_approach_to_politician_or_petition,levels=c(0,1),labels=c("沒請願或遊說","有請願或遊說"))
 
 contrasts(glmdata$rulingparty)<-contr.treatment(2, base=2)
 contrasts(glmdata$myown_approach_to_politician_or_petition)<-contr.treatment(2, base=2)
@@ -662,34 +673,7 @@ getwd()
 # 第O部份：分析資料
 ##############################################################################
 
-##檢定挑選變數
-binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Respond"),myown_mom_ethgroup!="其他臺灣人") %>%
-  #dplyr::filter(respondopinion %in% c("Reject","Respond")) %>%
-  dplyr::select(term,respondopinion,myown_sex,myown_age,myown_selfid,myown_eduyr,myown_int_pol_efficacy,myown_ext_pol_efficacy,myown_approach_to_politician_or_petition,myown_protest,myown_vote,myown_working_status,myown_ses,myown_family_income,percent_of_same_votes_from_same_party,rulingparty,opinionstrength,eduyrgap,sesgap,sexgap,agegap,opinion_pressure_from_constituent_by_nation,opinion_pressure_from_constituent_by_electionarea,issue_field1,party) %>%
-  mutate_if(is.numeric,scale) %>%
-  mutate_at("respondopinion",funs(ordered))
-model <- MASS::polr(respondopinion ~ .,
-              data = binaryglmdata[,2:25],
-              na.action=na.omit,
-              Hess=TRUE)
-selectedMod<-MASS::stepAIC(model)
-model<-glm(
-  formula = respondopinion ~ .,
-  family = binomial(
-    link = "logit"),
-  data = binaryglmdata[,2:24])
-selectedMod <- step(model)
-gc(reset=TRUE)
-#挑出共線性有問題的 the linearly dependent variables
-ld.vars <- attributes(alias(model)$Complete)$dimnames[[1]]
 
-summary(selectedMod)
-summary(model)
-model <- SignifReg::SignifReg(scope=respondopinion ~ ., data=binaryglmdata[,2:26], alpha=0.05,
-                    direction="forward", criterion="p-value",
-                    correction="FDR")
-car::vif(model)
-car::vif(selectedMod)
 
 ###備份
 
@@ -767,13 +751,31 @@ legend("bottomleft", legend = c("died","survived"), fill = c("pink", "palegreen3
 
 #累積迴歸
 require(MASS)
-glmdata.no.ignore<-filter(glmdata,respondopinion!="Ignore",rulingparty==1,term==9)
-glmdata.no.ignore$respondopinion<-ordered(glmdata.no.ignore$respondopinion)
-## fit ordered logit model and store results 'm'
-model <- polr(respondopinion ~ .,
-              data = binaryglmdata[,2:27],
-              na.action=na.omit,
-              Hess=TRUE)
+##檢定挑選變數
+binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Respond"),myown_mom_ethgroup!="其他臺灣人") %>%
+  #dplyr::filter(respondopinion %in% c("Reject","Respond")) %>%
+  dplyr::select(term,respondopinion,myown_sex,myown_selfid,myown_approach_to_politician_or_petition,myown_protest,myown_vote,myown_factoredclass,percent_of_same_votes_from_same_party,rulingparty,sesgap,sexgap,opinion_pressure_from_constituent_by_electionarea,issue_field1,party) %>%
+  mutate_if(is.numeric,scale) %>%
+  mutate_at("respondopinion",funs(ordered))
+model <- MASS::polr(respondopinion ~ .,
+                    data = binaryglmdata[,2:23],
+                    na.action=na.omit,
+                    Hess=TRUE)
+selectedMod<-MASS::stepAIC(model)
+model<-glm(
+  formula = respondopinion ~ .,
+  family = binomial(
+    link = "logit"),
+  data = binaryglmdata[,2:24])
+selectedMod <- step(model)
+gc(reset=TRUE)
+#挑出共線性有問題的 the linearly dependent variables
+ld.vars <- attributes(alias(model)$Complete)$dimnames[[1]]
+
+summary(selectedMod)
+summary(model)
+car::vif(model)
+car::vif(selectedMod)
 ## view a summary of the model
 summary(model)
 #view coef and pvalue
@@ -823,12 +825,14 @@ model.coef
 #"opinion_pressure_from_constituent_by_electionarea"     
 #"majority_opinion_from_constituent_by_electionarea"  
 
-binaryglmdata<-filter(glmdata,respondopinion %in% c("Reject","Respond")) #,term==7,party=="中國國民黨"
-binaryglmdata$respondopinion<-ordered(binaryglmdata$respondopinion)
-contrasts(binaryglmdata$respondopinion)<-contr.treatment(2, base=2) #
+binaryglmdata<-filter(glmdata,term==9,rulingparty==1,respondopinion %in% c("Reject","Respond")) %>%
+  select(term,respondopinion,myown_sex,myown_selfid,myown_approach_to_politician_or_petition,myown_protest,myown_vote,myown_factoredclass,percent_of_same_votes_from_same_party,rulingparty,sesgap,sexgap,opinion_pressure_from_constituent_by_electionarea,issue_field1,party) %>%
+  mutate_if(is.numeric,scale) %>%
+  mutate_if(is.factor,factor) #,term==7,party=="中國國民黨"
+#contrasts(binaryglmdata$respondopinion)<-contr.treatment(2, base=2) #
 model<-glm(
   #myown_areakind+myown_sex+myown_dad_ethgroup+myown_mom_ethgroup+myown_marriage+myown_religion+myown_pol_efficacy+myown_approach_to_politician_or_petition+myown_protest+myown_working_status+myown_age+myown_eduyr+myown_occp+myown_family_income+opinionstrength+opinion_pressure_from_party
-  formula = respondopinion ~ sexgap,
+  formula = respondopinion ~ .,
   family = binomial(
     link = "logit"),
   data = binaryglmdata)
