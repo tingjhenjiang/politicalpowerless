@@ -260,7 +260,8 @@ mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %
   #          "棄權n"=1,"棄權nn"=1,"棄權m"=1,"棄權mm"=1,
   #          "贊成n"=0,"贊成nn"=0,"反對m"=0,"反對mm"=0
   #) %>%
-  rename(name=legislator_name)
+  rename(name=legislator_name) %>%
+  reshape2::melt(id.vars = setdiff(names(.), c("issue_field1","issue_field2")), variable.name = "issuefield_num", value.name = "issuefield" )  #再根據不同利益區別
 
 #可以看到有回應也有不回應
 #distinct(mergedf_votes_bills_election_surveyanswer,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfrombill,opiniondirectionfromlegislator,respondopinion) %>%
@@ -484,9 +485,9 @@ testdf <- left_join(mergedf_votes_bills_election_surveyanswer, legislators_with_
 #沒有投票權也會串到立委，也就是只串選區的串法
 testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionarea", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE"))
 #只串到支持的候選人的串法
-testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionarea", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE", "myown_constituency_party_vote"="election_party"))
-
-
+#testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionarea", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE", "myown_constituency_party_vote"="election_party"))
+#串全國，不限選區
+#testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE", "myown_constituency_party_vote"="election_party"))
 
 ##############################################################################
 # 第O部份：清理資料：設定遺漏值
