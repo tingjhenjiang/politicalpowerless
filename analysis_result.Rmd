@@ -137,24 +137,26 @@ testdata.kmt.ruling.noignore<-dplyr::filter(glmdata,term==7,respondopinion!=1) %
 testdata.dpp.ruling.noignore<-dplyr::filter(glmdata,term==9,respondopinion!=1) %>%
   mutate_at("respondopinion",funs(ordered))
   
-model_influce_from_p_p.k.2 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-model_influce_from_p_p.k.3 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_nation,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-model_influce_from_p_p.k.4 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-model_influce_from_p_p.k.5 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_electionarea,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-model_influce_from_p_p.d.2 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-model_influce_from_p_p.d.3 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_nation,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-model_influce_from_p_p.d.4 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-model_influce_from_p_p.d.5 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_electionarea,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p.k.2 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p.k.3 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_nation,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p.k.4 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p.k.5 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_electionarea,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p.d.2 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p.d.3 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_nation,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p.d.4 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p.d.5 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_electionarea,data=testdata.dpp.ruling.noignore, Hess=TRUE)
 
 ```
 
 ```{r, results='asis'}
-stargazer(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.k.4,model_influce_from_p_p.k.5,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3,model_influce_from_p_p.d.4,model_influce_from_p_p.d.5, title="立法委員回應民意與民意佔比、同黨成員意見佔比間關係分析表", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
+#stargazer(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.k.4,model_influce_from_p_p.k.5,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3,model_influce_from_p_p.d.4,model_influce_from_p_p.d.5, title="立法委員回應民意與民意佔比、同黨成員意見佔比間關係分析表", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
 ```
 
 為了探究這種與一般直覺相左的原因，瞭解民意代表為何會選擇不回應民意，此處先區分時期、區分政黨回應民意的情形，以箱型圖觀察如下：
 
 ```{r, fig.width=14,fig.height=15}
+#rm(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.k.4,model_influce_from_p_p.k.5,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3,model_influce_from_p_p.d.4,model_influce_from_p_p.d.5)
+#gcreset()
 glmdata %>%
   dplyr::filter(!is.na(respondopinion)) %>% ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_nation)) + labs(title = "第七屆與第九屆研究範圍期間立法委員回應民意與全國民意佔比間關係") + facet_grid(term ~ party) + geom_boxplot()
 
@@ -168,34 +170,49 @@ glmdata %>%
 將政黨席次與執政黨席次的差距作為自變項加回迴歸式進行檢定。
 
 ```{r, echo=FALSE}
-model_influce_from_p_p_s.k.2 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-model_influce_from_p_p_s.k.3 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-model_influce_from_p_p_s.k.4 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
-model_influce_from_p_p_s.k.5 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p_s.k.2 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p_s.k.3 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p_s.k.4 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p_s.k.5 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.kmt.ruling.noignore, Hess=TRUE)
 
-model_influce_from_p_p_s.d.2 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-model_influce_from_p_p_s.d.3 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-model_influce_from_p_p_s.d.4 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
-model_influce_from_p_p_s.d.5 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p_s.d.2 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p_s.d.3 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_nation+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p_s.d.4 <- MASS::polr(respondopinion~percent_of_same_votes_from_same_party+opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+#model_influce_from_p_p_s.d.5 <- MASS::polr(respondopinion~opinion_pressure_from_constituent_by_electionarea+seatsgaptorulingparty,data=testdata.dpp.ruling.noignore, Hess=TRUE)
 ```
 
 ``````{r, results='asis'}
-stargazer(model_influce_from_p_p_s.k.2,model_influce_from_p_p_s.k.3,model_influce_from_p_p_s.k.4,model_influce_from_p_p_s.k.5,model_influce_from_p_p_s.d.2,model_influce_from_p_p_s.d.3,model_influce_from_p_p_s.d.4,model_influce_from_p_p_s.d.5, title="立法委員回應民意與民意佔比、政黨成員意見佔比及及所屬政黨與執政黨間席次差距關係分析", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
+#stargazer(model_influce_from_p_p_s.k.2,model_influce_from_p_p_s.k.3,model_influce_from_p_p_s.k.4,model_influce_from_p_p_s.k.5,model_influce_from_p_p_s.d.2,model_influce_from_p_p_s.d.3,model_influce_from_p_p_s.d.4,model_influce_from_p_p_s.d.5, title="立法委員回應民意與民意佔比、政黨成員意見佔比及及所屬政黨與執政黨間席次差距關係分析", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
 ```
 
 以上分析顯示民意的多寡與強度乃至於人數並不當然能夠影響到民意代表的行為。(reports odds)這種現象也就隱含著影響立法委員的因素還有其他來源，也許包含政黨、金錢、媒體、民意傳達成效或是更有影響力的人民。
+
+### 各種因素對民意代表投票的影響力
+
+```{r, echo=FALSE}
+model_influce_from_all_s.k.2 <- MASS::polr(respondopinion~myown_sex+myown_selfid+myown_approach_to_politician_or_petition+myown_protest+myown_vote+myown_factoredclass+percent_of_same_votes_from_same_party+rulingparty+sesgap+sexgap+opinion_pressure_from_constituent_by_electionarea,data=testdata.kmt.ruling.noignore, Hess=TRUE)
+
+model_influce_from_all.d.2 <- MASS::polr(respondopinion~myown_sex+myown_selfid+myown_approach_to_politician_or_petition+myown_protest+myown_vote+myown_factoredclass+percent_of_same_votes_from_same_party+rulingparty+sesgap+sexgap+opinion_pressure_from_constituent_by_electionarea,data=testdata.dpp.ruling.noignore, Hess=TRUE)
+```
+
+``````{r, results='asis'}
+stargazer(model_influce_from_all_s.k.2,model_influce_from_all.d.2, title="立法委員回應民意與各因素關係分析", align=TRUE, type = 'html', summary=TRUE, notes="model 1 為第七屆研究範圍期間,model 2 為第九屆研究範圍期間")
+```
 
 ### 政治資本與政治參與對於民意代表是否回應的中介效果
 
 中介變項檢驗方法mediational effects
 http://data.library.virginia.edu/introduction-to-mediation-analysis/
 https://www.jstatsoft.org/article/view/v059i05
+檢測
+https://gist.github.com/stephlocke/fb1225f6b5029a9f5b04aa6e6123cbc9
 
 ## 探索性資料分析
 
 ```{r, fig.width=14,fig.height=37}
-threelevelglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Respond")) %>%
-  dplyr::select(term,respondopinion,myown_areakind,myown_sex,myown_age,myown_dad_ethgroup,myown_mom_ethgroup,myown_eduyr,myown_int_pol_efficacy,myown_ext_pol_efficacy,myown_approach_to_politician_or_petition,myown_protest,myown_vote,myown_working_status,myown_ses,myown_family_income,myown_family_income_ranking,myown_family_income_stdev,percent_of_same_votes_from_same_party,rulingparty,opinionstrength,eduyrgap,sesgap,sexgap,agegap,opinion_pressure_from_constituent_by_nation,opinion_pressure_from_constituent_by_electionarea,issue_field1,party) %>%
+threelevelglmdata<-mutate_cond(glmdata,respondopinion==1,respondopinion=2) %>%
+  dplyr::filter(respondopinion %in% c(0,2,3)) %>%
+  dplyr::select(term,respondopinion,myown_areakind,myown_sex,myown_age,myown_dad_ethgroup,myown_mom_ethgroup,myown_eduyr,myown_int_pol_efficacy,myown_ext_pol_efficacy,myown_approach_to_politician_or_petition,myown_protest,myown_vote,myown_working_status,myown_ses,myown_family_income_ingroup,myown_family_income,myown_family_income_ranking,myown_family_income_stdev,percent_of_same_votes_from_same_party,rulingparty,opinionstrength,eduyrgap,sesgap,sexgap,agegap,opinion_pressure_from_constituent_by_nation,opinion_pressure_from_constituent_by_electionarea,myown_factoredclass,issue_field1,party) %>%
   mutate_at("respondopinion",funs(ordered)) 
 
 (ggplot(threelevelglmdata,
@@ -215,6 +232,12 @@ threelevelglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup"
            y = (myown_factoredclass)
            )
        ) + labs(title = "綜合社經地位") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+
+(ggplot(threelevelglmdata,
+       aes(x = myown_family_income_ingroup,
+           fill = (respondopinion)
+       )
+) + labs(title = "家庭收入所屬組別") + facet_grid(term ~ party) + geom_bar(position="fill"))
 
 (ggplot(threelevelglmdata,
        aes(x = respondopinion,

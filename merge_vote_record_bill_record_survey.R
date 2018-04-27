@@ -232,12 +232,13 @@ mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %
   mutate_at("opiniondirectionfrombill",funs(recode(opiniondirectionfrombill)),
             "n"="n","nn"="n","m"="m","mm"="m","b"="b"
   ) %>%
-  mutate(opiniondirectionfromlegislator=NA) %>%
-  mutate(respondopinion=NA) %>%
+  mutate(opiniondirectionfromlegislator=NA,respondopinion=NA,success_on_bill=NA) %>%
   #mutate(respondopinion=paste0(votedecision,opiniondirectionfrombill)) %>%
   #mutate(respondopinion) %>%
   #mutate_cond(votedecision=="贊成" & opiniondirectionfromconstituent==opiniondirectionfrombill, respondopinion=2) %>%
   #mutate_cond(votedecision=="贊成" & opiniondirectionfromconstituent!=opiniondirectionfrombill, respondopinion=0) %>%
+  mutate_cond( (opiniondirectionfromconstituent==opiniondirectionfrombill), success_on_bill=ifelse(billresult=="Passed","win","lose") ) %>%
+  mutate_cond( (opiniondirectionfromconstituent!=opiniondirectionfrombill), success_on_bill=ifelse(billresult=="Passed","lose","win") ) %>%
   mutate_cond(votedecision=="贊成", opiniondirectionfromlegislator=opiniondirectionfrombill) %>%
   mutate_cond(votedecision=="反對", opiniondirectionfromlegislator=recode(opiniondirectionfrombill,
     "n"="m","m"="n",
@@ -260,8 +261,7 @@ mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %
   #          "棄權n"=1,"棄權nn"=1,"棄權m"=1,"棄權mm"=1,
   #          "贊成n"=0,"贊成nn"=0,"反對m"=0,"反對mm"=0
   #) %>%
-  rename(name=legislator_name) %>%
-  reshape2::melt(id.vars = setdiff(names(.), c("issue_field1","issue_field2")), variable.name = "issuefield_num", value.name = "issuefield" )  #再根據不同利益區別
+  rename(name=legislator_name)
 
 #可以看到有回應也有不回應
 #distinct(mergedf_votes_bills_election_surveyanswer,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfrombill,opiniondirectionfromlegislator,respondopinion) %>%
@@ -385,10 +385,10 @@ gc(TRUE)
 load(paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"))
 
 #將職業社經地位、家庭收入、教育程度萃取成為階級
-#dataset.for.fa<-distinct(complete_survey_dataset,SURVEY,id,myown_eduyr,myown_ses,myown_family_income) %>%
-#  filter(!is.na(myown_eduyr),!is.na(myown_ses),!is.na(myown_family_income))
-#fa.class<-factanal(x= ~myown_eduyr+myown_ses+myown_family_income, 1, data = dataset.for.fa, rotation="varimax", scores=c("regression"),na.action = na.omit)
-#complete_survey_dataset<-left_join(complete_survey_dataset,cbind(dataset.for.fa,"myown_factoredclass"=fa.class$scores[,1]))
+dataset.for.fa<-distinct(complete_survey_dataset,SURVEY,id,myown_eduyr,myown_ses,myown_family_income) %>%
+  filter(!is.na(myown_eduyr),!is.na(myown_ses),!is.na(myown_family_income))
+fa.class<-factanal(x= ~myown_eduyr+myown_ses+myown_family_income, 1, data = dataset.for.fa, rotation="varimax", scores=c("regression"),na.action = na.omit)
+complete_survey_dataset<-left_join(complete_survey_dataset,cbind(dataset.for.fa,"myown_factoredclass"=fa.class$scores[,1]))
 #install.packages("psy")
 #library(psy)
 #psy::scree.plot(fa.class$correlation)
@@ -401,6 +401,10 @@ load(paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"
 
 load(paste0(dataset_file_directory,"rdata",slash,"legislators_with_election.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"mergedf_votes_bills_election_surveyanswer.RData"))
+
+only_bill_to_survey_information<-distinct(mergedf_votes_bills_election_surveyanswer,term,period,meetingno,temp_meeting_no,billn,billresult,billid_myown,SURVEY,variable_on_q,value_on_q_variable,SURVEYQUESTIONID,SURVEYANSWERVALUE,LABEL,QUESTION,opinionfromconstituent,opinionfrombill,issue_field1,issue_field2,opinionstrength,opiniondirectionfromconstituent,opiniondirectionfrombill,success_on_bill)
+save(only_bill_to_survey_information,file="only_bill_to_survey_information.RData")
+load("only_bill_to_survey_information.RData")
 
 legislators_with_election <- legislators_with_election[!is.na(legislators_with_election$wonelection),] %>%
   distinct(term, name, ename, sex, party.x, partyGroup, areaName,
@@ -489,6 +493,14 @@ testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionar
 #串全國，不限選區
 #testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE", "myown_constituency_party_vote"="election_party"))
 
+# only observe if bills are passed
+testdf<-complete_survey_dataset %>%
+  mutate_at("SURVEYANSWERVALUE", funs(as.character)) %>%
+  inner_join(
+    mutate_at(only_bill_to_survey_information, "SURVEYANSWERVALUE", funs(as.character))
+    )
+
+
 ##############################################################################
 # 第O部份：清理資料：設定遺漏值
 ##############################################################################
@@ -498,24 +510,17 @@ testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionar
 #beforecleannames<-names(testdf)
 
 testdf <- testdf %>%
-  dplyr::select(-billcontent.y,-billcontent.x) %>%
   mutate_cond(myown_eduyr %in% c(96:99,996:999,9996:9999), myown_eduyr=NA) %>%
   mutate_cond(myown_ext_pol_efficacy %in% c(94:99,996:999,9996:9999), myown_ext_pol_efficacy=NA) %>%
   mutate_cond(myown_int_pol_efficacy %in% c(94:99,996:999,9996:9999), myown_int_pol_efficacy=NA) %>%
   mutate_cond(myown_working_status %in% c(96:99,996:999,9996:9999), myown_working_status=NA) %>%
   mutate_cond(SURVEYANSWERVALUE %in% c(96:99,996:999,9996:9999), respondopinion=NA, opiniondirection=NA) %>%
-  mutate(eduyrgap=NA,sesgap=NA,sexgap=NA,agegap=NA) %>%
-  mutate_cond(!is.na(myown_age), agegap=abs(myown_age-legislator_age)) %>%
-  mutate_cond(!is.na(myown_eduyr), eduyrgap=abs(myown_eduyr-legislator_eduyr)) %>%
-  mutate_cond(!is.na(myown_ses), sesgap=abs(myown_ses-legislator_ses)) %>%
-  mutate_cond((myown_sex==1 & legislator_sex=="男") | (myown_sex==2 & legislator_sex=="女"), sexgap=0) %>%
-  mutate_cond((myown_sex==2 & legislator_sex=="男") | (myown_sex==1 & legislator_sex=="女"), sexgap=1) %>%
-  mutate_at("sexgap",funs(as.factor)) %>%
-  mutate_cond(respondopinion=="x", respondopinion=NA) %>%
-  mutate_at(c("SURVEY","zip","stratum2","myown_areakind","psu","ssu",
+  #reshape2::melt(id.vars = setdiff(names(.), c("issue_field1","issue_field2")), variable.name = "issuefield_num", value.name = "issuefield" ) %>% #再根據不同利益區別
+  mutate_at(intersect(colnames(.),c("SURVEY","zip","stratum2","myown_areakind","psu","ssu",
               "myown_sex","myown_dad_ethgroup","myown_selfid","myown_mom_ethgroup",
               "myown_marriage","myown_religion","myown_ext_pol_efficacy","myown_int_pol_efficacy",
               "myown_approach_to_politician_or_petition","myown_vote",
+              "myown_family_income_ingroup",
               "myown_protest","myown_constituency_party_vote",
               "myown_working_status","myown_industry","myown_job_status",
               "term","electionarea","admincity","admindistrict",
@@ -530,27 +535,40 @@ testdf <- testdf %>%
               "legislator_sex","legislator_party","partyGroup",
               "areaName","leaveFlag","education","incumbent",
               "wonelection","elec_dist_type",
-              "vote_along_with_majority_in_party",
+              "vote_along_with_majority_in_party","success_on_bill",
               "issue_field1","issue_field2"
-              ), funs(as.factor)) %>%
-  mutate_at(c("wsel","myown_wsel","year","year_m","myown_age","myown_eduyr",
+              )), funs(as.factor)) %>%
+  mutate_at(intersect(colnames(.),c("wsel","myown_wsel","year","year_m","myown_age","myown_eduyr",
               "myown_ses","myown_occp","myown_workers_numbers","myown_hire_people_no",
               "myown_manage_people_no","myown_family_income",
-              "opinionstrength",
+              "opinionstrength","eduyrgap",
               "myown_family_income_ranking","myown_family_income_stdev",
               "myown_factoredclass" #,
-              ),funs(as.numeric)) %>%
-  mutate_at(c("wave","qtype","SURVEYQUESTIONID","SURVEYANSWERVALUE",
+              )),funs(as.numeric)) %>%
+  mutate_at(intersect(colnames(.),c("wave","qtype","SURVEYQUESTIONID","SURVEYANSWERVALUE",
               "name","url","date","pp_keyword","votecontent",
               "billcontent","LABEL","QUESTION","ename","committee",
               "onboardDate","degree","experience","picUrl","leaveDate",
               "leaveReason","ballotid","birthday","birthplace",
               "yrmonth"
-              ),funs(as.character)) %>%
-  mutate_at(c("zip3rocyear","period","meetingno","temp_meeting_no",
+              )),funs(as.character)) %>%
+  mutate_at(intersect(colnames(.),c("zip3rocyear","period","meetingno","temp_meeting_no",
               "billn","urln","pp_duplicated_item",
               "legislator_age","plranking"  #,
-              ),funs(as.integer)) #%>%
+              )),funs(as.integer))
+
+testdf <- testdf %>%
+  #dplyr::select(-billcontent.y,-billcontent.x) %>%
+  mutate(eduyrgap=NA,sesgap=NA,sexgap=NA,agegap=NA) %>%
+  mutate_cond(!is.na(myown_age), agegap=abs(myown_age-legislator_age)) %>%
+  mutate_cond(!is.na(myown_eduyr), eduyrgap=abs(myown_eduyr-legislator_eduyr)) %>%
+  mutate_cond(!is.na(myown_ses), sesgap=abs(myown_ses-legislator_ses)) %>%
+  mutate_cond((myown_sex==1 & legislator_sex=="男") | (myown_sex==2 & legislator_sex=="女"), sexgap=0) %>%
+  mutate_cond((myown_sex==2 & legislator_sex=="男") | (myown_sex==1 & legislator_sex=="女"), sexgap=1) %>%
+  mutate_at("sexgap",funs(as.factor)) %>%
+  mutate_cond(respondopinion=="x", respondopinion=NA)
+
+#%>%
 
 #將職業社經地位差距、教育程度差距萃取成為階級差距
 dataset.for.classgap.fa<-distinct(testdf,SURVEY,id,eduyrgap,sesgap) %>%
@@ -639,9 +657,10 @@ glmdata <- testdf %>%
 
 
 
-
+glmdata$respondopinion[glmdata$respondopinion==1]<-2
 #contrasts(glmdata$respondopinion)<-contr.treatment(4, base=1)
 glmdata$respondopinion<-ordered(glmdata$respondopinion,levels=c(0,1,2,3),labels=c("Reject","Ignore","Giveup","Respond"))
+glmdata$respondopinion<-ordered(glmdata$respondopinion,levels=c(0,2,3),labels=c("Reject","Giveup","Respond"))
 glmdata$myown_dad_ethgroup<-factor(glmdata$myown_dad_ethgroup,levels=c(1,2,3,4,5,6),labels=c("閩","客","原","外省","移民","其他臺灣人"))
 glmdata$myown_mom_ethgroup<-factor(glmdata$myown_mom_ethgroup,levels=c(1,2,3,4,5,6),labels=c("閩","客","原","外省","移民","其他臺灣人"))
 glmdata$myown_selfid<-factor(glmdata$myown_selfid,levels=c(1,2,3,4,5,6),labels=c("閩","客","原","外省","移民","其他臺灣人"))
@@ -759,7 +778,7 @@ binaryglmdata<-dplyr::filter(glmdata,respondopinion %in% c("Reject","Giveup","Re
   mutate_if(is.numeric,scale) %>%
   mutate_at("respondopinion",funs(ordered))
 model <- MASS::polr(respondopinion ~ .,
-                    data = binaryglmdata[,2:23],
+                    data = binaryglmdata[,2:15],
                     na.action=na.omit,
                     Hess=TRUE)
 selectedMod<-MASS::stepAIC(model)
@@ -778,6 +797,13 @@ summary(model)
 car::vif(model)
 car::vif(selectedMod)
 ## view a summary of the model
+
+## 分段
+model<-MASS::polr(respondopinion ~ myown_factoredclass,data = 
+                    dplyr::filter(glmdata,term==7, respondopinion %in% c(0,2,3), myown_family_income_ranking>5, myown_family_income_ranking<95) %>%
+                    mutate_at("respondopinion",funs(ordered)),
+                  na.action=na.omit,Hess=TRUE)
+#myown_sex+myown_selfid+myown_approach_to_politician_or_petition+myown_protest+myown_vote+myown_factoredclass+percent_of_same_votes_from_same_party+rulingparty+sesgap+sexgap+opinion_pressure_from_constituent_by_electionarea
 summary(model)
 #view coef and pvalue
 model.coef <- data.frame(coef(summary(model))) %>%
@@ -786,6 +812,10 @@ model.coef <- data.frame(coef(summary(model))) %>%
   tibble::column_to_rownames('gene')
 #model.coef$pval <- round((pnorm(abs(model.coef$t.value),lower.tail= FALSE) * 2), 4)
 model.coef
+
+#check validity
+pscl::pR2(model)
+
 
 #"myown_areakind"
 #"myown_sex"                                             
@@ -824,7 +854,19 @@ model.coef
 #"opinion_pressure_from_constituent_by_nation"           
 #"majority_opinion_from_constituent_by_nation" 
 #"opinion_pressure_from_constituent_by_electionarea"     
-#"majority_opinion_from_constituent_by_electionarea"  
+#"majority_opinion_from_constituent_by_electionarea" 
+
+## 分段：只看有沒有通過
+#myown_sex+myown_selfid+myown_approach_to_politician_or_petition+myown_protest+myown_vote+myown_factoredclass+
+model<-glm(formula = success_on_bill ~ opinion_pressure_from_constituent_by_nation,
+           family = binomial(
+             link = "logit"),
+           data = dplyr::filter(glmdata,term==9) %>% mutate_at("success_on_bill",funs(dplyr::recode),win=1,lose=0),
+           na.action=na.omit
+           )
+pscl::pR2(model)
+
+#+rulingparty
 
 binaryglmdata<-filter(glmdata,term==9,rulingparty==1,respondopinion %in% c("Reject","Respond")) %>%
   select(term,respondopinion,myown_sex,myown_selfid,myown_approach_to_politician_or_petition,myown_protest,myown_vote,myown_factoredclass,percent_of_same_votes_from_same_party,rulingparty,sesgap,sexgap,opinion_pressure_from_constituent_by_electionarea,issue_field1,party) %>%
@@ -840,6 +882,15 @@ model<-glm(
 summary(model)
 
 
+#計算預測能力
+fitted.results <- predict(model,newdata=
+                            dplyr::filter(glmdata,term==9) %>%
+                            mutate_at("success_on_bill",funs(dplyr::recode)) %>%
+                            sample_n(30000),
+                          type='response')
+fitted.results <- ifelse(fitted.results > 0.5,1,0)
+misClasificError <- mean(fitted.results != test$Survived)
+print(paste('Accuracy',1-misClasificError))
 
 
 #可以看到沒有繼續當的立委沒串到
