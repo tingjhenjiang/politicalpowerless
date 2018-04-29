@@ -632,7 +632,19 @@ glmdata <- testdf %>%
   mutate("opinion_pressure_from_constituent_by_electionarea"=same_opiniondirection_from_constituent_by_electionarea/all_opiniondirection_from_constituent_by_electionarea) %>%
   mutate("majority_opinion_from_constituent_by_electionarea"=ifelse(opinion_pressure_from_constituent_by_electionarea>=0.5,1,0)) %>%
   mutate_at("majority_opinion_from_constituent_by_electionarea",funs(as.factor)) %>%
-  filter(!(value_on_q_variable %in% c("2016citizen@d5a","2016citizen@d6a","2016citizen@d6b","2016citizen@d6d","2016citizen@d6g","2016citizen@d6h"))) #%>%   #忽略預算支出題組
+  filter(!(value_on_q_variable %in% c("2016citizen@d5a","2016citizen@d6a","2016citizen@d6b","2016citizen@d6d","2016citizen@d6g","2016citizen@d6h"))) %>%
+  select(-same_opiniondirection_from_constituent_by_nation,
+         -all_opiniondirection_from_constituent_by_nation,
+         -same_opiniondirection_from_constituent_by_electionarea,
+         -all_opiniondirection_from_constituent_by_electionarea,
+         -ballotid,-leaveReason,-leaveDate,-leaveFlag,-picUrl,
+         -committee,-ename,-billcontent,-pp_ignored,-pp_res_notjudged,
+         -pp_res_bycompete,-pp_res_bynew,-pp_enforcement,-pp_duplicated_item,
+         -votecontent,-pp_committee,-billcontent.y,-same_votes_from_same_party,
+         -total_votes_from_same_party,-date,-urln,-url,-billcontent.x,
+         -same_pos_on_same_q_by_electionarea,-all_pos_on_same_q_by_electionarea,
+         -same_pos_on_same_q_by_nation,-all_pos_on_same_q_by_nation,
+         -zip3rocyear,-qtype) #%>%   #忽略預算支出題組
   #filter(issue_field1=='公民與政治權' | issue_field2=='公民與政治權')
   #scale()
 #group_by(billid_myown,variable_on_q,respondopinion) %>%
@@ -858,10 +870,10 @@ pscl::pR2(model)
 
 ## 分段：只看有沒有通過
 #myown_sex+myown_selfid+myown_approach_to_politician_or_petition+myown_protest+myown_vote+myown_factoredclass+
-model<-glm(formula = success_on_bill ~ opinion_pressure_from_constituent_by_nation,
+model<-glm(formula = success_on_bill ~ myown_selfid,
            family = binomial(
              link = "logit"),
-           data = dplyr::filter(glmdata,term==9) %>% mutate_at("success_on_bill",funs(dplyr::recode),win=1,lose=0),
+           data = dplyr::filter(glmdata,term==7) %>% mutate_at("success_on_bill",funs(dplyr::recode),win=1,lose=0),
            na.action=na.omit
            )
 pscl::pR2(model)

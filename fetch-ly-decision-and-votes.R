@@ -17,7 +17,8 @@ dataset_file_directory <- switch(t_sessioninfo_running,
                                  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
 )
 no_rollcall<-c()
-urlarr<-as.character(meetingdata$url)
+load(paste0(dataset_file_directory,"rdata",slash,"meetingdata.RData"))
+urlarr<-as.character(meetingdata$url) %>% unique()
 error_vote_record_from_name<-read_csv("error_vote_record_from_name.csv")
 error_leave_and_attend_legislators<-read_csv("leave_and_attend_legislators.csv") %>%
   mutate_cond(is.na(replace_with),replace_with="")
@@ -46,23 +47,27 @@ anti_join_with_nrow_zero<-function(X,Y,by=c()) {
 }
 
 #mutate(leave_and_attend_legislators,chichrcount=stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}") ) %>% View()
-filter(leave_and_attend_legislators,stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}")>3 ) %>%
-  filter(!is.element(legislator_name, c("高金素梅","周陳秀霞","張廖萬堅","陳賴素美","鄭天財Sra．Kacaw","簡東明Uliw．Qaljupayare","廖國棟Sufin．Siluko","鄭天財Sra．Kacaw","高潞．以用．巴魕剌Kawlo．Iyun．Pacidal","Kolas Yotaka")) | 
-           customgrepl(legislator_name,"(　|　|　| | )")) %>%
-  View()
+#filter(leave_and_attend_legislators,stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}")>3 ) %>%
+#  filter(!is.element(legislator_name, c("高金素梅","周陳秀霞","張廖萬堅","陳賴素美","鄭天財Sra．Kacaw","簡東明Uliw．Qaljupayare","廖國棟Sufin．Siluko","鄭天財Sra．Kacaw","高潞．以用．巴魕剌Kawlo．Iyun．Pacidal","Kolas Yotaka")) | 
+#           customgrepl(legislator_name,"(　|　|　| | )")) %>%
+#  View()
 #  write_csv(path="leave_and_attend_legislators.csv")
 #第九會期從377開始 //problem:108
-myown_vote_record_df<-data.frame()
-leave_and_attend_legislators<-data.frame()
-for (urln in 1:length(urlarr)) { #length(urlarr)
-  url<-urlarr[urln]
-  if (is.na(url) | urln==478) {
-    next
+
+fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
+  #url<-urlarr[urln]
+  url<-Y
+  urln<-which(meetingdata$url==url)
+  if (!is.null(url) &
+      (is.na(url)| urln==478 | url=="https://lci.ly.gov.tw/LyLCEW/html/agendarec1/03/09/04/01/01/LCEWC03_09040101.htm")
+      ) {
+    return(data.frame())
   }
   # | !(urln %in% c(469,475))
   #urln=478是一堆有表決結果名單附(n)至(n)形式的，暫存函式如下:
   #customgsub(test, "(.+?[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1}[(（]{0,1}\\s{0,1}([—○一二三四五六七八九十\\d]{0,})\\s{0,1}[)）]{0,1}至{1}[(（]{0,1}([—○一二三四五六七八九十\\d]{0,})[)）]{0,1}[〕】）]{0,}[；。]{0,1}).+?", "\\2:\\3;", perl = TRUE)
-  
+  myown_vote_record_df<-data.frame()
+  leave_and_attend_legislators<-data.frame()
   term<-meetingdata$term[urln]
   period<-meetingdata$period[urln]
   meetingno<-meetingdata$meetingno[urln]
@@ -77,7 +82,7 @@ for (urln in 1:length(urlarr)) { #length(urlarr)
   #直接跳過不妨礙（又因為直接跳過省去篩選麻煩
   if (term==6 & period==4 & meetingno==17) {
     #尾部沒有討論事項記名表決，但是有其他事項表決，卻沒有詳細有人名的名單
-    next
+    return(data.frame())
   }
   
   #clean data 特別處理
@@ -171,7 +176,8 @@ for (urln in 1:length(urlarr)) { #length(urlarr)
   #xpath<-"//p[(contains(.,'次會議議事錄'))]"
   #meetingname<-xml_find_all(doc, xpath) %>%
   #  xml_text() %>% getElement(1)
-  meetingname<-as.character(meetingdata$termmeetingtime[urln])
+  meetingname<-meetingdata$termmeetingtime[meetingdata$url==url] %>%
+    as.character()
   #xpath<-"//p[(contains(.,'時　　間'))]"
   #meetingtimeanddata<-xml_find_all(doc, xpath) %>%
   #  xml_text() %>% getElement(1)
@@ -330,7 +336,7 @@ for (urln in 1:length(urlarr)) { #length(urlarr)
   roll_call_list_block_sp<-customgrep(paragraph_list,'各項記名表決結果名單|本次會議記名表決結果名單|本次會議表決結果名單|本次會議各項記名表決名單')
   if (length(roll_call_list_block_sp)<1) {##沒有表決名單的區域
     no_rollcall<-c(no_rollcall,url)
-    next
+    return(data.frame())
   } else if (length(roll_call_list_block_sp)>2) {
     stop("Error at ", meetingname, url)
   }
@@ -340,7 +346,7 @@ for (urln in 1:length(urlarr)) { #length(urlarr)
   agree_record_times<-count_value_times_in_vector(paragraph_list[roll_call_list_block_sp:length(paragraph_list)],search_agree_pattern)
   
   if (is.null(bill_list) | agree_record_times<1) {
-    next
+    return(data.frame())
   }
   
   #檢查抓到的前半部詳細案由是否和後半部表決紀錄筆數是否對得上
@@ -405,41 +411,15 @@ for (urln in 1:length(urlarr)) { #length(urlarr)
       paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],"薛　凌\\s{1,2}田秋堇","薛　凌　田秋堇") %>%
         customgsub("　{1}([\u4e00-\u9fa5]{1}　{0,1}[\u4e00-\u9fa5]{1,2})","　　\\1")
     }
-    #更改沒有適當組織的議事錄：從已經建立好的除錯資料集
-    #modify_wrong_record_target<-filter(error_vote_record_from_name,term==term)
-    #trace("filter", edit=T)
-    #dplyr 會有問題
-    #modify_wrong_record_target<-dplyr::filter(error_vote_record_from_name,
-    #  term==as.character(term),
-    #  period==as.character(period),
-    #  meetingno==as.character(meetingno),
-    #  temp_meeting_no==as.character(temp_meeting_no),
-    #  billn==as.character(billn))
-    #modify_wrong_record_target<-error_vote_record_from_name[error_vote_record_from_name$term==term,]
-    #modify_wrong_record_target<-modify_wrong_record_target[modify_wrong_record_target$period==period,]
-    #modify_wrong_record_target<-modify_wrong_record_target[modify_wrong_record_target$meetingno==meetingno,]
-    #modify_wrong_record_target<-modify_wrong_record_target[modify_wrong_record_target$temp_meeting_no==temp_meeting_no,]
-    #modify_wrong_record_target<-modify_wrong_record_target[modify_wrong_record_target$billn==billn,]
     modify_wrong_record_target<-filter(error_vote_record_from_name,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no),billn==UQ(billn))
     nrow_modify_wrong_record_target<-nrow(modify_wrong_record_target)
     if (nrow_modify_wrong_record_target>0) {
-      ### for (modify_wrong_record_target_i in 1:nrow_modify_wrong_record_target) {
-      ### message("urln=",urln," | 4 除錯：原議事錄投票區塊第",billn,"案有文字結構錯誤處 modify ",modify_wrong_record_target_i," times. ", meetingname, url)
-      ### modify_wrong_record_target_wrongname<-modify_wrong_record_target$legislator_name[modify_wrong_record_target_i]
-      ### modify_wrong_record_target_correctname<-modify_wrong_record_target$correct_legislator_name[modify_wrong_record_target_i]
-      ### paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],modify_wrong_record_target_wrongname,modify_wrong_record_target_correctname)
-      ### }
       message("urln=",urln," | 4 除錯：原議事錄投票區塊第",billn,"案有文字結構錯誤處 modify ",nrow_modify_wrong_record_target," times. ", meetingname, url)
       paragraph_list[scan_area]<-stri_replace_all_fixed(paragraph_list[scan_area],modify_wrong_record_target$legislator_name,modify_wrong_record_target$correct_legislator_name, vectorize_all=FALSE)
     }
     paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],"(Kolas Yotaka).+?([\u4e00-\u9fa5]{3})","\\1　　\\2")
     paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],"(高潞)(.+)?(Pacidal{1}).+?([\u4e00-\u9fa5]{3})","\\1\\2\\3　　\\4")
-    #if (term==9 & period==4 & meetingno %in% c(8,10) & billn %in% c(7,9)) {
-    #}
-    #if (term==9 & period==3 & meetingno==2 & temp_meeting_no %in% c(1,3) ) {
-    
-    #}
-    #search Kolas Yotaka　　      洪宗熠
+
     
     if (length(giveup_voter_area_start)==0) {
       exact_giveup_voter<-c()
@@ -584,10 +564,19 @@ for (urln in 1:length(urlarr)) { #length(urlarr)
 
   }
   
-  
+  return(myown_vote_record_df)
 }
 
+#myown_vote_record_df<-mapply(fetch_ly_decision_and_vote,X=seq.int(length(urlarr)),Y=urlarr)
+myown_vote_record_df<-lapply(
+  urlarr,
+  fetch_ly_decision_and_vote
+  )
+myown_vote_record_df<-do.call("rbind", myown_vote_record_df)
+
+
 myown_vote_record_df<-filter(myown_vote_record_df,!is.na(legislator_name))
+
 #save(myown_vote_record_df,file="myown_vote_record_df.RData")
 
 
