@@ -237,8 +237,8 @@ mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %
   #mutate(respondopinion) %>%
   #mutate_cond(votedecision=="贊成" & opiniondirectionfromconstituent==opiniondirectionfrombill, respondopinion=2) %>%
   #mutate_cond(votedecision=="贊成" & opiniondirectionfromconstituent!=opiniondirectionfrombill, respondopinion=0) %>%
-  mutate_cond( (opiniondirectionfromconstituent==opiniondirectionfrombill), success_on_bill=ifelse(billresult=="Passed","win","lose") ) %>%
-  mutate_cond( (opiniondirectionfromconstituent!=opiniondirectionfrombill), success_on_bill=ifelse(billresult=="Passed","lose","win") ) %>%
+  mutate_cond( (opiniondirectionfromconstituent==opiniondirectionfrombill), success_on_bill=ifelse(billresult=="Passed",1,0) ) %>%
+  mutate_cond( (opiniondirectionfromconstituent!=opiniondirectionfrombill), success_on_bill=ifelse(billresult=="Passed",0,1) ) %>%
   mutate_cond(votedecision=="贊成", opiniondirectionfromlegislator=opiniondirectionfrombill) %>%
   mutate_cond(votedecision=="反對", opiniondirectionfromlegislator=recode(opiniondirectionfrombill,
     "n"="m","m"="n",
@@ -314,7 +314,13 @@ survey_restricted_data<-c(1,2,3) %>%
   lapply(function (X) read.xlsx(paste0(dataset_file_directory, "basic_social_survey_restricted_data.xlsx"), sheet = X))
 survey_data<-c("2016_citizen.sav","2010_env.sav","2010_overall.sav") %>%
   sapply(function (X,...) paste0(...,X), dataset_file_directory, "merger_survey_dataset",slash) %>%
-  lapply(haven::read_sav)
+  lapply(haven::read_sav) %>%
+  lapply(function (X) {
+    othervar<-setdiff(names(X),c("term1","term2"))
+    reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
+      filter(!is.na(term))
+  })
+#shaped: 299 295 571
 #先依據是否有多數選區存在於單一鄉鎮市區拆開，先串有同一鄉鎮市區內有多選區的，再串同一鄉鎮市區內只有一選區的，然後分別join之後再合併
 survey_data <- mapply(function(X,Y) {
   in_complicated_district<-filter(X, id %in% Y$id) %>%
@@ -373,7 +379,9 @@ for (comm_var_i in 1:(length(survey_data_melted)-1)) {
 }
 
 
-complete_survey_dataset<-complete_survey_dataset[,common_var]
+complete_survey_dataset<-complete_survey_dataset[,common_var] %>%
+  mutate_at("SURVEYANSWERVALUE", funs(as.character)) %>%
+  reshape2::melt(id.vars = setdiff(colnames(.),c("term1","term2")), variable.name = "variable_on_term", value.name = "term")
 #save(complete_survey_dataset,file=paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"))
 ##針對調查問卷資料處理變形，以便合併
 #"c1a","c1b","c1c","c1d","c1e","c2","c3","c4","c5","c6","c10","c11","c12","c13","c14","d1","d2a","d2b","d3a","d3b","d4","d5a","d5b","d5c","d5d","d5e","d5f","d6a","d6b","d6c","d6d","d6e","d6f","d6g","d6h","d7a","d7b","d7c","d7d","d7e","d7f","d7g","d7h","d7i","d7j","d7k","d8a","d8b","d8c","d11a","d11b","d12","d13a","d13b","d14a","d14b","d14c","d17a","d17b","d17c","e2a","e2b","e2c","e2d","e2e","e2f","e2g","e2h","e2i","f3","f4","f5","f8","f9","h10","kh10"
@@ -402,9 +410,10 @@ complete_survey_dataset<-left_join(complete_survey_dataset,cbind(dataset.for.fa,
 load(paste0(dataset_file_directory,"rdata",slash,"legislators_with_election.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"mergedf_votes_bills_election_surveyanswer.RData"))
 
-only_bill_to_survey_information<-distinct(mergedf_votes_bills_election_surveyanswer,term,period,meetingno,temp_meeting_no,billn,billresult,billid_myown,SURVEY,variable_on_q,value_on_q_variable,SURVEYQUESTIONID,SURVEYANSWERVALUE,LABEL,QUESTION,opinionfromconstituent,opinionfrombill,issue_field1,issue_field2,opinionstrength,opiniondirectionfromconstituent,opiniondirectionfrombill,success_on_bill)
-save(only_bill_to_survey_information,file="only_bill_to_survey_information.RData")
-load("only_bill_to_survey_information.RData")
+only_bill_to_survey_information<-distinct(mergedf_votes_bills_election_surveyanswer,term,period,meetingno,temp_meeting_no,billn,billresult,billid_myown,SURVEY,variable_on_q,value_on_q_variable,SURVEYQUESTIONID,SURVEYANSWERVALUE,LABEL,QUESTION,opinionfromconstituent,opinionfrombill,issue_field1,issue_field2,opinionstrength,opiniondirectionfromconstituent,opiniondirectionfrombill,success_on_bill) %>%
+  mutate_at("SURVEYANSWERVALUE", funs(as.character))
+save(only_bill_to_survey_information,file=paste0(dataset_file_directory,"rdata",slash,"only_bill_to_survey_information.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"only_bill_to_survey_information.RData"))
 
 legislators_with_election <- legislators_with_election[!is.na(legislators_with_election$wonelection),] %>%
   distinct(term, name, ename, sex, party.x, partyGroup, areaName,
@@ -485,7 +494,8 @@ legislators_additional_attr<-distinct(legislators_with_election,term,name,degree
 
 testdf <- left_join(mergedf_votes_bills_election_surveyanswer, legislators_with_election) %>%
   left_join(legislators_additional_attr) %>%
-  mutate_at("SURVEYANSWERVALUE", funs(as.character))#%>%
+  mutate_at("SURVEYANSWERVALUE", funs(as.character))
+#%>%
 #沒有投票權也會串到立委，也就是只串選區的串法
 testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionarea", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE"))
 #只串到支持的候選人的串法
@@ -494,12 +504,7 @@ testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionar
 #testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE", "myown_constituency_party_vote"="election_party"))
 
 # only observe if bills are passed
-testdf<-complete_survey_dataset %>%
-  mutate_at("SURVEYANSWERVALUE", funs(as.character)) %>%
-  inner_join(
-    mutate_at(only_bill_to_survey_information, "SURVEYANSWERVALUE", funs(as.character))
-    )
-
+testdf<-inner_join(complete_survey_dataset, only_bill_to_survey_information,by = c("SURVEY", "term", "SURVEYQUESTIONID", "SURVEYANSWERVALUE"))
 
 ##############################################################################
 # 第O部份：清理資料：設定遺漏值
@@ -543,7 +548,7 @@ testdf <- testdf %>%
               "myown_manage_people_no","myown_family_income",
               "opinionstrength","eduyrgap",
               "myown_family_income_ranking","myown_family_income_stdev",
-              "myown_factoredclass" #,
+              "myown_factoredclass","myown_selfid_population" #,
               )),funs(as.numeric)) %>%
   mutate_at(intersect(colnames(.),c("wave","qtype","SURVEYQUESTIONID","SURVEYANSWERVALUE",
               "name","url","date","pp_keyword","votecontent",
@@ -633,18 +638,18 @@ glmdata <- testdf %>%
   mutate("majority_opinion_from_constituent_by_electionarea"=ifelse(opinion_pressure_from_constituent_by_electionarea>=0.5,1,0)) %>%
   mutate_at("majority_opinion_from_constituent_by_electionarea",funs(as.factor)) %>%
   filter(!(value_on_q_variable %in% c("2016citizen@d5a","2016citizen@d6a","2016citizen@d6b","2016citizen@d6d","2016citizen@d6g","2016citizen@d6h"))) %>%
-  select(-same_opiniondirection_from_constituent_by_nation,
-         -all_opiniondirection_from_constituent_by_nation,
-         -same_opiniondirection_from_constituent_by_electionarea,
-         -all_opiniondirection_from_constituent_by_electionarea,
-         -ballotid,-leaveReason,-leaveDate,-leaveFlag,-picUrl,
-         -committee,-ename,-billcontent,-pp_ignored,-pp_res_notjudged,
-         -pp_res_bycompete,-pp_res_bynew,-pp_enforcement,-pp_duplicated_item,
-         -votecontent,-pp_committee,-billcontent.y,-same_votes_from_same_party,
-         -total_votes_from_same_party,-date,-urln,-url,-billcontent.x,
-         -same_pos_on_same_q_by_electionarea,-all_pos_on_same_q_by_electionarea,
-         -same_pos_on_same_q_by_nation,-all_pos_on_same_q_by_nation,
-         -zip3rocyear,-qtype) #%>%   #忽略預算支出題組
+  extract(,setdiff(colnames(.),c("same_opiniondirection_from_constituent_by_nation",
+                                 "all_opiniondirection_from_constituent_by_nation",
+                                 "same_opiniondirection_from_constituent_by_electionarea",
+                                 "all_opiniondirection_from_constituent_by_electionarea",
+                                 "ballotid","leaveReason","leaveDate","leaveFlag","picUrl",
+                                 "committee","ename","billcontent","pp_ignored","pp_res_notjudged",
+                                 "pp_res_bycompete","pp_res_bynew","pp_enforcement","pp_duplicated_item",
+                                 "votecontent","pp_committee","billcontent.y","same_votes_from_same_party",
+                                 "total_votes_from_same_party","date","urln","url","billcontent.x",
+                                 "same_pos_on_same_q_by_electionarea","all_pos_on_same_q_by_electionarea",
+                                 "same_pos_on_same_q_by_nation","all_pos_on_same_q_by_nation",
+                                 "zip3rocyear","qtype"))) #%>%   #忽略預算支出題組
   #filter(issue_field1=='公民與政治權' | issue_field2=='公民與政治權')
   #scale()
 #group_by(billid_myown,variable_on_q,respondopinion) %>%
@@ -699,6 +704,7 @@ glmdata$percent_of_same_votes_from_same_party<-glmdata$percent_of_same_votes_fro
 
 library(rmarkdown)
 render(input='analysis_result.Rmd',output_dir=getwd(),encoding="UTF-8")
+render(input='analysis_result_on_bill_passed.Rmd',output_dir=getwd(),encoding="UTF-8")
 getwd()
 
 ##############################################################################
@@ -870,10 +876,10 @@ pscl::pR2(model)
 
 ## 分段：只看有沒有通過
 #myown_sex+myown_selfid+myown_approach_to_politician_or_petition+myown_protest+myown_vote+myown_factoredclass+
-model<-glm(formula = success_on_bill ~ myown_selfid,
+model<- glmdata  %$%
+  glm(formula = success_on_bill ~ (myown_selfid),
            family = binomial(
              link = "logit"),
-           data = dplyr::filter(glmdata,term==7) %>% mutate_at("success_on_bill",funs(dplyr::recode),win=1,lose=0),
            na.action=na.omit
            )
 pscl::pR2(model)
