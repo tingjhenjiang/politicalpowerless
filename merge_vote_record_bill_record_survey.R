@@ -238,7 +238,7 @@ mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %
   #mutate_cond(votedecision=="贊成" & opiniondirectionfromconstituent==opiniondirectionfrombill, respondopinion=2) %>%
   #mutate_cond(votedecision=="贊成" & opiniondirectionfromconstituent!=opiniondirectionfrombill, respondopinion=0) %>%
   mutate_cond( (opiniondirectionfromconstituent==opiniondirectionfrombill), success_on_bill=ifelse(billresult=="Passed",1,0) ) %>%
-  mutate_cond( (opiniondirectionfromconstituent!=opiniondirectionfrombill), success_on_bill=ifelse(billresult=="Passed",0,1) ) %>%
+  mutate_cond( (opiniondirectionfromconstituent!=opiniondirectionfrombill & opiniondirectionfromconstituent != "x" & opiniondirectionfromconstituent != "b"), success_on_bill=ifelse(billresult=="Passed",0,1) ) %>%
   mutate_cond(votedecision=="贊成", opiniondirectionfromlegislator=opiniondirectionfrombill) %>%
   mutate_cond(votedecision=="反對", opiniondirectionfromlegislator=recode(opiniondirectionfrombill,
     "n"="m","m"="n",
@@ -320,6 +320,83 @@ survey_data<-c("2016_citizen.sav","2010_env.sav","2010_overall.sav") %>%
     reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
       filter(!is.na(term))
   })
+#latent variables 政治參與
+#2016citizen-fit2: h2a h2b h2c h2d h2e h2f h2g h2h h3a h3b h3c
+#2010overall-fit2: v79a v79b v79c v79d 
+#2010env-fit1: v34 v35a v35b v35c ( v33f v75 v76 v77)
+library(ltm)
+library(eRm)
+participation_var<-lapply(survey_data,function(X) {
+  need_particip_var<-list(
+    "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c"),
+    "2010overall"=c("v79a","v79b","v79c","v79d"),
+    "2010env"=c("v34","v35a","v35b","v35c")
+  ) %>%
+    extract2(X$SURVEY[1])
+  return( intersect(names(X),need_particip_var) )
+})
+for (itrn in 1:3) {
+  survey_data[[itrn]][,participation_var[[itrn]]] <- lapply(survey_data[[itrn]][,participation_var[[itrn]]],function (X) {
+    X<-ifelse(X %in% c(93:99,996:999,9996:9999), NA, X)
+  })
+  fit1 <- ltm::grm(survey_data[[itrn]][,participation_var[[itrn]]], constrained = TRUE, na.action = na.omit, start.val = "random")
+  fit2 <- ltm::grm(survey_data[[itrn]][,participation_var[[itrn]]], na.action = na.omit, start.val = "random")
+  fit_testresult<-anova(fit1, fit2)
+  if (fit_testresult$aic0>fit_testresult$aic1 & fit_testresult$bic0>fit_testresult$bic1) {
+    fit<-fit2
+  } else {
+    fit<-fit1
+  }
+  survey_data[[itrn]] <- left_join(survey_data[[itrn]],fit %>%
+                                     factor.scores() %>%
+                                     use_series("score.dat") %>%
+                                     rename(myown_factored_nonpartcip_Exp=Exp,myown_factored_nonpartcip_z1=z1,myown_factored_nonpartcip_se.z1=se.z1)
+  )
+}
+
+#GoF.gpcm(fit,B=100)
+#用item respond抓出隱藏變數「低政治參與程度」
+ltm::rcor.test(survey_data[[itrn]][,participation_var[[itrn]]], method = "kendall", use = "pairwise.complete.obs")
+
+survey_data.gpcm<-gpcm(survey_data[[itrn]][,participation_var[[itrn]]],constraint="rasch",na.action=na.omit,start.val="random")
+summary(survey_data.gpcm)
+plot(survey_data.gpcm)
+plot(survey_data.gpcm,type=c("IIC"))
+GoF.gpcm(survey_data.gpcm)
+
+survey_data[[itrn]][,participation_var[[itrn]]] <- lapply(survey_data[[itrn]][,participation_var[[itrn]]],function (X) {
+  X<-ifelse(X %in% c(93:99,996:999,9996:9999), NA, X)
+})
+survey_data[[itrn]][,participation_var[[itrn]]]<-mutate_at(survey_data[[itrn]][,participation_var[[itrn]]],participation_var[[itrn]],as.factor) %>%
+  mutate_at(participation_var[[itrn]],factor)
+pcm1 <- PCM(survey_data[[itrn]][,participation_var[[itrn]]])
+rsm1 <- RSM(survey_data[[itrn]][,participation_var[[itrn]]])
+lrsm1<- LRSM(survey_data[[itrn]][,participation_var[[itrn]]])
+thresholds(pcm1)
+plotPImap(pcm1)
+LRtest(pcm1)
+#margins(fit1)
+  
+
+
+
+information(fit, c(-4, 4))
+sapply(1:length(participation_var[[itrn]]),function (X) information(fit, c(-4, 4), items = c(X)) )
+plot(fit, lwd = 2, cex = 1.2, legend = TRUE, cx = "left",xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+plot(fit, type = "IIC", lwd = 2, cex = 1.2, legend = TRUE, cx = "topleft",xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+plot(fit, type = "IIC", items = 0, lwd = 2, xlab = "Latent Trait",cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+info1 <- information(fit, c(-4, 0))
+info2 <- information(fit, c(0, 4))
+text(-1.9, 8, labels = paste("Information in (-4, 0):",paste(round(100 * info1$PropRange, 1), "%", sep = ""),"\n\nInformation in (0, 4):",paste(round(100 * info2$PropRange, 1), "%", sep = "")), cex = 1.2)
+par(mfrow = c(2, 2))
+plot(fit, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5,cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3,cex.axis = 1.1)
+for (ctg in 2:3) {
+  plot(fit, category = ctg, lwd = 2, cex = 1.2, annot = FALSE,
+       xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3,
+       cex.axis = 1.1)
+}
+
+
 #shaped: 299 295 571
 #先依據是否有多數選區存在於單一鄉鎮市區拆開，先串有同一鄉鎮市區內有多選區的，再串同一鄉鎮市區內只有一選區的，然後分別join之後再合併
 survey_data <- mapply(function(X,Y) {
@@ -401,11 +478,22 @@ complete_survey_dataset<-left_join(complete_survey_dataset,cbind(dataset.for.fa,
 #library(psy)
 #psy::scree.plot(fa.class$correlation)
 
+##測試參加政治與階級間關係
+(ggplot(complete_survey_dataset[complete_survey_dataset$SURVEY=="2010overall",],
+        aes(x = myown_factoredclass,
+            y = (myown_factored_nonpartcip_se.z1)
+        )
+) + labs(title = "各個階級的不參與政治程度") + geom_point()+geom_smooth(method="lm"))
+##2010env不參與程度不好、2010overall不參與程度也不好
 
 ##############################################################################
 # 第四部份：總結合併資料階段
 ##############################################################################
 #load(paste0(dataset_file_directory,"rdata",slash,"elections_df_test.RData"))
+
+#直接讀取分析立法通過的資料集
+load(file=paste0(dataset_file_directory,"rdata",slash,"pass_on_bill.RData"))
+
 
 load(paste0(dataset_file_directory,"rdata",slash,"legislators_with_election.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"mergedf_votes_bills_election_surveyanswer.RData"))
@@ -786,7 +874,6 @@ legend("bottomleft", legend = c("died","survived"), fill = c("pink", "palegreen3
        title = "Group")
 
 
-
 #累積迴歸
 require(MASS)
 ##檢定挑選變數
@@ -831,58 +918,115 @@ model.coef <- data.frame(coef(summary(model))) %>%
 #model.coef$pval <- round((pnorm(abs(model.coef$t.value),lower.tail= FALSE) * 2), 4)
 model.coef
 
+model<-filter(glmdata,term==7) %$%
+  lm(myown_factored_nonpartcip_se.z1~myown_factoredclass)
+summary(model)
+
+
 #check validity
 pscl::pR2(model)
 
 
 #"myown_areakind"
-#"myown_sex"                                             
-#"myown_age"                                             
-#"myown_dad_ethgroup"                                    
-#"myown_mom_ethgroup"                                    
-#"myown_marriage"                                        
-#"myown_religion"                                        
-#"myown_eduyr"                                           
-#"myown_int_pol_efficacy"                                
-#"myown_ext_pol_efficacy"                                
-#"myown_approach_to_politician_or_petition"              
-#"myown_protest"                                         
-#"myown_vote"                                            
-#"myown_constituency_party_vote"                         
-#"myown_working_status"                                  
-#"myown_industry"                                        
-#"myown_occp"                                            
-#"myown_ses"                                             
-#"myown_workers_numbers"                                
-#"myown_family_income"                                   
-#"myown_family_income_ranking"                           
-#"myown_family_income_stdev"                                                   
-#"total_votes_from_same_party"                           
-#"same_votes_from_same_party"                            
-#"percent_of_same_votes_from_same_party"                 
-#"vote_along_with_majority_in_party"                     
-#"seats"                                                 
-#"rulingparty"                                           
-#"seatsgaptorulingparty"                                          
-#"opinionstrength"                                  
-#"eduyrgap"                                              
-#"sesgap"                                                
-#"sexgap"                                                
-#"agegap"       
-#"opinion_pressure_from_constituent_by_nation"           
+#"myown_sex"
+#"myown_age"
+#"myown_dad_ethgroup"
+#"myown_mom_ethgroup"
+#"myown_marriage"
+#"myown_religion"
+#"myown_eduyr"   
+#"myown_int_pol_efficacy"
+#"myown_ext_pol_efficacy"
+#"myown_approach_to_politician_or_petition"  
+#"myown_protest" 
+#"myown_vote"
+#"myown_constituency_party_vote" 
+#"myown_working_status"  
+#"myown_industry"
+#"myown_occp"
+#"myown_ses"
+#"myown_workers_numbers"
+#"myown_family_income"   
+#"myown_family_income_ranking"   
+#"myown_family_income_stdev"  
+#"total_votes_from_same_party"   
+#"same_votes_from_same_party"
+#"percent_of_same_votes_from_same_party" 
+#"vote_along_with_majority_in_party" 
+#"seats"
+#"rulingparty"   
+#"seatsgaptorulingparty"  
+#"opinionstrength"  
+#"eduyrgap" 
+#"sesgap"   
+#"sexgap"   
+#"agegap"   
+#"opinion_pressure_from_constituent_by_nation"   
 #"majority_opinion_from_constituent_by_nation" 
-#"opinion_pressure_from_constituent_by_electionarea"     
+#"opinion_pressure_from_constituent_by_electionarea"
 #"majority_opinion_from_constituent_by_electionarea" 
 
+
+selectedglmdata<-glmdata %>%
+  select(success_on_bill,term,myown_areakind,myown_wsel,myown_sex,myown_vote,myown_selfid,myown_selfid_population,myown_factoredclass,myown_factored_nonpartcip_se.z1,opinion_pressure_from_constituent_by_nation,opinionstrength,myown_family_income,myown_family_income_ranking,myown_ses,myown_approach_to_politician_or_petition,myown_protest,myown_eduyr) %>%
+  mutate_if(is.numeric,scale) %>%
+  mutate_if(is.factor,factor) %>%
+  na.omit()
 ## 分段：只看有沒有通過
 #myown_sex+myown_selfid+myown_approach_to_politician_or_petition+myown_protest+myown_vote+myown_factoredclass+
-model<- glmdata  %$%
-  glm(formula = success_on_bill ~ (myown_selfid),
+model.null <- selectedglmdata  %$%
+  glm(success_on_bill ~ 1,
+      family = binomial(link="logit"),
+      na.action=na.omit
+)
+model.full <- selectedglmdata %$%
+  glm(success_on_bill ~ myown_sex+myown_vote+myown_selfid+myown_selfid_population+myown_factoredclass+myown_factored_nonpartcip_se.z1+opinion_pressure_from_constituent_by_nation,
+      family = binomial(link="logit"),
+      na.action=na.omit
+  )
+selectedglmdata %>% na.omit() %$%
+  step(model.null,
+     scope = list(upper=model.full),
+     direction="both",
+     test="Chisq",
+     na.action=na.omit)
+#篩選結果是 opinion_pressure_from_constituent_by_nation+myown_factoredclass+myown_selfid+myown_factored_nonpartcip_se.z1+myown_vote
+model.final<- selectedglmdata  %$%
+  glm(formula = success_on_bill ~ (opinion_pressure_from_constituent_by_nation+myown_factored_nonpartcip_se.z1+myown_factoredclass+myown_selfid+myown_sex+myown_vote),
            family = binomial(
              link = "logit"),
            na.action=na.omit
            )
+car::Anova(model.final, type="II", test="Wald")
+rcompanion::nagelkerke(model.final)
+anova(model.final,model.null,test="Chisq")
+lmtest::lrtest(model.final)
+car::vif(model.final)
+summary(model.final)
+write_csv(selectedglmdata,path=paste0(dataset_file_directory,"rdata",slash,"selected_bill_passed.csv"),na="")
+
+
+#HLM
+model<- glmdata[glmdata$term==9,]  %$%
+  lme4::glmer(formula = success_on_bill ~ (myown_selfid|myown_areakind),
+      family = binomial(
+        link = "logit"),
+      na.action=na.omit
+  )
+
+
+library(spatialEco)
+model<- glmdata[glmdata$term==7,]  %>%
+  logistic.regression(y = "success_on_bill", x= c("opinion_pressure_from_constituent_by_nation","myown_sex","myown_selfid","myown_ses","myown_approach_to_politician_or_petition","myown_vote"), penalty = F  )
+print(model$model)
+print(model$diagTable)
+print(model$estimate)
+summary(model)
 pscl::pR2(model)
+#$model, $diagTable, coefTable
+#myown_factored_nonpartcip_Exp
+#myown_factored_nonpartcip_z1
+#myown_factored_nonpartcip_se.z1
 
 #+rulingparty
 

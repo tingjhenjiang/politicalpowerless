@@ -203,19 +203,19 @@ https://gist.github.com/stephlocke/fb1225f6b5029a9f5b04aa6e6123cbc9
 
 ## 探索性資料分析
 
-```{r, fig.width=14,fig.height=14}
+```{r, fig.width=14,fig.height=10}
 
 (ggplot(glmdata,
        aes(x = success_on_bill,
            y = (myown_eduyr)
            )
-       ) + labs(title = "受教育年") + facet_grid(term ~ .) + geom_boxplot()) 
+       ) + labs(title = "受教育年") + facet_grid(term ~ issue_field1) + geom_boxplot()) 
 
 (ggplot(glmdata,
        aes(x = success_on_bill,
            y = (myown_ses)
            )
-       ) + labs(title = "職業社經地位") + facet_grid(term ~ .) + geom_boxplot()) 
+       ) + labs(title = "職業社經地位") + facet_grid(term ~ issue_field1) + geom_boxplot()) 
 
 #(ggplot(glmdata,
 #       aes(x = success_on_bill,
@@ -227,56 +227,80 @@ https://gist.github.com/stephlocke/fb1225f6b5029a9f5b04aa6e6123cbc9
        aes(x = myown_family_income_ingroup,
            fill = (success_on_bill)
        )
-) + labs(title = "家庭收入所屬組別") + facet_grid(term ~ .) + geom_bar(position="fill"))
+) + labs(title = "家庭收入所屬組別") + facet_grid(term ~ issue_field1) + geom_bar(position="fill"))
 
 (ggplot(glmdata,
        aes(x = success_on_bill,
            y = (myown_family_income)
            )
-       ) + labs(title = "家庭收入") + facet_grid(term ~ .) + geom_boxplot()) 
+       ) + labs(title = "家庭收入") + facet_grid(term ~ issue_field1) + geom_boxplot()) 
 
 (ggplot(glmdata,
        aes(x = success_on_bill,
            y = (myown_family_income_stdev)
            )
-       ) + labs(title = "家庭收入多少標準差") + facet_grid(term ~ .) + geom_boxplot()) 
+       ) + labs(title = "家庭收入多少標準差") + facet_grid(term ~ issue_field1) + geom_boxplot()) 
 
 (ggplot(glmdata,
        aes(x = myown_dad_ethgroup,
            fill = (success_on_bill)
        )
-) + labs(title = "父親族群") + facet_grid(term ~ .) + geom_bar(position="fill"))
+) + labs(title = "父親族群") + facet_grid(term ~ issue_field1) + geom_bar(position="fill"))
 
 (ggplot(glmdata,
        aes(x = myown_mom_ethgroup,
            fill = (success_on_bill)
        )
-) + labs(title = "母親族群") + facet_grid(term ~ .) + geom_bar(position="fill"))
+) + labs(title = "母親族群") + facet_grid(term ~ issue_field1) + geom_bar(position="fill"))
 
 (ggplot(glmdata,
        aes(x = myown_selfid,
            fill = (success_on_bill)
        )
-) + labs(title = "自我族群") + facet_grid(term ~ .) + geom_bar(position="fill"))
+) + labs(title = "自我族群") + facet_grid(term ~ issue_field1) + geom_bar(position="fill"))
 
 (ggplot(glmdata,
        aes(x = myown_approach_to_politician_or_petition,
            fill = (success_on_bill)
        )
-) + labs(title = "有無請願或找政治人物") + facet_grid(term ~ .) + geom_bar(position="fill"))
+) + labs(title = "有無請願或找政治人物") + facet_grid(term ~ issue_field1) + geom_bar(position="fill"))
 
 (ggplot(glmdata,
        aes(x = myown_protest,
            fill = (success_on_bill)
        )
-) + labs(title = "有無抗議") + facet_grid(term ~ .) + geom_bar(position="fill"))
+) + labs(title = "有無抗議") + facet_grid(term ~ issue_field1) + geom_bar(position="fill"))
 
 (ggplot(glmdata,
        aes(x = myown_vote,
            fill = (success_on_bill)
        )
-) + labs(title = "有無投票") + facet_grid(term ~ .) + geom_bar(position="fill"))
+) + labs(title = "有無投票") + facet_grid(term ~ issue_field1) + geom_bar(position="fill"))
 
+
+(ggplot(glmdata,
+       aes(x = myown_selfid,
+           fill = (myown_approach_to_politician_or_petition)
+       )
+) + labs(title = "各個族群的有無請願或找政治人物") + facet_grid(term ~ issue_field1) + geom_bar(position="fill"))
+
+(ggplot(glmdata,
+       aes(x = myown_selfid,
+           fill = (myown_protest)
+       )
+) + labs(title = "各個族群的有無抗議") + facet_grid(term ~ issue_field1) + geom_bar(position="fill"))
+
+(ggplot(glmdata,
+       aes(x = myown_selfid,
+           fill = (myown_vote)
+       )
+) + labs(title = "各個族群的有無投票") + facet_grid(term ~ issue_field1) + geom_bar(position="fill"))
+
+(ggplot(glmdata[glmdata$term==7,],
+        aes(x = myown_selfid,
+            y = scale(myown_factored_nonpartcip_se.z1)
+        )
+) + labs(title = "不參與程度") + facet_grid(. ~ issue_field1) + geom_boxplot()) 
 
 ```
 
