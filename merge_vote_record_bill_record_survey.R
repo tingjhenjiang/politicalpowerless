@@ -312,15 +312,15 @@ load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
 ##=================以下部分因為已有既存資料檔，讀取後略過不執行#=================
 ##=================以下部分因為已有既存資料檔，讀取後略過不執行#=================
 #找出所有行政區對選區資料，並且找出同一鄉鎮市區有不同選區的部分
-admin_dist_to_elect_dist <- distinct(elections_df_test, term, admincity, electionarea, admindistrict, adminvillage) %>%
-  filter(!is.na(admincity)) %>%
-  left_join(all_admin_dist_with_zip)
-duplicated_area <- distinct(admin_dist_to_elect_dist,term,electionarea,admincity,admindistrict,zip,zip3rocyear) %>%
-  extract(duplicated(.[, c("term", "admincity", "admindistrict")]),)
+#admin_dist_to_elect_dist <- distinct(elections_df_test, term, admincity, electionarea, admindistrict, adminvillage) %>%
+#  filter(!is.na(admincity)) %>%
+#  left_join(all_admin_dist_with_zip)
+#duplicated_area <- distinct(admin_dist_to_elect_dist,term,electionarea,admincity,admindistrict,zip,zip3rocyear) %>%
+#  extract(duplicated(.[, c("term", "admincity", "admindistrict")]),)
 #把某些共用同一個郵遞區號的行政區合併
-unique_dist_for_elect_dist <- anti_join(admin_dist_to_elect_dist, duplicated_area[, c("term", "admincity", "admindistrict")]) %>%
-  group_by(term, electionarea, admincity, zip, zip3rocyear) %>%
-  summarise(admindistrict = paste0(admindistrict, collapse = "、"))
+#unique_dist_for_elect_dist <- anti_join(admin_dist_to_elect_dist, duplicated_area[, c("term", "admincity", "admindistrict")]) %>%
+#  group_by(term, electionarea, admincity, zip, zip3rocyear) %>%
+#  summarise(admindistrict = paste0(admindistrict, collapse = "、"))
 #以下註解部分為找出多選區的樣本
 #duplicated_area[duplicated_area$term == 6, c("zip")] %>%
 #  intersect(survey_data[[4]]$zip) %>%
@@ -473,23 +473,13 @@ survey_data_melted<-mapply(function(X,Y) {
     dplyr::mutate("same_pos_to_all_ratio_by_electionarea"=same_pos_on_same_q_by_electionarea/all_pos_on_same_q_by_electionarea*100)
 }, X=survey_data, Y=survey_q_id)
 
-for (comm_var_i in 1:(length(survey_data_melted)-1)) {
-  if (comm_var_i==1) {
-    common_var<-intersect(
-      names(survey_data_melted[[comm_var_i]]),
-      names(survey_data_melted[[comm_var_i+1]])
-      )
-    complete_survey_dataset<-bind_rows(survey_data_melted[[comm_var_i]],survey_data_melted[[comm_var_i+1]])
-  } else {
-    common_var<-intersect(common_var,names(survey_data_melted[[comm_var_i+1]]))
-    complete_survey_dataset<-bind_rows(complete_survey_dataset,survey_data_melted[[comm_var_i+1]])
-  }
-}
-
-
-complete_survey_dataset<-complete_survey_dataset[,common_var] %>%
+survey_data_melted_names<-lapply(survey_data_melted,names)
+common_var<-Reduce(intersect, survey_data_melted_names)
+complete_survey_dataset<-lapply(survey_data_melted,extract,common_var) %>%
+  bind_rows() %>%
   mutate_at("SURVEYANSWERVALUE", funs(as.character)) %>%
   reshape2::melt(id.vars = setdiff(colnames(.),c("term1","term2")), variable.name = "variable_on_term", value.name = "term")
+
 #save(complete_survey_dataset,file=paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"))
 ##針對調查問卷資料處理變形，以便合併
 #"c1a","c1b","c1c","c1d","c1e","c2","c3","c4","c5","c6","c10","c11","c12","c13","c14","d1","d2a","d2b","d3a","d3b","d4","d5a","d5b","d5c","d5d","d5e","d5f","d6a","d6b","d6c","d6d","d6e","d6f","d6g","d6h","d7a","d7b","d7c","d7d","d7e","d7f","d7g","d7h","d7i","d7j","d7k","d8a","d8b","d8c","d11a","d11b","d12","d13a","d13b","d14a","d14b","d14c","d17a","d17b","d17c","e2a","e2b","e2c","e2d","e2e","e2f","e2g","e2h","e2i","f3","f4","f5","f8","f9","h10","kh10"
