@@ -1,9 +1,24 @@
-filespath <- "E:\\Software\\scripts\\R\\"
-filespath<-"/mnt/e/Software/scripts/R/"
+t_sessioninfo<-sessionInfo()
+t_sessioninfo_running<-gsub(" ","",t_sessioninfo$running)
+t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
+filespath<-switch(t_sessioninfo_running,
+                  Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
+                  Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
+                  Windows10x64build16299 = "E:\\Software\\scripts\\R\\",
+                  Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
+)
+#filespath <- "E:\\Software\\scripts\\R\\"
+#filespath <- "/mnt/e/Software/scripts/R/"
 source(file = paste(filespath, "shared_functions.R", sep = ""))
+dataset_file_directory <- switch(t_sessioninfo_running,
+                                 Windows7x64build7601ServicePack1="C:\\NTUSpace\\dataset\\",
+                                 Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+                                 Windows10x64build16299 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+                                 Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
+)
 ly_meeting_path <- ifelse(check_if_windows(),
-                          paste(filespath,"vote_record\\2004_meeting\\original\\",sep="",collapse=""),
-                          paste(filespath,"vote_record/2004_meeting/original/",sep="",collapse="")
+                          paste0(filespath,"vote_record",slash,"2004_meeting",slash,"original",slash,sep="",collapse=""),
+                          paste0(filespath,"vote_record",slash,"2004_meeting",slash,"original",slash,sep="",collapse="")
 )
 filename<-c(#"立法院第5屆第5會期全院委員談話會紀錄.html",
             "立法院第5屆第5會期第1次臨時會第1次會議紀錄.html",
@@ -30,7 +45,7 @@ filepath <- paste(ly_meeting_path,filename,sep="")
 html<-sapply(filepath,custom_read_file)
 myown_vote_record_detailed_part_df<-data.frame()
 #pattern<-"[\n\r]{1,3}.+贊成者：.+[\n\r]{1,3}(.+)[\n\r]{1,3}.+反對者.+[\n\r]{1,3}(.+)[\n\r]{1,3}([一二三四五六七八九、棄權者：人]+[\n\r]{1,3}(.+)){0,1}"
-error_from_name<-read_csv("error_names_replace_complete_record.csv")
+error_from_name<-read_csv(paste0(filespath,"vote_record",slash,"2004_meeting",slash,"error_names_replace_complete_record.csv"))
 votepattern<-"[\n\r]{1,3}([贊成者一二三四五六七八九零○百十、：人。\\d]*贊成者[贊成者一二三四五六七八九零○百十、：人。\\d]+[\n\r]{1,3}([\u4e00-\u9fa5　．\\s]*))[\n\r]{1,3}([反對者一二三四五六七八九零○百十、：人。\\d]*反對者[反對者一二三四五六七八九零○百十、：人。\\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\\s]*)){0,1}[\n\r]{1,3}([棄權者一二三四五六七八九零○百十、：人。\\d]*棄權者[棄權者一二三四五六七八九零○百十、：人。\\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\\s]*)){0,1}[\n\r]{1}"
 for (i in 1:length(filename)) {#length(filename)
   #if (i!=2) {
@@ -58,7 +73,7 @@ for (i in 1:length(filename)) {#length(filename)
     customgsub("薛　凌","薛凌") %>%
     customgsub("蔡　豪","蔡豪") %>%
     customgsub("陳　瑩","陳瑩") %>%
-    trim()
+    trimws()
   if (i==3) {
     paragraph_list<-c(
       paragraph_list[1:314],
@@ -92,7 +107,7 @@ for (i in 1:length(filename)) {#length(filename)
     next
   }
   pure_html<-paste(paragraph_list,sep="",collapse="\n\r")
-  match<-str_match_all(pure_html,votepattern)
+  match<-stringr::str_match_all(pure_html,votepattern)
   scan_area<-match[[1]][,1]
   #檢查抓到的前半部詳細案由是否和後半部表決紀錄筆數是否對得上
   if (length(scan_area)!=length(bill_list))
@@ -116,15 +131,15 @@ for (i in 1:length(filename)) {#length(filename)
         agree_votes_list[billn]<-customgsub(agree_votes_list[billn],
                                             error_from_name$name[error_from_name_n],
                                             error_from_name$replace[error_from_name_n])
-        exact_agree_voter<-str_match_all(agree_votes_list[billn],"[\u4e00-\u9fa5．]{2,6}") %>% unlist()
+        exact_agree_voter<-stringr::str_match_all(agree_votes_list[billn],"[\u4e00-\u9fa5．]{2,6}") %>% unlist()
         dissent_votes_list[billn]<-customgsub(dissent_votes_list[billn],
                                               error_from_name$name[error_from_name_n],
                                               error_from_name$replace[error_from_name_n])
-        exact_dissent_voter<-str_match_all(dissent_votes_list[billn],"[\u4e00-\u9fa5．]{2,6}") %>% unlist()
+        exact_dissent_voter<-stringr::str_match_all(dissent_votes_list[billn],"[\u4e00-\u9fa5．]{2,6}") %>% unlist()
         giveup_votes_list[billn]<-customgsub(giveup_votes_list[billn],
                                              error_from_name$name[error_from_name_n],
                                              error_from_name$replace[error_from_name_n])
-        exact_giveup_voter<-str_match_all(giveup_votes_list[billn],"[\u4e00-\u9fa5．]{2,6}") %>% unlist()
+        exact_giveup_voter<-stringr::str_match_all(giveup_votes_list[billn],"[\u4e00-\u9fa5．]{2,6}") %>% unlist()
         #test_list<-c(test_list,agree_votes_list[billn])
       }
       
@@ -208,7 +223,8 @@ for (i in 1:length(filename)) {#length(filename)
   #write_file(test_list_chr, paste(ly_meeting_path,"tmp.html",sep="",collapse=""))
   
 }
-#myown_vote_record_detailed_part_df<-filter(myown_vote_record_detailed_part_df,!is.na(legislator_name))
+myown_vote_record_detailed_part_df<-filter(myown_vote_record_detailed_part_df,!is.na(legislator_name)) %>%
+  mutate_at(c("votedecision","legislator_name","term","period","meetingno","temp_meeting_no","billn","billcontent","billresult","url","urln","date"),funs(as.character))
 #save(myown_vote_record_detailed_part_df,file="myown_vote_record_detailed_part_df.RData")
 #regexp=
 #表決結果名單：[\n\r]{1,3}.+贊成者：.+[\n\r]{1,3}.+[\n\r]{1,3}.+反對者.+[\n\r]{1,3}.+[\n\r]{1,3}([一二三四五六七八九、棄權者：人]+[\n\r]{1,3}.+){0,1}

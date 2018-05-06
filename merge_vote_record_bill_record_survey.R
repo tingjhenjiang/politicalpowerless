@@ -19,7 +19,7 @@ dataset_file_directory <- switch(t_sessioninfo_running,
 #選舉資料
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
 supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2010hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
-terms<-c(7,9)
+terms<-c(5,6,7,9)
 gc(verbose=TRUE)
 ############################################################################################################################################################
 # 第一部份：立委及選區資料
@@ -115,26 +115,29 @@ elections_df <- elections_df[, c("term", "號次", "名字", "性別", "出生�
 zipcodecsv<-paste0(dataset_file_directory,"zip3.csv")
 zipcode_df <- read_csv(zipcodecsv) %>%
   rename(admincity = 縣市名稱, admindistrict = 鄉鎮市區名稱) %>%
-  mutate_at(c("admindistrict"), funs(customgsub(admindistrict, "區", ""))) ##鄉鎮市區名稱還沒有統一
+  mutate_at(c("admindistrict"), funs(customgsub(admindistrict, "區", ""))) %>% ##鄉鎮市區名稱還沒有統一
+  mutate_at("term",funs(as.character))
 ##從選區資料抓出舊制全國縣市鄉鎮市區
 all_admin_dist <- distinct(elections_df, term, admincity, admindistrict) %>%
-  filter(!is.na(admincity))
+  filter(!is.na(admincity)) %>%
+  mutate_at(c("term"), funs(customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>%
+  mutate_at(c("term"), as.character)
 all_admin_dist_try <- cbind(all_admin_dist, "fullcountyname" = all_admin_dist$admindistrict) %>%
-  mutate_at(c("admindistrict"), funs(stri_sub(admindistrict, from = 1, to = -2)))
+  mutate_at(c("admindistrict"), funs(stri_sub(admindistrict, from = 1, to = -2))) %>%
+  mutate_at("fullcountyname",funs(as.character))
 all_admin_dist_with_zip <- left_join(all_admin_dist_try, zipcode_df) %>%
   select(term, admincity, fullcountyname, zip, zip3rocyear) %>%
-  rename(admindistrict = fullcountyname) %>%
-  mutate_at(c("term"), as.numeric)
+  rename(admindistrict = fullcountyname)
 
 elections_df_test <- elections_df %>%
-  mutate_at(c("term"), funs(customgsub(term, "0", ""))) %>%
-  mutate_at(c("term"), as.numeric) %>%
+  mutate_at(c("term"), funs(customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>%
+  mutate_at(c("term"), as.character) %>%
   left_join(all_admin_dist_with_zip)
 
 #立委資料與選區資料合併
 legislators <- read_csv(file = paste0(dataset_file_directory, "legislators.csv"))
-legislators_needed <- filter(legislators, term %in% c("07", "09")) %>%
-  mutate_at(c("term"), funs(customgsub(term, "0", ""))) %>%
+legislators_needed <- filter(legislators, term %in% c("05", "06", "07", "09")) %>%
+  mutate_at(c("term"), funs(customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>%
   mutate_at(c("term"), as.numeric)
 legislators_with_election <- left_join(legislators_needed, elections_df_test, by = c("name", "term", "sex")) #
 #save(elections_df_test,file=paste0(dataset_file_directory,"rdata",slash,"elections_df_test.RData"))
@@ -162,7 +165,25 @@ partyseats <- data.frame(
       "rulingparty"=factor(c(0,1,0,0,0,0)),
       "seatsgaptorulingparty"=c(33,0,63,65,67,67)
       )
-  ) 
+  ) %>%
+  bind_rows(
+    data.frame(
+      "term"=5,
+      "party"=c("中國國民黨","民主進步黨","親民黨","台灣團結聯盟","新黨","台灣吾黨","無黨籍及未經政黨推薦"),
+      "seats"=c(68,87,46,13,1,1,9),
+      "rulingparty"=factor(c(0,1,0,0,0,0,0)),
+      "seatsgaptorulingparty"=c(19,0,41,41,44,86,78)
+    )
+  ) %>%
+  bind_rows(
+    data.frame(
+      "term"=6,
+      "party"=c("中國國民黨","民主進步黨","親民黨","台灣團結聯盟","新黨","無黨團結聯盟","無黨籍及未經政黨推薦"),
+      "seats"=c(79,89,34,12,1,6,4),
+      "rulingparty"=factor(c(0,1,0,0,0,0,0)),
+      "seatsgaptorulingparty"=c(10,0,55,77,88,83,85)
+    )
+  )
 #bills_answer_to_bill <- read.xlsx(myown_vote_bills_file, sheetIndex = 3, encoding = "UTF-8", endRow = 5144)
 bills_answer_to_bill <- read.xlsx(myown_vote_bills_file, sheet = 4)
 #bills_billcontent <- read.xlsx(myown_vote_bills_file, sheetIndex = 1, encoding = "UTF-8", endRow = 3498) %>%
@@ -171,11 +192,14 @@ bills_billcontent <- read.xlsx(myown_vote_bills_file, sheet = 1) %>%
   select(-starts_with("pp_related_q_"))
 #as.character(unique(bills_billcontent$pp_related_q_1))
 load(paste0(dataset_file_directory,"rdata",slash,"myown_vote_record_df.RData"))
+#load(paste0(dataset_file_directory,"rdata",slash,"myown_vote_record_detailed_part_df.RData"))
+#myown_vote_record_df<-myown_vote_record_df %>%
+#  mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.character) ) %>%
+#  bind_rows(myown_vote_record_detailed_part_df)
+#save(myown_vote_record_df,file=paste0(dataset_file_directory,"rdata",slash,"myown_vote_record_df.RData"))
 
 
-
-
-myown_vote_record_df <- myown_vote_record_df %>%
+myown_vote_record_df %<>%
   mutate_at("legislator_name", funs(customgsub(legislator_name, "　", ""))) %>%
   mutate_at(c("billcontent","term","period","meetingno","temp_meeting_no","billn"), funs(as.character)) %>%
   mutate_at("billcontent", funs(trimws)) %>%
@@ -213,11 +237,11 @@ myown_vote_record_df_with_party<-left_join(myown_vote_record_df,legislator_term_
 
 
 
-mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %in% c(7, 9)) %>%
+mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %in% terms) %>%
   left_join(myown_vote_record_df_with_party) %>%
   left_join(partyseats) %>%
-  right_join(bills_billcontent, by = c("billid_myown","term","period","meetingno","temp_meeting_no","billn","billresult","url","date")) %>%
-  right_join(bills_answer_to_bill) %>%
+  right_join(bills_billcontent, by = c("billid_myown","term","period","meetingno","temp_meeting_no","billn","billresult","date")) %>% ##,"url"
+  right_join(bills_answer_to_bill) %>%  ##問題在這邊
   #篩選出研究範圍
   inner_join(survey_time_range) %>%
   mutate(opinionstrength=opinionfrombill) %>%
@@ -288,37 +312,38 @@ load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
 ##=================以下部分因為已有既存資料檔，讀取後略過不執行#=================
 ##=================以下部分因為已有既存資料檔，讀取後略過不執行#=================
 #找出所有行政區對選區資料，並且找出同一鄉鎮市區有不同選區的部分
-#admin_dist_to_elect_dist <- distinct(elections_df_test, term, admincity, electionarea, admindistrict) %>%
-#  filter(!is.na(admincity)) %>%
-#  left_join(all_admin_dist_with_zip)
-#duplicated_area <- admin_dist_to_elect_dist[duplicated(admin_dist_to_elect_dist[, c("term", "admincity", "admindistrict")]),]
+admin_dist_to_elect_dist <- distinct(elections_df_test, term, admincity, electionarea, admindistrict, adminvillage) %>%
+  filter(!is.na(admincity)) %>%
+  left_join(all_admin_dist_with_zip)
+duplicated_area <- distinct(admin_dist_to_elect_dist,term,electionarea,admincity,admindistrict,zip,zip3rocyear) %>%
+  extract(duplicated(.[, c("term", "admincity", "admindistrict")]),)
 #把某些共用同一個郵遞區號的行政區合併
-#unique_dist_for_elect_dist <- anti_join(admin_dist_to_elect_dist, duplicated_area[, c("term", "admincity", "admindistrict")]) %>%
-#  group_by(term, electionarea, admincity, zip, zip3rocyear) %>%
-#  summarise(admindistrict = paste0(admindistrict, collapse = "、"))
+unique_dist_for_elect_dist <- anti_join(admin_dist_to_elect_dist, duplicated_area[, c("term", "admincity", "admindistrict")]) %>%
+  group_by(term, electionarea, admincity, zip, zip3rocyear) %>%
+  summarise(admindistrict = paste0(admindistrict, collapse = "、"))
 #以下註解部分為找出多選區的樣本
-#duplicated_area[duplicated_area$term == 9, c("zip")] %>%
-#  intersect(X2016_citizen$zip) %>%
+#duplicated_area[duplicated_area$term == 6, c("zip")] %>%
+#  intersect(survey_data[[4]]$zip) %>%
 #  unique() %>% 
 #  sort()
 ##=================以上部分因為已有既存資料檔，讀取後略過不執行#=================
 ##=================以上部分因為已有既存資料檔，讀取後略過不執行#=================
 
-#save(duplicated_area,unique_dist_for_elect_dist,file=paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
+#save(admin_dist_to_elect_dist,duplicated_area,unique_dist_for_elect_dist,file=paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
 #重要！2010環境的資料因為補選選區有改變，所以在一些鄉鎮市區村里會重複出現多筆紀錄，要先處理一下join的選舉資料
 #duplicated_area_just_one_electionarea <- group_by(duplicated_area, term, admincity, admindistrict, zip, zip3rocyear) %>%
 #  summarise(electionarea = paste0(electionarea, collapse = "、"))
 minus_electionarea <- as.data.frame(list("term" = 7, "electionarea" = "桃園縣第06選區", "admincity" = "桃園縣", "admindistrict" = "中壢市", zip = 320, zip3rocyear = 99))
 #
-survey_restricted_data<-c(1,2,3) %>%
+survey_restricted_data<-c(1,2,3,4) %>%
   lapply(function (X) read.xlsx(paste0(dataset_file_directory, "basic_social_survey_restricted_data.xlsx"), sheet = X))
-survey_data<-c("2016_citizen.sav","2010_env.sav","2010_overall.sav") %>%
+survey_data<-c("2016_citizen.sav","2010_env.sav","2010_overall.sav","2004_citizen.sav") %>%
   sapply(function (X,...) paste0(...,X), dataset_file_directory, "merger_survey_dataset",slash) %>%
   lapply(haven::read_sav) %>%
   lapply(function (X) {
     othervar<-setdiff(names(X),c("term1","term2"))
     reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
-      filter(!is.na(term))
+      dplyr::filter(!is.na(term))
   })
 #latent variables 政治參與
 #2016citizen-fit2: h2a h2b h2c h2d h2e h2f h2g h2h h3a h3b h3c
@@ -401,9 +426,14 @@ for (ctg in 2:3) {
 #先依據是否有多數選區存在於單一鄉鎮市區拆開，先串有同一鄉鎮市區內有多選區的，再串同一鄉鎮市區內只有一選區的，然後分別join之後再合併
 survey_data <- mapply(function(X,Y) {
   in_complicated_district<-filter(X, id %in% Y$id) %>%
-    left_join(Y)
+    left_join(Y) %>%
+    mutate_at("term",funs(as.character)) %>%
+    left_join(admin_dist_to_elect_dist,by=c("term","admincity","admindistrict","adminvillage")) %>%
+    select(-zip.y) %>%
+    rename(zip=zip.x)
   in_simple_district <- filter(X, !(id %in% Y$id)) %>%
     mutate_at(c("zip"), as.integer) %>%
+    mutate_at("term",funs(as.character)) %>%
     left_join(unique_dist_for_elect_dist)
   bind_rows(in_simple_district, in_complicated_district) %>%
     arrange(id)
@@ -419,7 +449,8 @@ library(reshape2)
 survey_q_id<-list(
     c("c1a",	"c1b",	"c1c",	"c1d",	"c1e",	"c2",	"c3",	"c4",	"c5",	"c6",	"c10",	"c11",	"c12",	"c13",	"c14",	"d1",	"d2a",	"d2b",	"d3a",	"d3b",	"d4",	"d5a",	"d5b",	"d5c",	"d5d",	"d5e",	"d5f",	"d6a",	"d6b",	"d6c",	"d6d",	"d6e",	"d6f",	"d6g",	"d6h",	"d7a",	"d7b",	"d7c",	"d7d",	"d7e",	"d7f",	"d7g",	"d7h",	"d7i",	"d7j",	"d7k",	"d8a",	"d8b",	"d8c",	"d11a",	"d11b",	"d12",	"d13a",	"d13b",	"d14a",	"d14b",	"d14c",	"d17a",	"d17b",	"d17c",	"e2a",	"e2b",	"e2c",	"e2d",	"e2e",	"e2f",	"e2g",	"e2h",	"e2i",	"f3",	"f4",	"f5",	"f8",	"f9",	"h10"),
     c("kv21c_0", "kv31_0", "kv67_0", "v14a", "v14b", "v15a", "v15b", "v16a", "v16b", "v19", "v20a", "v20b", "v21c", "v22a", "v22b", "v22c", "v23a", "v23b", "v23c", "v24a", "v24b", "v24c", "v25a", "v25b", "v25c", "v26a", "v26b", "v26c", "v26d", "v26e", "v26f", "v26g", "v27a", "v27b", "v27c", "v27d", "v27e", "v27f", "v27g", "v28a", "v28b", "v29", "v30a", "v30b", "v31", "v32a", "v32b", "v32c", "v36a", "v36b", "v37a", "v37b", "v37c", "v37d", "v37e", "v37f", "v37g", "v37h", "v37i", "v38a1", "v38a2", "v38b1", "v38b2", "v38c1", "v38c2", "v38d1", "v38d2", "v38e1", "v38e2", "v39a", "v39b", "v39c", "v40", "v57", "v58", "v59", "v63", "v66c", "v66f", "v67", "v68", "v69", "v70b", "v70c", "v70d", "v70e", "v70f"),
-    c("v39c", "v39d", "v39e", "v40", "v41", "v78a", "v78b", "v78c", "v78d", "v78e", "v78f", "v78g", "v78h", "v78i", "v90", "v91", "v92")
+    c("v39c", "v39d", "v39e", "v40", "v41", "v78a", "v78b", "v78c", "v78d", "v78e", "v78f", "v78g", "v78h", "v78i", "v90", "v91", "v92"),
+    c("v25","v26","v27","v41","v42","v43","v44","v45","v46","v60","v61","v62","v65","v74","v91a","v91b","v92_1","v92_2","v92_3","v92_4","v92_5","v93a","v93b","v95","v96","v97","v105a","v105b","v105c","v106a","v106b","v106c","v107a","v107b","v107c","v114","v118a","v118b","v118c","v118d")
   )
 
 survey_data_melted<-mapply(function(X,Y) {
