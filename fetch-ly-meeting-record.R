@@ -1,12 +1,17 @@
-filespath<-"E:\\Software\\scripts\\R\\"
-filespath <-"/mnt/e/Software/scripts/R/"
-source(file=paste(filespath,"shared_functions.R",sep=""))
-meetingurldata<-read_csv(
-  ifelse(check_if_windows(),
-         "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\vote_record\\meetingrecord.csv",
-         "/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/vote_record/meetingrecord.csv"
-         )
+t_sessioninfo<-sessionInfo()
+t_sessioninfo_running<-gsub(" ","",t_sessioninfo$running)
+t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
+filespath<-switch(t_sessioninfo_running,
+                  Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
+                  Windows7x64build7601ServicePack1="C:\\Users\\r03a21033\\DOWNLOADS\\",
+                  Windows10x64build16299 = "E:\\Software\\scripts\\R\\",
+                  Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
 )
+#filespath <- "E:\\Software\\scripts\\R\\"
+#filespath <- "/mnt/e/Software/scripts/R/"
+source(file = paste(filespath, "shared_functions.R", sep = ""))
+meetingurldata<-paste0(filespath,"vote_record",slash,"meetingrecord.xlsx") %>%
+  read.xlsx(sheet = 1)
 #html1data<-sapply(meetingurldata$HTML1,custom_read_file)
 #html2data<-sapply(meetingurldata$HTML2,custom_read_file)
 #html3data<-sapply(meetingurldata$HTML3,custom_read_file)
@@ -100,5 +105,5 @@ meetingdata<-data.frame(
   )
 
 #出錯處 at 312 臨時會 第08屆 第04會期 第01次臨時會 第01次會議 or 313
-save(meetingdata, file = paste(filespath, "vote_record", ifelse(check_if_windows(),"\\","/"),  "meetingdata.RData", sep = "") )
+save(meetingdata, file = paste(filespath, "vote_record", slash,  "meetingdata.RData", sep = "") )
 #save(meetingdata,file="/mnt/e/Software/scripts/R/vote_record/meetingdata.RData")
