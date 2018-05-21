@@ -21,6 +21,7 @@ meetingurldata<-paste0(filespath,"vote_record",slash,"meetingrecord.xlsx") %>%
   filter(kind!="談話會")
 meetingurldata_urlrange<-4:13
 meetingdata_range<-19:28
+
 fetchmeetingdata<-lapply(meetingurldata[,meetingurldata_urlrange],function (X) {
   returnX<-sapply(X,custom_read_file) %>%
     as.character()
@@ -34,10 +35,6 @@ fetchmeetingdata<-lapply(meetingurldata[,meetingurldata_urlrange],function (X) {
   })
 
 load(paste(dataset_file_directory,slash, "rdata", slash,  "fetchmeetingdata.RData", sep = ""))
-
-content<-c()
-meetingurl<-c()
-error_record<-c()
 
 
 adplydata<-bind_cols(meetingurldata,fetchmeetingdata)
@@ -104,7 +101,8 @@ meetingdata<-apply(adplydata,1,function (X) {
   needcontent<-tmpcontent[filter_result]
   needurl<-X[meetingurldata_urlrange][filter_result]
   needelement<-c("kind","termmeetingtime","date","term","period","meetingno","temp_meeting_no")
-  needdf<-c(X[needelement],needurl,needcontent,error)
+  needdf<-c(X[needelement],needurl,needcontent,error) %>%
+    trimws()
   names(needdf)<-c(needelement,"url","content","fetchcontenterror")
   return(needdf)
 }) %>% t() %>% as.data.frame(stringsAsFactors=FALSE)

@@ -58,8 +58,10 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
   #url<-urlarr[urln]
   url<-Y
   urln<-which(meetingdata$url==url)
+  #| urln==478
+  # | url=="https://lci.ly.gov.tw/LyLCEW/html/agendarec1/03/09/04/01/01/LCEWC03_09040101.htm"
   if (!is.null(url) &
-      (is.na(url)| urln==478 | url=="https://lci.ly.gov.tw/LyLCEW/html/agendarec1/03/09/04/01/01/LCEWC03_09040101.htm")
+      (is.na(url))
       ) {
     return(data.frame())
   }
@@ -200,29 +202,31 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
   }
   
   leavelegislator<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"請假委員",value=TRUE)
-  if (identical(leavelegislator,as.character())) {
-    leavelegislator<-data.frame()
-  } else {
-    leavelegislator<-leavelegislator %>%
-      strsplit('請假委員　') %>%
-      unlist() %>%
-      strsplit('　　') %>%
-      unlist() %>%
-      customgrep("[\u4e00-\u9fa5A-aZ-z]",value=TRUE) %>%
-      stri_replace_all_fixed("　","") %>%
-      trimws()
-    leavelegislator<-data.frame(
-      "legislator_name"=leavelegislator,
-      "term"=term,
-      "period"=period,
-      "temp_meeting_no"=temp_meeting_no,
-      "meetingno"=meetingno,
-      "url"=url,
-      "urln"=urln,
-      "date"=date
-    )
-  } %>%
-    replace_troublesome_names()
+  leavelegislator<-(if (identical(leavelegislator,as.character())) {
+      data.frame()
+    } else {
+      tmpleavelegislator<-leavelegislator %>%
+        strsplit('請假委員　') %>%
+        unlist() %>%
+        strsplit('　　') %>%
+        unlist() %>%
+        customgrep("[\u4e00-\u9fa5A-aZ-z]",value=TRUE) %>%
+        stri_replace_all_fixed("　","") %>%
+        trimws()
+      data.frame(
+        "legislator_name"=tmpleavelegislator,
+        "term"=term,
+        "period"=period,
+        "temp_meeting_no"=temp_meeting_no,
+        "meetingno"=meetingno,
+        "url"=url,
+        "urln"=urln,
+        "date"=date
+      ) %>%
+        replace_troublesome_names() %>%
+        dplyr::mutate_at(c("legislator_name","term","period","meetingno","temp_meeting_no","url","urln","date"),funs(as.character)) %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no","urln"),funs(as.integer))
+    })
   
   attendlegislator<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"出席委員",value=TRUE) %>%
     strsplit('出席委員　') %>%
@@ -242,6 +246,8 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
     "urln"=urln,
     "date"=date
   ) %>%
+    mutate_at(c("term","period","meetingno","temp_meeting_no","urln"),funs(as.character)) %>%
+    mutate_at(c("term","period","meetingno","temp_meeting_no","urln"),funs(as.integer)) %>%
     replace_troublesome_names()
   
   leave_and_attend_legislators<-bind_rows(leave_and_attend_legislators,leavelegislator,attendlegislator)
@@ -313,6 +319,7 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
                       paragraph_list[2727:length(paragraph_list)]
     )
   }
+  #1165 1173
   #特別處理：立法院第7屆第1會期第19次會議議事錄, 這裡很奇怪, https 和 http 版本不一樣
   if (term==7 & period==1 & temp_meeting_no==0 & meetingno==19) {
     paragraph_list <- c(paragraph_list[1:1449],
@@ -386,6 +393,7 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
   
   
   for (billn in (1:length(agree_voters))) {
+    message("billn=",billn)
     #每一案掃描的範圍
     scan_area_start<-vote_bill_short_title[billn]+1
     scan_area_end<-if (is.na(vote_bill_short_title[billn+1])) {
@@ -470,7 +478,7 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
               "urln"=urln,
               "date"=date
         ) %>%
-          mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer)) %>%
+          mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
           mutate_at(c("legislator_name","billcontent","url","date"),funs(as.character)) %>%
           replace_troublesome_names()
       }
@@ -491,7 +499,7 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
             "urln"=urln,
             "date"=date
       )  %>%
-        mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer)) %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
         mutate_at(c("legislator_name","billcontent","url","date"),funs(as.character)) %>%
         replace_troublesome_names()
     }
@@ -511,7 +519,7 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
             "urln"=urln,
             "date"=date
       ) %>%
-        mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer)) %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
         mutate_at(c("legislator_name","billcontent","url","date"),funs(as.character)) %>%
         replace_troublesome_names()
     }
@@ -529,6 +537,7 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
       "billcontent"=bill_list[billn],
       "billresult"=billresult
     ) %>%
+      mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer)) %>%
       right_join(attendlegislator) %>%
       mutate("votedecision"="未投票") %>%
       anti_join_with_nrow_zero(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
@@ -545,6 +554,7 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
         "billcontent"=bill_list[billn],
         "billresult"=billresult
       ) %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer)) %>%
         right_join(leavelegislator) %>%
         mutate("votedecision"="未出席") %>%
         anti_join_with_nrow_zero(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
@@ -577,7 +587,7 @@ myown_vote_record_df<-do.call("rbind", myown_vote_record_df)
 
 myown_vote_record_df<-filter(myown_vote_record_df,!is.na(legislator_name))
 
-#save(myown_vote_record_df,file="myown_vote_record_df.RData")
+#save(myown_vote_record_df,file=paste0(dataset_file_directory, "rdata", slash,  "myown_vote_record_df.RData"))
 
 
 
