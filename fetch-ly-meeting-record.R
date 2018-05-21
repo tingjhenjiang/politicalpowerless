@@ -10,39 +10,52 @@ filespath<-switch(t_sessioninfo_running,
 #filespath <- "E:\\Software\\scripts\\R\\"
 #filespath <- "/mnt/e/Software/scripts/R/"
 source(file = paste(filespath, "shared_functions.R", sep = ""))
+dataset_file_directory <- switch(t_sessioninfo_running,
+                                 Windows7x64build7601ServicePack1="C:\\NTUSpace\\dataset\\",
+                                 Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+                                 Windows10x64build16299 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+                                 Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
+)
 meetingurldata<-paste0(filespath,"vote_record",slash,"meetingrecord.xlsx") %>%
-  read.xlsx(sheet = 1)
-#html1data<-sapply(meetingurldata$HTML1,custom_read_file)
-#html2data<-sapply(meetingurldata$HTML2,custom_read_file)
-#html3data<-sapply(meetingurldata$HTML3,custom_read_file)
-#html4data<-sapply(meetingurldata$HTML4,custom_read_file)
+  read.xlsx(sheet = 1) %>%
+  filter(kind!="談話會")
 meetingurldata_urlrange<-4:13
+meetingdata_range<-19:28
+fetchmeetingdata<-lapply(meetingurldata[,meetingurldata_urlrange],function (X) {
+  returnX<-sapply(X,custom_read_file) %>%
+    as.character()
+  message(" ｜ ")
+  return(returnX)
+}) %>%
+  as.data.frame(stringsAsFactors=FALSE) %>%
+  (function(X) {
+    names(X)<-paste(names(X),"DATA",sep="")
+    return(X)
+  })
+
+load(paste(dataset_file_directory,slash, "rdata", slash,  "fetchmeetingdata.RData", sep = ""))
 
 content<-c()
 meetingurl<-c()
 error_record<-c()
-for (i in 1:nrow(meetingurldata)) {
-   if (i %in% c(473)) {
-        #415,416,417,428,429,445,447,448,469,470,471,472,473,474,475
-    meetingurl<-c(meetingurl,NA)
-    content<-c(content,NA)
-    next
-  }
-  term<-meetingurldata$term[i]
-  #tmpcontent<-c(
-  #  (html1data[i]),
-  #  (html2data[i]),
-  #  (html3data[i]),
-  #  (html4data[i])
-  #)
-  #tmphtmllink<-c(
-  #  meetingurldata$HTML1,
-  #  meetingurldata$HTML2,
-  #  meetingurldata$HTML3,
-  #  meetingurldata$HTML4
-  #)
-  tmpcontent<-sapply((meetingurldata[i,meetingurldata_urlrange]),custom_read_file) %>%
-    as.character()
+
+
+adplydata<-bind_cols(meetingurldata,fetchmeetingdata)
+message(needdatanum)
+meetingdata<-apply(adplydata,1,function (X) {
+  #if (i %in% c(473)) {
+  #      #415,416,417,428,429,445,447,448,469,470,471,472,473,474,475
+  #  meetingurl<-c(meetingurl,NA)
+  #  content<-c(content,NA)
+  #  next
+  #}
+  term<-X["term"]
+  error<-""
+  message("starting! term=",X["term"],"; cols=",ncol(X),"; names=",names(X))
+  #tmpcontent<-sapply(X[meetingurldata_urlrange],custom_read_file) %>%
+  #  as.character()
+  #tmpcontent<-fetchmeetingdata[needdatanum,]
+  tmpcontent<-X[meetingdata_range]
   big5checkresult<-customgrep(tmpcontent,"text/html; charset=big5")
   if (length(big5checkresult)>0) {
     #tmpurl<-not_empty_filter(meetingurldata[i,meetingurldata_urlrange]) %>%
@@ -51,23 +64,25 @@ for (i in 1:nrow(meetingurldata)) {
     #  sapply(custompaste0) %>% unlist() %>%
     #  customgsub("text/html; charset=big5","text/html; charset=utf-8")
     for (big5checkresult_i in 1:length(big5checkresult)) {
-      tmpcontent[big5checkresult[big5checkresult_i]]<-stri_encode(tmpcontent[big5checkresult[big5checkresult_i]],"Big5","UTF-8") 
+      message(big5checkresult_i)
+      tmpcontent[big5checkresult[big5checkresult_i]] %<>% as.character() %>%
+        stri_encode("Big5","UTF-8") 
     }
   }
-  filter_result<-customgrep(tmpcontent,"html|body|span",value=FALSE)
+  filter_result<-customgrep(tmpcontent,"html|body|span",value=FALSE,perl=TRUE)
   length_filter_result<-length(filter_result)
   tmpmeetingtitle<-c()
   if (length_filter_result<1) {
-    stop("Error at ", i, meetingurldata[i,1], meetingurldata[i,2])
+    stop("Error at ", X[1], X[2], "length<1")
   } else if (length_filter_result>1 | length_filter_result==1) {
     need_compare_content<-tmpcontent[filter_result] %>% stri_length() %>% unique()
     if (length(need_compare_content)>1) {
-      error<-c(error,paste0(as.character(meetingurldata[i,1:2]),sep="",collapse=""))
+      error<-paste0("Error at ", X[1], X[2], "length>2")
       #stop("Error at ", i, meetingurldata[i,1], meetingurldata[i,2])
     }
     filter_result<-filter_result[1]
   } else {
-    stop("Error at ", i, meetingurldata[i,1], meetingurldata[i,2])
+    stop("Error at ", i, X[1], X[2])
   }
   
   #for (ti in 1:6) {
@@ -87,23 +102,15 @@ for (i in 1:nrow(meetingurldata)) {
   #filter_result<-customgrepl(tmpcontent,"html",value=FALSE) %>%
   #  which.max()
   needcontent<-tmpcontent[filter_result]
-  needurl<-getElement(meetingurldata[i,meetingurldata_urlrange],filter_result)
-  meetingurl<-c(meetingurl,needurl)
-  content<-c(content,needcontent)
-}
+  needurl<-X[meetingurldata_urlrange][filter_result]
+  needelement<-c("kind","termmeetingtime","date","term","period","meetingno","temp_meeting_no")
+  needdf<-c(X[needelement],needurl,needcontent,error)
+  names(needdf)<-c(needelement,"url","content","fetchcontenterror")
+  return(needdf)
+}) %>% t() %>% as.data.frame(stringsAsFactors=FALSE)
 
-meetingdata<-data.frame(
-  "kind"=meetingurldata$kind,
-  "termmeetingtime"=meetingurldata$termmeetingtime,
-  "date"=meetingurldata$date,
-  "url"=meetingurl,
-  "term"=meetingurldata$term,
-  "period"=meetingurldata$period,
-  "meetingno"=meetingurldata$meetingno,
-  "temp_meeting_no"=meetingurldata$temp_meeting_no,
-  "content"=content
-  )
 
 #出錯處 at 312 臨時會 第08屆 第04會期 第01次臨時會 第01次會議 or 313
-save(meetingdata, file = paste(filespath, "vote_record", slash,  "meetingdata.RData", sep = "") )
+save(meetingdata, file = paste(dataset_file_directory,slash, "rdata", slash,  "meetingdata.RData", sep = "") )
+save(fetchmeetingdata, file = paste(dataset_file_directory,slash, "rdata", slash,  "fetchmeetingdata.RData", sep = "") )
 #save(meetingdata,file="/mnt/e/Software/scripts/R/vote_record/meetingdata.RData")
