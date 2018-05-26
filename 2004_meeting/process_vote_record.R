@@ -224,8 +224,11 @@ for (i in 1:length(filename)) {#length(filename)
   
 }
 myown_vote_record_detailed_part_df<-filter(myown_vote_record_detailed_part_df,!is.na(legislator_name)) %>%
-  mutate_at(c("votedecision","legislator_name","term","period","meetingno","temp_meeting_no","billn","billcontent","billresult","url","urln","date"),funs(as.character))
-#save(myown_vote_record_detailed_part_df,file="myown_vote_record_detailed_part_df.RData")
+  mutate_all(funs(as.character)) %>%
+  mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer))
+#save(myown_vote_record_detailed_part_df,file=paste0(dataset_file_directory, "rdata", slash,  "myown_vote_record_detailed_part_df.RData"))
+load(file=paste0(dataset_file_directory, "rdata", slash,  "myown_vote_record_df.RData"))
+myown_vote_record_df<-bind_rows(myown_vote_record_df,myown_vote_record_detailed_part_df)
 #regexp=
 #表決結果名單：[\n\r]{1,3}.+贊成者：.+[\n\r]{1,3}.+[\n\r]{1,3}.+反對者.+[\n\r]{1,3}.+[\n\r]{1,3}([一二三四五六七八九、棄權者：人]+[\n\r]{1,3}.+){0,1}
 #n_occur <- data.frame(table(test_final$ID))

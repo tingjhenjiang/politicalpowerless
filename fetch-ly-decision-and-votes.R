@@ -74,7 +74,7 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
   period<-meetingdata$period[urln]
   meetingno<-meetingdata$meetingno[urln]
   temp_meeting_no<-meetingdata$temp_meeting_no[urln]
-  date<-as.character(meetingdata$date[urln])
+  date<-as.character(meetingdata$date[urln]) %>% trimws()
   if (is.na(temp_meeting_no)) {
     temp_meeting_no<-0
   }
@@ -319,7 +319,6 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
                       paragraph_list[2727:length(paragraph_list)]
     )
   }
-  #1165 1173
   #特別處理：立法院第7屆第1會期第19次會議議事錄, 這裡很奇怪, https 和 http 版本不一樣
   if (term==7 & period==1 & temp_meeting_no==0 & meetingno==19) {
     paragraph_list <- c(paragraph_list[1:1449],
@@ -478,8 +477,8 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
               "urln"=urln,
               "date"=date
         ) %>%
+          mutate_all(funs(as.character)) %>%
           mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
-          mutate_at(c("legislator_name","billcontent","url","date"),funs(as.character)) %>%
           replace_troublesome_names()
       }
     
@@ -499,8 +498,8 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
             "urln"=urln,
             "date"=date
       )  %>%
+        mutate_all(funs(as.character)) %>%
         mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
-        mutate_at(c("legislator_name","billcontent","url","date"),funs(as.character)) %>%
         replace_troublesome_names()
     }
     exact_dissent_voter_df<-if (length(exact_dissent_voter)==0) {
@@ -519,8 +518,8 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
             "urln"=urln,
             "date"=date
       ) %>%
+        mutate_all(funs(as.character)) %>%
         mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
-        mutate_at(c("legislator_name","billcontent","url","date"),funs(as.character)) %>%
         replace_troublesome_names()
     }
     
@@ -537,12 +536,15 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
       "billcontent"=bill_list[billn],
       "billresult"=billresult
     ) %>%
+      mutate_all(funs(as.character)) %>%
       mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer)) %>%
       right_join(attendlegislator) %>%
       mutate("votedecision"="未投票") %>%
       anti_join_with_nrow_zero(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
       anti_join_with_nrow_zero(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-      anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name"))
+      anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+      mutate_all(funs(as.character)) %>%
+      mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer))
 
     leavelegislator_df<-if(nrow(leavelegislator)>0) {
       data.frame(
@@ -554,12 +556,15 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
         "billcontent"=bill_list[billn],
         "billresult"=billresult
       ) %>%
+        mutate_all(funs(as.character)) %>%
         mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer)) %>%
         right_join(leavelegislator) %>%
         mutate("votedecision"="未出席") %>%
         anti_join_with_nrow_zero(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
         anti_join_with_nrow_zero(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-        anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name"))
+        anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+        mutate_all(funs(as.character)) %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer))
     } else {
       data.frame()
     }
@@ -578,11 +583,14 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
 }
 
 #myown_vote_record_df<-mapply(fetch_ly_decision_and_vote,X=seq.int(length(urlarr)),Y=urlarr)
-myown_vote_record_df<-lapply(
+myown_vote_record_df<-do.call("rbind", lapply(
   urlarr,
   fetch_ly_decision_and_vote
-  )
-myown_vote_record_df<-do.call("rbind", myown_vote_record_df)
+  ))
+
+#debug
+url<-urlarr[13]
+#term=1 at billn=1; not vote regularly follows and its billn is NA
 
 
 myown_vote_record_df<-filter(myown_vote_record_df,!is.na(legislator_name))
