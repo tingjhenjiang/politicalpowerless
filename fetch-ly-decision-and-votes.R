@@ -272,8 +272,28 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
   #xpath<-"//p[(contains(.,'記名表決')) and (contains(.,'表決結果名單附後') or contains(.,'表決結果名單附件') or contains(.,'表決結果附後') or contains(.,'表決結果名單及時程表附後'))   ]"
   #bill_list<-xml_find_all(doc, xpath) %>%
   #xml_text() %>%
-  bill_list<-customgrep(paragraph_list,'記名表決',value=TRUE) %>%
-    customgrep("表決結果名單附後|表決結果名單附件|表決結果附後|表決結果名單及時程表附後",value=TRUE) %>%
+  
+  #開始處理【經記名表決結果，均予以通過，表決結果附後(2)至(5)】這種形式的紀錄
+  for (bill_list_exec_check_i in 1:2) {
+    bill_list_target<-customgrep(paragraph_list,'記名表決',value=TRUE) %>%
+      customgrep("表決結果名單附後|表決結果名單附件|表決結果附後|表決結果名單及時程表附後",value=TRUE)
+    if (bill_list_exec_check_i==2) break
+    bill_list_need_modify_part_matches<-stri_match_all(bill_list_target,regex="(【經記名表決結果，{1}?均{1}.+?通過，{1}[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1})?([(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)]{1}至{1}[(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)]{1}){1}[〕】）]{0,}[；。]{0,1}")
+    tmpbilllist_rawrecordn_nrows<-nrow(bill_list_need_modify_part_matches[[1]])
+    if (tmpbilllist_rawrecordn_nrows>0) {
+      tmpbilllist_rawrecordn_start<-as.integer(bill_list_need_modify_part_matches[[1]][,4])
+      tmpbilllist_rawrecordn_end<-as.integer(bill_list_need_modify_part_matches[[1]][,5])
+      tmpbilllist_supplementlist<-mapply(function(prefix,beginnum,endnum) {
+        tmpbilllist_supplementlist_range<-seq(beginnum,endnum)
+        sapply(tmpbilllist_supplementlist_range, function(X) paste0(prefix,"(",X,")】；")) %>%
+          custompaste0()
+      }, prefix=bill_list_need_modify_part_matches[[1]][,2], beginnum=tmpbilllist_rawrecordn_start, endnum=tmpbilllist_rawrecordn_end)
+      paragraph_list<-stri_replace_all_fixed(paragraph_list,bill_list_need_modify_part_matches[[1]][,1], tmpbilllist_supplementlist, vectorize_all=FALSE)
+    }
+  }
+  
+
+  bill_list<-bill_list_target %>%
     customgsub("(.+?[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1}[(（]{0,1}\\s{0,1}[—○一二三四五六七八九十\\d]{0,}\\s{0,1}[)）]{0,1}[〕】）]{0,}[；。]{0,1})","\\1 </endofp>",perl=TRUE) %>% 
     strsplit('</endofp>') %>% unlist() %>%
     customgrep("[表決]{0,1}[結果]{0,1}[名單]{0,1}附{1}[後|件]{1}",perl=TRUE,value=TRUE)
@@ -350,7 +370,7 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
   
   search_agree_pattern<-'贊成者[:：]{0,1}'
   agree_record_times<-count_value_times_in_vector(paragraph_list[roll_call_list_block_sp:length(paragraph_list)],search_agree_pattern)
-  
+
   if (is.null(bill_list) | agree_record_times<1) {
     return(data.frame())
   }
