@@ -19,7 +19,7 @@ dataset_file_directory <- switch(t_sessioninfo_running,
 meetingurldata<-paste0(filespath,"vote_record",slash,"meetingrecord.xlsx") %>%
   read.xlsx(sheet = 1) %>%
   filter(kind!="談話會")
-meetingurldata_urlrange<-4:13
+meetingurldata_urlrange<-4:13 #需要的欄位
 meetingdata_range<-19:28
 
 fetchmeetingdata<-lapply(meetingurldata[,meetingurldata_urlrange],function (X) {
@@ -34,7 +34,7 @@ fetchmeetingdata<-lapply(meetingurldata[,meetingurldata_urlrange],function (X) {
     return(X)
   })
 
-load(paste(dataset_file_directory,slash, "rdata", slash,  "fetchmeetingdata.RData", sep = ""))
+#load(paste(dataset_file_directory,slash, "rdata", slash,  "fetchmeetingdata.RData", sep = "")) #476 obs at 1233 now 481
 
 
 adplydata<-bind_cols(meetingurldata,fetchmeetingdata)
