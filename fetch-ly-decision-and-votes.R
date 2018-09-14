@@ -277,18 +277,28 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
   for (bill_list_exec_check_i in 1:2) {
     bill_list_target<-customgrep(paragraph_list,'記名表決',value=TRUE) %>%
       customgrep("表決結果名單附後|表決結果名單附件|表決結果附後|表決結果名單及時程表附後",value=TRUE)
-    if (bill_list_exec_check_i==2) break
+    if (bill_list_exec_check_i==2 | identical(bill_list_target,character(0))) break
     bill_list_need_modify_part_matches<-stri_match_all(bill_list_target,regex="(【經記名表決結果，{1}?均{1}.+?通過，{1}[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1})?([(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)]{1}至{1}[(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)]{1}){1}[〕】）]{0,}[；。]{0,1}")
+    if (length(bill_list_need_modify_part_matches)==1) break #no result from checking
     tmpbilllist_rawrecordn_nrows<-nrow(bill_list_need_modify_part_matches[[1]])
+    tmpbilllist_rawrecordn_check_value_exist_target<-lapply(bill_list_need_modify_part_matches,is.na) %>% #試著找出有匹配到的結果在哪一個list當中
+      lapply(is.element,FALSE) %>%
+      lapply(unique)
+    tmpbilllist_rawrecordn_check_value_exist_result<-which(sapply(tmpbilllist_rawrecordn_check_value_exist_target,function (e) is.element(TRUE,e) ))
+    if (identical(tmpbilllist_rawrecordn_check_value_exist_result,integer(0))) break
+    tmpbilllist_rawrecordn_targetn<-tmpbilllist_rawrecordn_check_value_exist_result #避免重複輸出，變成如(1,1,1,1)的檢查結果
+    #tmpbilllist_rawrecordn_tmpcheckresult<-is.na(bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,4]) %>%
+    #  getElement(1)
+    # & !(tmpbilllist_rawrecordn_tmpcheckresult)
     if (tmpbilllist_rawrecordn_nrows>0) {
-      tmpbilllist_rawrecordn_start<-as.integer(bill_list_need_modify_part_matches[[1]][,4])
-      tmpbilllist_rawrecordn_end<-as.integer(bill_list_need_modify_part_matches[[1]][,5])
+      tmpbilllist_rawrecordn_start<-as.integer(bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,4])
+      tmpbilllist_rawrecordn_end<-as.integer(bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,5])
       tmpbilllist_supplementlist<-mapply(function(prefix,beginnum,endnum) {
         tmpbilllist_supplementlist_range<-seq(beginnum,endnum)
         sapply(tmpbilllist_supplementlist_range, function(X) paste0(prefix,"(",X,")】；")) %>%
           custompaste0()
-      }, prefix=bill_list_need_modify_part_matches[[1]][,2], beginnum=tmpbilllist_rawrecordn_start, endnum=tmpbilllist_rawrecordn_end)
-      paragraph_list<-stri_replace_all_fixed(paragraph_list,bill_list_need_modify_part_matches[[1]][,1], tmpbilllist_supplementlist, vectorize_all=FALSE)
+      }, prefix=bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,2], beginnum=tmpbilllist_rawrecordn_start, endnum=tmpbilllist_rawrecordn_end)
+      paragraph_list<-stri_replace_all_fixed(paragraph_list,bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,1], tmpbilllist_supplementlist, vectorize_all=FALSE)
     }
   }
   
@@ -680,3 +690,8 @@ testdf<-read.xlsx(file="votingdf_datafile_myown.xlsx",sheetIndex=1,startRow = 1,
 
 #save(myown_vote_record_df,file="myown_vote_record_df.RData")
 #save(myown_vote_record_df,file="/mnt/e/Software/scripts/R/vote_record/myown_vote_record_df.RData")
+
+#write
+#billcontent	pp_keyword	pp_committee	url	pp_related_q_1	pp_related_q_2	pp_related_q_3	pp_related_q_4	pp_related_q_5	pp_related_q_6	pp_related_q_7	pp_related_q_8	pp_related_q_9	pp_related_q_10	pp_related_q_11	pp_lawamendment	votecontent	pp_enactment	pp_enforcement	pp_res_bynew	pp_res_bycompete	pp_groupbased	date	yrmonth	term	period	meetingno	temp_meeting_no	billn	pp_res_notjudged	pp_ignored	billresult	billconflict	billid_myown
+distinct(myown_vote_record_df,billcontent,url,date,term,period,meetingno,temp_meeting_no,billn,billresult) %>%
+  write.xlsx("newinputpart.xlsx")
