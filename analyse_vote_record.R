@@ -22,111 +22,6 @@ supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yu
 terms<-c(5,6,7,9)
 gc(verbose=TRUE)
 
-################################################
-
-
-#latent variables 政治參與
-#2016citizen-fit2: h2a h2b h2c h2d h2e h2f h2g h2h h3a h3b h3c
-#2010overall-fit2: v79a v79b v79c v79d 
-#2010env-fit1: v34 v35a v35b v35c ( v33f v75 v76 v77)
-library(ltm)
-library(eRm)
-participation_var<-lapply(survey_data,function(X) {
-  need_particip_var<-list(
-    "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c"),
-    "2010overall"=c("v79a","v79b","v79c","v79d"),
-    "2010env"=c("v34","v35a","v35b","v35c")
-  ) %>%
-    extract2(X$SURVEY[1])
-  return( intersect(names(X),need_particip_var) )
-})
-for (itrn in 1:3) {
-  survey_data[[itrn]][,participation_var[[itrn]]] <- lapply(survey_data[[itrn]][,participation_var[[itrn]]],function (X) {
-    X<-ifelse(X %in% c(93:99,996:999,9996:9999), NA, X)
-  })
-  fit1 <- ltm::grm(survey_data[[itrn]][,participation_var[[itrn]]], constrained = TRUE, na.action = na.omit, start.val = "random")
-  fit2 <- ltm::grm(survey_data[[itrn]][,participation_var[[itrn]]], na.action = na.omit, start.val = "random")
-  fit_testresult<-anova(fit1, fit2)
-  if (fit_testresult$aic0>fit_testresult$aic1 & fit_testresult$bic0>fit_testresult$bic1) {
-    fit<-fit2
-  } else {
-    fit<-fit1
-  }
-  survey_data[[itrn]] <- left_join(survey_data[[itrn]],fit %>%
-                                     factor.scores() %>%
-                                     use_series("score.dat") %>%
-                                     rename(myown_factored_nonpartcip_Exp=Exp,myown_factored_nonpartcip_z1=z1,myown_factored_nonpartcip_se.z1=se.z1)
-  )
-}
-
-#GoF.gpcm(fit,B=100)
-#用item respond抓出隱藏變數「低政治參與程度」
-ltm::rcor.test(survey_data[[itrn]][,participation_var[[itrn]]], method = "kendall", use = "pairwise.complete.obs")
-
-survey_data.gpcm<-gpcm(survey_data[[itrn]][,participation_var[[itrn]]],constraint="rasch",na.action=na.omit,start.val="random")
-summary(survey_data.gpcm)
-plot(survey_data.gpcm)
-plot(survey_data.gpcm,type=c("IIC"))
-GoF.gpcm(survey_data.gpcm)
-
-survey_data[[itrn]][,participation_var[[itrn]]] <- lapply(survey_data[[itrn]][,participation_var[[itrn]]],function (X) {
-  X<-ifelse(X %in% c(93:99,996:999,9996:9999), NA, X)
-})
-survey_data[[itrn]][,participation_var[[itrn]]]<-mutate_at(survey_data[[itrn]][,participation_var[[itrn]]],participation_var[[itrn]],as.factor) %>%
-  mutate_at(participation_var[[itrn]],factor)
-pcm1 <- PCM(survey_data[[itrn]][,participation_var[[itrn]]])
-rsm1 <- RSM(survey_data[[itrn]][,participation_var[[itrn]]])
-lrsm1<- LRSM(survey_data[[itrn]][,participation_var[[itrn]]])
-thresholds(pcm1)
-plotPImap(pcm1)
-LRtest(pcm1)
-#margins(fit1)
-
-
-
-
-information(fit, c(-4, 4))
-sapply(1:length(participation_var[[itrn]]),function (X) information(fit, c(-4, 4), items = c(X)) )
-plot(fit, lwd = 2, cex = 1.2, legend = TRUE, cx = "left",xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
-plot(fit, type = "IIC", lwd = 2, cex = 1.2, legend = TRUE, cx = "topleft",xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
-plot(fit, type = "IIC", items = 0, lwd = 2, xlab = "Latent Trait",cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
-info1 <- information(fit, c(-4, 0))
-info2 <- information(fit, c(0, 4))
-text(-1.9, 8, labels = paste("Information in (-4, 0):",paste(round(100 * info1$PropRange, 1), "%", sep = ""),"\n\nInformation in (0, 4):",paste(round(100 * info2$PropRange, 1), "%", sep = "")), cex = 1.2)
-par(mfrow = c(2, 2))
-plot(fit, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5,cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3,cex.axis = 1.1)
-for (ctg in 2:3) {
-  plot(fit, category = ctg, lwd = 2, cex = 1.2, annot = FALSE,
-       xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3,
-       cex.axis = 1.1)
-}
-
-################################################
-
-#將職業社經地位、家庭收入、教育程度萃取成為階級
-dataset.for.fa<-distinct(complete_survey_dataset,SURVEY,id,myown_eduyr,myown_ses,myown_family_income) %>%
-  filter(!is.na(myown_eduyr),!is.na(myown_ses),!is.na(myown_family_income))
-fa.class<-factanal(x= ~myown_eduyr+myown_ses+myown_family_income, 1, data = dataset.for.fa, rotation="varimax", scores=c("regression"),na.action = na.omit)
-complete_survey_dataset<-left_join(complete_survey_dataset,cbind(dataset.for.fa,"myown_factoredclass"=fa.class$scores[,1]))
-#install.packages("psy")
-#library(psy)
-#psy::scree.plot(fa.class$correlation)
-
-##測試參加政治與階級間關係
-(ggplot(complete_survey_dataset[complete_survey_dataset$SURVEY=="2010overall",],
-        aes(x = myown_factoredclass,
-            y = (myown_factored_nonpartcip_se.z1)
-        )
-) + labs(title = "各個階級的不參與政治程度") + geom_point()+geom_smooth(method="lm"))
-##2010env不參與程度不好、2010overall不參與程度也不好
-
-
-
-
-gc() #- do it now
-gc(TRUE)
-
-
 
 ##############################################################################
 # 第四部份：總結合併資料階段
@@ -145,7 +40,7 @@ load(paste0(dataset_file_directory,"rdata",slash,"legislators_with_election.RDat
 load(paste0(dataset_file_directory,"rdata",slash,"mergedf_votes_bills_election_surveyanswer.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"))
 
-#only_bill_to_survey_information<-distinct(mergedf_votes_bills_election_surveyanswer,term,period,meetingno,temp_meeting_no,billn,billresult,billid_myown,SURVEY,variable_on_q,value_on_q_variable,SURVEYQUESTIONID,SURVEYANSWERVALUE,LABEL,QUESTION,opinionfromconstituent,opinionfrombill,issue_field1,issue_field2,opinionstrength,opiniondirectionfromconstituent,opiniondirectionfrombill,success_on_bill) %>%
+#only_bill_to_survey_information<-distinct(mergedf_votes_bills_election_surveyanswer,stdbilldate,term,period,meetingno,temp_meeting_no,billn,billresult,billid_myown,SURVEY,variable_on_q,value_on_q_variable,SURVEYQUESTIONID,SURVEYANSWERVALUE,LABEL,QUESTION,opinionfromconstituent,opinionfrombill,issue_field1,issue_field2,opinionstrength,opiniondirectionfromconstituent,opiniondirectionfrombill,success_on_bill) %>%
 #  mutate_at("SURVEYANSWERVALUE", funs(as.character))
 #save(only_bill_to_survey_information,file=paste0(dataset_file_directory,"rdata",slash,"only_bill_to_survey_information.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"only_bill_to_survey_information.RData"))
@@ -226,6 +121,7 @@ legislators_additional_attr<-distinct(legislators_with_election,term,name,degree
 
 #write.xlsx(legislators_additional_attr,file=paste0(dataset_file_directory,"legislator_additional_attributes.xlsx"))
 
+  
 
 testdf <- left_join(mergedf_votes_bills_election_surveyanswer, legislators_with_election) %>%
   left_join(legislators_additional_attr) %>%
@@ -253,7 +149,9 @@ testdf<-inner_join(complete_survey_dataset, only_bill_to_survey_information,by =
 
 #beforecleannames<-names(testdf)
 
-testdf %<>% mutate_cond(myown_eduyr %in% c(96:99,996:999,9996:9999), myown_eduyr=NA) %>%
+testdf %<>% 
+  mutate(gap_between_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
+  mutate_cond(myown_eduyr %in% c(96:99,996:999,9996:9999), myown_eduyr=NA) %>%
   #mutate_cond(myown_ext_pol_efficacy %in% c(94:99,996:999,9996:9999), myown_ext_pol_efficacy=NA) %>%
   #mutate_cond(myown_int_pol_efficacy %in% c(94:99,996:999,9996:9999), myown_int_pol_efficacy=NA) %>%
   mutate_cond(myown_working_status %in% c(96:99,996:999,9996:9999), myown_working_status=NA) %>%
@@ -311,6 +209,114 @@ testdf %<>% mutate(eduyrgap=NA,sesgap=NA,sexgap=NA,agegap=NA) %>%
   mutate_cond(respondopinion=="x", respondopinion=NA)
 
 #%>%
+
+################################################
+#### latent variables 政治參與
+################################################
+
+#2016citizen-fit2: h2a h2b h2c h2d h2e h2f h2g h2h h3a h3b h3c
+#2010overall-fit2: v79a v79b v79c v79d 
+#2010env-fit1: v34 v35a v35b v35c ( v33f v75 v76 v77)
+library(ltm)
+library(eRm)
+participation_var<-lapply(survey_data,function(X) {
+  need_particip_var<-list(
+    "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c"),
+    "2010overall"=c("v79a","v79b","v79c","v79d"),
+    "2010env"=c("v34","v35a","v35b","v35c")
+  ) %>%
+    extract2(X$SURVEY[1])
+  return( intersect(names(X),need_particip_var) )
+})
+for (itrn in 1:3) {
+  survey_data[[itrn]][,participation_var[[itrn]]] <- lapply(survey_data[[itrn]][,participation_var[[itrn]]],function (X) {
+    X<-ifelse(X %in% c(93:99,996:999,9996:9999), NA, X)
+  })
+  fit1 <- ltm::grm(survey_data[[itrn]][,participation_var[[itrn]]], constrained = TRUE, na.action = na.omit, start.val = "random")
+  fit2 <- ltm::grm(survey_data[[itrn]][,participation_var[[itrn]]], na.action = na.omit, start.val = "random")
+  fit_testresult<-anova(fit1, fit2)
+  if (fit_testresult$aic0>fit_testresult$aic1 & fit_testresult$bic0>fit_testresult$bic1) {
+    fit<-fit2
+  } else {
+    fit<-fit1
+  }
+  survey_data[[itrn]] <- left_join(survey_data[[itrn]],fit %>%
+                                     factor.scores() %>%
+                                     use_series("score.dat") %>%
+                                     rename(myown_factored_nonpartcip_Exp=Exp,myown_factored_nonpartcip_z1=z1,myown_factored_nonpartcip_se.z1=se.z1)
+  )
+}
+
+#GoF.gpcm(fit,B=100)
+#用item respond抓出隱藏變數「低政治參與程度」
+ltm::rcor.test(survey_data[[itrn]][,participation_var[[itrn]]], method = "kendall", use = "pairwise.complete.obs")
+
+survey_data.gpcm<-gpcm(survey_data[[itrn]][,participation_var[[itrn]]],constraint="rasch",na.action=na.omit,start.val="random")
+summary(survey_data.gpcm)
+plot(survey_data.gpcm)
+plot(survey_data.gpcm,type=c("IIC"))
+GoF.gpcm(survey_data.gpcm)
+
+survey_data[[itrn]][,participation_var[[itrn]]] <- lapply(survey_data[[itrn]][,participation_var[[itrn]]],function (X) {
+  X<-ifelse(X %in% c(93:99,996:999,9996:9999), NA, X)
+})
+survey_data[[itrn]][,participation_var[[itrn]]]<-mutate_at(survey_data[[itrn]][,participation_var[[itrn]]],participation_var[[itrn]],as.factor) %>%
+  mutate_at(participation_var[[itrn]],factor)
+pcm1 <- PCM(survey_data[[itrn]][,participation_var[[itrn]]])
+rsm1 <- RSM(survey_data[[itrn]][,participation_var[[itrn]]])
+lrsm1<- LRSM(survey_data[[itrn]][,participation_var[[itrn]]])
+thresholds(pcm1)
+plotPImap(pcm1)
+LRtest(pcm1)
+#margins(fit1)
+
+
+
+
+information(fit, c(-4, 4))
+sapply(1:length(participation_var[[itrn]]),function (X) information(fit, c(-4, 4), items = c(X)) )
+plot(fit, lwd = 2, cex = 1.2, legend = TRUE, cx = "left",xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+plot(fit, type = "IIC", lwd = 2, cex = 1.2, legend = TRUE, cx = "topleft",xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+plot(fit, type = "IIC", items = 0, lwd = 2, xlab = "Latent Trait",cex.main = 1.5, cex.lab = 1.3, cex.axis = 1.1)
+info1 <- information(fit, c(-4, 0))
+info2 <- information(fit, c(0, 4))
+text(-1.9, 8, labels = paste("Information in (-4, 0):",paste(round(100 * info1$PropRange, 1), "%", sep = ""),"\n\nInformation in (0, 4):",paste(round(100 * info2$PropRange, 1), "%", sep = "")), cex = 1.2)
+par(mfrow = c(2, 2))
+plot(fit, category = 1, lwd = 2, cex = 1.2, legend = TRUE, cx = -4.5,cy = 0.85, xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3,cex.axis = 1.1)
+for (ctg in 2:3) {
+  plot(fit, category = ctg, lwd = 2, cex = 1.2, annot = FALSE,
+       xlab = "Latent Trait", cex.main = 1.5, cex.lab = 1.3,
+       cex.axis = 1.1)
+}
+
+####################################################
+####  將職業社經地位、家庭收入、教育程度萃取成為階級
+####################################################
+
+dataset.for.fa<-distinct(complete_survey_dataset,SURVEY,id,myown_eduyr,myown_ses,myown_family_income) %>%
+  filter(!is.na(myown_eduyr),!is.na(myown_ses),!is.na(myown_family_income))
+fa.class<-factanal(x= ~myown_eduyr+myown_ses+myown_family_income, 1, data = dataset.for.fa, rotation="varimax", scores=c("regression"),na.action = na.omit)
+complete_survey_dataset<-left_join(complete_survey_dataset,cbind(dataset.for.fa,"myown_factoredclass"=fa.class$scores[,1]))
+#install.packages("psy")
+#library(psy)
+#psy::scree.plot(fa.class$correlation)
+
+##測試參加政治與階級間關係
+(ggplot(complete_survey_dataset[complete_survey_dataset$SURVEY=="2010overall",],
+        aes(x = myown_factoredclass,
+            y = (myown_factored_nonpartcip_se.z1)
+        )
+) + labs(title = "各個階級的不參與政治程度") + geom_point()+geom_smooth(method="lm"))
+##2010env不參與程度不好、2010overall不參與程度也不好
+
+
+
+
+gc() #- do it now
+gc(TRUE)
+
+
+
 
 #將職業社經地位差距、教育程度差距萃取成為階級差距
 dataset.for.classgap.fa<-distinct(testdf,SURVEY,id,eduyrgap,sesgap) %>%
@@ -859,30 +865,6 @@ length(X2016_citizen_with_restricted$id[duplicated(X2016_citizen_with_restricted
 
 #identical(filter(zip_to_party_with_jump_answer,zip==103)[3,2],filter(lieing_check_with_value,zip==103)[1,8])
 #標準化z-normalization或min-max scale
-
-
-
-
-
-
-#用類神經網路
-#combine dummy variables
-#cars$type <- names(cars[14:18])[max.col(cars[14:18])]
-#or
-#cars$type <- names(cars[14:18])[apply(cars[14:18], 1, match, x = 1)] 
-#or
-#ind <- apply(cars[,14:18],1,function(x) which(as.logical(x)))
-#cars$type <- colnames(cars[,14:18])[ind]
-
-#require(neuralnet) # for neuralnet(), nn model
-#require(nnet)      # for class.ind()
-#require(caret)     # for train(), tune parameters
-#data<-cbind("h5"=correct_check_result$h5,class.ind(correct_check_result$h5),
-#            "h6r"=correct_check_result$h5,class.ind(correct_check_result$h5),)
-#formula.bpn <- setosa + versicolor + virginica ~ Sepal.Length + Sepal.Width + Petal.Length + Petal.Width
-
-
-
 
 
 

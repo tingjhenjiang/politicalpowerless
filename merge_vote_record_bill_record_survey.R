@@ -243,6 +243,11 @@ mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %
   right_join(bills_answer_to_bill) %>%  ##問題在這邊
   #篩選出研究範圍
   inner_join(survey_time_range) %>%
+  mutate(stdbilldate=as.Date(paste(
+    as.integer(substr(date,0,3))+1911,
+    substr(date,5,6),
+    substr(date,8,9)
+  ),"%Y %m %d")) %>%
   mutate(opinionstrength=opinionfrombill) %>%
   mutate_at("opinionstrength",funs(recode(opinionfromconstituent)),
             "n"=1,"nn"=2,"m"=1,"mm"=2,"b"=0
@@ -333,7 +338,6 @@ load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
 #duplicated_area_just_one_electionarea <- group_by(duplicated_area, term, admincity, admindistrict, zip, zip3rocyear) %>%
 #  summarise(electionarea = paste0(electionarea, collapse = "、"))
 minus_electionarea <- as.data.frame(list("term" = 7, "electionarea" = "桃園縣第06選區", "admincity" = "桃園縣", "admindistrict" = "中壢市", zip = 320, zip3rocyear = 99))
-#
 survey_restricted_data<-c(1,2,3,4) %>%
   lapply(function (X) read.xlsx(paste0(dataset_file_directory, "basic_social_survey_restricted_data.xlsx"), sheet = X))
 survey_data<-c("2016_citizen.sav","2010_env.sav","2010_overall.sav","2004_citizen.sav") %>%
@@ -343,8 +347,8 @@ survey_data<-c("2016_citizen.sav","2010_env.sav","2010_overall.sav","2004_citize
     othervar<-setdiff(names(X),c("term1","term2"))
     reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
       dplyr::filter(!is.na(term))
-  })
-
+  })  %>%
+  lapply(mutate,stdsurveydate=as.Date(paste(year,sm,sd),"%Y %m %d"))
 
 #shaped: 299 295 571
 #先依據是否有多數選區存在於單一鄉鎮市區拆開，先串有同一鄉鎮市區內有多選區的，再串同一鄉鎮市區內只有一選區的，然後分別join之後再合併
