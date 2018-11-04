@@ -371,9 +371,27 @@ survey_data <- mapply(function(X,Y) {
 #save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 
+
+####################################################
+####  latent variables 
+####  將職業社經地位、家庭收入、教育程度萃取成為階級
+####################################################
+
+dataset.for.fa<-distinct(complete_survey_dataset,SURVEY,id,myown_eduyr,myown_ses,myown_family_income) %>%
+  filter(!is.na(myown_eduyr),!is.na(myown_ses),!is.na(myown_family_income))
+fa.class<-factanal(x= ~myown_eduyr+myown_ses+myown_family_income, 1, data = dataset.for.fa, rotation="varimax", scores=c("regression"),na.action = na.omit)
+complete_survey_dataset<-left_join(complete_survey_dataset,cbind(dataset.for.fa,"myown_factoredclass"=fa.class$scores[,1]))
+#install.packages("psy")
+#library(psy)
+#psy::scree.plot(fa.class$correlation)
+
+
+
+
 ################################################
 #### latent variables 政治參與
-####用item respond抓出隱藏變數「政治參與程度」
+#### 用item respond抓出隱藏變數「政治參與程度」
+#### GRM Model暫時先頂著用
 ################################################
 
 #2004citizen: v28 v29 v30 v31 v32 v33 v34 v35 v36 v37 v38 v39 v40 v59
@@ -384,32 +402,42 @@ load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 
 library(ltm)
 library(eRm)
-participation_var<-lapply(survey_data,function(X) {
-  need_particip_var<-list(
-    "2004citizen"=c("v28","v29","v30","v31","v32","v33","v34","v35","v36","v37","v38","v39","v40","v59"),
-    "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c"),
-    "2010overall"=c("v79a","v79b","v79c","v79d"),
-    "2010env"=c("v34","v35a","v35b","v35c")
+need_particip_var<-list(
+  "2004citizen"=c("v28","v29","v30","v31","v32","v33","v34","v35","v36","v37","v38","v39","v40","v59"),
+  "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c"),
+  "2010overall"=c("v79a","v79b","v79c","v79d"),
+  "2010env"=c("v34","v35a","v35b","v35c")
+)
+survey_data %<>% lapply(function(X,need_particip_var_assigned) {
+  need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
+    intersect(names(X))
+  X %<>% mutate_at(need_particip_var_assigned,function (checkmissingvalue) {
+    checkmissingvalue<-ifelse(checkmissingvalue %in% c(93:99,996:999,9996:9999), NA, checkmissingvalue)
+    })
+  recode_list<-list(
+    "2004citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
+    "2016citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
+    "2010overall"=list("1"=3,"2"=2,"3"=1),
+    "2010env"=list("1"=2,"2"=1)
   ) %>%
     extract2(X$SURVEY[1])
-  return( intersect(names(X),need_particip_var) )
-})
+  X %<>% mutate_at(need_particip_var_assigned,funs(dplyr::recode),!!!recode_list)
+},need_particip_var
+)
 
-
-for (itrn in 1:4) {
-  survey_data[[itrn]][,participation_var[[itrn]]] %<>%
-    mutate_at(participation_var[[itrn]],function (X) {
-      X<-ifelse(X %in% c(93:99,996:999,9996:9999), NA, X)
-    }) %>%
-    mutate_at(participation_var[[itrn]],funs(dplyr::recode),"1"=4,"2"=3,"3"=2,"4"=1)
-}
 
 #################### GRM Model ####################
-for (itrn in 1:4) {
-  fit1 <- ltm::grm(survey_data[[itrn]][,participation_var[[itrn]]], constrained = TRUE, na.action = na.omit, start.val = "random")
-  fit2 <- ltm::grm(survey_data[[itrn]][,participation_var[[itrn]]], na.action = na.omit, start.val = "random")
+survey_data <- lapply(survey_data,function(X,need_particip_var_assigned) {
+  need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
+    intersect(names(X))
+  fit1 <- ltm::grm(X[,need_particip_var_assigned], constrained = TRUE, na.action = na.omit, start.val = "random")
+  fit2 <- ltm::grm(X[,need_particip_var_assigned], na.action = na.omit, start.val = "random")
   fit_testresult<-anova(fit1, fit2)
-  if ((fit_testresult$p.value<=0.05) & (fit_testresult$L0 < fit_testresult$L1) ) {fit<-fit2}
+  if ((fit_testresult$p.value<=0.05) & (fit_testresult$L0 < fit_testresult$L1) ) {
+    fit<-fit2
+  } else {
+    fit<-fit1
+  }
   margins(fit)
   summary(fit)
   coef(fit)
@@ -418,14 +446,16 @@ for (itrn in 1:4) {
   #} else {
   #  fit<-fit1
   #}
-  survey_data[[itrn]] %<>% left_join(fit %>%
-                                       factor.scores() %>%
-                                       use_series("score.dat") %>%
-                                       dplyr::select(-contains("Exp"),-contains("Obs"),-contains("se.z1")) %>%
-                                       rename(myown_factored_partcip=z1) 
-  )
-
-}
+  X %<>% left_join(
+    fit %>%
+      factor.scores() %>%
+      use_series("score.dat") %>%
+      dplyr::select(-contains("Exp"),-contains("Obs"),-contains("se.z1")) %>%
+      rename(myown_factored_partcip=z1)
+    )
+  X$myown_factored_partcip %<>% scale() %>% as.numeric()
+  X
+},need_particip_var)
 
 information(fit, c(-4, 4))
 sapply(1:length(participation_var[[itrn]]),function (X) information(fit, c(-4, 4), items = c(X)) )
@@ -460,7 +490,7 @@ LRtest(pcm1)
 
 #################### Generalized Partial Credit Model - Polytomous IRT ####################
 #################### Finch, W. Holmes＆French, Brian F. (2015). Latent Variable Modeling with R. Florence: Taylor and Francis
-## 2016 not fit: rasch;
+## 2016 not fit: gpcm, rasch 1PL all not fit;
 gpcmconstraint<-"gpcm" #c("gpcm", "1PL", "rasch")
 survey_data.gpcm<-gpcm(survey_data[[itrn]][,participation_var[[itrn]]],constraint=gpcmconstraint,na.action=na.omit,start.val="random")
 summary(survey_data.gpcm)

@@ -212,17 +212,6 @@ testdf %<>% mutate(eduyrgap=NA,sesgap=NA,sexgap=NA,agegap=NA) %>%
 
 
 
-####################################################
-####  將職業社經地位、家庭收入、教育程度萃取成為階級
-####################################################
-
-dataset.for.fa<-distinct(complete_survey_dataset,SURVEY,id,myown_eduyr,myown_ses,myown_family_income) %>%
-  filter(!is.na(myown_eduyr),!is.na(myown_ses),!is.na(myown_family_income))
-fa.class<-factanal(x= ~myown_eduyr+myown_ses+myown_family_income, 1, data = dataset.for.fa, rotation="varimax", scores=c("regression"),na.action = na.omit)
-complete_survey_dataset<-left_join(complete_survey_dataset,cbind(dataset.for.fa,"myown_factoredclass"=fa.class$scores[,1]))
-#install.packages("psy")
-#library(psy)
-#psy::scree.plot(fa.class$correlation)
 
 ##測試參加政治與階級間關係
 (ggplot(complete_survey_dataset[complete_survey_dataset$SURVEY=="2010overall",],
