@@ -371,6 +371,116 @@ survey_data <- mapply(function(X,Y) {
 #save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 
+################################################
+#### latent variables 政治參與
+####用item respond抓出隱藏變數「政治參與程度」
+################################################
+
+#2004citizen: v28 v29 v30 v31 v32 v33 v34 v35 v36 v37 v38 v39 v40 v59
+#2016citizen-fit2-z1: b4 h2a h2b h2c h2d h2e h2f h2g h2h h3a h3b h3c h4
+#2010overall-fit2: v79a v79b v79c v79d 
+#2010env-fit1: v34 v35a v35b v35c ( v33f v75 v76 v77-為了環保而刻意不買某些產品,常不常參與社區的環保工作,常不常反應社區中容易造成天災危險的情況,常不常反應社區中造成環境污染的情況)
+
+
+library(ltm)
+library(eRm)
+participation_var<-lapply(survey_data,function(X) {
+  need_particip_var<-list(
+    "2004citizen"=c("v28","v29","v30","v31","v32","v33","v34","v35","v36","v37","v38","v39","v40","v59"),
+    "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c"),
+    "2010overall"=c("v79a","v79b","v79c","v79d"),
+    "2010env"=c("v34","v35a","v35b","v35c")
+  ) %>%
+    extract2(X$SURVEY[1])
+  return( intersect(names(X),need_particip_var) )
+})
+
+
+for (itrn in 1:4) {
+  survey_data[[itrn]][,participation_var[[itrn]]] %<>%
+    mutate_at(participation_var[[itrn]],function (X) {
+      X<-ifelse(X %in% c(93:99,996:999,9996:9999), NA, X)
+    }) %>%
+    mutate_at(participation_var[[itrn]],funs(dplyr::recode),"1"=4,"2"=3,"3"=2,"4"=1)
+}
+
+#################### GRM Model ####################
+for (itrn in 1:4) {
+  fit1 <- ltm::grm(survey_data[[itrn]][,participation_var[[itrn]]], constrained = TRUE, na.action = na.omit, start.val = "random")
+  fit2 <- ltm::grm(survey_data[[itrn]][,participation_var[[itrn]]], na.action = na.omit, start.val = "random")
+  fit_testresult<-anova(fit1, fit2)
+  if ((fit_testresult$p.value<=0.05) & (fit_testresult$L0 < fit_testresult$L1) ) {fit<-fit2}
+  margins(fit)
+  summary(fit)
+  coef(fit)
+  #if (fit_testresult$aic0>fit_testresult$aic1 & fit_testresult$bic0>fit_testresult$bic1) {
+  #  fit<-fit2
+  #} else {
+  #  fit<-fit1
+  #}
+  survey_data[[itrn]] %<>% left_join(fit %>%
+                                       factor.scores() %>%
+                                       use_series("score.dat") %>%
+                                       dplyr::select(-contains("Exp"),-contains("Obs"),-contains("se.z1")) %>%
+                                       rename(myown_factored_partcip=z1) 
+  )
+
+}
+
+information(fit, c(-4, 4))
+sapply(1:length(participation_var[[itrn]]),function (X) information(fit, c(-4, 4), items = c(X)) )
+#characteristic curve for each item
+plot(fit, lwd = 0.8, cex = 0.8, legend = TRUE, cx = "left", xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8, cex.axis = 0.8)
+#information curve
+plot(fit, type = "IIC", lwd = 0.8, cex = 0.5, legend = TRUE, cx = "topleft",xlab = "Latent Trait", cex.main = 0.8, cex.lab = 1, cex.axis = 1)
+#test information curve
+plot(fit, type = "IIC", items = 0, lwd = 2, xlab = "Latent Trait",cex.main = 1, cex.lab = 1, cex.axis = 1)
+info1 <- information(fit, c(-4, 0))
+info2 <- information(fit, c(0, 4))
+text(-2.5, 8, labels = paste("Information in (-4, 0):",paste(round(100 * info1$PropRange, 1), "%", sep = ""),"\n\nInformation in (0, 4):",paste(round(100 * info2$PropRange, 1), "%", sep = "")), cex = 0.7)
+par(mfrow = c(1, 1)) #configure how many figures would show in row and column
+#characteristic curve overall in different category
+#plot(fit, category = 1, lwd = 0.8, cex = 0.8, legend = TRUE, cx = -0.8,cy = 0.85, xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8,cex.axis = 0.8)
+for (ctg in 1:4) {
+  plot(fit, category = ctg, lwd = 0.8, cex = 0.8, annot = TRUE,
+       xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8,
+       cex.axis = 0.8)
+  Sys.sleep(2)
+}
+
+
+#################### Extended Rasch Model ####################
+pcm1 <- PCM(survey_data[[itrn]][,participation_var[[itrn]]])
+rsm1 <- RSM(survey_data[[itrn]][,participation_var[[itrn]]])
+lrsm1<- LRSM(survey_data[[itrn]][,participation_var[[itrn]]])
+thresholds(pcm1)
+plotPImap(pcm1)
+LRtest(pcm1)
+
+
+#################### Generalized Partial Credit Model - Polytomous IRT ####################
+#################### Finch, W. Holmes＆French, Brian F. (2015). Latent Variable Modeling with R. Florence: Taylor and Francis
+## 2016 not fit: rasch;
+gpcmconstraint<-"gpcm" #c("gpcm", "1PL", "rasch")
+survey_data.gpcm<-gpcm(survey_data[[itrn]][,participation_var[[itrn]]],constraint=gpcmconstraint,na.action=na.omit,start.val="random")
+summary(survey_data.gpcm)
+plot(survey_data.gpcm,, lwd = 0.8, cex = 0.8, legend = TRUE, cx = "left", xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8, cex.axis = 0.8)
+plot(survey_data.gpcm,type=c("IIC"),, lwd = 0.8, cex = 0.8, legend = TRUE, cx = "left", xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8, cex.axis = 0.8)
+GoF.gpcm(survey_data.gpcm)
+
+
+
+survey_data[[itrn]][,participation_var[[itrn]]] <- lapply(survey_data[[itrn]][,participation_var[[itrn]]],function (X) {
+  X<-ifelse(X %in% c(93:99,996:999,9996:9999), NA, X)
+})
+survey_data[[itrn]][,participation_var[[itrn]]]<-mutate_at(survey_data[[itrn]][,participation_var[[itrn]]],participation_var[[itrn]],as.factor) %>%
+  mutate_at(participation_var[[itrn]],factor)
+#margins(fit1)
+
+
+
+
+
 #############################把問卷資料變形以便串連及行政區、選舉資料#################################
 library(reshape2)
 
@@ -412,3 +522,4 @@ complete_survey_dataset<-lapply(survey_data_melted,extract,common_var) %>%
 ##針對調查問卷資料處理變形，以便合併
 
 #"c1a","c1b","c1c","c1d","c1e","c2","c3","c4","c5","c6","c10","c11","c12","c13","c14","d1","d2a","d2b","d3a","d3b","d4","d5a","d5b","d5c","d5d","d5e","d5f","d6a","d6b","d6c","d6d","d6e","d6f","d6g","d6h","d7a","d7b","d7c","d7d","d7e","d7f","d7g","d7h","d7i","d7j","d7k","d8a","d8b","d8c","d11a","d11b","d12","d13a","d13b","d14a","d14b","d14c","d17a","d17b","d17c","e2a","e2b","e2c","e2d","e2e","e2f","e2g","e2h","e2i","f3","f4","f5","f8","f9","h10","kh10"
+
