@@ -298,7 +298,6 @@ mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %
 #  arrange(name,party) %>%
 #  View()
 
-#write_csv(mergedf_votes_bills_election_surveyanswer,"new_to_replace_b.csv")
 #mergedf_votes_bills_election_surveyanswer %>%
 #  filter(!is.na(respondopinion),billid_myown=="9-2-0-17-88",variable_on_q=="pp_related_q_1") %>%
 #  distinct(name,votedecision,variable_on_q,respondopinion,billid_myown,party) %>%
@@ -373,9 +372,274 @@ load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 
 
 ####################################################
+############### 清理資料：填補遺漏值 ###############
+####################################################
+
+#填補遺漏值
+#filling in missing value
+require(DMwR)
+glmdata <- DMwR::knnImputation(glmdata)
+#X2016_citizen_with_restricted <- knnImputation(X2016_citizen_with_restricted)
+
+
+#檢查亂報投票意向
+zip_to_party<-distinct(elections_df_test,term,zip,party,wonelection) %>%
+  mutate_at("zip",funs(as.character)) %>%
+  mutate_at("party",funs(as.character)) %>%
+  unique()
+#正確的選區與參選人
+lieing_check<-read.xlsx(paste(dataset_file_directory,"merger_survey_dataset",slash,"recode_record.xlsx",sep=""), sheet = 4) %>% #, endRow = 1896
+  distinct(lieing_check,h5,h6r,h7,h8,h9,id,zip,code) %>% #,h5,h6r,h7,h8,h9 #,v84,v85,v86,v88,v93,v94
+  mutate("term"=9) %>%
+  rename(party=code) %>%
+  mutate_at(c("zip","party"),funs(as.character)) #要檢驗的所有投票意向
+zip_to_party_with_jump_answer<-distinct(lieing_check,term,party,zip) %>%
+  filter(customgrepl(party,"廢票|沒有投票權")) %>%
+  cbind("wonelection"=NA) %>%
+  rbind(zip_to_party)
+
+lieing_check<-mutate(lieing_check,bluepoints=0,greenpoints=0) %>%
+  #mutate(bluepoints=ifelse(v84 %in% c(1),bluepoints+1,bluepoints)) %>% #
+  mutate(bluepoints=ifelse(h5 %in% c(1,3),bluepoints+1,bluepoints)) %>%
+  #mutate(bluepoints=ifelse(v86 %in% c(1,3),bluepoints+1,bluepoints)) %>% #
+  mutate(bluepoints=ifelse(h6r %in% c(1,3),bluepoints+1,bluepoints)) %>%
+  #mutate(bluepoints=ifelse(v88 %in% c(1,3),bluepoints+1,bluepoints)) %>% #
+  mutate(bluepoints=ifelse(h7 %in% c(1,3,4),bluepoints+1,bluepoints)) %>%
+  #mutate(bluepoints=ifelse(v93 %in% c(1,3,5),bluepoints+1,bluepoints)) %>% #
+  mutate(bluepoints=ifelse(h8 %in% c(1,3,4,9),bluepoints+1,bluepoints)) %>%
+  #mutate(bluepoints=ifelse(v94 %in% c(1,3,5),bluepoints+1,bluepoints)) %>% #
+  mutate(bluepoints=ifelse(h9 %in% c(1,3,4,9),bluepoints+1,bluepoints)) %>%
+  #mutate(greenpoints=ifelse(v84 %in% c(2),greenpoints+1,greenpoints)) %>% #
+  mutate(greenpoints=ifelse(h5 %in% c(2),greenpoints+1,greenpoints)) %>%
+  #mutate(greenpoints=ifelse(v86 %in% c(2,4),greenpoints+1,greenpoints)) %>% #
+  mutate(greenpoints=ifelse(h6r %in% c(2,6,9,19),greenpoints+1,greenpoints)) %>%
+  #mutate(greenpoints=ifelse(v88 %in% c(2,4),greenpoints+1,greenpoints)) %>% #
+  mutate(greenpoints=ifelse(h7 %in% c(2,6,9,19),greenpoints+1,greenpoints)) %>%
+  #mutate(greenpoints=ifelse(v93 %in% c(2,4),greenpoints+1,greenpoints)) %>% #
+  mutate(greenpoints=ifelse(h8 %in% c(2,5,7,10),greenpoints+1,greenpoints)) %>%
+  #mutate(greenpoints=ifelse(v94 %in% c(2,4),greenpoints+1,greenpoints))#
+  mutate(greenpoints=ifelse(h9 %in% c(2,5,7,10),greenpoints+1,greenpoints))
+
+clear_observed_value_green<-filter(lieing_check, greenpoints>=3, greenpoints>bluepoints, term==9) %>%
+  anti_join(zip_to_party_with_jump_answer) %>%
+  select(-party) %>%
+  left_join(zip_to_party) %>%
+  filter(customgrepl(party,"民主進步黨|台灣團結聯盟|時代力量|綠黨社會民主黨聯盟|綠黨"))
+clear_observed_value_blue<-filter(lieing_check, bluepoints>=3, bluepoints>greenpoints, term==9) %>%
+  anti_join(zip_to_party_with_jump_answer) %>%
+  select(-party) %>%
+  left_join(zip_to_party) %>%
+  filter(customgrepl(party,"中國國民黨|新黨|親民黨"))
+
+
+#lieing_check,h6r %in% c(1,3), h7 %in% c(1,3,4), h8 %in% c(1,3,4,9)
+
+#c("跳答","忘記了、不知道","拒答")
+lieing_check_with_value<-filter(lieing_check,!(h6r %in% c(96,97,98,99)) ) %>%
+  #v86 %in% c(7,9,96,97,98,99) 
+  anti_join(zip_to_party_with_jump_answer) %>%
+  anti_join(clear_observed_value_green,by=c("id")) %>%
+  anti_join(clear_observed_value_blue,by=c("id")) %>%
+  mutate("party"=NA)
+lieing_check_missing<-filter(lieing_check, h6r %in% c(96,97,98,99)) %>%
+  #v86 %in% c(7,9,96,97,98,99) & (v85!=99)
+  mutate("party"=NA) %>%
+  anti_join(clear_observed_value_green,by=c("id")) %>%
+  anti_join(clear_observed_value_blue,by=c("id"))
+
+exclude_result_blue<-cbind("bluepoints"=rep(3:5,each=4),party=c("民主進步黨","時代力量","台灣團結聯盟","綠黨社會民主黨聯盟")) %>%
+  as.data.frame() %>%
+  mutate_at(c("party","bluepoints"),funs(as.character)) %>%
+  mutate_at("bluepoints",funs(as.numeric))
+exclude_result_green<-cbind("greenpoints"=rep(3:5,each=3),party=c("中國國民黨","親民黨","新黨")) %>%
+  as.data.frame() %>%
+  mutate_at(c("party","greenpoints"),funs(as.character)) %>%
+  mutate_at("greenpoints",funs(as.numeric))
+
+correct_check_result<-filter(lieing_check,!(party %in% c("跳答","忘記了、不知道","拒答","忘記了,不知道","跳答或不適用","選人不選黨") ) ) %>% #(v85==99) | 
+  semi_join(zip_to_party_with_jump_answer) %>%
+  bind_rows(clear_observed_value_green,clear_observed_value_blue)# %>%
+#mutate("party"=h6r)# %>%
+#mutate_at("party",funs(as.factor))# %>%
+#bind_rows(lieing_check_result) %>%
+#bind_rows(lieing_check_missing)
+binded_check_result<-bind_rows(correct_check_result,lieing_check_with_value,lieing_check_missing) %>%
+  #anti_join(exclude_result_blue) %>%
+  #anti_join(exclude_result_green) %>% %>%
+  #mutate_cond(paste0(bluepoints, party) %in% do.call(paste0, exclude_result_blue),party=NA) %>%
+  #mutate_cond(paste0(greenpoints, party) %in% do.call(paste0, exclude_result_green),party=NA) %>%
+  mutate_at(c("id","zip","h5","h6r","h7","h8","h9","party"),funs(as.factor)) %>%
+  #,"v84","v86","v88","v93","v94"
+  arrange(id,wonelection) %>%
+  group_by(id) %>%
+  filter(!(duplicated(id)))
+
+
+#group_by(binded_check_result,id) %>%
+#  filter(n()>1) %>%
+#  View()
+#binded_check_result<-binded_check_result[order(testorder),]
+#binded_check_result<-group_by(binded_check_result,id) %>%
+#  filter(!(duplicated(id)))
+#select(X2016_citizen_with_restricted,id) %>%
+#  group_by(id) %>% 
+#  filter(n()>1) %>%
+#  View()
+#select(X2016_citizen_with_restricted,id) %>%
+#group_by(id) %>% 
+#filter(duplicated(id)) %>%
+#View()
+duplicated(X2016_citizen_with_restricted$id)
+length(X2016_citizen_with_restricted$id[duplicated(X2016_citizen_with_restricted$id)])
+
+#identical(filter(zip_to_party_with_jump_answer,zip==103)[3,2],filter(lieing_check_with_value,zip==103)[1,8])
+#標準化z-normalization或min-max scale
+
+
+
+
+
+
+## Extract all variable names in dataset
+allVars <- names(binded_check_result)
+## names of variables with missingness
+missVars <- names(binded_check_result)[colSums(is.na(binded_check_result)) > 0]
+predictorMatrix <- matrix(0, ncol = length(allVars), nrow = length(allVars))
+rownames(predictorMatrix) <- allVars
+colnames(predictorMatrix) <- allVars
+imputerVars <- c("zip","h6r","party","bluepoints","greenpoints")#,"v86"
+imputerMatrix <- predictorMatrix
+imputerMatrix[,imputerVars] <- 1
+imputedOnlyVars <- c("party")
+## Imputers that have missingness must be imputed.
+imputedVars <- intersect(unique(c(imputedOnlyVars, imputerVars)), missVars)
+imputedMatrix <- predictorMatrix
+imputedMatrix[imputedVars,] <- 1
+predictorMatrix <- imputerMatrix * imputedMatrix
+## Diagonals must be zeros (a variable cannot impute itself)
+diag(predictorMatrix) <- 0
+predictorMatrix
+require(mice)
+i<-1
+repeat {
+  original_binded_check_result<-if(i==1) {
+    binded_check_result %>%
+      filter(!is.na(party))
+  } else {
+    original_binded_check_result %>%
+      filter(!is.na(party))
+  }
+  binded_check_result$party <- factor(binded_check_result$party) 
+  mice.lieing_check_imputing <- mice(binded_check_result,
+                                     m = 1,           # 產生三個被填補好的資料表
+                                     maxit = 7,      # max iteration
+                                     method = "rf", # 使用CART決策樹，進行遺漏值預測
+                                     predictorMatrix = predictorMatrix,
+                                     seed = 188)      # set.seed()，令抽樣每次都一樣
+  complete(mice.lieing_check_imputing, 1)
+  mice.lieing_check_imputing_result<-complete(mice.lieing_check_imputing, 1) %>%
+    mutate_at(c("zip","party","bluepoints","greenpoints"),funs( as.character )) %>%
+    mutate_at(c("bluepoints","greenpoints"),funs( as.numeric ))
+  predict_binded_check_result<-anti_join(mice.lieing_check_imputing_result,original_binded_check_result,by=c("id"))
+  correct_part_mice.lieing_check_imputing_result<-predict_binded_check_result %>%
+    semi_join(zip_to_party_with_jump_answer,by=c("zip","party","term")) %>%
+    anti_join(exclude_result_blue) %>%
+    anti_join(exclude_result_green) %>%
+    mutate_cond(paste0(bluepoints, party) %in% do.call(paste0, exclude_result_blue),party=NA) %>%
+    mutate_cond(paste0(greenpoints, party) %in% do.call(paste0, exclude_result_green),party=NA) %>%
+    mutate_cond(customgrepl(party,"沒有投票權"),party=NA) %>%
+    filter(!is.na(party))
+  incorrect_part_mice.lieing_check_imputing_result<-predict_binded_check_result %>%
+    anti_join(correct_part_mice.lieing_check_imputing_result,by=c("id"))
+  if (nrow(incorrect_part_mice.lieing_check_imputing_result)==0) {
+    binded_check_result<-mice.lieing_check_imputing_result
+    break
+  } else {
+    message("i=",i,"; ",nrow(incorrect_part_mice.lieing_check_imputing_result))
+    incorrect_part_mice.lieing_check_imputing_result<-mutate(incorrect_part_mice.lieing_check_imputing_result,"party"=NA)
+    binded_check_result<-bind_rows(original_binded_check_result,correct_part_mice.lieing_check_imputing_result,incorrect_part_mice.lieing_check_imputing_result) %>%
+      mutate_at(c("party","zip"),funs(as.factor))
+    original_binded_check_result<-bind_rows(original_binded_check_result,correct_part_mice.lieing_check_imputing_result)
+  }
+  i <- i + 1
+}
+mutate_at(binded_check_result,c("zip","party","bluepoints","greenpoints"),funs(as.character)) %>%
+  mutate_at(c("bluepoints","greenpoints"),funs(as.numeric)) %>%
+  mutate_cond( !(paste0(zip, party) %in% do.call(paste0, zip_to_party_with_jump_answer[,c(1,2)]) ),party=NA) %>%
+  #semi_join(zip_to_party_with_jump_answer,by=c("zip","party","term")) %>%
+  #anti_join(exclude_result_blue) %>%
+  #anti_join(exclude_result_green) %>%
+  arrange(id) %>%
+  write_csv(path="predict_party_tendancy.csv")
+#fit <- with ( mice.lieing_check_correct_result, glm( party ~ zip + h5 + h6r + h7 + h8 + h9 ) )
+#pooled <- pool( fit )
+summary( mice.lieing_check_correct_result )
+
+
+require(mice)
+mice.binaryglmdata<-mice(binaryglmdata,
+                         m = 1,           # 產生三個被填補好的資料表
+                         maxit = 5,      # max iteration
+                         method = "cart", # 使用CART決策樹，進行遺漏值預測
+                         seed = 188)
+complete(mice.binaryglmdata, 1) # 1st data
+
+
+mice.X2010_overall_with_restricted <- mice(X2010_overall_with_restricted,
+                                           m = 3,           # 產生三個被填補好的資料表
+                                           maxit = 5,      # max iteration
+                                           method = "cart", # 使用CART決策樹，進行遺漏值預測
+                                           seed = 188)      # set.seed()，令抽樣每次都一樣
+complete(mice.X2010_overall_with_restricted, 1) # 1st data
+complete(mice.X2010_overall_with_restricted, 2) # 2nd data
+complete(mice.X2010_overall_with_restricted, 3) # 2nd data
+
+
+mice.X2010_env_with_restricted <- mice(X2010_env_with_restricted,
+                                       m = 3,           # 產生三個被填補好的資料表
+                                       maxit = 5,      # max iteration
+                                       method = "cart", # 使用CART決策樹，進行遺漏值預測
+                                       seed = 188)      # set.seed()，令抽樣每次都一樣
+complete(mice.X2010_env_with_restricted, 1) # 1st data
+complete(mice.X2010_env_with_restricted, 2) # 2nd data
+complete(mice.X2010_env_with_restricted, 3) # 2nd data
+
+
+mice.X2016_citizen_with_restricted <- mice(X2016_citizen_with_restricted,
+                                           m = 3,           # 產生三個被填補好的資料表
+                                           maxit = 5,      # max iteration
+                                           method = "cart", # 使用CART決策樹，進行遺漏值預測
+                                           seed = 188)      # set.seed()，令抽樣每次都一樣
+complete(mice.X2016_citizen_with_restricted, 1) # 1st data
+complete(mice.X2016_citizen_with_restricted, 2) # 2nd data
+complete(mice.X2016_citizen_with_restricted, 3) # 3rd data
+
+
+
+
+
+
+####################################################
 ####  latent variables 
 ####  將職業社經地位、家庭收入、教育程度萃取成為階級
 ####################################################
+#reset
+load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
+
+need_ses_var<-list(
+  "2004citizen"=c("myown_eduyr","myown_ses","myown_family_income","myown_income"), #myown_income, myown_occp
+  "2010overall"=c("myown_eduyr","myown_ses","myown_family_income","myown_workincome"),#myown_workincome, myown_occp
+  "2010env"=c("myown_eduyr","myown_ses","myown_family_income","myown_income"),#myown_income, myown_occp
+  "2016citizen"=c("myown_eduyr","myown_ses","myown_family_income","myown_income")#myown_income, myown_occp
+)
+survey_data_test <- lapply(survey_data,function(X,need_ses_var_assigned) {
+  need_ses_var_assigned %<>% extract2(X$SURVEY[1]) %>%
+    intersect(names(X))
+  X %<>% mutate_at(need_ses_var_assigned,function (checkmissingvalue) {
+    checkmissingvalue<-ifelse(checkmissingvalue %in% c(93:99,996:999,9996:9999), NA, checkmissingvalue)
+    })
+  X<-X[,need_ses_var_assigned]
+  },need_ses_var)
 
 dataset.for.fa<-distinct(complete_survey_dataset,SURVEY,id,myown_eduyr,myown_ses,myown_family_income) %>%
   filter(!is.na(myown_eduyr),!is.na(myown_ses),!is.na(myown_family_income))
@@ -506,6 +770,7 @@ survey_data[[itrn]][,participation_var[[itrn]]] <- lapply(survey_data[[itrn]][,p
 survey_data[[itrn]][,participation_var[[itrn]]]<-mutate_at(survey_data[[itrn]][,participation_var[[itrn]]],participation_var[[itrn]],as.factor) %>%
   mutate_at(participation_var[[itrn]],factor)
 #margins(fit1)
+
 
 
 

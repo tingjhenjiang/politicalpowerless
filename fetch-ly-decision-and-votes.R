@@ -19,8 +19,10 @@ dataset_file_directory <- switch(t_sessioninfo_running,
 no_rollcall<-c()
 load(paste0(dataset_file_directory,"rdata",slash,"meetingdata.RData"))
 urlarr<-as.character(meetingdata$url) %>% unique()
-error_vote_record_from_name<-read_csv("error_vote_record_from_name.csv")
-error_leave_and_attend_legislators<-read_csv("leave_and_attend_legislators.csv") %>%
+#error_vote_record_from_name<-read_csv("error_vote_record_from_name.xlsx")
+error_vote_record_from_name <- read.xlsx("error_vote_record_from_name.xlsx", sheet = 1)
+#error_leave_and_attend_legislators<-read_csv("leave_and_attend_legislators.csv") %>%
+error_leave_and_attend_legislators <- read.xlsx("leave_and_attend_legislators.xlsx", sheet = 1) %>%
   mutate_cond(is.na(replace_with),replace_with="")
 
 myown_vote_record_df<-data.frame()
@@ -693,5 +695,5 @@ testdf<-read.xlsx(file="votingdf_datafile_myown.xlsx",sheetIndex=1,startRow = 1,
 
 #write
 #billcontent	pp_keyword	pp_committee	url	pp_related_q_1	pp_related_q_2	pp_related_q_3	pp_related_q_4	pp_related_q_5	pp_related_q_6	pp_related_q_7	pp_related_q_8	pp_related_q_9	pp_related_q_10	pp_related_q_11	pp_lawamendment	votecontent	pp_enactment	pp_enforcement	pp_res_bynew	pp_res_bycompete	pp_groupbased	date	yrmonth	term	period	meetingno	temp_meeting_no	billn	pp_res_notjudged	pp_ignored	billresult	billconflict	billid_myown
-distinct(myown_vote_record_df,billcontent,url,date,term,period,meetingno,temp_meeting_no,billn,billresult) %>%
-  write.xlsx("newinputpart.xlsx")
+#distinct(myown_vote_record_df,billcontent,url,date,term,period,meetingno,temp_meeting_no,billn,billresult) %>%
+#  write.xlsx("newinputpart.xlsx")
