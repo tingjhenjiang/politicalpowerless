@@ -390,19 +390,66 @@ missingvaluecolumn<-list(
   "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c","myown_eduyr","myown_ses","myown_occp","myown_income","myown_family_income","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy")
 )
 survey_data_test <- lapply(survey_data,function(X,missingvaluecolumn_assigned,imputingcalculatebasiscolumn_assigned) {
-  missingvaluecolumn_assigned<-missingvaluecolumn
-  imputingcalculatebasiscolumn_assigned<-imputingcalculatebasiscolumn
+  #missingvaluecolumn_assigned<-missingvaluecolumn
+  #imputingcalculatebasiscolumn_assigned<-imputingcalculatebasiscolumn
   imputingcalculatebasiscolumn_assigned %<>% extract2(X$SURVEY[1]) %>%
     intersect(names(X))
   missingvaluecolumn_assigned %<>% extract2(X$SURVEY[1]) %>%
     intersect(names(X))
-  X<-survey_data[[1]]
+  #X<-survey_data[[1]]
   X %<>% mutate_at(imputingcalculatebasiscolumn_assigned,funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) )
   #mice::md.pattern(X[,missingvaluecolumn_assigned])
   miceMod <- mice::mice(X[,imputingcalculatebasiscolumn_assigned], method="rf")  # perform mice imputation, based on random forests.
   miceOutput <- mice::complete(miceMod)  # generate the completed data.
   X<-miceOutput
   },missingvaluecolumn,imputingcalculatebasiscolumn)
+#conditional random field
+#error 5   5 Error in mutate_impl(.data, dots) : 
+#Evaluation error: object 'v1' not found.
+#18.
+#stop(structure(list(message = "Evaluation error: object 'v1' not found.", 
+#                    call = mutate_impl(.data, dots), cppstack = NULL), class = c("Rcpp::eval_error", 
+#                                                                                 "C++Error", "error", "condition"))) 
+#17.
+#mutate_impl(.data, dots) 
+#16.
+#mutate.tbl_df(tbl_df(.data), ...) 
+#15.
+#mutate(tbl_df(.data), ...) 
+#14.
+#as.data.frame(mutate(tbl_df(.data), ...)) 
+#13.
+#mutate.data.frame(.tbl, !!!funs) 
+#12.
+#mutate(.tbl, !!!funs) 
+#11.
+#mutate_at(., imputingcalculatebasiscolumn_assigned, funs(replace(., 
+#                                                                 . %in% c(93:99, 996:999, 9996:9999), NA))) 
+#10.
+#function_list[[k]](value) 
+#9.
+#withVisible(function_list[[k]](value)) 
+#8.
+#freduce(value, `_function_list`) 
+#7.
+#`_fseq`(`_lhs`) 
+#6.
+#eval(quote(`_fseq`(`_lhs`)), env, env) 
+#5.
+#eval(quote(`_fseq`(`_lhs`)), env, env) 
+#4.
+#withVisible(eval(quote(`_fseq`(`_lhs`)), env, env)) 
+#3.
+#X %<>% mutate_at(imputingcalculatebasiscolumn_assigned, funs(replace(., 
+#                                                                     . %in% c(93:99, 996:999, 9996:9999), NA))) 
+#2.
+#FUN(X[[i]], ...) 
+#1.
+#lapply(survey_data, function(X, missingvaluecolumn_assigned, 
+#                             imputingcalculatebasiscolumn_assigned) {
+#  imputingcalculatebasiscolumn_assigned %<>% extract2(X$SURVEY[1]) %>% 
+#    intersect(names(X)) ...
+
 
 #填補遺漏值
 #filling in missing value
