@@ -428,10 +428,11 @@ for (i in 1:length(survey_data)) {
   X %<>% dplyr::mutate_at(proceeding_na_var,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) )
   predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn)
   #mice::md.pattern(X[,missingvaluecolumn_assigned])
-  miceMod <- mice::mice(X[,imputingcalculatebasiscolumn_assigned], method="rf",predictorMatrix = predictor_matrix)  # perform mice imputation, based on random forests.
-  miceOutput <- mice::complete(miceMod)  # generate the completed data.
-  survey_data_test[[i]]<-miceOutput
-  save(survey_data_test,paste0(dataset_file_directory,"rdata",slash,"miced_survey_2_df.RData"))
+  miceMod <- mice::mice(X,
+                        method="rf",
+                        predictorMatrix = predictor_matrix)  # perform mice imputation, based on random forests.
+  survey_data_test[[i]]<- mice::complete(miceMod)  # generate the completed data.
+  save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_2_df.RData"))
   #},missingvaluecolumn,imputingcalculatebasiscolumn)
 }
 #conditional random field
