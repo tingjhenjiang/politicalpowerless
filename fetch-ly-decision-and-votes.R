@@ -1,21 +1,30 @@
 t_sessioninfo<-sessionInfo()
 t_sessioninfo_running<-gsub(" ","",t_sessioninfo$running)
 t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
-filespath<-switch(t_sessioninfo_running,
-                  Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
-                  Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
-                  Windows10x64build16299 = "E:\\Software\\scripts\\R\\",
-                  Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
-)
+filespath<-switch(
+  t_sessioninfo_running,
+  Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
+  Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
+  Windows10x64build16299 = "E:\\Software\\scripts\\R\\",
+  Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
+  )
 #filespath <- "E:\\Software\\scripts\\R\\"
 #filespath <- "/mnt/e/Software/scripts/R/"
 source(file = paste(filespath, "shared_functions.R", sep = ""))
-dataset_file_directory <- switch(t_sessioninfo_running,
-                                 Windows7x64build7601ServicePack1="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-                                 Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-                                 Windows10x64build16299 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-                                 Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
-)
+dataset_file_directory <- switch(
+  t_sessioninfo_running,
+  Windows7x64build7601ServicePack1="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  Windows10x64build16299 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
+  )
+ntuspace_file_directory <- switch(
+  t_sessioninfo_running,
+  Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
+  Windows8x64build9200 = "D:\\NTUSpace\\",
+  Windows10x64build16299 = "D:\\NTUSpace\\",
+  Ubuntu16.04.4LTS="/mnt/d/NTUSpace/"
+  )
 no_rollcall<-c()
 load(paste0(dataset_file_directory,"rdata",slash,"meetingdata.RData"))
 urlarr<-as.character(meetingdata$url) %>% unique()

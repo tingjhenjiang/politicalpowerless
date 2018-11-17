@@ -1,21 +1,30 @@
 t_sessioninfo<-sessionInfo()
 t_sessioninfo_running<-gsub(" ","",t_sessioninfo$running)
 t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
-filespath<-switch(t_sessioninfo_running,
-                  Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
-                  Windows7x64build7601ServicePack1="C:\\Users\\r03a21033\\DOWNLOADS\\",
-                  Windows10x64build16299 = "E:\\Software\\scripts\\R\\",
-                  Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
-                  )
+filespath<-switch(
+  t_sessioninfo_running,
+  Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
+  Windows7x64build7601ServicePack1="C:\\Users\\r03a21033\\DOWNLOADS\\",
+  Windows10x64build16299 = "E:\\Software\\scripts\\R\\",
+  Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
+  )
 #filespath <- "E:\\Software\\scripts\\R\\"
 #filespath <- "/mnt/e/Software/scripts/R/"
 source(file = paste(filespath, "shared_functions.R", sep = ""))
-dataset_file_directory <- switch(t_sessioninfo_running,
-                                 Windows7x64build7601ServicePack1="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-                                 Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-                                 Windows10x64build16299 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-                                 Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
-                                 )
+dataset_file_directory <- switch(
+  t_sessioninfo_running,
+  Windows7x64build7601ServicePack1="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  Windows10x64build16299 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
+  )
+ntuspace_file_directory <- switch(
+  t_sessioninfo_running,
+  Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
+  Windows8x64build9200 = "D:\\NTUSpace\\",
+  Windows10x64build16299 = "D:\\NTUSpace\\",
+  Ubuntu16.04.4LTS="/mnt/d/NTUSpace/"
+  )
 #選舉資料
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
 supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2010hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
@@ -363,11 +372,22 @@ survey_data <- mapply(function(X,Y) {
     mutate_at("term",funs(as.character)) %>%
     left_join(unique_dist_for_elect_dist)
   bind_rows(in_simple_district, in_complicated_district) %>%
-    arrange(id)
+    arrange(id) %>%
+    mutate_at(c("zip","id","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"),funs(as.factor))
 },X=survey_data,Y=survey_restricted_data)
 
 
+
 #save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
+mapply(function(X,Y) {
+  df<-Y
+  path<-paste0(ntuspace_file_directory,"shared",slash,"dataset",slash,"rdata",slash,"all_survey_combined",X,".feather")
+  tomutatecol<-setdiff(names(Y),"myown_age")
+  df %<>% mutate_at(tomutatecol,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ))
+  message("-------------------------")
+  feather::write_feather(df, path=path)
+},X=1:4,Y=survey_data)
+#feather::write_feather(survey_data, path=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.feather"))
 load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 
 
@@ -381,7 +401,7 @@ imputingcalculatebasiscolumn<-list(
   "2004citizen"=c("myown_age","post","v1","v100","v101_1","v101_10","v101_11","v101_2","v101_3","v101_4","v101_5","v101_6","v101_7","v101_8","v101_9","v102","v103","v103a","v104","v105a","v105b","v105c","v106a","v106b","v106c","v107a","v107b","v107c","v108","v109","v110","v111","v112","v113","v114","v115","v115a","v116","v117","v118a","v118b","v118c","v118d","v119","v11b","v11br","v120","v121","v122a","v122ar","v122b1","v122b1r","v122b2","v122c","v122d","v122e","v122f","v122g","v123b","v123br","v123c","v123d","v124","v125b","v125br","v125c","v127","v127a","v128_1a","v128_1b","v128_1c","v128_1d","v128_1e","v128_1f","v128_1g","v128_2a","v128_2b","v128_2c","v128_2d","v128_2e","v128_2f","v128_2g","v129","v13","v130","v131","v132a","v132b","v132c","v132d","v132dr","v132e1","v132e2","v133","v134","v135","v136","v136a","v137","v138a","v138b","v138c","v138d","v138dr","v138e1","v138e2","v139","v14","v140","v141","v142","v15","v16","v17","v18","v19","v20","v21","v22","v23","v24","v25","v26","v27","v28","v29","v3","v30","v31","v32","v33","v34","v35","v36","v37","v38","v39","v3r","v4","v40","v41","v42","v43","v44","v45","v46","v47","v48","v49","v4r","v5","v50","v51","v52","v53","v54","v55","v56","v57","v58","v59","v6","v60","v61","v62","v63","v64","v65","v66","v67","v68","v69","v7","v70","v71","v72","v73","v74","v75","v76","v77","v78","v79","v7a","v80","v81","v82","v83","v84","v85","v86_1","v86_2","v86_3","v86_4","v86_5","v86_6","v86_7","v86_8","v86_9","v87_1","v87_2","v87_3","v87_4","v87_5","v87_6","v88","v89","v8ar","v8b","v8c","v8d","v8dr","v90","v91","v91a","v91b","v92_1","v92_2","v92_3","v92_4","v92_5","v93a","v93b","v94","v94a","v95","v96","v97","v98","v98a","v98b","v98c","v99","v9a","v9b","weight","zip","myown_areakind","myown_eduyr","myown_ses","myown_occp","myown_income","myown_family_income","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"),
   "2010env"=c("myown_age","stratum2","stratum3","v1","v10","v102","v103","v104","v105","v105a","v105b","v105c","v106","v107","v11","v12","v13","v14a","v14b","v15a","v15b","v16a","v16b","v17a","v17b","v18a","v18b","v19","v20a","v20b","v21a","v21b","v21c","v22a","v22b","v22c","v23a","v23b","v23c","v24a","v24b","v24c","v25a","v25b","v25c","v26a","v26b","v26c","v26d","v26e","v26f","v26g","v27a","v27b","v27c","v27d","v27e","v27f","v27g","v28a","v28b","v29","v30a","v30b","v31","v32a","v32b","v32c","v33a","v33b","v33c","v33d","v33e","v33f","v34","v35a","v35b","v35c","v36a","v36b","v37a","v37b","v37c","v37d","v37e","v37f","v37g","v37h","v37i","v38a1","v38a2","v38b1","v38b2","v38c1","v38c2","v38d1","v38d2","v38e1","v38e2","v39a","v39b","v39c","v3b","v3br","v4","v40","v41a1","v41a2","v41b","v42a","v42b","v42c","v42d","v43","v44","v45","v46","v47a","v47b","v47c","v47d","v47e","v48","v49","v5","v50","v51","v52","v53","v54","v55","v56","v57","v58","v59","v6","v60","v61","v62","v63","v64","v65","v66a","v66b","v66c","v66d","v66e","v66f","v67","v68","v69","v7","v70a","v70b","v70c","v70d","v70e","v70f","v71","v72","v73","v74","v75","v76","v77","v78","v79","v8","v80","v81","v82","v82c","v82d","v83c","v83d","v84c","v84d","v85c","v85d","v86c","v86d","v87c","v87d","v88c","v88d","v89","v9","v90","v91","v91a","v91b","v92","v92a","v93a3","v93a3r","v93a4","v93a4r","v93b3","v93b3r","v93b5","v93b5r","v93c","v94","v95","v96","v97","v98","v99","zip","myown_areakind","myown_eduyr","myown_ses","myown_occp","myown_income","myown_family_income","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"),
   "2010overall"=c("myown_age","stratum2","v1","v10","v100","v100a3","v100a3r","v100a4","v100a4r","v100b3","v100b3r","v100b5","v100b5r","v101a3","v101a3r","v101a4","v101a4r","v101b3","v101b3r","v101b5","v101b5r","v101c","v102","v102a1","v102a2","v102a2a","v102a3","v102b1","v102b2","v102b2a","v102b3","v102b4","v102c","v102d","v102e","v102f1","v102f2","v102f2a","v102f3","v102g1","v102g2","v102g2a","v102g3","v102g4","v102h","v105","v106","v107","v108","v109","v109a","v110","v110r1","v110r2","v111","v111r1","v111r2","v11a","v11bm","v11by","v12","v12h","v12min","v13a","v14","v14h","v14min","v15","v15h","v15min","v16a","v17","v17h","v17min","v18","v18h","v18min","v19a","v20","v20h","v20min","v21a_1","v21a_2","v21a_3","v21a_4","v21a_5","v21a_6","v21a_7","v21a_8","v21a_96","v21a_97","v21a_98","v21b","v21b_h","v21b_min","v21c1","v22","v22h","v22min","v23","v24","v25","v25a_1","v25a_10","v25a_11","v25a_2","v25a_3","v25a_4","v25a_5","v25a_6","v25a_7","v25a_8","v25a_9","v25a_96","v25a_97","v25a_98","v26a","v26a1","v26b","v26b1","v27a","v27b","v28","v29","v3","v30","v31","v32","v33","v34","v35","v36","v37a","v37b","v38a","v38b","v39a","v39b","v39c","v39d","v39e","v3r1","v3r2","v4","v40","v41","v42","v43a","v43b","v44a","v44b","v44c","v44d","v44e","v44f","v44g","v45","v46","v47","v48","v49","v5","v50","v51","v52","v52a","v53","v54","v55","v56a","v56b","v57","v58a","v58b","v58c","v58d","v58e","v58f","v58g","v59","v60","v61","v62","v63","v64_1","v64_2","v64_3","v64_4","v64_5","v64_96","v64_97","v64_98","v64_99","v65a","v65b","v66a","v66b","v66c","v66d","v67a","v67b","v67c","v67d","v67e","v67f","v67g","v67h","v67i","v68a","v68b","v68c","v68d","v68e","v68f","v68g","v68h","v68i","v69a","v69b","v69c","v69d","v69e","v69f","v69g","v6a","v6b","v70a","v70b","v70c","v70d","v70e","v70f","v70g","v71","v72a","v72b","v72c","v72d","v72e","v72f","v72g","v72h","v72i","v72j","v72k","v72l","v73","v74","v74a_1","v74a_2","v74a_3","v74a_96","v74a_97","v74a_98","v75","v76","v77","v78a","v78b","v78c","v78d","v78e","v78f","v78g","v78h","v78i","v79a","v79b","v79c","v79d","v7a","v7a1","v7b","v7b1","v80","v81","v82a","v82b","v82c","v82d","v83","v84","v85","v86","v87","v87a1","v88","v89","v8a1","v9","v90","v91","v92","v93","v94","zip","myown_areakind","myown_eduyr","myown_ses","myown_occp","myown_income","myown_family_income","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"),
-  "2016citizen"=c("myown_age","a1","a10","a11","a12","a13","a14","a2a","a2m","a2y","a3city","a3zip","a4","a5","a6","a7","a8","a9","b1","b2","b3h","b3m","b4","b5","c10","c11","c12","c13","c14","c15","c16a","c16b","c16c","c1a","c1b","c1c","c1d","c1e","c2","c3","c4","c5","c6","c7","c8","c8r","c9","c9r","d1","d10","d11a","d11b","d12","d13a","d13b","d14a","d14b","d14c","d15","d16a","d16b","d16c","d16d","d16e","d16f","d17a","d17b","d17c","d18a","d18b","d19a","d19b","d20","d21","d22","d23","d2a","d2b","d3a","d3b","d4","d5a","d5b","d5c","d5d","d5e","d5f","d6a","d6b","d6c","d6d","d6e","d6f","d6g","d6h","d7a","d7b","d7c","d7d","d7e","d7f","d7g","d7h","d7i","d7j","d7k","d8a","d8b","d8c","d9a","d9b","e1","e2a","e2b","e2c","e2d","e2e","e2f","e2g","e2h","e2i","edt1","edt2","f1","f2","f3","f4","f5","f6","f7","f8","f9","g1","g2","g3","g4","g5","g6a","g6b","g6c","g6d","g7a","g7b","g7c","g8a","g8b","g8c","h1_01","h1_02","h1_03","h1_04","h1_05","h1_06","h1_07","h1_08","h1_09","h1_10","h1_11","h1_12","h1_13","h1_14","h1_15","h10","h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c","h4","h5","h6","h6r","h7","h8","h9","id","j10","j11","j12a","j12b","j13a3","j13b4","j13b5","j13b5_88","j13c","j14","j15","j16","j17","j1a","j1b","j1c","j2","j2r","j3","j4","j5a","j5b","j6a3","j6b4","j6b5","j6b5_88","j6c","j7","j7a","j8","j9","ka10","ka11","ka13","ka14","ka5","ka6","ka7","ka8","ka9","kc8","kc9","kh10","kh6","kh8","kh9","kj10","kj14","kj3","kj7","psu","qtype","r_stratum2014","region","region2014","sd","sdt1","sdt2","sm","ssu","stratum2","stratum2014","wave","wr_19_4","wr_19_5","wsel","wsel0","year","year_m","zip","myown_areakind","myown_eduyr","myown_ses","myown_occp","myown_income","myown_family_income","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy")
+  "2016citizen"=c("myown_age","a1","a10","a11","a12","a13","a14","a2a","a2m","a2y","a3city","a3zip","a4","a5","a6","a7","a8","a9","b1","b2","b3h","b3m","b4","b5","c10","c11","c12","c13","c14","c15","c16a","c16b","c16c","c1a","c1b","c1c","c1d","c1e","c2","c3","c4","c5","c6","c7","c8","c8r","c9","c9r","d1","d10","d11a","d11b","d12","d13a","d13b","d14a","d14b","d14c","d15","d16a","d16b","d16c","d16d","d16e","d16f","d17a","d17b","d17c","d18a","d18b","d19a","d19b","d20","d21","d22","d23","d2a","d2b","d3a","d3b","d4","d5a","d5b","d5c","d5d","d5e","d5f","d6a","d6b","d6c","d6d","d6e","d6f","d6g","d6h","d7a","d7b","d7c","d7d","d7e","d7f","d7g","d7h","d7i","d7j","d7k","d8a","d8b","d8c","d9a","d9b","e1","e2a","e2b","e2c","e2d","e2e","e2f","e2g","e2h","e2i","edt1","edt2","f1","f2","f3","f4","f5","f6","f7","f8","f9","g1","g2","g3","g4","g5","g6a","g6b","g6c","g6d","g7a","g7b","g7c","g8a","g8b","g8c","h1_01","h1_02","h1_03","h1_04","h1_05","h1_06","h1_07","h1_08","h1_09","h1_10","h1_11","h1_12","h1_13","h1_14","h1_15","h10","h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c","h4","h5","h6","h6r","h7","h8","h9","j10","j11","j12a","j12b","j13a3","j13b4","j13b5","j13b5_88","j13c","j14","j15","j16","j17","j1a","j1b","j1c","j2","j2r","j3","j4","j5a","j5b","j6a3","j6b4","j6b5","j6b5_88","j6c","j7","j7a","j8","j9","ka10","ka11","ka13","ka14","ka5","ka6","ka7","ka8","ka9","kc8","kc9","kh10","kh6","kh8","kh9","kj10","kj14","kj3","kj7","psu","qtype","r_stratum2014","region","region2014","sd","sdt1","sdt2","sm","ssu","stratum2","stratum2014","wave","wr_19_4","wr_19_5","wsel","wsel0","year","year_m","zip","myown_areakind","myown_eduyr","myown_ses","myown_occp","myown_income","myown_family_income","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy")
 )
 imputedvaluecolumn<-list(
   "2004citizen"=c("v28","v29","v30","v31","v32","v33","v34","v35","v36","v37","v38","v39","v40","v59","myown_eduyr","myown_ses","myown_occp","myown_income","myown_family_income","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"),
@@ -428,9 +448,11 @@ for (i in 1:length(survey_data)) {
   X %<>% dplyr::mutate_at(proceeding_na_var,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) )
   predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn)
   #mice::md.pattern(X[,missingvaluecolumn_assigned])
-  miceMod <- mice::mice(X,
-                        method="rf",
-                        predictorMatrix = predictor_matrix)  # perform mice imputation, based on random forests.
+  miceMod <- mice::mice(
+    X,
+    method="rf",
+    predictorMatrix = predictor_matrix
+    )  # perform mice imputation, based on random forests.
   survey_data_test[[i]]<- mice::complete(miceMod)  # generate the completed data.
   save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_2_df.RData"))
   #},missingvaluecolumn,imputingcalculatebasiscolumn)
