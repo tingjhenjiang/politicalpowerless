@@ -438,6 +438,9 @@ generate_predictor_matrix<-function(df,calculationbasisvar=c(),imputedOnlyVars=c
   return(predictorMatrix)
 }
 survey_data_test <- na_count <- list()
+#droplevelcustomfun<-function(x) {
+#  x<-
+#}
 for (i in 1:length(survey_data)) {
   #lapply(survey_data,function(X,missingvaluecolumn_assigned,imputingcalculatebasiscolumn_assigned) {
   #missingvaluecolumn_assigned<-missingvaluecolumn
@@ -449,7 +452,10 @@ for (i in 1:length(survey_data)) {
     intersect(names(X))
   proceeding_na_var<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned) %>%
     setdiff(c("myown_age"))
-  X %<>% dplyr::mutate_at(proceeding_na_var,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) )
+  X %<>% dplyr::mutate_at(proceeding_na_var,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
+    mutate_if(is.factor,funs(factor))
+  #sol: https://stackoverflow.com/questions/13495041/random-forests-in-r-empty-classes-in-y-and-argument-legth-0
+  #sol: https://stackoverflow.com/questions/24239595/error-using-random-forest-mice-package-during-imputation
   predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn)
   #The frequency distribution of the missing cases per variable can be obtained as:
   survey_data_test[[i]] <- mice::mice(X, maxit = 0)
