@@ -121,8 +121,8 @@ elections_df <- elections_df[, c("term", "號次", "名字", "性別", "出生�
 
 
 #透過全國行政區的行政區名稱，比對不完整鄉鎮市區名稱的郵遞區號行政區，組裝出行政區郵遞區號
-zipcodecsv<-paste0(dataset_file_directory,"zip3.csv")
-zipcode_df <- read_csv(zipcodecsv) %>%
+zipcodecsv<-paste0(dataset_file_directory,"zip3.xlsx")
+zipcode_df <- read.xlsx(zipcodecsv, sheet = 1) %>%
   rename(admincity = 縣市名稱, admindistrict = 鄉鎮市區名稱) %>%
   mutate_at(c("admindistrict"), funs(customgsub(admindistrict, "區", ""))) %>% ##鄉鎮市區名稱還沒有統一
   mutate_at("term",funs(as.character))
@@ -144,11 +144,17 @@ elections_df_test <- elections_df %>%
   left_join(all_admin_dist_with_zip)
 
 #立委資料與選區資料合併
-legislators <- read_csv(file = paste0(dataset_file_directory, "legislators.csv"))
-legislators_needed <- filter(legislators, term %in% c("05", "06", "07", "09")) %>%
+#legislators <- read_csv(file = paste0(dataset_file_directory, "legislators.csv"))
+legislators <- read.xlsx(paste0(dataset_file_directory, "legislators.xlsx"), sheet = 1)
+legislators_needed <- filter(legislators, term %in% c(5, 6, 7, 8, 9)) %>% #c("05", "06", "07", "09")
   mutate_at(c("term"), funs(customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>%
-  mutate_at(c("term"), as.numeric)
-legislators_with_election <- left_join(legislators_needed, elections_df_test, by = c("name", "term", "sex")) #
+  mutate_at(c("term"), as.character)
+legislators_with_election <- left_join(legislators_needed, elections_df_test, by = c("name", "term", "sex"))  %>%
+  rename(legislator_sex=sex,
+         legislator_party=party.x,
+         election_party=party.y,
+         legislator_age=age
+  )#
 #save(elections_df_test,file=paste0(dataset_file_directory,"rdata",slash,"elections_df_test.RData"))
 #save(legislators_with_election, file=paste0(dataset_file_directory,"rdata",slash,"legislators_with_election.RData"))
 #test result: filter(legislators_needed,is.na(zip)) %>% View()
@@ -351,11 +357,11 @@ survey_restricted_data<-c(1,2,3,4) %>%
 survey_data<-c("2016_citizen.sav","2010_env.sav","2010_overall.sav","2004_citizen.sav") %>%
   sapply(function (X,...) paste0(...,X), dataset_file_directory, "merger_survey_dataset",slash) %>%
   lapply(haven::read_sav) %>%
-  lapply(function (X) {
-    othervar<-setdiff(names(X),c("term1","term2"))
-    reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
-      dplyr::filter(!is.na(term))
-  })  %>%
+  #lapply(function (X) { #較早的串連方式，區分會期
+  #  othervar<-setdiff(names(X),c("term1","term2"))
+  #  reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
+  #    dplyr::filter(!is.na(term))
+  #})  %>%
   lapply(dplyr::mutate,stdsurveydate=as.Date(paste(year,sm,sd),"%Y %m %d"))
 survey_data <- survey_data[order(names(survey_data))]
 survey_data_labels <- lapply(survey_data,function(X) {
@@ -691,46 +697,6 @@ mutate_at(binded_check_result,c("zip","party","bluepoints","greenpoints"),funs(a
 #fit <- with ( mice.lieing_check_correct_result, glm( party ~ zip + h5 + h6r + h7 + h8 + h9 ) )
 #pooled <- pool( fit )
 summary( mice.lieing_check_correct_result )
-
-
-require(mice)
-mice.binaryglmdata<-mice(binaryglmdata,
-                         m = 1,           # 產生三個被填補好的資料表
-                         maxit = 5,      # max iteration
-                         method = "cart", # 使用CART決策樹，進行遺漏值預測
-                         seed = 188)
-complete(mice.binaryglmdata, 1) # 1st data
-
-
-mice.X2010_overall_with_restricted <- mice(X2010_overall_with_restricted,
-                                           m = 3,           # 產生三個被填補好的資料表
-                                           maxit = 5,      # max iteration
-                                           method = "cart", # 使用CART決策樹，進行遺漏值預測
-                                           seed = 188)      # set.seed()，令抽樣每次都一樣
-complete(mice.X2010_overall_with_restricted, 1) # 1st data
-complete(mice.X2010_overall_with_restricted, 2) # 2nd data
-complete(mice.X2010_overall_with_restricted, 3) # 2nd data
-
-
-mice.X2010_env_with_restricted <- mice(X2010_env_with_restricted,
-                                       m = 3,           # 產生三個被填補好的資料表
-                                       maxit = 5,      # max iteration
-                                       method = "cart", # 使用CART決策樹，進行遺漏值預測
-                                       seed = 188)      # set.seed()，令抽樣每次都一樣
-complete(mice.X2010_env_with_restricted, 1) # 1st data
-complete(mice.X2010_env_with_restricted, 2) # 2nd data
-complete(mice.X2010_env_with_restricted, 3) # 2nd data
-
-
-mice.X2016_citizen_with_restricted <- mice(X2016_citizen_with_restricted,
-                                           m = 3,           # 產生三個被填補好的資料表
-                                           maxit = 5,      # max iteration
-                                           method = "cart", # 使用CART決策樹，進行遺漏值預測
-                                           seed = 188)      # set.seed()，令抽樣每次都一樣
-complete(mice.X2016_citizen_with_restricted, 1) # 1st data
-complete(mice.X2016_citizen_with_restricted, 2) # 2nd data
-complete(mice.X2016_citizen_with_restricted, 3) # 3rd data
-
 
 
 

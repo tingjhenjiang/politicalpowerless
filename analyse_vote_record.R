@@ -55,15 +55,11 @@ load(paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"
 load(paste0(dataset_file_directory,"rdata",slash,"only_bill_to_survey_information.RData"))
 
 legislators_with_election <- legislators_with_election[!is.na(legislators_with_election$wonelection),] %>%
-  distinct(term, name, ename, sex, party.x, partyGroup, areaName,
+  distinct(term, name, ename, legislator_sex, legislator_party, partyGroup, areaName,
            committee, onboardDate, degree, experience, picUrl,
            leaveFlag, leaveDate, leaveReason, ballotid, birthday,
-           age, birthplace, education, incumbent, wonelection,
-           party.y, electionarea, plranking, elec_dist_type) %>%
-  rename(legislator_sex=sex,
-         legislator_party=party.x,election_party=party.y,
-         legislator_age=age
-  )
+           legislator_age, birthplace, education, incumbent, wonelection,
+           election_party, electionarea, plranking, elec_dist_type)
 legislators_additional_attr<-distinct(legislators_with_election,term,name,degree,experience,education) %>%
   mutate(legislator_eduyr=NA,legislator_occp=NA,legislator_ses=NA,legislator_ethnicity=NA) %>%
   mutate_at("legislator_occp",funs(as.character)) %>%
