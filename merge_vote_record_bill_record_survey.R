@@ -28,7 +28,7 @@ ntuspace_file_directory <- switch(
 #選舉資料
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
 supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2010hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
-terms<-c(5,6,7,9)
+terms<-c(5,6,7,8,9)
 gc(verbose=TRUE)
 ############################################################################################################################################################
 # 第一部份：立委及選區資料
@@ -146,7 +146,7 @@ elections_df_test <- elections_df %>%
 #立委資料與選區資料合併
 #legislators <- read_csv(file = paste0(dataset_file_directory, "legislators.csv"))
 legislators <- read.xlsx(paste0(dataset_file_directory, "legislators.xlsx"), sheet = 1)
-legislators_needed <- filter(legislators, term %in% c(5, 6, 7, 8, 9)) %>% #c("05", "06", "07", "09")
+legislators_needed <- filter(legislators, term %in% terms) %>% #c("05", "06", "07", "09")
   mutate_at(c("term"), funs(customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>%
   mutate_at(c("term"), as.character)
 legislators_with_election <- left_join(legislators_needed, elections_df_test, by = c("name", "term", "sex"))  %>%
@@ -357,47 +357,28 @@ survey_restricted_data<-c(1,2,3,4) %>%
 survey_data<-c("2016_citizen.sav","2010_env.sav","2010_overall.sav","2004_citizen.sav") %>%
   sapply(function (X,...) paste0(...,X), dataset_file_directory, "merger_survey_dataset",slash) %>%
   lapply(haven::read_sav) %>%
+  lapply(dplyr::mutate,stdsurveydate=as.Date(paste(year,sm,sd),"%Y %m %d")) %>%
+  lapply(function(X) {
+    dplyr::mutate_at(X,setdiff(colnames(X),c("myown_age")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) )  )
+    #設定遺漏值
+  }) %>%
+  lapply(haven::as_factor,only_labelled = TRUE)
   #lapply(function (X) { #較早的串連方式，區分會期
   #  othervar<-setdiff(names(X),c("term1","term2"))
   #  reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
   #    dplyr::filter(!is.na(term))
   #})  %>%
-  lapply(dplyr::mutate,stdsurveydate=as.Date(paste(year,sm,sd),"%Y %m %d"))
 survey_data <- survey_data[order(names(survey_data))]
+#allNAadjcolname<- #設定遺漏值欄位
 survey_data_labels <- lapply(survey_data,function(X) {
   sapply(X,FUN=attr,which="labels")
 })
 save(survey_data_labels,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
 
-#shaped: 299 295 571
-#先依據是否有多數選區存在於單一鄉鎮市區拆開，先串有同一鄉鎮市區內有多選區的，再串同一鄉鎮市區內只有一選區的，然後分別join之後再合併
-survey_data <- mapply(function(X,Y) {
-  allNAadjcolname<-setdiff(names(X),c("myown_age"))
-  X %<>% haven::as_factor(only_labelled = TRUE) %>%
-    dplyr::mutate_at(allNAadjcolname,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) )
-  in_complicated_district<-filter(X, id %in% Y$id) %>%
-    mutate_at(c("zip","id"),funs(as.numeric)) %>%
-    left_join(Y) %>%
-    mutate_at("term",funs(as.character)) %>%
-    left_join(admin_dist_to_elect_dist,by=c("term","admincity","admindistrict","adminvillage")) %>%
-    select(-zip.y) %>%
-    rename(zip=zip.x)
-  in_simple_district <- filter(X, !(id %in% Y$id)) %>%
-    mutate_at(c("zip"), as.integer) %>%
-    mutate_at("term",funs(as.character)) %>%
-    left_join(unique_dist_for_elect_dist)
-  bind_rows(in_simple_district, in_complicated_district) %>%
-    arrange(id) %>%
-    mutate_at(c("zip","id","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"),funs(as.factor)) %>%
-    mutate_at(setdiff(names(.),c("myown_age")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
-    mutate_if(is.factor,funs(droplevels))
-},X=survey_data,Y=survey_restricted_data)
-
-
 #save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 forwritingfeather<-mapply(function(X,Y,A,B) {
-  df<-Y %>%
-    dplyr::filter(variable_on_term=="term1") #2004的問卷橫跨立法院多會期，為了節省運算資源所以只保留一期
+  df<-Y #%>%
+    #dplyr::filter(variable_on_term=="term1") #2004的問卷橫跨立法院多會期，為了節省運算資源所以只保留一期
   path<-paste0(ntuspace_file_directory,"shared",slash,"dataset",slash,"rdata",slash,"all_survey_combined",X,".feather")
   tomutatecol<-setdiff(names(Y),"myown_age")
   df %<>% mutate_at(tomutatecol,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ))
@@ -408,6 +389,33 @@ forwritingfeather<-mapply(function(X,Y,A,B) {
 #A=imputingcalculatebasiscolumn,B=imputedvaluecolumn
 #A=1:4,B=1:4
 #feather::write_feather(survey_data, path=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.feather"))
+
+
+#shaped: 299 295 571
+#先依據是否有多數選區存在於單一鄉鎮市區拆開，先串有同一鄉鎮市區內有多選區的，再串同一鄉鎮市區內只有一選區的，然後分別join之後再合併
+survey_data_with_restrictedattr_elec_admin_area <- mapply(function(X,Y) {
+  #X=survey_data[[1]]; Y=survey_restricted_data[[1]]; Z<-survey_data_labels[[1]] #for testing purpose
+  stopifnot(X$SURVEY[1]==Y$SURVEY[1])
+  Y %<>% mutate_at(c("village","zip","admincity","admindistrict","adminvillage"),funs(as.factor))
+  in_complicated_district<-filter(X, id %in% Y$id) %>%
+    #mutate_at(c("zip","id"),funs(as.character)) %>%
+    left_join(Y,by=c("SURVEY","id")) %>% #不用zip join 因為會有label, factor的問題
+    #mutate_at("term",funs(as.character)) %>%
+    left_join(admin_dist_to_elect_dist,by=c("admincity","admindistrict","adminvillage")) %>% #by=c("term","admincity","admindistrict","adminvillage"
+    rename(restricted_zip=zip.y) %>%
+    rename(zip=zip.x)
+  #findduplicatedrowsindf(in_complicated_district,c("id")) %>% View()
+  in_simple_district <- filter(X, !(id %in% Y$id)) %>%
+    mutate_at(c("zip"), as.integer) %>%
+    left_join(unique_dist_for_elect_dist)#串連選區和行政區資料
+  #mutate_at("term",funs(as.character)) %>%
+  bind_rows(in_simple_district, in_complicated_district) %>%
+    arrange(id) %>%
+    mutate_at(c("zip","id","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"),funs(as.factor)) %>%
+    mutate_at(setdiff(names(.),c("myown_age")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
+    mutate_if(is.factor,funs(droplevels))
+},X=survey_data,Y=survey_restricted_data)
+
 load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 
 
@@ -711,20 +719,6 @@ load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #load imputed survey
 load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_df.RData"))
 survey_data<-miced_surveydata
-for(i in 1:length(X$myown_age)) {
-  A=survey_data[[1]]$myown_age[i] ##source
-  B=X$myown_age[i] ##miced
-  if (is.na(A)) {
-    message("NA at source")
-    next
-  } else {
-    if (A != B) {
-      message(i, ":", A, "not equals to", B)
-    } else {
-      #message(i, "done!")
-    }
-  }
-}
 
 need_ses_var<-list(
   "2004citizen"=c("myown_eduyr","myown_ses","myown_income"), #myown_income, myown_occp,"myown_family_income", v127 同住家人數
@@ -774,7 +768,7 @@ comparison %>% View()
 #2016citizen-fit2-z1: b4 h2a h2b h2c h2d h2e h2f h2g h2h h3a h3b h3c h4
 #2010overall-fit2: v79a v79b v79c v79d 
 #2010env-fit1: v34 v35a v35b v35c ( v33f v75 v76 v77-為了環保而刻意不買某些產品,常不常參與社區的環保工作,常不常反應社區中容易造成天災危險的情況,常不常反應社區中造成環境污染的情況)
-
+load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 
 library(ltm)
 library(eRm)
@@ -784,10 +778,9 @@ need_particip_var<-list(
   "2010overall"=c("v79a","v79b","v79c","v79d"),
   "2010env"=c("v34","v35a","v35b","v35c") #投票"v104"
 )
-survey_data %<>% lapply(function(X,need_particip_var_assigned) {
+survey_data <- lapply(survey_data,function(X,need_particip_var_assigned) {
   need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
     intersect(names(X))
-  X %<>% mutate_at(missingvaluecolumn_assigned,funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) )
   recode_list<-list(
     "2004citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
     "2016citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
@@ -801,7 +794,11 @@ survey_data %<>% lapply(function(X,need_particip_var_assigned) {
 
 
 #################### GRM Model ####################
-survey_data <- lapply(survey_data,function(X,need_particip_var_assigned) {
+survey_data_with_particip <- lapply(survey_data,function(X,need_particip_var_assigned) {
+  #for testing purpose
+  X<-survey_data[[1]]
+  need_particip_var_assigned<-need_particip_var
+  
   need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
     intersect(names(X))
   fit1 <- ltm::grm(X[,need_particip_var_assigned], constrained = TRUE, na.action = na.omit, start.val = "random")
@@ -890,14 +887,15 @@ survey_data[[itrn]][,participation_var[[itrn]]]<-mutate_at(survey_data[[itrn]][,
 library(reshape2)
 
 survey_q_id<-list(
-    c("c1a",	"c1b",	"c1c",	"c1d",	"c1e",	"c2",	"c3",	"c4",	"c5",	"c6",	"c10",	"c11",	"c12",	"c13",	"c14",	"d1",	"d2a",	"d2b",	"d3a",	"d3b",	"d4",	"d5a",	"d5b",	"d5c",	"d5d",	"d5e",	"d5f",	"d6a",	"d6b",	"d6c",	"d6d",	"d6e",	"d6f",	"d6g",	"d6h",	"d7a",	"d7b",	"d7c",	"d7d",	"d7e",	"d7f",	"d7g",	"d7h",	"d7i",	"d7j",	"d7k",	"d8a",	"d8b",	"d8c",	"d11a",	"d11b",	"d12",	"d13a",	"d13b",	"d14a",	"d14b",	"d14c",	"d17a",	"d17b",	"d17c",	"e2a",	"e2b",	"e2c",	"e2d",	"e2e",	"e2f",	"e2g",	"e2h",	"e2i",	"f3",	"f4",	"f5",	"f8",	"f9",	"h10"),
-    c("kv21c_0", "kv31_0", "kv67_0", "v14a", "v14b", "v15a", "v15b", "v16a", "v16b", "v19", "v20a", "v20b", "v21c", "v22a", "v22b", "v22c", "v23a", "v23b", "v23c", "v24a", "v24b", "v24c", "v25a", "v25b", "v25c", "v26a", "v26b", "v26c", "v26d", "v26e", "v26f", "v26g", "v27a", "v27b", "v27c", "v27d", "v27e", "v27f", "v27g", "v28a", "v28b", "v29", "v30a", "v30b", "v31", "v32a", "v32b", "v32c", "v36a", "v36b", "v37a", "v37b", "v37c", "v37d", "v37e", "v37f", "v37g", "v37h", "v37i", "v38a1", "v38a2", "v38b1", "v38b2", "v38c1", "v38c2", "v38d1", "v38d2", "v38e1", "v38e2", "v39a", "v39b", "v39c", "v40", "v57", "v58", "v59", "v63", "v66c", "v66f", "v67", "v68", "v69", "v70b", "v70c", "v70d", "v70e", "v70f"),
-    c("v39c", "v39d", "v39e", "v40", "v41", "v78a", "v78b", "v78c", "v78d", "v78e", "v78f", "v78g", "v78h", "v78i", "v90", "v91", "v92"),
-    c("v25","v26","v27","v41","v42","v43","v44","v45","v46","v60","v61","v62","v65","v74","v91a","v91b","v92_1","v92_2","v92_3","v92_4","v92_5","v93a","v93b","v95","v96","v97","v105a","v105b","v105c","v106a","v106b","v106c","v107a","v107b","v107c","v114","v118a","v118b","v118c","v118d")
+  "2004citizen"=c("v25","v26","v27","v41","v42","v43","v44","v45","v46","v60","v61","v62","v65","v74","v91a","v91b","v92_1","v92_2","v92_3","v92_4","v92_5","v93a","v93b","v95","v96","v97","v105a","v105b","v105c","v106a","v106b","v106c","v107a","v107b","v107c","v114","v118a","v118b","v118c","v118d"),
+  "2010env"=c("v39c", "v39d", "v39e", "v40", "v41", "v78a", "v78b", "v78c", "v78d", "v78e", "v78f", "v78g", "v78h", "v78i", "v90", "v91", "v92"),
+  "2010overall"=c("kv21c_0", "kv31_0", "kv67_0", "v14a", "v14b", "v15a", "v15b", "v16a", "v16b", "v19", "v20a", "v20b", "v21c", "v22a", "v22b", "v22c", "v23a", "v23b", "v23c", "v24a", "v24b", "v24c", "v25a", "v25b", "v25c", "v26a", "v26b", "v26c", "v26d", "v26e", "v26f", "v26g", "v27a", "v27b", "v27c", "v27d", "v27e", "v27f", "v27g", "v28a", "v28b", "v29", "v30a", "v30b", "v31", "v32a", "v32b", "v32c", "v36a", "v36b", "v37a", "v37b", "v37c", "v37d", "v37e", "v37f", "v37g", "v37h", "v37i", "v38a1", "v38a2", "v38b1", "v38b2", "v38c1", "v38c2", "v38d1", "v38d2", "v38e1", "v38e2", "v39a", "v39b", "v39c", "v40", "v57", "v58", "v59", "v63", "v66c", "v66f", "v67", "v68", "v69", "v70b", "v70c", "v70d", "v70e", "v70f"),
+  "2016citizen"=c("c1a",	"c1b",	"c1c",	"c1d",	"c1e",	"c2",	"c3",	"c4",	"c5",	"c6",	"c10",	"c11",	"c12",	"c13",	"c14",	"d1",	"d2a",	"d2b",	"d3a",	"d3b",	"d4",	"d5a",	"d5b",	"d5c",	"d5d",	"d5e",	"d5f",	"d6a",	"d6b",	"d6c",	"d6d",	"d6e",	"d6f",	"d6g",	"d6h",	"d7a",	"d7b",	"d7c",	"d7d",	"d7e",	"d7f",	"d7g",	"d7h",	"d7i",	"d7j",	"d7k",	"d8a",	"d8b",	"d8c",	"d11a",	"d11b",	"d12",	"d13a",	"d13b",	"d14a",	"d14b",	"d14c",	"d17a",	"d17b",	"d17c",	"e2a",	"e2b",	"e2c",	"e2d",	"e2e",	"e2f",	"e2g",	"e2h",	"e2i",	"f3",	"f4",	"f5",	"f8",	"f9",	"h10")
   )
 
 survey_data_melted<-mapply(function(X,Y) {
   other_var_as_id<-setdiff(names(X),Y)
+  #X[,other_var_as_id]<-as.character(X[,other_var_as_id])
   reshape2::melt(X, id.vars = other_var_as_id, variable.name = "SURVEYQUESTIONID", value.name = "SURVEYANSWERVALUE") %>%
     dplyr::mutate_at("SURVEYANSWERVALUE",funs(as.character)) %>%
     dplyr::group_by( SURVEYQUESTIONID ) %>%
@@ -906,22 +904,16 @@ survey_data_melted<-mapply(function(X,Y) {
     dplyr::group_by(SURVEYQUESTIONID,SURVEYANSWERVALUE) %>%
     dplyr::mutate("same_pos_on_same_q_by_nation"=n()) %>%
     dplyr::ungroup() %>%
-    dplyr::mutate("same_pos_to_all_ratio_by_nation"=same_pos_on_same_q_by_nation/all_pos_on_same_q_by_nation*100) %>%
-    dplyr::group_by( SURVEYQUESTIONID,electionarea ) %>%
-    dplyr::mutate("all_pos_on_same_q_by_electionarea"=n()) %>%
-    dplyr::ungroup() %>%
-    dplyr::group_by(SURVEYQUESTIONID,SURVEYANSWERVALUE,electionarea) %>%
-    dplyr::mutate("same_pos_on_same_q_by_electionarea"=n()) %>%
-    dplyr::ungroup() %>%
-    dplyr::mutate("same_pos_to_all_ratio_by_electionarea"=same_pos_on_same_q_by_electionarea/all_pos_on_same_q_by_electionarea*100)
+    dplyr::mutate("same_pos_to_all_ratio_by_nation"=same_pos_on_same_q_by_nation/all_pos_on_same_q_by_nation*100)
 }, X=survey_data, Y=survey_q_id)
 
 survey_data_melted_names<-lapply(survey_data_melted,names)
-common_var<-Reduce(intersect, survey_data_melted_names)
+common_var<-Reduce(intersect, survey_data_melted_names) %>%
+  setdiff(c("sd"))
 complete_survey_dataset<-lapply(survey_data_melted,extract,common_var) %>%
   bind_rows() %>%
-  mutate_at("SURVEYANSWERVALUE", funs(as.character)) %>%
-  reshape2::melt(id.vars = setdiff(colnames(.),c("term1","term2")), variable.name = "variable_on_term", value.name = "term")
+  mutate_at("SURVEYANSWERVALUE", funs(as.character)) #%>%
+  #reshape2::melt(id.vars = setdiff(colnames(.),c("term1","term2")), variable.name = "variable_on_term", value.name = "term")
 
 #save(complete_survey_dataset,file=paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"))
 ##針對調查問卷資料處理變形，以便合併

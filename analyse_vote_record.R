@@ -28,7 +28,7 @@ ntuspace_file_directory <- switch(
 #選舉資料
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
 supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2010hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
-terms<-c(5,6,7,9)
+terms<-c(5,6,7,8,9)
 gc(verbose=TRUE)
 
 
@@ -276,6 +276,15 @@ distinct(glmdata,id,votedecision,billid_myown,variable_on_q,value_on_q_variable,
 ##############################################################################
 # 第O部份：分析前處理資料
 ##############################################################################
+#如果有串選區，處理選區意見人數
+glmdata %<>% dplyr::group_by( SURVEYQUESTIONID,electionarea ) %>%
+  dplyr::mutate("all_pos_on_same_q_by_electionarea"=n()) %>%
+  dplyr::ungroup() %>%
+  dplyr::group_by(SURVEYQUESTIONID,SURVEYANSWERVALUE,electionarea) %>%
+  dplyr::mutate("same_pos_on_same_q_by_electionarea"=n()) %>%
+  dplyr::ungroup() %>%
+  dplyr::mutate("same_pos_to_all_ratio_by_electionarea"=same_pos_on_same_q_by_electionarea/all_pos_on_same_q_by_electionarea*100)
+
 
 #計算出同立場的人數
 glmdata <- testdf %>%

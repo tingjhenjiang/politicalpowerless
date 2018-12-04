@@ -28,7 +28,7 @@ ntuspace_file_directory <- switch(
 #選舉資料
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
 supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2010hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
-terms<-c(5,6,7,9)
+terms<-c(5,6,7,8,9)
 gc(verbose=TRUE)
 ############################################################
 #library(feather)
@@ -43,8 +43,7 @@ list_of_dfcolname<-lapply(survey_data,names)
 list_of_dfcoltype<-lapply(survey_data,sapply,class)
 list_of_dfcollevel<-lapply(survey_data,sapply,levels)
 list_of_dfid<-lapply(survey_data,function(X) {
-  X<-dplyr::filter(X,variable_on_term=="term1") %>%
-    getElement(name="id")
+  X<-getElement(X,name="id")
   })
 list_of_dflabel<-survey_data_labels
 #
@@ -80,7 +79,7 @@ recode_according_to_list<-function(X,list) {
 }
 
 
-dummyremoved_imputed_survey_data<-mapply(function(n,t,l,dummieddf,id,labels,survey_data) {
+dummyremoved_imputed_survey_data<-mapply(function(n,t,l,dummieddf,id,labels,survey_data_for_loop) {
   #各自在不同問卷裡開始loop，共四個問卷,mapply may execute 4 times
   #以下在不同填補值問卷檔裡面loop
   #dummieddf<-list(dummieddf[[1]])
@@ -118,11 +117,11 @@ dummyremoved_imputed_survey_data<-mapply(function(n,t,l,dummieddf,id,labels,surv
     #message("id are ",id)
     #message("-------")
     X_columnnames<-colnames(X)
-    rest_survey_data<-survey_data[,c("id",setdiff(names(survey_data),X_columnnames))]
+    rest_survey_data_columns<-survey_data_for_loop[,c(setdiff(names(survey_data_for_loop),X_columnnames))]
     X$id<-id
     #message("dim of X is ",dim(X)," and dim of rest_survey_data is ",dim(rest_survey_data))
     X<-X[,c("id",X_columnnames)] %>%
-      left_join(rest_survey_data)
+      left_join(rest_survey_data_columns,by=c("id"))
     X
   },n=n,t=t,l=l,id=id,labels=labels,survey_data=survey_data)
   dummieddf_test
@@ -135,7 +134,7 @@ dummyremoved_imputed_survey_data<-mapply(function(n,t,l,dummieddf,id,labels,surv
   dummieddf=dflist,
   id=list_of_dfid,
   labels=list_of_dflabel,
-  survey_data=survey_data,
+  survey_data_for_loop=survey_data,
   SIMPLIFY=FALSE)
 save(dummyremoved_imputed_survey_data,file=paste0(dataset_file_directory,"rdata",slash,"dummyremoved_imputed_survey_data.RData"))
 #lapply(dflist,)
@@ -147,5 +146,5 @@ l=(list_of_dfcollevel[[1]])
 dummieddf=(dflist[[1]])
 id=list_of_dfid[[1]]
 labels<-list_of_dflabel[[1]]
-survey_data<-survey_data[[1]]
+survey_data_for_loop<-survey_data[[1]]
 X<-dummieddf[[1]]
