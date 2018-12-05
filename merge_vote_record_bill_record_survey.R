@@ -369,19 +369,31 @@ survey_data<-c("2016_citizen.sav","2010_env.sav","2010_overall.sav","2004_citize
   #    dplyr::filter(!is.na(term))
   #})  %>%
 survey_data <- survey_data[order(names(survey_data))]
-#allNAadjcolname<- #設定遺漏值欄位
-survey_data_labels <- lapply(survey_data,function(X) {
-  sapply(X,FUN=attr,which="labels")
-})
-save(survey_data_labels,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
+#survey_data_labels <- lapply(survey_data,function(X) {
+#  sapply(X,FUN=attr,which="labels")
+#})
+#save(survey_data_labels,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
+#survey_data_labels已經預處理過，直接load即可
+load(paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
 
 #save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 forwritingfeather<-mapply(function(X,Y,A,B) {
-  df<-Y #%>%
+  #testing purpose
+  df<-as.data.frame(survey_data[[1]])
+  dfcoltypes<-sapply(df,class)
+  to_dummy_cols<-names(which(dfcoltypes=="factor"))
+  #for (to_dummy_col in to_dummy_cols) {
+  #  print(to_dummy_col)
+    df<-dummies::dummy.data.frame(data=df,names=to_dummy_cols,sep="_")
+  #}
+  View(df[68,2183:2189])
+  grep("v28",names(df))
+  df<-Y %>%
+    dummies::dummy.data.frame(names=to_dummy_cols,sep="_")#%>%
     #dplyr::filter(variable_on_term=="term1") #2004的問卷橫跨立法院多會期，為了節省運算資源所以只保留一期
   path<-paste0(ntuspace_file_directory,"shared",slash,"dataset",slash,"rdata",slash,"all_survey_combined",X,".feather")
   tomutatecol<-setdiff(names(Y),"myown_age")
-  df %<>% mutate_at(tomutatecol,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ))
+  #df %<>% mutate_at(tomutatecol,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ))
   message("-------------------------")
   needvars<-c("id",union(A,B))
   feather::write_feather(df[,needvars], path=path)
@@ -715,10 +727,10 @@ summary( mice.lieing_check_correct_result )
 ####  將職業社經地位、家庭收入、教育程度萃取成為階級
 ####################################################
 #reset
-load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
+#load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #load imputed survey
-load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_df.RData"))
-survey_data<-miced_surveydata
+load(paste0(dataset_file_directory,"rdata",slash,"dummyremoved_imputed_survey_data.RData"))
+#dummyremoved_imputed_survey_data
 
 need_ses_var<-list(
   "2004citizen"=c("myown_eduyr","myown_ses","myown_income"), #myown_income, myown_occp,"myown_family_income", v127 同住家人數
@@ -768,7 +780,10 @@ comparison %>% View()
 #2016citizen-fit2-z1: b4 h2a h2b h2c h2d h2e h2f h2g h2h h3a h3b h3c h4
 #2010overall-fit2: v79a v79b v79c v79d 
 #2010env-fit1: v34 v35a v35b v35c ( v33f v75 v76 v77-為了環保而刻意不買某些產品,常不常參與社區的環保工作,常不常反應社區中容易造成天災危險的情況,常不常反應社區中造成環境污染的情況)
-load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
+#load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
+#load imputed survey
+load(paste0(dataset_file_directory,"rdata",slash,"dummyremoved_imputed_survey_data.RData"))
+#dummyremoved_imputed_survey_data
 
 library(ltm)
 library(eRm)
@@ -778,25 +793,31 @@ need_particip_var<-list(
   "2010overall"=c("v79a","v79b","v79c","v79d"),
   "2010env"=c("v34","v35a","v35b","v35c") #投票"v104"
 )
-survey_data <- lapply(survey_data,function(X,need_particip_var_assigned) {
-  need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
-    intersect(names(X))
-  recode_list<-list(
-    "2004citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
-    "2016citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
-    "2010overall"=list("1"=3,"2"=2,"3"=1),
-    "2010env"=list("1"=2,"2"=1)
-  ) %>%
-    extract2(X$SURVEY[1])
-  X %<>% mutate_at(need_particip_var_assigned,funs(dplyr::recode),!!!recode_list)
-},need_particip_var
-)
+survey_data_test <- lapply(dummyremoved_imputed_survey_data,function(X,need_particip_var_assigned) {
+  X<-lapply(X,function(X,need_particip_var_assigned) {
+    #for testng prupose
+    X<-dummyremoved_imputed_survey_data[[1]][[1]]
+    need_particip_var_assigned<-need_particip_var
+    need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
+      intersect(names(X))
+    recode_list<-list(
+      "2004citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
+      "2016citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
+      "2010overall"=list("1"=3,"2"=2,"3"=1),
+      "2010env"=list("1"=2,"2"=1)
+    ) %>%
+      extract2(X$SURVEY[1])
+    X %<>% mutate_at(need_particip_var_assigned,funs(dplyr::recode),!!!recode_list)
+    X
+  },need_particip_var_assigned)
+  X
+},need_particip_var)
 
 
 #################### GRM Model ####################
-survey_data_with_particip <- lapply(survey_data,function(X,need_particip_var_assigned) {
+survey_data_with_particip <- lapply(survey_data_test,function(X,need_particip_var_assigned) {
   #for testing purpose
-  X<-survey_data[[1]]
+  X<-survey_data_test[[1]][[1]]
   need_particip_var_assigned<-need_particip_var
   
   need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%

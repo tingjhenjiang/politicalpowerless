@@ -71,44 +71,65 @@ reduce_dummy_variable<-function(X,nc,tc,lc) {
 }
 
 recode_according_to_list<-function(X,list) {
-  if (is.element(X,set=names(list))) {
-    unlist(list[X])
-  } else {
-    X
-  }
+  newx<-X
+  inlist<-(is.element(X,set=names(list)))
+  inlistpos<-which(inlist)
+  notinlistpos<-which(!inlist)
+  newx[inlistpos]<-dplyr::recode(X[inlistpos], !!!list)
+  #newx
+  newx[notinlistpos]<-NA
+  newx
+  #sapply(X,is.element,set=names(list))
+  #if (is.element(X,set=names(list))) {
+  #  #unlist(list[[X]])
+  #  dplyr::recode(X, !!!list)
+  #} else {
+  #  X
+  #}
 }
-
-
+#for testing purpose
+#recode_according_to_list(pull(X,var=nc),list=newlist_label_as_value)
+#2004citizen v28(i=62;1673:1680)：68  108  133  678 1162 1170 1270 1278 可以當作有沒有填補的指標
+#double check: View(dflist[[1]][[1]][108,1673:1680]) View(forwritingfeather[[1]][68,])
 dummyremoved_imputed_survey_data<-mapply(function(n,t,l,dummieddf,id,labels,survey_data_for_loop) {
   #各自在不同問卷裡開始loop，共四個問卷,mapply may execute 4 times
   #以下在不同填補值問卷檔裡面loop
   #dummieddf<-list(dummieddf[[1]])
   #View(l)
   #message(class(l))
+  counter <- 0
   dummieddf_test<-lapply(dummieddf,function(X,n,t,l,id,labels,survey_data) {
+    counter <<- counter + 1
     X<-as.data.frame(X)
     for (i in 1:length(n)) {
       nc<-n[i]
       tc<-t[i]
       lc<-getElement(l,nc)
       exactlabel<-getElement(labels,nc)
-      #message(i,": levels of ", nc," are ",length(lc)," and its contents are ", lc)
+      message("counter is ", counter," and ", i,": levels of ", nc," are ",length(lc)," and its contents are lc")
       #message(i,": label of ", nc, " is ",exactlabel," and name of labels are ",names(exactlabel))
       X<-reduce_dummy_variable(X,nc=nc,tc=tc,lc=lc) #把dummy variable合併
       #message("done reducing ",nc," dummy variable")
+      #emptyattrdf<-data.frame()
       if ((nc %in% names(X)) & (!identical(exactlabel,NULL)) ) {
+        #emptyattrdf<-data.frame("label"=names(exactlabel),value=exactlabel)
         newlist_label_as_value<-split(unname(exactlabel),names(exactlabel)) %>%
-          lapply(`[[`,1) ##might appear unexpected result due to duplicated value;e.g. 私立立人高中,市立中山高中 appears not only one times and makes trouble,so reduce them
+          lapply(`[[`,1) ##might appear unexpected result due to duplicated value;e.g. 私立立人高中,市立中山高中 appears not only one times and makes trouble, e.g. 高雄縣鳳山 have multiple zip codes so reduce them
+        newlist_label_as_value[which(names(newlist_label_as_value)=="")]<-NULL #移除空的element以防止dplyr recode出錯
+        #newlist_label_as_value[which(duplicated(names(newlist_label_as_value)))]<-NULL
         #some variable contains ordinary numerical data and categorical data(survey design, e.g. missing value), so indirectly make them converting
         #X[,nc]<-unlist(newlist_label_as_value[X[,nc]]) #this would make trouble due to reasons above
-        X[,nc]<-sapply(pull(X,var=nc),recode_according_to_list,list=newlist_label_as_value, simplify = TRUE) #%>%
+        #for testing purpose:
+        X[,nc]<-sapply(pull(X,var=nc),recode_according_to_list,list=newlist_label_as_value, simplify = TRUE)  #%>%
+        #轉換成原始數值而非類別敘述（中文）
+          #sapply(unlist)
           #sapply(`[[`,1)
-        #message("done recoding ",nc," values")
+        message("done recoding ",nc," values")
         asfun<-match.fun(paste0("as.",tc))
         X[,nc]<-asfun(X[,nc])
-        #message("done setting ",nc," class")
+        #message("done transforming ",nc," class")
         if (tc=="factor") {
-          levels(X[,nc])<-newlist_label_as_value
+          levels(X[,nc])<-newlist_label_as_value #加上level會直接把數字轉為文字
         }
         #message("done setting ",nc," level")
       }
