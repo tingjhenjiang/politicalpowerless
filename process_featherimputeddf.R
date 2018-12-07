@@ -33,11 +33,17 @@ gc(verbose=TRUE)
 ############################################################
 #library(feather)
 featherpath<-paste0(filespath,"vote_record",slash,"imputedsurvey",slash,"survey_data_MM_NN.feather")
-featherfiles<-stri_replace_first(featherpath,0:4,regex="NN") %>%
+featherfiles<-stri_replace_first(featherpath,0:0,regex="NN") %>%
   lapply(X=1:4, function(replacement, str, regex) stri_replace_all(str=str, replacement=replacement, regex=regex), regex='MM', str=.)
 dflist <- lapply(X=featherfiles,FUN=function(X) lapply(X=X,FUN=feather::read_feather))
 load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
+survey_imputation_and_measurement<-paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx") %>%
+  read.xlsx(sheet = 1)
+surveytitle_imputation_and_measurement<-names(survey_data) %>% stri_replace(replacement="",regex=".sav") %>%
+  lapply(function(X) {
+    filter(survey_imputation_and_measurement,SURVEY==X)
+  })
 
 list_of_dfcolname<-lapply(survey_data,names)
 list_of_dfcoltype<-lapply(survey_data,sapply,class)
@@ -47,15 +53,15 @@ list_of_dfid<-lapply(survey_data,function(X) {
   })
 list_of_dflabel<-survey_data_labels
 #
-reduce_dummy_variable<-function(X,nc,tc,lc) {
+reduce_dummy_variable<-function(X,nc,tc,lc,prefix="_") {
   #mapply(function(nc,tc,lc) {
   #},nc=nc,tc=tc,lc=lc)#,nc=n,tc=t,lc=l
   if (length(lc)>=2) { ##找出至少有兩個類別的類別變項
     #message(lc)
     #message("-----------")
-    varname<-paste0(nc,"_",lc) ##合成出被dummy的變數
+    varname<-paste0(nc,prefix,lc) ##合成出被dummy的變數
     common_varname<-dplyr::intersect(names(X),varname)
-    columnnameprefix<-paste0(nc,"_")
+    columnnameprefix<-paste0(nc,prefix)
     if (length(common_varname)>0) { ##有些變項在Google Colab填補時為了省時間忽略了
       X[,nc] <- common_varname[max.col(X[,common_varname])] %>%
         stri_replace_all(replacement="",regex=columnnameprefix) #%>%
@@ -72,26 +78,41 @@ reduce_dummy_variable<-function(X,nc,tc,lc) {
 
 recode_according_to_list<-function(X,list) {
   newx<-X
-  inlist<-(is.element(X,set=names(list)))
+  namesoflist<-names(list)
+  inlist<-(is.element(X,set=namesoflist))
   inlistpos<-which(inlist)
   notinlistpos<-which(!inlist)
-  newx[inlistpos]<-dplyr::recode(X[inlistpos], !!!list)
+  #message("names of list are ",names(list)," and inlistpos is ",inlistpos," and notinlistpos is ",notinlistpos)
+  if (length(inlistpos)>0) {
+    newx[inlistpos]<-unlist(list)[match(X[inlistpos],namesoflist)]
+    #newx[inlistpos]<-dplyr::recode(X[inlistpos], !!!list)
+  }
   #newx
-  newx[notinlistpos]<-NA
+  if (length(notinlistpos)>0) {
+    newx[notinlistpos]<-X[notinlistpos]
+  }
+  #message("newx is ",newx)
   newx
-  #sapply(X,is.element,set=names(list))
-  #if (is.element(X,set=names(list))) {
-  #  #unlist(list[[X]])
-  #  dplyr::recode(X, !!!list)
-  #} else {
-  #  X
-  #}
 }
 #for testing purpose
+
+#sourcebeforerecode[z]
+#newx[inlistpos]<-dplyr::recode(X[inlistpos], !!!list)
+#newlist_label_as_value_to_df<-data.frame("name"=names(newlist_label_as_value), "content"=unlist(newlist_label_as_value))
+#newlist_label_as_value_to_df$content[match(sourcebeforerecode,newlist_label_as_value_to_df$name)]
+#newlist_label_as_value_to_df[]
+#sourcebeforerecode
+#recode_according_to_list(sourcebeforerecode,list=newlist_label_as_value)
+#for (z in 1:length(sourcebeforerecode)) {
+#  #if (z!=58) {next}
+#  message(z)
+#  recode_according_to_list(sourcebeforerecode[z],list=newlist_label_as_value)
+#}
+
 #recode_according_to_list(pull(X,var=nc),list=newlist_label_as_value)
 #2004citizen v28(i=62;1673:1680)：68  108  133  678 1162 1170 1270 1278 可以當作有沒有填補的指標
 #double check: View(dflist[[1]][[1]][108,1673:1680]) View(forwritingfeather[[1]][68,])
-dummyremoved_imputed_survey_data<-mapply(function(n,t,l,dummieddf,id,labels,survey_data_for_loop) {
+dummyremoved_imputed_survey_data<-mapply(function(n,t,l,dummieddf,id,labels,survey_data_for_loop,surveymeasurement) {
   #各自在不同問卷裡開始loop，共四個問卷,mapply may execute 4 times
   #以下在不同填補值問卷檔裡面loop
   #dummieddf<-list(dummieddf[[1]])
@@ -111,8 +132,18 @@ dummyremoved_imputed_survey_data<-mapply(function(n,t,l,dummieddf,id,labels,surv
       X<-reduce_dummy_variable(X,nc=nc,tc=tc,lc=lc) #把dummy variable合併
       #message("done reducing ",nc," dummy variable")
       #emptyattrdf<-data.frame()
+      surveymeasurementcheck<-surveymeasurement$MEASUREMENT[match(nc,surveymeasurement$ID,nomatch=FALSE)]
+      if (identical(surveymeasurementcheck,character(0))) {next}
       if ((nc %in% names(X)) & (!identical(exactlabel,NULL)) ) {
+        sourcebeforerecode<-pull(X,var=nc)
+        if (surveymeasurementcheck=="ordinal" & class(sourcebeforerecode)=="numeric") {
+          X[,nc]<-round(X[,nc]) %>%
+            as.integer()#針對順序尺度轉碼為整數然後進行遺漏值填補後的還原
+          next
+        }
         #emptyattrdf<-data.frame("label"=names(exactlabel),value=exactlabel)
+
+        ## circumstances that surveymeasurementcheck=="nominal"
         newlist_label_as_value<-split(unname(exactlabel),names(exactlabel)) %>%
           lapply(`[[`,1) ##might appear unexpected result due to duplicated value;e.g. 私立立人高中,市立中山高中 appears not only one times and makes trouble, e.g. 高雄縣鳳山 have multiple zip codes so reduce them
         newlist_label_as_value[which(names(newlist_label_as_value)=="")]<-NULL #移除空的element以防止dplyr recode出錯
@@ -120,7 +151,7 @@ dummyremoved_imputed_survey_data<-mapply(function(n,t,l,dummieddf,id,labels,surv
         #some variable contains ordinary numerical data and categorical data(survey design, e.g. missing value), so indirectly make them converting
         #X[,nc]<-unlist(newlist_label_as_value[X[,nc]]) #this would make trouble due to reasons above
         #for testing purpose:
-        X[,nc]<-sapply(pull(X,var=nc),recode_according_to_list,list=newlist_label_as_value, simplify = TRUE)  #%>%
+        X[,nc]<-recode_according_to_list(sourcebeforerecode,list=newlist_label_as_value)  #%>%
         #轉換成原始數值而非類別敘述（中文）
           #sapply(unlist)
           #sapply(`[[`,1)
@@ -156,16 +187,19 @@ dummyremoved_imputed_survey_data<-mapply(function(n,t,l,dummieddf,id,labels,surv
   id=list_of_dfid,
   labels=list_of_dflabel,
   survey_data_for_loop=survey_data,
+  surveymeasurement=surveytitle_imputation_and_measurement,
   SIMPLIFY=FALSE)
 save(dummyremoved_imputed_survey_data,file=paste0(dataset_file_directory,"rdata",slash,"dummyremoved_imputed_survey_data.RData"))
 #lapply(dflist,)
-
 #for testing purpose: after executing codes below, testing may begin from where out of the iteration lapply
-n=(list_of_dfcolname[[1]])
-t=(list_of_dfcoltype[[1]])
-l=(list_of_dfcollevel[[1]])
-dummieddf=(dflist[[1]])
-id=list_of_dfid[[1]]
-labels<-list_of_dflabel[[1]]
-survey_data_for_loop<-survey_data[[1]]
+n=(list_of_dfcolname[[2]])
+t=(list_of_dfcoltype[[2]])
+l=(list_of_dfcollevel[[2]])
+dummieddf=(dflist[[2]])
+id=list_of_dfid[[2]]
+labels<-list_of_dflabel[[2]]
+survey_data_for_loop<-survey_data[[2]]
 X<-dummieddf[[1]]
+surveymeasurement=surveytitle_imputation_and_measurement[[2]]
+
+

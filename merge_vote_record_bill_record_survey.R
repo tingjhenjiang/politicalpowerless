@@ -354,7 +354,10 @@ load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
 minus_electionarea <- as.data.frame(list("term" = 7, "electionarea" = "桃園縣第06選區", "admincity" = "桃園縣", "admindistrict" = "中壢市", zip = 320, zip3rocyear = 99))
 survey_restricted_data<-c(1,2,3,4) %>%
   lapply(function (X) read.xlsx(paste0(dataset_file_directory, "basic_social_survey_restricted_data.xlsx"), sheet = X))
-survey_data<-c("2016_citizen.sav","2010_env.sav","2010_overall.sav","2004_citizen.sav") %>%
+survey_imputation_and_measurement<-paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx") %>%
+  read.xlsx(sheet = 1)
+
+survey_data<-c("2016citizen.sav","2010env.sav","2010overall.sav","2004citizen.sav") %>%
   sapply(function (X,...) paste0(...,X), dataset_file_directory, "merger_survey_dataset",slash) %>%
   lapply(haven::read_sav) %>%
   lapply(dplyr::mutate,stdsurveydate=as.Date(paste(year,sm,sd),"%Y %m %d")) %>%
@@ -362,13 +365,28 @@ survey_data<-c("2016_citizen.sav","2010_env.sav","2010_overall.sav","2004_citize
     dplyr::mutate_at(X,setdiff(colnames(X),c("myown_age")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) )  )
     #設定遺漏值
   }) %>%
-  lapply(haven::as_factor,only_labelled = TRUE)
+  lapply(function(X,survey_imp_measure) {
+    #X<-as.data.frame(X)
+    spsssavsurvey<-X$SURVEY[1]
+    message(spsssavsurvey)
+    need_survey_measure_scale<-dplyr::filter(survey_imp_measure,SURVEY==spsssavsurvey,MEASUREMENT=="scale",ID %in% names(X)) %>%
+      dplyr::select(ID) %>% unlist() %>% as.character()
+    X %<>% mutate_at(need_survey_measure_scale,funs(as.numeric))
+    
+    need_survey_measure_ordinal<-filter(survey_imp_measure,SURVEY==spsssavsurvey,MEASUREMENT=="ordinal",ID %in% names(X)) %>%
+      dplyr::select(ID) %>% unlist() %>% as.character()
+    X %<>% mutate_at(need_survey_measure_ordinal,funs(as.integer))
+    
+    X<-haven::as_factor(X,only_labelled = TRUE) #類別資料直接用haven函數轉
+  },survey_imp_measure=survey_imputation_and_measurement) #%>%
   #lapply(function (X) { #較早的串連方式，區分會期
   #  othervar<-setdiff(names(X),c("term1","term2"))
   #  reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
   #    dplyr::filter(!is.na(term))
   #})  %>%
 survey_data <- survey_data[order(names(survey_data))]
+#save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
+
 #survey_data_labels <- lapply(survey_data,function(X) {
 #  sapply(X,FUN=attr,which="labels")
 #})
@@ -376,27 +394,31 @@ survey_data <- survey_data[order(names(survey_data))]
 #survey_data_labels已經預處理過，直接load即可
 load(paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
 
-#save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
+
 forwritingfeather<-mapply(function(X,Y,A,B) {
   #testing purpose
-  df<-as.data.frame(survey_data[[1]])
-  dfcoltypes<-sapply(df,class)
-  to_dummy_cols<-names(which(dfcoltypes=="factor"))
+  #df<-as.data.frame(survey_data[[1]])
+  #dfcoltypes<-sapply(Y,class)
+  #to_dummy_cols<-names(which(dfcoltypes=="factor"))
+  #to_dummy_cols_global <<- to_dummy_cols
+  #print(to_dummy_cols)
   #for (to_dummy_col in to_dummy_cols) {
   #  print(to_dummy_col)
-    df<-dummies::dummy.data.frame(data=df,names=to_dummy_cols,sep="_")
+    #df<-dummies::dummy.data.frame(data=df,names=to_dummy_cols,sep="_")
   #}
-  View(df[68,2183:2189])
-  grep("v28",names(df))
-  df<-Y %>%
-    dummies::dummy.data.frame(names=to_dummy_cols,sep="_")#%>%
+  #View(df[68,])
+  #grep("v28",names(df))
+  #df<-dummies::dummy.data.frame(data=Y,names=to_dummy_cols,sep="_")#%>%
     #dplyr::filter(variable_on_term=="term1") #2004的問卷橫跨立法院多會期，為了節省運算資源所以只保留一期
   path<-paste0(ntuspace_file_directory,"shared",slash,"dataset",slash,"rdata",slash,"all_survey_combined",X,".feather")
-  tomutatecol<-setdiff(names(Y),"myown_age")
+  #tomutatecol<-setdiff(names(Y),"myown_age")
   #df %<>% mutate_at(tomutatecol,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ))
-  message("-------------------------")
-  needvars<-c("id",union(A,B))
-  feather::write_feather(df[,needvars], path=path)
+  message("-----writing ",path,"--------------------")
+  Y<-droplevels(Y)
+  needvars<-c("id", union(A,B)  ) %>%
+    intersect(names(Y))
+  needcols <<- needvars
+  feather::write_feather(Y[,needvars], path=path)
 },X=1:4,Y=survey_data,A=imputingcalculatebasiscolumn,B=imputedvaluecolumn)
 #A=imputingcalculatebasiscolumn,B=imputedvaluecolumn
 #A=1:4,B=1:4
@@ -479,6 +501,9 @@ survey_data_test <- na_count <- list()
 #  x<-
 #}
 for (i in 1:length(survey_data)) {
+  if (i>1) {
+    next
+  }
   #lapply(survey_data,function(X,missingvaluecolumn_assigned,imputingcalculatebasiscolumn_assigned) {
   #missingvaluecolumn_assigned<-missingvaluecolumn
   #imputingcalculatebasiscolumn_assigned<-imputingcalculatebasiscolumn
@@ -489,8 +514,8 @@ for (i in 1:length(survey_data)) {
     intersect(names(X))
   proceeding_na_var<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned) %>%
     setdiff(c("myown_age"))
-  X %<>% dplyr::mutate_at(proceeding_na_var,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
-    mutate_if(is.factor,funs(factor))
+  #X %<>% dplyr::mutate_at(proceeding_na_var,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
+  #  mutate_if(is.factor,funs(factor))
   #sol: https://stackoverflow.com/questions/13495041/random-forests-in-r-empty-classes-in-y-and-argument-legth-0
   #sol: https://stackoverflow.com/questions/24239595/error-using-random-forest-mice-package-during-imputation
   predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn)
@@ -499,7 +524,7 @@ for (i in 1:length(survey_data)) {
   #table(survey_data_test[[i]]$nmis)
   #colSums(is.na(X))
   #na_count[[i]] <- sapply(X, function(y) sum(length(which(is.na(y)))))
-  #mice::md.pattern(X[,missingvaluecolumn_assigned])
+  mice::md.pattern(X[,imputedvaluecolumn_assigned])
   #miceMod <- mice::mice(
   #  X,
   #  method="rf",
