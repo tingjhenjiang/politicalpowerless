@@ -354,10 +354,9 @@ load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
 minus_electionarea <- as.data.frame(list("term" = 7, "electionarea" = "桃園縣第06選區", "admincity" = "桃園縣", "admindistrict" = "中壢市", zip = 320, zip3rocyear = 99))
 survey_restricted_data<-c(1,2,3,4) %>%
   lapply(function (X) read.xlsx(paste0(dataset_file_directory, "basic_social_survey_restricted_data.xlsx"), sheet = X))
-survey_imputation_and_measurement<-paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx") %>%
-  read.xlsx(sheet = 1)
-
-survey_data<-c("2016citizen.sav","2010env.sav","2010overall.sav","2004citizen.sav") %>%
+survey_data_title<-c("2016citizen","2010env","2010overall","2004citizen") %>% sort()
+survey_imputation_and_measurement<-read.xlsx(paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx"),sheet = 1)
+survey_data<-paste0(survey_data_title,".sav") %>%
   sapply(function (X,...) paste0(...,X), dataset_file_directory, "merger_survey_dataset",slash) %>%
   lapply(haven::read_sav) %>%
   lapply(dplyr::mutate,stdsurveydate=as.Date(paste(year,sm,sd),"%Y %m %d")) %>%
@@ -375,7 +374,7 @@ survey_data<-c("2016citizen.sav","2010env.sav","2010overall.sav","2004citizen.sa
     
     need_survey_measure_ordinal<-filter(survey_imp_measure,SURVEY==spsssavsurvey,MEASUREMENT=="ordinal",ID %in% names(X)) %>%
       dplyr::select(ID) %>% unlist() %>% as.character()
-    X %<>% mutate_at(need_survey_measure_ordinal,funs(as.integer))
+    X %<>% mutate_at(need_survey_measure_ordinal,funs(as.ordered))
     
     X<-haven::as_factor(X,only_labelled = TRUE) #類別資料直接用haven函數轉
   },survey_imp_measure=survey_imputation_and_measurement) #%>%
@@ -459,19 +458,19 @@ load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 
 #assinging missing value
 library(mice)
+library(VIM)
 #job_status暫時先刪掉，因為不同問卷概念與選項不一樣難以合併
-imputingcalculatebasiscolumn<-list(
-  "2004citizen"=c("myown_sex","myown_age","v3","v4","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_marriage","myown_eduyr","v9b","v10","v13","v14","v15","v16","v17","v18","v19","v20","v21","v22","v23","v24","v25","v26","v27","v28","v29","v30","v31","v32","v33","v34","v35","v36","v37","v38","v39","v40","v41","v42","v43","v44","v45","v46","myown_int_pol_efficacy","v48","v49","v50","v51","myown_ext_pol_efficacy","v53","v54","v55","v56","v57","v58","v59","v60","v61","v62","v63","v64","v65","v68","v69","v70","v71","v72","v73","v74","v75","v76","v77","v78","v79","v82","v83","v84","v85","v86_1","v86_2","v86_3","v86_4","v86_5","v86_6","v86_7","v86_8","v86_9","v87_1","v87_2","v87_3","v87_4","v87_5","v87_6","v88","myown_vote","v89","v90","v91","v91a","v91b","v92_1","v92_2","v92_3","v92_4","v92_5","v93a","v93b","v94","v94a","v95","v96","v97","v98","v98a","v98b","v98c","v99","v100","v102","v104","v105a","v105b","v105c","v106a","v106b","v106c","v107a","v107b","v107c","myown_religion","v111","v112","v113","v115","v116","myown_working_status","v122a","myown_occp","myown_ses","v122f","v122g","v123b","v123c","myown_familymembers_num","v128_1a","v128_1b","v128_1c","v128_1d","v128_1e","v128_1f","v128_1g","v128_2a","v128_2b","v128_2c","v128_2d","v128_2e","v128_2f","v128_2g","v129","v130","myown_income","myown_family_income","post","v2r","v3r","v4r","v122ar","v122b1r","v123br","v125br","v132dr","v138dr"),
-  "2010env"=c("stratum2","myown_sex","myown_age","v3b","myown_marriage","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_eduyr","myown_religion","v13","v14a","v14b","v15a","v15b","v16a","v16b","v17a","v17b","v18a","v18b","v19","v20a","v20b","v21a","v21b","v21c","v22a","v22b","v22c","v23a","v23b","v23c","v24a","v24b","v24c","v25a","v25b","v25c","v26a","v26b","v26c","v26d","v26e","v26f","v26g","v27a","v27b","v27c","v27d","v27e","v27f","v27g","v28a","v28b","v29","v30a","v30b","v31","v32a","v32b","v32c","v33a","v33b","v33c","v33d","v33e","v33f","v34","v35a","v35b","v35c","v36a","v36b","v37a","v37b","v37c","v37d","v37e","v37f","v37g","v37h","v37i","v38a1","v38a2","v38b1","v38b2","v38c1","v38c2","v38d1","v38d2","v38e1","v38e2","v39a","v39b","v39c","v40","v44","v45","v46","v47e","v51","v52","v53","v54","v55","v56","v57","v58","v59","v60","v61","v62","v63","v65","v66a","v66b","v66c","v66d","v66e","v66f","v67","v68","v69","myown_ext_pol_efficacy","v70c","v70d","v70e","v70f","v71","v72","v73","v75","v76","v77","myown_int_pol_efficacy","v79","v82c","v83c","v88c","v82d","v83d","v87d","v88d","v90","v91b","v92a","v93a3","v93a4","myown_occp","myown_ses","v93b5","v93c","myown_union","myown_working_status","v103","myown_vote","myown_familymembers_num","myown_income","myown_family_income","v3br"),
-  "2010overall"=c("zip","stratum2","myown_sex","myown_age","v3","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_marriage","myown_eduyr","v9","v10","myown_religion","v11by","v12h","v13a","v14h","v15h","v16a","v17h","v18h","v19a","v20h","v21a_1","v21a_2","v21a_4","v21a_5","v21b_h","v21c1","v22h","v24","v26a","v26b","v27a","v27b","v39a","v39b","v39c","v39d","v39e","v40","v41","v42","v43a","myown_ext_pol_efficacy","v67e","v67f","v67g","myown_int_pol_efficacy","v67i","v68a","v69a","v70g","v71","v72l","v78a","v78b","v78c","v78d","v78e","v78f","v78g","v78h","v78i","v79a","v79b","v79c","v79d","v80","v81","v82a","v82b","v82c","v82d","v83","v84","myown_vote","v86","v87a1","v88","v89","v90","v91","v92","v93","v94","myown_familymembers_num","myown_industry","myown_occp","myown_ses","v101c","v102a1","myown_hire_people_no","myown_manage_people_no","v102b3","myown_workers_numbers","v102c","v102d","v102e","myown_working_status","myown_income","myown_family_income","v3r1","v100b3r","v101b3r","v101b5r","v110r1"),
-  "2016citizen"=c("zip","stratum2","region","region2014","myown_sex","myown_age","a3city","a3zip","a4","myown_dad_ethgroup","a6","myown_mom_ethgroup","a8","myown_selfid","myown_marriage","myown_religion","a12","a13","myown_eduyr","b1","b2","b3h","b4","b5","c1a","c1b","c1c","c1d","c1e","c2","c3","c4","c5","c6","c7","c8","c8r","c9","c9r","c10","c11","c12","c13","c14","c15","c16a","c16b","c16c","d1","d2a","d2b","d3a","d3b","d4","d5a","d5b","d5c","d5d","d5e","d5f","d6a","d6b","d6c","d6d","d6e","d6f","d6g","d6h","d7a","d7b","d7c","d7d","d7e","d7f","d7g","d7h","d7i","d7j","d7k","d8a","d8b","d8c","d9a","d9b","d11a","d11b","d12","d13a","d13b","d14a","d14b","d14c","d15","myown_int_pol_efficacy","myown_ext_pol_efficacy","d16c","d16d","d16e","d16f","d17a","d17b","d17c","d18a","d18b","d19a","d19b","d20","d21","d22","d23","e1","e2a","e2b","e2c","e2d","e2e","e2f","e2g","e2h","e2i","f1","f2","f3","f4","f5","f6","f7","f9","g5","g6a","g6b","g6c","g6d","g7a","g7b","g7c","g8a","g8b","g8c","h1_01","h1_02","h1_03","h1_04","h1_05","h1_06","h1_07","h1_08","h1_09","h1_10","h1_11","h1_12","h1_13","h1_14","h1_15","h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c","myown_vote","h5","h6","h7","h8","h9","h10","myown_familymembers_num","myown_working_status","j4","j5a","myown_industry","myown_occp","myown_ses","myown_union","myown_income","myown_family_income")
-)
-imputedvaluecolumn<-list(
-  "2004citizen"=c("myown_sex","myown_age","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_marriage","myown_eduyr","v25","v26","v27","v28","v29","v30","v31","v32","v33","v34","v35","v36","v41","v42","v43","v44","v45","v46","myown_int_pol_efficacy","myown_ext_pol_efficacy","v60","v61","v62","v65","myown_vote","v95","v96","v97","v105a","v105b","v105c","v106a","v106b","v106c","v107a","v107b","v107c","myown_working_status","myown_occp","myown_ses","myown_income","myown_family_income"),
-  "2010env"=c("myown_sex","myown_age","myown_marriage","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_eduyr","myown_religion","v14a","v14b","v15a","v15b","v16a","v16b","v19","v20a","v20b","v23a","v23b","v23c","v24a","v24b","v24c","v25a","v25b","v25c","v27a","v27b","v27c","v27d","v27e","v27f","v27g","v28a","v28b","v30a","v30b","v31","v32c","v34","v35a","v35b","v35c","v39a","v39b","v39c","v40","v57","v58","v59","v63","myown_ext_pol_efficacy","v70c","v70d","v70e","v70f","myown_int_pol_efficacy","myown_occp","myown_ses","myown_union","myown_working_status","myown_vote","myown_income","myown_family_income"),
-  "2010overall"=c("myown_sex","myown_age","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_marriage","myown_eduyr","myown_religion","v27b","v39a","v39b","v39c","v39d","v39e","v40","myown_ext_pol_efficacy","myown_int_pol_efficacy","v78a","v78b","v78c","v78d","v78e","v78f","v78g","v78h","v78i","v79a","v79b","v79c","v79d","v82a","v82b","v82c","v82d","myown_vote","myown_industry","myown_occp","myown_ses","myown_working_status","myown_income","myown_family_income"),
-  "2016citizen"=c("myown_sex","myown_age","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_marriage","myown_religion","myown_eduyr","c1a","c1b","c1c","c1d","c1e","c2","c3","c4","c5","c6","c10","c11","c12","c13","c14","d1","d2a","d2b","d3a","d3b","d4","d5a","d5b","d5c","d5d","d5e","d5f","d7a","d7b","d7c","d7d","d7e","d7f","d7g","d7h","d7i","d7j","d7k","d8a","d8b","d8c","d11a","d11b","d12","d13a","d13b","d14a","d14b","d14c","myown_int_pol_efficacy","myown_ext_pol_efficacy","d17a","d17b","d17c","e2a","e2b","e2c","e2d","e2e","e2f","e2g","e2h","e2i","f3","f4","f5","f9","h1_01","h1_02","h1_03","h1_04","h1_05","h1_06","h1_07","h1_08","h1_09","h1_10","h1_11","h1_12","h1_13","h1_14","h1_15","h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c","myown_vote","myown_familymembers_num","myown_working_status","myown_occp","myown_ses","myown_union","myown_income","myown_family_income")
-)
+imputingcalculatebasiscolumn<-lapply(survey_data_title,function(X,df) {
+  filter(df,SURVEY==X,IMPUTATION %in% c("basis","both")) %>%
+    select(ID) %>% unlist() %>% unname()
+},df=survey_imputation_and_measurement) %>%
+  setNames(survey_data_title)
+imputedvaluecolumn<-lapply(survey_data_title,function(X,df) {
+  filter(df,SURVEY==X,IMPUTATION %in% c("both")) %>%
+    select(ID) %>% unlist() %>% unname()
+},df=survey_imputation_and_measurement) %>%
+  setNames(survey_data_title)
+
 generate_predictor_matrix<-function(df,calculationbasisvar=c(),imputedOnlyVars=c()) {
   #calculationbasisvar<-imputingcalculatebasiscolumn_assigned
   #imputedOnlyVars<-imputedvaluecolumn_assigned
@@ -496,10 +495,10 @@ generate_predictor_matrix<-function(df,calculationbasisvar=c(),imputedOnlyVars=c
   diag(predictorMatrix) <- 0
   return(predictorMatrix)
 }
-survey_data_test <- na_count <- list()
-#droplevelcustomfun<-function(x) {
-#  x<-
-#}
+survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- list()
+
+#Package ‘MissMech’
+#To test whether the missing data mechanism, in a set of incompletely ob-served data, is one of missing completely at random (MCAR).For detailed description see Jamshidian, M. Jalal, S., and Jansen, C. (2014). ``Miss-Mech: An R Package for Testing Homoscedasticity, Multivariate Normality, and Missing Com-pletely at Random (MCAR),'' Journal of Statistical Software,  56(6), 1-31. URL http://www.jstatsoft.org/v56/i06/.
 for (i in 1:length(survey_data)) {
   if (i>1) {
     next
@@ -507,36 +506,45 @@ for (i in 1:length(survey_data)) {
   #lapply(survey_data,function(X,missingvaluecolumn_assigned,imputingcalculatebasiscolumn_assigned) {
   #missingvaluecolumn_assigned<-missingvaluecolumn
   #imputingcalculatebasiscolumn_assigned<-imputingcalculatebasiscolumn
-  X<-survey_data[[i]]
+  X<-survey_data[[i]] %>%
+    droplevels()
   imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
     intersect(names(X))
   imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
     intersect(names(X))
-  proceeding_na_var<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned) %>%
-    setdiff(c("myown_age"))
+  unusefulcolumns <- c("id",setdiff(names(X),imputingcalculatebasiscolumn_assigned))
+  #proceeding_na_var<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned) %>%
+  #  setdiff(c("myown_age"))
+  #predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn)
+  predictor_matrix<-mice::quickpred(X[,imputingcalculatebasiscolumn_assigned], mincor=0.2)
   #X %<>% dplyr::mutate_at(proceeding_na_var,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
   #  mutate_if(is.factor,funs(factor))
   #sol: https://stackoverflow.com/questions/13495041/random-forests-in-r-empty-classes-in-y-and-argument-legth-0
   #sol: https://stackoverflow.com/questions/24239595/error-using-random-forest-mice-package-during-imputation
-  predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn)
   #The frequency distribution of the missing cases per variable can be obtained as:
   #survey_data_test[[i]] <- mice::mice(X, maxit = 0)
   #table(survey_data_test[[i]]$nmis)
   #colSums(is.na(X))
   #na_count[[i]] <- sapply(X, function(y) sum(length(which(is.na(y)))))
-  mice::md.pattern(X[,imputedvaluecolumn_assigned])
-  #miceMod <- mice::mice(
-  #  X,
-  #  method="rf",
-  #  predictorMatrix = predictor_matrix
-  #  )  # perform mice imputation, based on random forests.
-  #survey_data_test[[i]]<- mice::complete(miceMod)  # generate the completed data.
+  #analysisdfonmissingvalue<-X[,imputedvaluecolumn_assigned]
+  #missingvaluepattern[[i]]<-mice::md.pattern(analysisdfonmissingvalue,plot=FALSE)
+  #visdat::vis_miss(analysisdfonmissingvalue)
+  miceMod <- mice::mice(
+    X[,imputingcalculatebasiscolumn_assigned],
+    method="rf",
+    predictorMatrix = predictor_matrix
+    )  # perform mice imputation, based on random forests.
+  imputed_survey_data[[i]]<- mice::complete(miceMod)  # generate the completed data.
+  imputed_survey_data[[i]]$id<-X$id
+  survey_data_test[[i]]<-left_join(X[,unusefulcolumns],imputed_survey_data[[i]])
   #save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_2_df.RData"))
   #},missingvaluecolumn,imputingcalculatebasiscolumn)
+  #kNN imputation
+  #survey_data_test[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
 }
 #conditional random field
 
-
+#write.xlsx(as.data.frame(furtherusefulpredictor),file="furtherusefulpredictor.xlsx")
 
 #填補遺漏值
 #filling in missing value

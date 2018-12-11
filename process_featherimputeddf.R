@@ -112,32 +112,32 @@ recode_according_to_list<-function(X,list) {
 #recode_according_to_list(pull(X,var=nc),list=newlist_label_as_value)
 #2004citizen v28(i=62;1673:1680)：68  108  133  678 1162 1170 1270 1278 可以當作有沒有填補的指標
 #double check: View(dflist[[1]][[1]][108,1673:1680]) View(forwritingfeather[[1]][68,])
-dummyremoved_imputed_survey_data<-mapply(function(n,t,l,dummieddf,id,labels,survey_data_for_loop,surveymeasurement) {
+dummyremoved_imputed_survey_data<-mapply(function(names,types,levels,dummieddf,id,labels,survey_data_for_loop,surveymeasurement) {
   #各自在不同問卷裡開始loop，共四個問卷,mapply may execute 4 times
   #以下在不同填補值問卷檔裡面loop
   #dummieddf<-list(dummieddf[[1]])
   #View(l)
   #message(class(l))
   counter <- 0
-  dummieddf_test<-lapply(dummieddf,function(X,n,t,l,id,labels,survey_data) {
+  dummieddf_test<-lapply(dummieddf,function(X,names,types,levels,id,labels,survey_data) {
     counter <<- counter + 1
     X<-as.data.frame(X)
     for (i in 1:length(n)) {
-      nc<-n[i]
-      tc<-t[i]
-      lc<-getElement(l,nc)
+      namesc<-names[i]
+      typesc<-types[i]
+      levelsc<-getElement(levels,nc)
       exactlabel<-getElement(labels,nc)
       message("counter is ", counter," and ", i,": levels of ", nc," are ",length(lc)," and its contents are lc")
       #message(i,": label of ", nc, " is ",exactlabel," and name of labels are ",names(exactlabel))
-      X<-reduce_dummy_variable(X,nc=nc,tc=tc,lc=lc) #把dummy variable合併
+      X<-reduce_dummy_variable(X,nc=namesc,tc=typesc,lc=levelsc) #把dummy variable合併
       #message("done reducing ",nc," dummy variable")
       #emptyattrdf<-data.frame()
       surveymeasurementcheck<-surveymeasurement$MEASUREMENT[match(nc,surveymeasurement$ID,nomatch=FALSE)]
       if (identical(surveymeasurementcheck,character(0))) {next}
       if ((nc %in% names(X)) & (!identical(exactlabel,NULL)) ) {
-        sourcebeforerecode<-pull(X,var=nc)
+        sourcebeforerecode<-pull(X,var=namesc)
         if (surveymeasurementcheck=="ordinal" & class(sourcebeforerecode)=="numeric") {
-          X[,nc]<-round(X[,nc]) %>%
+          X[,namesc]<-round(X[,namesc]) %>%
             as.integer()#針對順序尺度轉碼為整數然後進行遺漏值填補後的還原
           next
         }
@@ -151,16 +151,16 @@ dummyremoved_imputed_survey_data<-mapply(function(n,t,l,dummieddf,id,labels,surv
         #some variable contains ordinary numerical data and categorical data(survey design, e.g. missing value), so indirectly make them converting
         #X[,nc]<-unlist(newlist_label_as_value[X[,nc]]) #this would make trouble due to reasons above
         #for testing purpose:
-        X[,nc]<-recode_according_to_list(sourcebeforerecode,list=newlist_label_as_value)  #%>%
+        X[,namesc]<-recode_according_to_list(sourcebeforerecode,list=newlist_label_as_value)  #%>%
         #轉換成原始數值而非類別敘述（中文）
           #sapply(unlist)
           #sapply(`[[`,1)
-        message("done recoding ",nc," values")
-        asfun<-match.fun(paste0("as.",tc))
-        X[,nc]<-asfun(X[,nc])
+        message("done recoding ",namesc," values")
+        asfun<-match.fun(paste0("as.",typesc))
+        X[,namesc]<-asfun(X[,namesc])
         #message("done transforming ",nc," class")
         if (tc=="factor") {
-          levels(X[,nc])<-newlist_label_as_value #加上level會直接把數字轉為文字
+          levels(X[,namesc])<-newlist_label_as_value #加上level會直接把數字轉為文字
         }
         #message("done setting ",nc," level")
       }
@@ -175,14 +175,14 @@ dummyremoved_imputed_survey_data<-mapply(function(n,t,l,dummieddf,id,labels,surv
     X<-X[,c("id",X_columnnames)] %>%
       left_join(rest_survey_data_columns,by=c("id"))
     X
-  },n=n,t=t,l=l,id=id,labels=labels,survey_data=survey_data)
+  },names=names,types=types,levels=levels,id=id,labels=labels,survey_data=survey_data)
   dummieddf_test
   #message("length of dummieddf are ",length(dummieddf))
   #message("-------")
   #return(dummieddf)
-  },n=list_of_dfcolname,
-  t=list_of_dfcoltype,
-  l=list_of_dfcollevel,
+  },names=list_of_dfcolname,
+  types=list_of_dfcoltype,
+  levels=list_of_dfcollevel,
   dummieddf=dflist,
   id=list_of_dfid,
   labels=list_of_dflabel,
