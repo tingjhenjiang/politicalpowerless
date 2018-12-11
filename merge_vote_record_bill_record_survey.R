@@ -499,15 +499,18 @@ survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- li
 
 #Package ‘MissMech’
 #To test whether the missing data mechanism, in a set of incompletely ob-served data, is one of missing completely at random (MCAR).For detailed description see Jamshidian, M. Jalal, S., and Jansen, C. (2014). ``Miss-Mech: An R Package for Testing Homoscedasticity, Multivariate Normality, and Missing Com-pletely at Random (MCAR),'' Journal of Statistical Software,  56(6), 1-31. URL http://www.jstatsoft.org/v56/i06/.
-for (i in 1:length(survey_data)) {
-  if (i>1) {
-    next
-  }
-  #lapply(survey_data,function(X,missingvaluecolumn_assigned,imputingcalculatebasiscolumn_assigned) {
+cl <- makeCluster(detectCores())
+exportlib<-c("base",lib,"mice","randomForest")
+sapply(exportlib,function(needlib,cl) {
+  clusterCall(cl=cl, library, needlib, character.only=TRUE)
+},cl=cl)
+clusterExport(cl,varlist=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"), envir=environment())
+survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
   #missingvaluecolumn_assigned<-missingvaluecolumn
   #imputingcalculatebasiscolumn_assigned<-imputingcalculatebasiscolumn
-  X<-survey_data[[i]] %>%
-    droplevels()
+  #X<-survey_data[[i]] %>%
+  # droplevels()
+  X<-droplevels(X)
   imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
     intersect(names(X))
   imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
@@ -533,17 +536,17 @@ for (i in 1:length(survey_data)) {
     X[,imputingcalculatebasiscolumn_assigned],
     method="rf",
     predictorMatrix = predictor_matrix
-    )  # perform mice imputation, based on random forests.
-  imputed_survey_data[[i]]<- mice::complete(miceMod)  # generate the completed data.
-  imputed_survey_data[[i]]$id<-X$id
-  survey_data_test[[i]]<-left_join(X[,unusefulcolumns],imputed_survey_data[[i]])
+  )  # perform mice imputation, based on random forests.
+  imputed_survey_data<- mice::complete(miceMod)  # generate the completed data.
+  imputed_survey_data$id<-X$id
+  left_join(X[,unusefulcolumns],imputed_survey_data[[i]])
   #save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_2_df.RData"))
-  #},missingvaluecolumn,imputingcalculatebasiscolumn)
-  #kNN imputation
-  #survey_data_test[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
-}
+},imputedvaluecolumn=imputedvaluecolumn,imputingcalculatebasiscolumn=imputingcalculatebasiscolumn)
+#kNN imputation
+#survey_data_test[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
+#}
 #conditional random field
-
+stopCluster(cl)
 #write.xlsx(as.data.frame(furtherusefulpredictor),file="furtherusefulpredictor.xlsx")
 
 #填補遺漏值
