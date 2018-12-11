@@ -459,6 +459,7 @@ load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #assinging missing value
 library(mice)
 library(VIM)
+library(parallel)
 #job_status暫時先刪掉，因為不同問卷概念與選項不一樣難以合併
 imputingcalculatebasiscolumn<-lapply(survey_data_title,function(X,df) {
   filter(df,SURVEY==X,IMPUTATION %in% c("basis","both")) %>%
@@ -515,7 +516,7 @@ survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imput
     intersect(names(X))
   imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
     intersect(names(X))
-  unusefulcolumns <- c("id",setdiff(names(X),imputingcalculatebasiscolumn_assigned))
+  unusefulcolumns <- setdiff(names(X),imputingcalculatebasiscolumn_assigned)
   #proceeding_na_var<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned) %>%
   #  setdiff(c("myown_age"))
   #predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn)
@@ -535,18 +536,22 @@ survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imput
   miceMod <- mice::mice(
     X[,imputingcalculatebasiscolumn_assigned],
     method="rf",
-    predictorMatrix = predictor_matrix
+    predictorMatrix = predictor_matrix,
+    m=1,
+    maxit=1
   )  # perform mice imputation, based on random forests.
   imputed_survey_data<- mice::complete(miceMod)  # generate the completed data.
-  imputed_survey_data$id<-X$id
-  left_join(X[,unusefulcolumns],imputed_survey_data[[i]])
-  #save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_2_df.RData"))
+  complete_imputed_survey_data<-bind_cols(X[,unusefulcolumns],imputed_survey_data)
+  complete_imputed_survey_data<-complete_imputed_survey_data[,names(X)]
+  complete_imputed_survey_data
+  return(complete_imputed_survey_data)
 },imputedvaluecolumn=imputedvaluecolumn,imputingcalculatebasiscolumn=imputingcalculatebasiscolumn)
 #kNN imputation
 #survey_data_test[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
 #}
 #conditional random field
 stopCluster(cl)
+save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_2_df.RData"))
 #write.xlsx(as.data.frame(furtherusefulpredictor),file="furtherusefulpredictor.xlsx")
 
 #填補遺漏值
