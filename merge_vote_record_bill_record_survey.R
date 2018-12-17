@@ -34,8 +34,7 @@ gc(verbose=TRUE)
 # 第一部份：立委及選區資料
 ##############################################################################
 elections_df<-data.frame()
-for (termi in 1:length(terms)) {
-  term<-terms[termi]
+for (term in terms) {
   message("term=",term)
   term_character<-paste0("0",term)
   if (term==7) {
@@ -117,9 +116,6 @@ elections_df <- elections_df[, c("term", "號次", "名字", "性別", "出生�
   mutate_at(c("sex"), funs(customgsub(sex, "2", "女"))) %>%
   mutate_at(c("sex"), funs(customgsub(sex, "1", "男")))
 
-#names(elections_df) <- c("term", "ballotid", "name", "sex", "birthday", "age", "birthplace", "education", "incumbent", "wonelection", "party", "electionarea", "admincity", "admindistrict", "adminvillage", "plranking", "elec_dist_type")
-
-
 #透過全國行政區的行政區名稱，比對不完整鄉鎮市區名稱的郵遞區號行政區，組裝出行政區郵遞區號
 zipcodecsv<-paste0(dataset_file_directory,"zip3.xlsx")
 zipcode_df <- read.xlsx(zipcodecsv, sheet = 1) %>%
@@ -140,8 +136,8 @@ all_admin_dist_with_zip <- left_join(all_admin_dist_try, zipcode_df) %>%
 
 elections_df_test <- elections_df %>%
   mutate_at(c("term"), funs(customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>%
-  mutate_at(c("term"), as.character) %>%
-  left_join(all_admin_dist_with_zip)
+  mutate_at(c("term"), as.character) #%>%
+  #left_join(all_admin_dist_with_zip)
 
 #立委資料與選區資料合併
 #legislators <- read_csv(file = paste0(dataset_file_directory, "legislators.csv"))
@@ -331,29 +327,34 @@ load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
 ##=================以下部分因為已有既存資料檔，讀取後略過不執行#=================
 #找出所有行政區對選區資料，並且找出同一鄉鎮市區有不同選區的部分
 #admin_dist_to_elect_dist <- distinct(elections_df_test, term, admincity, electionarea, admindistrict, adminvillage) %>%
-#  filter(!is.na(admincity)) %>%
-#  left_join(all_admin_dist_with_zip)
-#duplicated_area <- distinct(admin_dist_to_elect_dist,term,electionarea,admincity,admindistrict,zip,zip3rocyear) %>%
+#  filter(!is.na(admincity))# %>%
+##  left_join(all_admin_dist_with_zip)
+#duplicated_area <- distinct(admin_dist_to_elect_dist,term,electionarea,admincity,admindistrict) %>% #,zip,zip3rocyear
 #  extract(duplicated(.[, c("term", "admincity", "admindistrict")]),)
 #把某些共用同一個郵遞區號的行政區合併
 #unique_dist_for_elect_dist <- anti_join(admin_dist_to_elect_dist, duplicated_area[, c("term", "admincity", "admindistrict")]) %>%
-#  group_by(term, electionarea, admincity, zip, zip3rocyear) %>%
+#  group_by(term, electionarea, admincity) %>% #, zip, zip3rocyear
 #  summarise(admindistrict = paste0(admindistrict, collapse = "、"))
 #以下註解部分為找出多選區的樣本
 #duplicated_area[duplicated_area$term == 6, c("zip")] %>%
 #  intersect(survey_data[[4]]$zip) %>%
 #  unique() %>% 
 #  sort()
+#save(admin_dist_to_elect_dist,duplicated_area,unique_dist_for_elect_dist,file=paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
 ##=================以上部分因為已有既存資料檔，讀取後略過不執行#=================
 ##=================以上部分因為已有既存資料檔，讀取後略過不執行#=================
 
-#save(admin_dist_to_elect_dist,duplicated_area,unique_dist_for_elect_dist,file=paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
 #重要！2010環境的資料因為補選選區有改變，所以在一些鄉鎮市區村里會重複出現多筆紀錄，要先處理一下join的選舉資料
 #duplicated_area_just_one_electionarea <- group_by(duplicated_area, term, admincity, admindistrict, zip, zip3rocyear) %>%
 #  summarise(electionarea = paste0(electionarea, collapse = "、"))
-minus_electionarea <- as.data.frame(list("term" = 7, "electionarea" = "桃園縣第06選區", "admincity" = "桃園縣", "admindistrict" = "中壢市", zip = 320, zip3rocyear = 99))
-survey_restricted_data<-c(1,2,3,4) %>%
-  lapply(function (X) read.xlsx(paste0(dataset_file_directory, "basic_social_survey_restricted_data.xlsx"), sheet = X))
+minus_electionarea <- as.data.frame(list(
+  "term" = 7, 
+  "electionarea" = "桃園縣第06選區", 
+  "admincity" = "桃園縣", 
+  "admindistrict" = "中壢市", 
+  zip = 320, 
+  zip3rocyear = 99))
+survey_restricted_data<-read.xlsx(paste0(dataset_file_directory, "basic_social_survey_restricted_data.xlsx"), sheet = 1)
 survey_data_title<-c("2016citizen","2010env","2010overall","2004citizen") %>% sort()
 survey_imputation_and_measurement<-read.xlsx(paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx"),sheet = 1)
 survey_data<-paste0(survey_data_title,".sav") %>%
@@ -383,7 +384,8 @@ survey_data<-paste0(survey_data_title,".sav") %>%
   #  reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
   #    dplyr::filter(!is.na(term))
   #})  %>%
-survey_data <- survey_data[order(names(survey_data))]
+survey_data <- survey_data[order(names(survey_data))] %>%
+  lapply(dplyr::left_join,survey_restricted_data)
 #save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 
 #survey_data_labels <- lapply(survey_data,function(X) {
@@ -426,28 +428,28 @@ forwritingfeather<-mapply(function(X,Y,A,B) {
 
 #shaped: 299 295 571
 #先依據是否有多數選區存在於單一鄉鎮市區拆開，先串有同一鄉鎮市區內有多選區的，再串同一鄉鎮市區內只有一選區的，然後分別join之後再合併
-survey_data_with_restrictedattr_elec_admin_area <- mapply(function(X,Y) {
-  #X=survey_data[[1]]; Y=survey_restricted_data[[1]]; Z<-survey_data_labels[[1]] #for testing purpose
-  stopifnot(X$SURVEY[1]==Y$SURVEY[1])
-  Y %<>% mutate_at(c("village","zip","admincity","admindistrict","adminvillage"),funs(as.factor))
-  in_complicated_district<-filter(X, id %in% Y$id) %>%
-    #mutate_at(c("zip","id"),funs(as.character)) %>%
-    left_join(Y,by=c("SURVEY","id")) %>% #不用zip join 因為會有label, factor的問題
-    #mutate_at("term",funs(as.character)) %>%
-    left_join(admin_dist_to_elect_dist,by=c("admincity","admindistrict","adminvillage")) %>% #by=c("term","admincity","admindistrict","adminvillage"
-    rename(restricted_zip=zip.y) %>%
-    rename(zip=zip.x)
-  #findduplicatedrowsindf(in_complicated_district,c("id")) %>% View()
-  in_simple_district <- filter(X, !(id %in% Y$id)) %>%
-    mutate_at(c("zip"), as.integer) %>%
-    left_join(unique_dist_for_elect_dist)#串連選區和行政區資料
-  #mutate_at("term",funs(as.character)) %>%
-  bind_rows(in_simple_district, in_complicated_district) %>%
-    arrange(id) %>%
-    mutate_at(c("zip","id","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"),funs(as.factor)) %>%
-    mutate_at(setdiff(names(.),c("myown_age")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
-    mutate_if(is.factor,funs(droplevels))
-},X=survey_data,Y=survey_restricted_data)
+#mapply(function(X,Y) {
+  ##X=survey_data[[1]]; Y=survey_restricted_data[[1]]; Z<-survey_data_labels[[1]] #for testing purpose
+  #stopifnot(X$SURVEY[1]==Y$SURVEY[1])
+  #Y %<>% mutate_at(c("village","zip","admincity","admindistrict","adminvillage"),funs(as.factor))
+  #in_complicated_district<-filter(X, id %in% Y$id) %>%
+  #  #mutate_at(c("zip","id"),funs(as.character)) %>%
+  #  left_join(Y,by=c("SURVEY","id")) %>% #不用zip join 因為會有label, factor的問題
+  #  #mutate_at("term",funs(as.character)) %>%
+  #  left_join(admin_dist_to_elect_dist,by=c("admincity","admindistrict","adminvillage")) %>% #by=c("term","admincity","admindistrict","adminvillage"
+  #  rename(restricted_zip=zip.y) %>%
+  #  rename(zip=zip.x)
+  ##findduplicatedrowsindf(in_complicated_district,c("id")) %>% View()
+  #in_simple_district <- filter(X, !(id %in% Y$id)) %>%
+  #  mutate_at(c("zip"), as.integer) %>%
+  #  left_join(unique_dist_for_elect_dist)#串連選區和行政區資料
+  ##mutate_at("term",funs(as.character)) %>%
+  #bind_rows(in_simple_district, in_complicated_district) %>%
+  #  arrange(id) %>%
+  #  mutate_at(c("zip","id","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"),funs(as.factor)) %>%
+  #  mutate_at(setdiff(names(.),c("myown_age")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
+  #  mutate_if(is.factor,funs(droplevels))
+#},X=survey_data,Y=survey_restricted_data)
 
 load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 
@@ -500,7 +502,7 @@ survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- li
 
 #Package ‘MissMech’
 #To test whether the missing data mechanism, in a set of incompletely ob-served data, is one of missing completely at random (MCAR).For detailed description see Jamshidian, M. Jalal, S., and Jansen, C. (2014). ``Miss-Mech: An R Package for Testing Homoscedasticity, Multivariate Normality, and Missing Com-pletely at Random (MCAR),'' Journal of Statistical Software,  56(6), 1-31. URL http://www.jstatsoft.org/v56/i06/.
-cl <- makeCluster(detectCores())
+cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-U24T.txt"))
 exportlib<-c("base",lib,"mice","randomForest")
 sapply(exportlib,function(needlib,cl) {
   clusterCall(cl=cl, library, needlib, character.only=TRUE)
@@ -516,11 +518,22 @@ survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imput
     intersect(names(X))
   imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
     intersect(names(X))
-  unusefulcolumns <- setdiff(names(X),imputingcalculatebasiscolumn_assigned)
+  foundationvar<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
+  ini <- mice(X[,foundationvar], maxit = 0)
+  sapply(c("----------------", X$SURVEY[1], "----------------"),print)
+  print(table(ini$nmis))
+  outlist4 <- as.character(ini$loggedEvents[, "out"])
+  print(ini$loggedEvents, 2)
+  fx2 <- flux(X[,foundationvar])
+  outlist2<-row.names(fx2)[fx2$outflux < 0.45]
+  outlist <- unique(c(outlist2, outlist4))
+  foundationvar %<>% setdiff(outlist)
+  sapply(c("foundationvar are",foundationvar),print)
+  unusefulcolumns <- setdiff(names(X),foundationvar)
   #proceeding_na_var<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned) %>%
   #  setdiff(c("myown_age"))
   #predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn)
-  predictor_matrix<-mice::quickpred(X[,imputingcalculatebasiscolumn_assigned], mincor=0.2)
+  predictor_matrix<-mice::quickpred(X[,foundationvar], mincor=0.2)
   #X %<>% dplyr::mutate_at(proceeding_na_var,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
   #  mutate_if(is.factor,funs(factor))
   #sol: https://stackoverflow.com/questions/13495041/random-forests-in-r-empty-classes-in-y-and-argument-legth-0
@@ -534,12 +547,11 @@ survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imput
   #missingvaluepattern[[i]]<-mice::md.pattern(analysisdfonmissingvalue,plot=FALSE)
   #visdat::vis_miss(analysisdfonmissingvalue)
   miceMod <- mice::mice(
-    X[,imputingcalculatebasiscolumn_assigned],
-    method="rf",
+    X[,foundationvar],
     predictorMatrix = predictor_matrix,
-    m=1,
-    maxit=1
+    m=5
   )  # perform mice imputation, based on random forests.
+  #print(imputingcalculatebasiscolumn_assigned)
   imputed_survey_data<- mice::complete(miceMod)  # generate the completed data.
   complete_imputed_survey_data<-bind_cols(X[,unusefulcolumns],imputed_survey_data)
   complete_imputed_survey_data<-complete_imputed_survey_data[,names(X)]
@@ -553,6 +565,43 @@ survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imput
 stopCluster(cl)
 save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_2_df.RData"))
 #write.xlsx(as.data.frame(furtherusefulpredictor),file="furtherusefulpredictor.xlsx")
+lapply(survey_data_test,View)
+View(survey_data$`2010env.sav`[1:20,union(imputedvaluecolumn$`2010env`,imputingcalculatebasiscolumn$`2010env`)])
+#1) numeric data
+which(as.vector(sapply(survey_data$`2010env.sav`,is.numeric)))
+#2) factor data with 2 levels
+which(as.vector(sapply(survey_data$`2010env.sav`,function (X) {
+  if (!is.factor(X) | !is.ordered(X)) {
+    return(FALSE)
+  }
+  if (length(levels(X))!=2) {
+    return(FALSE)
+  } else {
+    return(TRUE)
+  }
+})))
+#3) factor data with > 2 unordered levels
+which(as.vector(sapply(survey_data$`2010env.sav`,function (X) {
+  if (!is.factor(X)) {
+    return(FALSE)
+  }
+  if (length(levels(X))>2) {
+    return(TRUE)
+  } else {
+    return(FALSE)
+  }
+})))
+#4) factor data with > 2 ordered levels
+which(as.vector(sapply(survey_data$`2010env.sav`,function(X) {
+  if (!is.ordered(X)) {
+    return(FALSE)
+  }
+  if (length(levels(X))>2) {
+    return(TRUE)
+  } else {
+    return(FALSE)
+  }
+})))
 
 #填補遺漏值
 #filling in missing value
@@ -770,8 +819,8 @@ summary( mice.lieing_check_correct_result )
 #reset
 #load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #load imputed survey
-load(paste0(dataset_file_directory,"rdata",slash,"dummyremoved_imputed_survey_data.RData"))
-#dummyremoved_imputed_survey_data
+load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_2_df_randomforest.RData"))
+
 
 need_ses_var<-list(
   "2004citizen"=c("myown_eduyr","myown_ses","myown_income"), #myown_income, myown_occp,"myown_family_income", v127 同住家人數
