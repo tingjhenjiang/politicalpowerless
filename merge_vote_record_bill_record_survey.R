@@ -42,8 +42,7 @@ for (term in terms) {
   } else {
     elec_types<-overall_elec_dist_types
   }
-  for (i in 1:length(elec_types)) {
-    elec_dist_type<-elec_types[i]
+  for (elec_dist_type in elec_types) {
     message("")
     message("term=",term," AND type=",elec_dist_type," AND nrow=", nrow(elections_df))
     message("")
@@ -362,7 +361,7 @@ survey_data<-paste0(survey_data_title,".sav") %>%
   lapply(haven::read_sav) %>%
   lapply(dplyr::mutate,stdsurveydate=as.Date(paste(year,sm,sd),"%Y %m %d")) %>%
   lapply(function(X) {
-    dplyr::mutate_at(X,setdiff(colnames(X),c("myown_age")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) )  )
+    dplyr::mutate_at(X,setdiff(colnames(X),c("myown_age","myown_occp","myown_ses")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) )  )
     #設定遺漏值
   }) %>%
   lapply(function(X,survey_imp_measure) {
@@ -385,7 +384,8 @@ survey_data<-paste0(survey_data_title,".sav") %>%
   #    dplyr::filter(!is.na(term))
   #})  %>%
 survey_data <- survey_data[order(names(survey_data))] %>%
-  lapply(dplyr::left_join,survey_restricted_data)
+  lapply(dplyr::left_join,survey_restricted_data) %>%
+  lapply(dplyr::mutate_at,c("myown_job","admincity","admindistrict"),.funs=as.factor)
 #save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 
 #survey_data_labels <- lapply(survey_data,function(X) {
@@ -465,7 +465,7 @@ library(parallel)
 #job_status暫時先刪掉，因為不同問卷概念與選項不一樣難以合併
 imputingcalculatebasiscolumn<-lapply(survey_data_title,function(X,df) {
   filter(df,SURVEY==X,IMPUTATION %in% c("basis","both")) %>%
-    select(ID) %>% unlist() %>% unname()
+    select(ID) %>% unlist() %>% union(c("admincity")) %>% unname()
 },df=survey_imputation_and_measurement) %>%
   setNames(survey_data_title)
 imputedvaluecolumn<-lapply(survey_data_title,function(X,df) {
@@ -603,8 +603,29 @@ which(as.vector(sapply(survey_data$`2010env.sav`,function(X) {
   }
 })))
 
-#填補遺漏值
-#filling in missing value
+#Himsc填補遺漏值 filling in missing value
+library(Hmisc)
+cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-U24T.txt"))
+exportlib<-c("base",lib,"Hmisc")
+sapply(exportlib,function(needlib,cl) {
+  clusterCall(cl=cl, library, needlib, character.only=TRUE)
+},cl=cl)
+clusterExport(cl,varlist=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"), envir=environment())
+survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
+  X <- droplevels(X)
+  imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
+    intersect(names(X))
+  imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
+    intersect(names(X))
+  allimpcolumns<-union(imputedvaluecolumn_assigned,imputingcalculatebasiscolumn_assigned) %>%
+    setdiff(c("myown_marriage","v89","v90","v98b","v128_2b","v128_2c","v132b","v125br","v138dr","v43","myown_working_status","v122ar","v122b1r",
+              "v41","myown_vote","v87_3","v88","v91","v17","v16","v87_4","myown_dad_ethgroup","v87_5")) #too few
+  cal_formula<-as.formula(paste("~", paste(allimpcolumns, collapse="+")))
+  print(c("SURVEY IS ",X$SURVEY[1]," AND FORMULA IS ",cal_formula))
+  impute_arg <- aregImpute(cal_formula, data = X[,allimpcolumns], n.impute = 5)
+  return(impute_arg)
+},imputedvaluecolumn=imputedvaluecolumn,imputingcalculatebasiscolumn=imputingcalculatebasiscolumn)
+stopCluster(cl)
 
 
 #檢查亂報投票意向
