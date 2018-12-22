@@ -499,15 +499,29 @@ generate_predictor_matrix<-function(df,calculationbasisvar=c(),imputedOnlyVars=c
   return(predictorMatrix)
 }
 survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- list()
-
 #Package ‘MissMech’
 #To test whether the missing data mechanism, in a set of incompletely ob-served data, is one of missing completely at random (MCAR).For detailed description see Jamshidian, M. Jalal, S., and Jansen, C. (2014). ``Miss-Mech: An R Package for Testing Homoscedasticity, Multivariate Normality, and Missing Com-pletely at Random (MCAR),'' Journal of Statistical Software,  56(6), 1-31. URL http://www.jstatsoft.org/v56/i06/.
 cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-U24T.txt"))
-exportlib<-c("base",lib,"mice","randomForest")
+exportlib<-c("base",lib,"mice","randomForest","MissMech","fastDummies")
 sapply(exportlib,function(needlib,cl) {
   clusterCall(cl=cl, library, needlib, character.only=TRUE)
 },cl=cl)
 clusterExport(cl,varlist=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"), envir=environment())
+
+survey_data_test <- lapply(survey_data,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
+  X<-droplevels(X)
+  imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
+    intersect(names(X))
+  imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
+    intersect(names(X))
+  needcols<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)[1:50]
+  #testresult<-fastDummies::dummy_cols(X[,needcols]) %>% dplyr::select_if(is.numeric) %>% 
+  #  MissMech::TestMCARNormality()
+  testresult<-BaylorEdPsych::LittleMCAR(X[,needcols])
+  return(testresult)
+},imputedvaluecolumn=imputedvaluecolumn,imputingcalculatebasiscolumn=imputingcalculatebasiscolumn)
+stopCluster(cl)
+
 survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
   #missingvaluecolumn_assigned<-missingvaluecolumn
   #imputingcalculatebasiscolumn_assigned<-imputingcalculatebasiscolumn
@@ -844,42 +858,30 @@ load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_2_df_randomforest
 
 
 need_ses_var<-list(
-  "2004citizen"=c("myown_eduyr","myown_ses","myown_income"), #myown_income, myown_occp,"myown_family_income", v127 同住家人數
-  "2010env"=c("myown_eduyr","myown_ses","myown_income"),#myown_income,"myown_family_income", myown_occp, v105 請問您家中,包含您本人在內,現在有幾個人住在一起?
-  "2010overall"=c("myown_eduyr","myown_ses","myown_workincome"),#myown_workincome,"myown_family_income", myown_occp
-  "2016citizen"=c("myown_eduyr","myown_ses","myown_income")#myown_income,"myown_family_income", myown_occp, j1 請問您家中,包含您本人在內,現在有幾個人住在一起?a 包含您本人在內,一共有幾位?
+  "2004citizen"=c("myown_eduyr","myown_ses","myown_income","myown_family_income"), #myown_income, myown_occp,"myown_family_income", v127 同住家人數
+  "2010env"=c("myown_eduyr","myown_ses","myown_income","myown_family_income"),#myown_income,"myown_family_income", myown_occp, v105 請問您家中,包含您本人在內,現在有幾個人住在一起?
+  "2010overall"=c("myown_eduyr","myown_ses","myown_income","myown_family_income"),#myown_workincome,"myown_family_income", myown_occp
+  "2016citizen"=c("myown_eduyr","myown_ses","myown_income","myown_family_income")#myown_income,"myown_family_income", myown_occp, j1 請問您家中,包含您本人在內,現在有幾個人住在一起?a 包含您本人在內,一共有幾位?
 )
-survey_data_test <- lapply(survey_data,function(X,need_ses_var_assigned) {
-  need_ses_var_assigned %<>% extract2(X$SURVEY[1]) %>%
-    intersect(names(X))
-  X %<>% mutate_at(missingvaluecolumn_assigned,funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) )
-  efa.results<-factanal(x=as.matrix(X[,need_ses_var_assigned]) ,factors=4, rotation="promax")
-  },need_ses_var)
+survey_data_test <- lapply(survey_data_test,function(X) {
+  #need_ses_var_assigned %<>% extract2(X$SURVEY[1]) %>%
+  #  intersect(names(X))
+  need_ses_var_assigned<-c("myown_eduyr","myown_ses","myown_income","myown_family_income")
+  message("need ses var is ",X$SURVEY[1],need_ses_var_assigned)
+  efa.results<-factanal(
+    as.formula(paste0("~",need_ses_var_assigned,collapse = "+")),
+    data=X[,need_ses_var_assigned],
+    factors=1,
+    rotation="promax",
+    scores=c("regression")
+  )
+  X$myown_factoredses<-efa.results$scores
+  return(X)
+})
 
-dataset.for.fa<-distinct(complete_survey_dataset,SURVEY,id,myown_eduyr,myown_ses,myown_family_income) %>%
-  filter(!is.na(myown_eduyr),!is.na(myown_ses),!is.na(myown_family_income))
-fa.class<-factanal(x= ~myown_eduyr+myown_ses+myown_family_income, 1, data = dataset.for.fa, rotation="varimax", scores=c("regression"),na.action = na.omit)
-complete_survey_dataset<-left_join(complete_survey_dataset,cbind(dataset.for.fa,"myown_factoredclass"=fa.class$scores[,1]))
 #install.packages("psy")
 #library(psy)
 #psy::scree.plot(fa.class$correlation)
-
-
-################################################
-#### 用填補好的問卷部分取代原始問卷
-################################################
-
-
-load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_df.RData"))
-
-comparison <- dplyr::anti_join(miced_surveydata[[1]],survey_data[[1]])
-mergedf <- function (old,new) {
-  common_col<-intersect(colnames(old),colnames(new))
-  return(common_col)
-}
-comparison <- mapply(mergedf, old=survey_data, new=miced_surveydata)
-comparison %>% View()
-
 
 ################################################
 #### latent variables 政治參與
@@ -893,8 +895,6 @@ comparison %>% View()
 #2010env-fit1: v34 v35a v35b v35c ( v33f v75 v76 v77-為了環保而刻意不買某些產品,常不常參與社區的環保工作,常不常反應社區中容易造成天災危險的情況,常不常反應社區中造成環境污染的情況)
 #load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #load imputed survey
-load(paste0(dataset_file_directory,"rdata",slash,"dummyremoved_imputed_survey_data.RData"))
-#dummyremoved_imputed_survey_data
 
 library(ltm)
 library(eRm)
@@ -904,31 +904,29 @@ need_particip_var<-list(
   "2010overall"=c("v79a","v79b","v79c","v79d"),
   "2010env"=c("v34","v35a","v35b","v35c") #投票"v104"
 )
-survey_data_test <- lapply(dummyremoved_imputed_survey_data,function(X,need_particip_var_assigned) {
-  X<-lapply(X,function(X,need_particip_var_assigned) {
-    #for testng prupose
-    X<-dummyremoved_imputed_survey_data[[1]][[1]]
-    need_particip_var_assigned<-need_particip_var
-    need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
-      intersect(names(X))
-    recode_list<-list(
-      "2004citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
-      "2016citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
-      "2010overall"=list("1"=3,"2"=2,"3"=1),
-      "2010env"=list("1"=2,"2"=1)
-    ) %>%
-      extract2(X$SURVEY[1])
-    X %<>% mutate_at(need_particip_var_assigned,funs(dplyr::recode),!!!recode_list)
-    X
-  },need_particip_var_assigned)
-  X
-},need_particip_var)
+survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigned) {
+  #X<-lapply(X,function(X,need_particip_var_assigned) {
+  #for testng prupose
+  #X<-dummyremoved_imputed_survey_data[[1]][[1]]
+  need_particip_var_assigned<-need_particip_var
+  need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
+    intersect(names(X))
+  recode_list<-list(
+    "2004citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
+    "2016citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
+    "2010overall"=list("1"=3,"2"=2,"3"=1),
+    "2010env"=list("1"=2,"2"=1)
+  ) %>%
+    extract2(X$SURVEY[1])
+  X %<>% mutate_at(need_particip_var_assigned,funs(dplyr::recode),!!!recode_list)
+  return(X)
+},need_particip_var_assigned)
 
 
 #################### GRM Model ####################
 survey_data_with_particip <- lapply(survey_data_test,function(X,need_particip_var_assigned) {
   #for testing purpose
-  X<-survey_data_test[[1]][[1]]
+  X<-survey_data_test[[1]]
   need_particip_var_assigned<-need_particip_var
   
   need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
@@ -953,8 +951,8 @@ survey_data_with_particip <- lapply(survey_data_test,function(X,need_particip_va
     fit %>%
       factor.scores() %>%
       use_series("score.dat") %>%
-      dplyr::select(-contains("Exp"),-contains("Obs"),-contains("se.z1")) %>%
-      rename(myown_factored_partcip=z1)
+      dplyr::select(-contains("Exp"),-contains("Obs")) %>%
+      rename(myown_factored_partcip=z1,myown_factored_partcip.se=se.z1)
     )
   X$myown_factored_partcip %<>% scale() %>% as.numeric()
   X
