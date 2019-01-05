@@ -498,15 +498,6 @@ generate_predictor_matrix<-function(df,calculationbasisvar=c(),imputedOnlyVars=c
   diag(predictorMatrix) <- 0
   return(predictorMatrix)
 }
-survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- list()
-#Package ‘MissMech’
-#To test whether the missing data mechanism, in a set of incompletely ob-served data, is one of missing completely at random (MCAR).For detailed description see Jamshidian, M. Jalal, S., and Jansen, C. (2014). ``Miss-Mech: An R Package for Testing Homoscedasticity, Multivariate Normality, and Missing Com-pletely at Random (MCAR),'' Journal of Statistical Software,  56(6), 1-31. URL http://www.jstatsoft.org/v56/i06/.
-cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-U24T.txt"))
-exportlib<-c("base",lib,"mice","randomForest","MissMech","fastDummies")
-sapply(exportlib,function(needlib,cl) {
-  clusterCall(cl=cl, library, needlib, character.only=TRUE)
-},cl=cl)
-clusterExport(cl,varlist=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"), envir=environment())
 
 survey_data_test <- lapply(survey_data,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
   X<-droplevels(X)
@@ -520,7 +511,21 @@ survey_data_test <- lapply(survey_data,function(X,imputedvaluecolumn,imputingcal
   testresult<-BaylorEdPsych::LittleMCAR(X[,needcols])
   return(testresult)
 },imputedvaluecolumn=imputedvaluecolumn,imputingcalculatebasiscolumn=imputingcalculatebasiscolumn)
-stopCluster(cl)
+
+
+survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- list()
+#Package ‘MissMech’
+#To test whether the missing data mechanism, in a set of incompletely ob-served data, is one of missing completely at random (MCAR).For detailed description see Jamshidian, M. Jalal, S., and Jansen, C. (2014). ``Miss-Mech: An R Package for Testing Homoscedasticity, Multivariate Normality, and Missing Com-pletely at Random (MCAR),'' Journal of Statistical Software,  56(6), 1-31. URL http://www.jstatsoft.org/v56/i06/.
+
+
+
+cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-U24T.txt"))
+exportlib<-c("base",lib,"mice","randomForest","MissMech","fastDummies")
+sapply(exportlib,function(needlib,cl) {
+  clusterCall(cl=cl, library, needlib, character.only=TRUE)
+},cl=cl)
+clusterExport(cl,varlist=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"), envir=environment())
+
 
 survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
   #missingvaluecolumn_assigned<-missingvaluecolumn
@@ -542,12 +547,13 @@ survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imput
   outlist2<-row.names(fx2)[fx2$outflux < 0.45]
   outlist <- unique(c(outlist2, outlist4))
   foundationvar %<>% setdiff(outlist)
-  sapply(c("foundationvar are",foundationvar),print)
+  print(paste0(c("foundationvar are ",foundationvar), collapse=" "))
   unusefulcolumns <- setdiff(names(X),foundationvar)
   #proceeding_na_var<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned) %>%
   #  setdiff(c("myown_age"))
   #predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn)
   predictor_matrix<-mice::quickpred(X[,foundationvar], mincor=0.2)
+  return(predictor_matrix)
   #X %<>% dplyr::mutate_at(proceeding_na_var,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
   #  mutate_if(is.factor,funs(factor))
   #sol: https://stackoverflow.com/questions/13495041/random-forests-in-r-empty-classes-in-y-and-argument-legth-0
@@ -563,7 +569,8 @@ survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imput
   miceMod <- mice::mice(
     X[,foundationvar],
     predictorMatrix = predictor_matrix,
-    m=5
+    m=5,
+    method="rf"
   )  # perform mice imputation, based on random forests.
   #print(imputingcalculatebasiscolumn_assigned)
   imputed_survey_data<- mice::complete(miceMod)  # generate the completed data.
