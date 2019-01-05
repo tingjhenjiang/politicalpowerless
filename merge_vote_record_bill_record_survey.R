@@ -843,26 +843,19 @@ mutate_at(binded_check_result,c("zip","party","bluepoints","greenpoints"),funs(a
 #pooled <- pool( fit )
 summary( mice.lieing_check_correct_result )
 
-
-
-
-
 ####################################################
 ####  latent variables 
-####  將職業社經地位、家庭收入、教育程度萃取成為階級
+####  縮減構面及潛在變數開始
 ####################################################
 #reset
 #load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #load imputed survey
-load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_2_df_randomforest.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_3_df_randomforest.RData"))
+####################################################
+####  latent variables 
+####  將職業社經地位、家庭收入、教育程度萃取成為階級
+####################################################
 
-
-need_ses_var<-list(
-  "2004citizen"=c("myown_eduyr","myown_ses","myown_income","myown_family_income"), #myown_income, myown_occp,"myown_family_income", v127 同住家人數
-  "2010env"=c("myown_eduyr","myown_ses","myown_income","myown_family_income"),#myown_income,"myown_family_income", myown_occp, v105 請問您家中,包含您本人在內,現在有幾個人住在一起?
-  "2010overall"=c("myown_eduyr","myown_ses","myown_income","myown_family_income"),#myown_workincome,"myown_family_income", myown_occp
-  "2016citizen"=c("myown_eduyr","myown_ses","myown_income","myown_family_income")#myown_income,"myown_family_income", myown_occp, j1 請問您家中,包含您本人在內,現在有幾個人住在一起?a 包含您本人在內,一共有幾位?
-)
 survey_data_test <- lapply(survey_data_test,function(X) {
   #need_ses_var_assigned %<>% extract2(X$SURVEY[1]) %>%
   #  intersect(names(X))
@@ -886,7 +879,7 @@ survey_data_test <- lapply(survey_data_test,function(X) {
 ################################################
 #### latent variables 政治參與
 #### 用item respond抓出隱藏變數「政治參與程度」
-#### GRM Model暫時先頂著用
+#### https://www.researchgate.net/post/How_to_conduct_item_analysis_with_a_likert_scale_questionaire
 ################################################
 
 #2004citizen: v28 v29 v30 v31 v32 v33 v34 v35 v36 v37 v38 v39 v40 v59
@@ -898,11 +891,12 @@ survey_data_test <- lapply(survey_data_test,function(X) {
 
 library(ltm)
 library(eRm)
+library(mirt)
 need_particip_var<-list(
-  "2004citizen"=c("v28","v29","v30","v31","v32","v33","v34","v35","v36","v37","v38","v39","v40","v59"), #v88 v90
-  "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c"),#h4 投票
+  "2004citizen"=c("v28","v29","v30","v31","v32","v33","v34","v35","v36","v37","v38","v39","v40"), #,"v59",v88 v90
+  "2010env"=c("v34","v35a","v35b","v35c"), #投票"v104",
   "2010overall"=c("v79a","v79b","v79c","v79d"),
-  "2010env"=c("v34","v35a","v35b","v35c") #投票"v104"
+  "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c")#h4 投票
 )
 survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigned) {
   #X<-lapply(X,function(X,need_particip_var_assigned) {
@@ -911,7 +905,7 @@ survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigne
   need_particip_var_assigned<-need_particip_var
   need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
     intersect(names(X))
-  recode_list<-list(
+  recode_list<-list( #把越參與的答案改為數字越多，比較好解釋
     "2004citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
     "2016citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
     "2010overall"=list("1"=3,"2"=2,"3"=1),
@@ -923,7 +917,37 @@ survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigne
 },need_particip_var_assigned)
 
 
-#################### GRM Model ####################
+#################### non-parametric IRT Mokken scale analysis Model ####################
+#################### mokken, Mokken Scale Analysis in R
+#################### read: https://www.jstatsoft.org/article/view/v020i11/v20i11.pdf
+mokken::coefH(as.data.frame(X[,need_particip_var_assigned]))
+checkmokkenresult<-mokken::check.monotonicity(as.data.frame(X[,need_particip_var_assigned]))
+summary(checkmokkenresult)
+plot(checkmokkenresult)
+scale.checkmokkenresult <- mokken::aisp(as.data.frame(X[,need_particip_var_assigned]))
+
+#################### parametric IRT Rasch models - Partial Credit Model ####################
+# mirt::Rasch
+# eRm::PCM
+#################### parametric IRT Rasch models - Rating Scale Model ####################
+# eRm::RSM
+# mirt:mirt
+# 'grsm' and 'grsmIRT' - graded ratings scale model in the slope-interceptand classical IRT parameterization.
+# 'grsmIRT'is restricted to unidimensional models (Muraki, 1992)
+##############################################################################################
+rst_mirt1 <- mirt::mirt(data = X[,need_particip_var_assigned], model = 1, verbose = T, itemtype= "grsmIRT")
+coef(rst_mirt1)
+for (itemplotn in 1:length(need_particip_var_assigned)) {
+  mirt::itemplot(rst_mirt1, itemplotn)
+  Sys.sleep(1)
+}
+summary(rst_mirt1)
+residuals(rst_mirt1)
+mirt::fscores(rst_mirt1,method = "EAP") %>% View()
+
+#################### parametric IRT non-Rasch models - GRM Model ####################
+# mirt::mirt by 'graded'
+# ltm:grm
 survey_data_with_particip <- lapply(survey_data_test,function(X,need_particip_var_assigned) {
   #for testing purpose
   X<-survey_data_test[[1]]
@@ -931,7 +955,7 @@ survey_data_with_particip <- lapply(survey_data_test,function(X,need_particip_va
   
   need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
     intersect(names(X))
-  fit1 <- ltm::grm(X[,need_particip_var_assigned], constrained = TRUE, na.action = na.omit, start.val = "random")
+  fit1 <- ltm::grm(X[,need_particip_var_assigned], constrained = TRUE, start.val = "random")
   fit2 <- ltm::grm(X[,need_particip_var_assigned], na.action = na.omit, start.val = "random")
   fit_testresult<-anova(fit1, fit2)
   if ((fit_testresult$p.value<=0.05) & (fit_testresult$L0 < fit_testresult$L1) ) {
@@ -953,7 +977,7 @@ survey_data_with_particip <- lapply(survey_data_test,function(X,need_particip_va
       use_series("score.dat") %>%
       dplyr::select(-contains("Exp"),-contains("Obs")) %>%
       rename(myown_factored_partcip=z1,myown_factored_partcip.se=se.z1)
-    )
+  )
   X$myown_factored_partcip %<>% scale() %>% as.numeric()
   X
 },need_particip_var)
@@ -978,37 +1002,67 @@ for (ctg in 1:4) {
        cex.axis = 0.8)
   Sys.sleep(2)
 }
-
-
-#################### Extended Rasch Model ####################
-pcm1 <- PCM(survey_data[[itrn]][,participation_var[[itrn]]])
-rsm1 <- RSM(survey_data[[itrn]][,participation_var[[itrn]]])
-lrsm1<- LRSM(survey_data[[itrn]][,participation_var[[itrn]]])
-thresholds(pcm1)
-plotPImap(pcm1)
-LRtest(pcm1)
-
-
-#################### Generalized Partial Credit Model - Polytomous IRT ####################
+#################### parametric IRT non-Rasch models - Generalized Partial Credit Model - Polytomous IRT ####################
 #################### Finch, W. Holmes＆French, Brian F. (2015). Latent Variable Modeling with R. Florence: Taylor and Francis
+## ltm::gpcm
+## mirt::mirt by gpcmIRT
 ## 2016 not fit: gpcm, rasch 1PL all not fit;
 gpcmconstraint<-"gpcm" #c("gpcm", "1PL", "rasch")
-survey_data.gpcm<-gpcm(survey_data[[itrn]][,participation_var[[itrn]]],constraint=gpcmconstraint,na.action=na.omit,start.val="random")
-summary(survey_data.gpcm)
-plot(survey_data.gpcm,, lwd = 0.8, cex = 0.8, legend = TRUE, cx = "left", xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8, cex.axis = 0.8)
-plot(survey_data.gpcm,type=c("IIC"),, lwd = 0.8, cex = 0.8, legend = TRUE, cx = "left", xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8, cex.axis = 0.8)
-GoF.gpcm(survey_data.gpcm)
+X.gpcm<-ltm::gpcm(X[,need_particip_var_assigned],constraint=gpcmconstraint,start.val="random")
+summary(X.gpcm)
+plot(survey_data.gpcm, lwd = 0.8, cex = 0.8, legend = TRUE, cx = "left", xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8, cex.axis = 0.8)
+plot(survey_data.gpcm,type=c("IIC"), lwd = 0.8, cex = 0.8, legend = TRUE, cx = "left", xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8, cex.axis = 0.8)
+ltm::GoF.gpcm(X.gpcm)
 
-
-
-survey_data[[itrn]][,participation_var[[itrn]]] <- lapply(survey_data[[itrn]][,participation_var[[itrn]]],function (X) {
-  X<-ifelse(X %in% c(93:99,996:999,9996:9999), NA, X)
-})
-survey_data[[itrn]][,participation_var[[itrn]]]<-mutate_at(survey_data[[itrn]][,participation_var[[itrn]]],participation_var[[itrn]],as.factor) %>%
-  mutate_at(participation_var[[itrn]],factor)
 #margins(fit1)
 
+#################### #################### #################### ####################
+################### latent variable: 潛在類別模式 ####################
+#################### #################### #################### ####################
+library(poLCA)
+need_independence_attitude<-list(
+  "2004citizen"=c("v95","v96","v97"),#公投選項共變
+  "2010env"=c(""),#沒有統獨
+  "2010overall"=c("v90","v91","v92"),
+  "2016citizen"=c("h10r")#2016只有一題統獨傾向"
+)
+need_party_constituency<-list(
+  "2004citizen"=c("v88","v89","v90","v98r","v99"),
+  "2010env"=c("v103r"),#2010env只有一題政黨傾向
+  "2010overall"=c("v84","v86","v87a1r","v88r","v93","v94r"),
+  "2016citizen"=c("h5","h6r_recode_party_for_forgotten","h7","h8r","h9r")
+)
+need_identity<-list(
+  "2004citizen"=c("myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","v94r"),
+  "2010env"=c("myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid"),
+  "2010overall"=c("myown_selfid","myown_dad_ethgroup","myown_mom_ethgroup","v89r"),
+  "2016citizen"=c("myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid") #到這裡，但還沒有輸出上述的v94r
+)
+need_other_cov<-list(
+  "2004citizen"=c("v87_1","v87_2","v87_3","v87_4","v87_5","v91","v91a","v91b","v92_1","v92_2","v92_3","v92_4")#共變(公投投票選擇及參與政治活動例如凱道選擇)
+)
+################### latent variable: 統獨傾向 ####################
+t_survey_data_test<-survey_data_test
+survey_data_test_with_indp_attitude<-poLCA::poLCA(
+  formula=as.formula(paste0("cbind(",paste(extract2(need_independence_attitude,"2004citizen"),collapse=","),") ~ 1")),
+  data=t_survey_data_test[[1]],
+  nclass = 6,
+  #graphs = TRUE,
+  maxiter = 5000)
+################### latent variable: 政黨傾向 ####################
 
+################### latent variable: 身份認同 ####################
+
+t_survey_data_test<-survey_data_test
+survey_data_test_with_indp_attitude<-poLCA::poLCA(
+  formula=as.formula(paste0("cbind(",paste(extract2(need_independence_attitude,"2004citizen"),collapse=","),") ~ 1")),
+  data=t_survey_data_test[[1]],
+  nclass = 6,
+  #graphs = TRUE,
+  maxiter = 5000)
+sapply(survey_data_test[[1]][,need_independence_attitude$`2004citizen`],function(X) {
+  return(sum(is.na(X)))
+})
 
 
 

@@ -1,11 +1,16 @@
 ---
-title: "Research Analysis and Result"
+title: "Research Design and Results"
 author:
 - name: 江廷振
   affiliation: 國立臺灣大學法律學系碩士班
 output:
   html_document:
     keep_md: yes
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
   word_document: default
   github_document: default
 ---
@@ -19,14 +24,6 @@ Sys.setlocale(category = "LC_ALL", locale = "cht")
 
 ```
 ## [1] "LC_COLLATE=Chinese (Traditional)_Taiwan.950;LC_CTYPE=Chinese (Traditional)_Taiwan.950;LC_MONETARY=Chinese (Traditional)_Taiwan.950;LC_NUMERIC=C;LC_TIME=Chinese (Traditional)_Taiwan.950"
-```
-
-```r
-print("你")
-```
-
-```
-## [1] "你"
 ```
 
 # 實證研究
@@ -63,16 +60,64 @@ print("你")
 
 在民意資料中，將整個民意資料集以各個政策意向的問題為對照基礎，將資料從短資料轉換為長資料－－也就是一個觀察值從代表一個受訪者的全部變數，轉換為代表一個政策議題意向的全部變數－－，並且選擇以下幾個與本研究有關的項目並處理編碼：
 
-* 區域立法委員投票傾向：2016公民與國家組的臺灣社會變遷基本調查資料集中，首先依據「請問在這次區域立委選舉,您投給哪一個政黨的候選人?」以及「請問在這次區域立委選舉,您投給哪一個政黨的候選人?(90)忘記或不知道政黨,請記錄候選人姓名」等題項決定有關選民投票支持的區域立法委員候選人黨籍；接著進行檢誤，如果經檢誤發現受訪對象回答的政黨在受訪對象的戶籍地（zip欄位）並未派出候選人（例如臺北市大同區在2016年並無國民黨候選人參選，但戶籍位於該區的受訪者回答投票給國民黨候選人）參選時，則與「忘記了、不知道」、「跳答」、「拒答」、「遺漏值」等選項一併視為遺漏值。接著透過「請問您投票給哪一組候選人?」、「請問在這次區域立委選舉,您投給哪一個政黨的候選人?」、「下面我們列出這次參加不分區立委選舉的政黨,請問您把票投給哪一個政黨?」、「國內的政黨都有他們的支持者,請問您是哪一個政黨的支持者?」、「一般而言,請問您會比較偏向哪一個政黨?」等題目所回答的答案計算政黨傾向，每一題計算一分，分為泛藍傾向（較支持國民黨、親民黨、新黨等政黨及其候選人）得分以及泛綠傾向（較支持民進黨、臺灣團結聯盟、時代力量與綠黨等政黨及其候選人）得分。最後以R語言軟體mice套件{van Buuren, 2011 #12742}中的隨機森林（random forests）演算法依據「郵遞區號」、「泛藍傾向得分」、「泛綠傾向得分」等自變項進行機器學習的遺漏值填補，填補後並進行觀察，如果泛藍或泛綠傾向大於3分卻填補為非自身傾向的候選人，或是填補的值仍然沒有該政黨的候選人參選時，將填補的答案重新處理為遺漏值後再一次重新填補，以迴圈方式反覆進行。在2016公民與國家組1966個觀察值中共有656個遺漏值，填補至剩下17個遺漏值。2010綜合的調查資料「請問您在區域選舉部分是投給那一黨的立法委員候選人?」也用同樣的方式處理，在1967個觀察值中將952個遺漏值填補到剩下39個遺漏值。2010環境的資料則以「目前國內有幾個主要政黨,請問您有沒有比較偏向哪一個政黨?」為主。經過與SRDA與台灣社會變遷調查聯絡，誤答的原因「……可能為受訪者記錯、訪員點錯、抽樣時內政部的戶籍地資料不是最新版…等各種狀況」。
 * 議題領域：分為經濟、公民與政治權、社會福利、財政、內政、兩岸、環境、經濟社會文化權。
 * 同政策意向者佔全國／全選區整體意向比率（自變項）：分別以全國／全選區層級中與觀察對象持同方向政策意向者人數除以全部人數所得數值編碼。Likert量表設計的問題中，將回答非常贊成與贊成某政策者編為同一類，非常反對／反對某政策者編為同一類。這個指標也就是要衡量觀察對象的政策意向連結整體層級的民意強度。
 * 意向強度（自變項）：如果題目問題設計以五等Likert量表或四等強迫回答（選邊站）設計的問題中，贊成、反對等選項編碼為1，非常贊成、非常反對等選項編碼為2。若題目設計僅有三等（贊成、反對、無意見）或強迫回答的二等時，均編碼為1，其餘無意見或遺漏值編碼為0，為依順序變項。
 * 族群（自變項）：三個問卷的問題皆有共同的「父母親是哪裡人」的兩個選擇題及開放填充題，我將此題目依據答案重新編碼為父母親分別為台灣閩南人、台灣客家人、大陸各省市、台灣原住民、外裔或原國籍為外籍或原國籍中國大陸的新移民、前述分類以外的臺灣人（例如有部分受訪者的父母親是「外省人第二代」，而在開放填充題中回答臺灣人）。接著依照廣義的原生論（primordialism），只要父母有其一為人口比例較少的較少數族群者，則一律視為較少數族群。為類別變項。
 * 所屬族群人口比例（自變項）：將前述的族群類別變項，依據各族群佔全國人口比例編碼為數值的連續變項。人口比例的資料來自於行政院客家委員會委託研究的「99年至100年全國客家人口基礎資料調查研究」以及「105年度全國客家人口暨語言調查研究報告」<https://www.hakka.gov.tw/Content/Content?NodeID=626&PageID=37585>、內政部戶政司人口資料庫<https://www.ris.gov.tw/zh_TW/346>、內政部移民署業務統計資料<https://www.immigration.gov.tw/lp.asp?ctNode=29699&CtUnit=16434&BaseDSD=7&mp=1>。
-* 教育程度（自變項）：以受教育年數為準（2016的問題為「從國小一年級算起,請問您總共受幾年的學校教育?」，其優點為可轉換為連續變項較為準確且反應人力資本的投資程度），2010環境組與綜合組資料則依據無/不識字0、自修(識字/私塾)0、小學6、國(初)中9、初職9、高中12、綜合高中12、高職12、士官學校14、五專14、二專14、三專15、軍警校專修班13、軍警校專科班14、空中行(商)專15、空中大學16、軍警官學校/大學16、技術學院,科大16、大學16、碩士19、博士23重新編碼為受教育年數。
+* 教育程度（自變項）：以受訪者填答的教育程度並轉換為受教育年數為準，重新編碼為受教育年數，轉換標準為：無/不識字/識字/私塾/自修0（另外某受訪者回覆日本教育讀三年，經比對檢視其他回覆內容後以0編碼）；小學6；國(初)中、初職9（某受訪者回覆空軍子弟小學的師範學校，經檢視其他回覆內容後以9編碼）；高中、綜合高中、高職、高中職業科、高中普通科、中正預校12（某受訪者回覆宜蘭特教學校，比對該受訪者回覆「請問您從國小到現在,總共受幾年的學校教育?」提項為12，並經查證宜蘭的特教學校有高中職學制，編碼為12）；軍警校專修班、軍警專修班13；士官學校、五專、二專、二專、三專14；軍警校專科班、軍警專科班、空中行(商)專；空中大學、軍警官學校/大學、軍警官校或大學、技術學院、科技大學、二技、四技、大學16（某受訪者回覆基督學院，經查證後該校授與學士學位，同樣編碼為16）；碩士	19；博士23。
 * 家庭收入（自變項）：主要依據為家庭收入，問卷問題為「包括各種收入來源,您全家人的所有收入,每個月大約多少元?」，原調查得到的資料為根據每組不同所得範圍的區間，此處重新根據各組組中點的編碼為收入，最低一組（無收入）為0，最高一組（100萬元以上）編碼為150,000。
-* 職業社經地位（自變項）：~~因素分析（Factor Analysis），透過收入、職業、受教育年數、轉軸後萃取出社經地位，還沒轉~~ 以各問卷中的「工作主要的職位和工作內容是?變遷職位碼」欄位參考黃毅志（2008）轉換得出一社經地位的量化連續尺度變項。
-* 綜合社經地位（自變項）：從教育程度、家庭收入及職業社經地位，以因素分析法萃取出成分。
+* 職業社經地位（自變項）：以各問卷中的「工作主要的職位和工作內容是?變遷職位碼」欄位參考黃毅志（2008）轉換得出一社經地位的量化連續尺度變項。
+* 綜合社經地位／階級（自變項）：以因素分析法從前述教育程度、個人收入（某問卷題項為工作收入，此處同樣以個人收入定義）、家庭收入及職業社經地位等變項，以因素分析法萃取出共同因素，過程以最大概似法進行參數估計，以最大變異法(Varimax)轉軸，經Bartlett檢定均適合以一個共同因素進行因素分析。以下為各因素負荷量及變異解釋程度：
+<div style="border: 1px solid #ddd; padding: 5px; overflow-y: scroll; height:200px; "><table class="table" style="margin-left: auto; margin-right: auto;">
+ <thead>
+  <tr>
+   <th style="text-align:left;">   </th>
+   <th style="text-align:right;"> X2004公民綜合社經地位因素負荷量 </th>
+   <th style="text-align:right;"> X2010環境綜合社經地位因素負荷量 </th>
+   <th style="text-align:right;"> X2010綜合綜合社經地位因素負荷量 </th>
+   <th style="text-align:right;"> X2016公民綜合社經地位因素負荷量 </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> 教育程度 </td>
+   <td style="text-align:right;"> 0.675 </td>
+   <td style="text-align:right;"> 0.668 </td>
+   <td style="text-align:right;"> 0.639 </td>
+   <td style="text-align:right;"> 0.697 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 職業社經地位 </td>
+   <td style="text-align:right;"> 0.738 </td>
+   <td style="text-align:right;"> 0.700 </td>
+   <td style="text-align:right;"> 0.621 </td>
+   <td style="text-align:right;"> 0.763 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 個人收入 </td>
+   <td style="text-align:right;"> 0.564 </td>
+   <td style="text-align:right;"> 0.598 </td>
+   <td style="text-align:right;"> 0.510 </td>
+   <td style="text-align:right;"> 0.541 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 家庭收入 </td>
+   <td style="text-align:right;"> 0.420 </td>
+   <td style="text-align:right;"> 0.567 </td>
+   <td style="text-align:right;"> 0.356 </td>
+   <td style="text-align:right;"> 0.368 </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> 可解釋變異比例 </td>
+   <td style="text-align:right;"> 0.374 </td>
+   <td style="text-align:right;"> 0.403 </td>
+   <td style="text-align:right;"> 0.295 </td>
+   <td style="text-align:right;"> 0.374 </td>
+  </tr>
+</tbody>
+</table></div>
+
 * ~~工作狀態（自變項）：略~~
 * 政治效能感（自變項）：分為外在效能感與內在效能感。外在效能感部分主要依據題目為「請問您同不同意以下的說法?在台灣,一般民眾影響環保政策的機會非常有限」（2010環境）、「請問您贊不贊成一般公民也可以影響政府的決策的說法?」（2010綜合）、「一般公民對政治都有相當的影響力」（2016公民）作為標準。另外以「請問您覺得自己平日的環保行為,對於改善台灣的環境品質有沒有用?」（2010環境）、「請問您贊不贊成只要經常提出意見,像我們這樣的人也能影響社會的發展的說法?」（2010綜合）、「像您這樣的人,對政府的作為沒有任何影響力」（2016公民）作為內在效能感指標。
 * ~~相對剝奪感／對現狀的評價（自變項）：還沒編。「您覺得政府現行的環境保護政策符不符合公平正義的原則?」~~
@@ -93,6 +138,243 @@ print("你")
 * ~~立法委員與選民敘述代表性整體差距：因素分析萃取~~
 * 是否回應民意（應變項）：對照前述處理資料所建立的「議案的立場」，若選民的立場與議案的立場一致，而立法委員投票贊成時，編碼為3（回應），投票反對時編碼為0（拒絕）；選民的立場與議案的立場相反而立法委員投票反對時，編碼為3（回應），投票贊成時編碼為0（拒絕）；投下棄權票時，編碼為2（棄權）；立法委員未出席會議、出席會議但未投票，編碼為1（忽略）。研究在此先將「忽略」的情形獨立出來，僅於必要以及敘述統計時利用，不納入研究。其餘的「拒絕」、「棄權」以及「回應」，則有明顯的順序關係，此為一有順序（ordinal）關係的類別變項。
 
+每一個觀察值代表一個意見，共計觀察值數目：
+
+
+資料檢核後，各變項遺漏值如下：
+
+
+## 模型與研究假設
+
+由於應變項為次序變項，不同類別之間雖有次序關係但間隔可能不等距，迴歸分析使用ordinal logit models{Agresti, 2010 #12745}
+
+有沒有需要使用Structural  Equation  Model,  SEM或是Multilevel Model, MLM(可能不同選區有不同選區的特性？)
+
+
+
+## 信度檢測（還沒做）
+
+Cronbach’s α
+
+## 共線性檢測（還沒做）
+
+共線性檢測：可以用correlation analysis相關係數矩陣、VIF test(超過10 drop)
+http://r-statistics.co/Model-Selection-in-R.html （also tutorial on stepwise）
+
+## 預測失準可能檢測
+
+Heteroscedasticity: prediction必須要隨機分布，不能有pattern，否則導致模型失準； spot outliers
+
+## 研究結果與發現
+
+standardized beta coefficient
+
+https://www.princeton.edu/~otorres/LogitR101.pdf
+https://stats.idre.ucla.edu/r/dae/ordinal-logistic-regression/
+https://www.jakeruss.com/cheatsheets/stargazer/
+
+
+### 立法委員回應民意的情形會因為執政與在野不同，且不一定受民意多數的影響
+
+首先發現一個值得注意的現象。選民影響力與國會議員行為研究間關係的始祖{Miller, 1963 #12740}發現，民意在一定程度上會影響民意代表的行為。但在本研究發現顯示，在2010年7月至2011年6月（以下簡稱第七屆研究範圍期間）以及2016年8月至2017年5月（以下簡稱第九屆研究範圍期間）兩段期間中，民意是否佔多數對於立法委員是否回應民意而言，影響程度卻是不一定，包含是否顯著影響、效應的方向及大小皆有不同：第七屆研究範圍期間立委的行為與多數民意呈現顯著方向相反的關係，第九屆研究範圍期間立委的行為則是顯著跟著民意多數變化，但效應不高。但是，同樣當立法委員意向越傾向政黨，黨性越強（stronger partisanship）時，越傾向不回應民意。（立法委員回應民意與民意多數、政黨意見多數間關係分析表；report其他統計指標）
+
+
+
+
+
+```r
+##stargazer(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.k.4,model_influce_from_p_p.k.5,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3,model_influce_from_p_p.d.4,model_influce_from_p_p.d.5, title="立法委員回應民意與民意佔比、同黨成員意見佔比間關係分析表", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
+```
+
+為了探究這種與一般直覺相左的原因，瞭解民意代表為何會選擇不回應民意，此處先區分時期、區分政黨回應民意的情形，以箱型圖觀察如下：
+
+
+```r
+##rm(model_influce_from_p_p.k.2,model_influce_from_p_p.k.3,model_influce_from_p_p.k.4,model_influce_from_p_p.k.5,model_influce_from_p_p.d.2,model_influce_from_p_p.d.3,model_influce_from_p_p.d.4,model_influce_from_p_p.d.5)
+##gcreset()
+#glmdata %>%
+#  dplyr::filter(!is.na(respondopinion)) %>% ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_nation)) + labs(title = "第七屆與第九屆研究範圍期間立法委員回應民意與全國民意佔比間關係") + facet_grid(term ~ party) + geom_boxplot()
+
+#glmdata %>%
+#  dplyr::filter(!is.na(respondopinion)) %>%
+#  ggplot(aes(x=respondopinion, y=opinion_pressure_from_constituent_by_electionarea)) + labs(title = "第七屆與第九屆研究範圍期間立法委員回應民意與立法委員選區多數民意佔比間關係") + facet_grid(term ~ party) + geom_boxplot()
+```
+
+從箱型圖中可以發現兩個時期的在野黨均明顯較執政黨更回應民意多數。這一點與{Miller, 1963 #12740}的研究發現指出非現任者會傾向更回應民意一點有相似的現象。
+將政黨席次與執政黨席次的差距作為自變項加回迴歸式進行檢定。
+
+
+
+
+```r
+##stargazer(model_influce_from_p_p_s.k.2,model_influce_from_p_p_s.k.3,model_influce_from_p_p_s.k.4,model_influce_from_p_p_s.k.5,model_influce_from_p_p_s.d.2,model_influce_from_p_p_s.d.3,model_influce_from_p_p_s.d.4,model_influce_from_p_p_s.d.5, title="立法委員回應民意與民意佔比、政黨成員意見佔比及及所屬政黨與執政黨間席次差距關係分析", align=TRUE, type = 'html', summary=TRUE, notes="model 1,2,3,4 為第七屆研究範圍期間,model 5,6,7,8 為第九屆研究範圍期間")
+```
+
+以上分析顯示民意的多寡與強度乃至於人數並不當然能夠影響到民意代表的行為。(reports odds)這種現象也就隱含著影響立法委員的因素還有其他來源，也許包含政黨、金錢、媒體、民意傳達成效或是更有影響力的人民。
+
+### 各種因素對民意代表投票的影響力
+
+
+
+
+```r
+#stargazer(model_influce_from_all_s.k.2,model_influce_from_all.d.2, title="立法委員回應民意與各因素關係分析", align=TRUE, type = 'html', summary=TRUE, notes="model 1 為第七屆研究範圍期間,model 2 為第九屆研究範圍期間")
+```
+
+### 政治資本與政治參與對於民意代表是否回應的中介效果
+
+中介變項檢驗方法mediational effects
+http://data.library.virginia.edu/introduction-to-mediation-analysis/
+https://www.jstatsoft.org/article/view/v059i05
+檢測
+https://gist.github.com/stephlocke/fb1225f6b5029a9f5b04aa6e6123cbc9
+
+## 探索性資料分析
+
+
+```r
+#threelevelglmdata<-mutate_cond(glmdata,respondopinion==1,respondopinion=2) %>%
+#  dplyr::filter(respondopinion %in% c(0,2,3)) %>%
+#  dplyr::select(term,respondopinion,myown_areakind,myown_sex,myown_age,myown_dad_ethgroup,myown_mom_ethgroup,myown_eduyr,myown_int_pol_efficacy,myown_ext_pol_efficacy,myown_approach_to_politician_or_petition,myown_protest,myown_vote,myown_working_status,myown_ses,myown_family_income_ingroup,myown_family_income,myown_family_income_ranking,myown_family_income_stdev,percent_of_same_votes_from_same_party,rulingparty,opinionstrength,eduyrgap,sesgap,sexgap,agegap,opinion_pressure_from_constituent_by_nation,opinion_pressure_from_constituent_by_electionarea,myown_factoredclass,issue_field1,party) %>%
+#  mutate_at("respondopinion",funs(ordered)) 
+
+#(ggplot(threelevelglmdata,
+#       aes(x = respondopinion,
+#           y = (myown_eduyr)
+#           )
+#       ) + labs(title = "受教育年") + #facet_grid(term+issue_field1 ~ party) + #geom_boxplot()) 
+
+#(ggplot(threelevelglmdata,
+#       aes(x = respondopinion,
+#           y = (myown_ses)
+#           )
+#       ) + labs(title = "職業社經地位") + #facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+
+#(ggplot(threelevelglmdata,
+#       aes(x = respondopinion,
+#           y = (myown_factoredclass)
+#           )
+#       ) + labs(title = "綜合社經地位") + facet_grid(term+issue_field1 ~ party) + #geom_boxplot()) 
+
+#(ggplot(threelevelglmdata,
+#       aes(x = myown_family_income_ingroup,
+#           fill = (respondopinion)
+#       )
+#) + labs(title = "家庭收入所屬組別") + facet_grid(term ~ party) + geom_bar(position="fill"))
+
+#(ggplot(threelevelglmdata,
+#       aes(x = respondopinion,
+#           y = (myown_family_income)
+#           )
+#       ) + labs(title = "家庭收入") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+
+#(ggplot(threelevelglmdata,
+#       aes(x = respondopinion,
+#           y = (myown_family_income_stdev)
+#           )
+#       ) + labs(title = "家庭收入多少標準差") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+
+#(ggplot(threelevelglmdata,
+#       aes(x = respondopinion,
+#           y = (percent_of_same_votes_from_same_party)
+#           )
+#       ) + labs(title = "同黨成員同立場比例") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+
+#(ggplot(threelevelglmdata,
+#       aes(x = respondopinion,
+#           y = (eduyrgap)
+#           )
+#       ) + labs(title = "選民與立法委員教育年差距") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+
+#(ggplot(threelevelglmdata,
+#       aes(x = respondopinion,
+#           y = (sesgap)
+#           )
+#       ) + labs(title = "選民與立法委員社經地位差距") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+
+#(ggplot(threelevelglmdata,
+#       aes(x = respondopinion,
+#           y = (agegap)
+#           )
+#       ) + labs(title = "選民與立法委員年齡差距") + facet_grid(term+issue_field1 ~ party) + geom_boxplot()) 
+
+#(ggplot(threelevelglmdata,
+#       aes(x = myown_dad_ethgroup,
+#           fill = (respondopinion)
+#       )
+#) + labs(title = "父親族群") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
+
+#(ggplot(threelevelglmdata,
+#       aes(x = myown_mom_ethgroup,
+#           fill = (respondopinion)
+#       )
+#) + labs(title = "母親族群") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
+
+#(ggplot(threelevelglmdata,
+#       aes(x = myown_approach_to_politician_or_petition,
+#           fill = (respondopinion)
+#       )
+#) + labs(title = "有無請願或找政治人物") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
+
+#(ggplot(threelevelglmdata,
+#       aes(x = myown_protest,
+#           fill = (respondopinion)
+#       )
+#) + labs(title = "有無抗議") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
+
+#(ggplot(threelevelglmdata,
+#       aes(x = myown_vote,
+#           fill = (respondopinion)
+#       )
+#) + labs(title = "有無投票") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
+
+#(ggplot(threelevelglmdata,
+#       aes(x = sexgap,
+#           fill = (respondopinion)
+#       )
+#) + labs(title = "立法委員和選民性別差異") + facet_grid(term+issue_field1 ~ party) + geom_bar(position="fill"))
+```
+
+## 其他模型：隨機森林
+
+https://github.com/thomasp85/lime
+
+## 其他模型：決策樹
+
+
+```r
+#require(rpart)
+#require(rpart.plot)
+#set.seed(22)
+#train.index <- sample(x=1:nrow(threelevelglmdata), size=ceiling(0.8*nrow(threelevelglmdata) ))
+#train <- threelevelglmdata[train.index,1:26]
+#test <- threelevelglmdata[-train.index,1:26]
+#cart.model<- rpart(respondopinion ~ ., 
+#                   data=train)
+#rattle::fancyRpartPlot(cart.model, cex=1.1,sub="")
+```
+
+
+
+
+
+
+binary logistic
+
+
+
+
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+
+
 
 ```r
 getwd()
@@ -108,7 +390,7 @@ getwd()
 ```
 ## R version 3.5.1 (2018-07-02)
 ## Platform: x86_64-w64-mingw32/x64 (64-bit)
-## Running under: Windows 10 x64 (build 17134)
+## Running under: Windows 10 x64 (build 17763)
 ## 
 ## Matrix products: default
 ## 
@@ -122,8 +404,20 @@ getwd()
 ## attached base packages:
 ## [1] stats     graphics  grDevices utils     datasets  methods   base     
 ## 
+## other attached packages:
+## [1] kableExtra_0.9.0 dplyr_0.7.8      knitr_1.20      
+## 
 ## loaded via a namespace (and not attached):
-##  [1] compiler_3.5.1  magrittr_1.5    tools_3.5.1     htmltools_0.3.6
-##  [5] yaml_2.2.0      Rcpp_1.0.0      stringi_1.2.4   rmarkdown_1.11 
-##  [9] knitr_1.20      stringr_1.3.1   digest_0.6.18   evaluate_0.12
+##  [1] Rcpp_1.0.0        rstudioapi_0.8    xml2_1.2.0       
+##  [4] bindr_0.1.1       magrittr_1.5      hms_0.4.2        
+##  [7] munsell_0.5.0     rvest_0.3.2       tidyselect_0.2.5 
+## [10] viridisLite_0.3.0 colorspace_1.3-2  R6_2.3.0         
+## [13] rlang_0.3.0.1     highr_0.7         httr_1.4.0       
+## [16] stringr_1.3.1     tools_3.5.1       htmltools_0.3.6  
+## [19] yaml_2.2.0        assertthat_0.2.0  digest_0.6.18    
+## [22] tibble_1.4.2      crayon_1.3.4      bindrcpp_0.2.2   
+## [25] purrr_0.2.5       readr_1.3.0       glue_1.3.0       
+## [28] evaluate_0.12     rmarkdown_1.11    stringi_1.2.4    
+## [31] compiler_3.5.1    pillar_1.3.1      scales_1.0.0     
+## [34] pkgconfig_2.0.2
 ```
