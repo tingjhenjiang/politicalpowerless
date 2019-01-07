@@ -572,6 +572,8 @@ survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imput
     m=5,
     method="rf"
   )  # perform mice imputation, based on random forests.
+  #linear imputation might have error message: system is computationally singular: reciprocal condition number
+  #https://stats.stackexchange.com/questions/214267/why-do-i-get-an-error-when-trying-to-impute-missing-data-using-pmm-in-mice-packa
   #print(imputingcalculatebasiscolumn_assigned)
   imputed_survey_data<- mice::complete(miceMod)  # generate the completed data.
   complete_imputed_survey_data<-bind_cols(X[,unusefulcolumns],imputed_survey_data)
@@ -857,7 +859,7 @@ summary( mice.lieing_check_correct_result )
 #reset
 #load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #load imputed survey
-load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_3_df_randomforest.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_4_df_randomforest.RData"))
 ####################################################
 ####  latent variables 
 ####  將職業社經地位、家庭收入、教育程度萃取成為階級
@@ -1027,46 +1029,112 @@ ltm::GoF.gpcm(X.gpcm)
 ################### latent variable: 潛在類別模式 ####################
 #################### #################### #################### ####################
 library(poLCA)
-need_independence_attitude<-list(
+lcaneed_independence_attitude<-list(
   "2004citizen"=c("v95","v96","v97"),#公投選項共變
   "2010env"=c(""),#沒有統獨
   "2010overall"=c("v90","v91","v92"),
   "2016citizen"=c("h10r")#2016只有一題統獨傾向"
 )
-need_party_constituency<-list(
+lcaneed_party_constituency<-list(
   "2004citizen"=c("v88","v89","v90","v98r","v99"),
   "2010env"=c("v103r"),#2010env只有一題政黨傾向
   "2010overall"=c("v84","v86","v87a1r","v88r","v93","v94r"),
   "2016citizen"=c("h5","h6r_recode_party_for_forgotten","h7","h8r","h9r")
 )
-need_identity<-list(
-  "2004citizen"=c("myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","v94r"),
+lcaneed_ethnicity<-list(
+  "2004citizen"=c("myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid"),
   "2010env"=c("myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid"),
-  "2010overall"=c("myown_selfid","myown_dad_ethgroup","myown_mom_ethgroup","v89r"),
+  "2010overall"=c("myown_selfid","myown_dad_ethgroup","myown_mom_ethgroup"),
   "2016citizen"=c("myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid") #到這裡，但還沒有輸出上述的v94r
 )
-need_other_cov<-list(
+lcaneed_identity<-list(
+  "2004citizen"=c("v94r"),
+  "2010env"=c(),
+  "2010overall"=c("v89r"),
+  "2016citizen"=c() #到這裡，但還沒有輸出上述的v94r
+)
+lcaneed_other_cov<-list(
   "2004citizen"=c("v87_1","v87_2","v87_3","v87_4","v87_5","v91","v91a","v91b","v92_1","v92_2","v92_3","v92_4")#共變(公投投票選擇及參與政治活動例如凱道選擇)
 )
 ################### latent variable: 統獨傾向 ####################
 t_survey_data_test<-survey_data_test
-survey_data_test_with_indp_attitude<-poLCA::poLCA(
-  formula=as.formula(paste0("cbind(",paste(extract2(need_independence_attitude,"2004citizen"),collapse=","),") ~ 1")),
-  data=t_survey_data_test[[1]],
-  nclass = 6,
-  #graphs = TRUE,
-  maxiter = 5000)
+needsurveyi<-1
+
+cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-U24T.txt"))
+exportlib<-c("base",lib,"poLCA")
+sapply(exportlib,function(needlib,cl) {
+  clusterCall(cl=cl, library, needlib, character.only=TRUE)
+},cl=cl)
+clusterExport(cl,varlist=c("t_survey_data_test","needsurveyi","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"), envir=environment())
+
+LCAmodel_with_indp <- parLapply(cl,t_survey_data_test,function(X,t_survey_data_test,lcaneed_independence_attitude,lcaneed_party_constituency,lcaneed_ethnicity,lcaneed_identity,lcaneed_other_cov) {
+  needsurveyi<-X$SURVEY[1]
+  test<-lapply(2:7,function(poXi,s_survey_data,lcaneed_independence_attitude,lcaneed_party_constituency,lcaneed_ethnicity,lcaneed_identity,lcaneed_other_cov) {
+    lcamodelbuildtresult<-poLCA::poLCA(
+      formula=as.formula(paste0(
+        "cbind(",
+        paste(extract2(lcaneed_independence_attitude,needsurveyi),collapse=","),
+        ") ~ ",
+        paste(base::union(
+          extract2(lcaneed_ethnicity,needsurveyi),
+          extract2(lcaneed_identity,needsurveyi)
+        ) %>% base::union(
+          extract2(lcaneed_other_cov,needsurveyi)
+        ),collapse="+")
+        #"1"
+      )),
+      data=X,
+      nclass = poXi,
+      #graphs = TRUE,
+      maxiter = 5000,
+      nrep=50
+    )
+    return(lcamodelbuildtresult)
+    },s_survey_data=X,lcaneed_independence_attitude=lcaneed_independence_attitude,lcaneed_party_constituency=lcaneed_party_constituency,lcaneed_ethnicity=lcaneed_ethnicity,lcaneed_identity=lcaneed_identity,lcaneed_other_cov=lcaneed_other_cov)
+  return(test)
+},t_survey_data_test=t_survey_data_test,lcaneed_independence_attitude=lcaneed_independence_attitude,lcaneed_party_constituency=lcaneed_party_constituency,lcaneed_ethnicity=lcaneed_ethnicity,lcaneed_identity=lcaneed_identity,lcaneed_other_cov=lcaneed_other_cov)
+
+stopCluster(cl)
+
 ################### latent variable: 政黨傾向 ####################
-
-################### latent variable: 身份認同 ####################
-
 t_survey_data_test<-survey_data_test
-survey_data_test_with_indp_attitude<-poLCA::poLCA(
-  formula=as.formula(paste0("cbind(",paste(extract2(need_independence_attitude,"2004citizen"),collapse=","),") ~ 1")),
-  data=t_survey_data_test[[1]],
-  nclass = 6,
-  #graphs = TRUE,
-  maxiter = 5000)
+
+cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process.txt"))
+exportlib<-c("base",lib,"poLCA")
+sapply(exportlib,function(needlib,cl) {
+  clusterCall(cl=cl, library, needlib, character.only=TRUE)
+},cl=cl)
+clusterExport(cl,varlist=c("t_survey_data_test","needsurveyi","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"), envir=environment())
+
+
+LCAmodel_with_partyconstituency <- parLapply(cl,1:7,function(X,t_survey_data_test,needsurveyi,lcaneed_independence_attitude,lcaneed_party_constituency,lcaneed_ethnicity,lcaneed_identity,lcaneed_other_cov) {
+  
+  test<-poLCA::poLCA(
+    formula=as.formula(paste0(
+      "cbind(",
+      paste(extract2(lcaneed_party_constituency,needsurveyi),collapse=","),
+      ") ~ ",
+      paste(base::union(
+        extract2(lcaneed_ethnicity,needsurveyi),
+        extract2(lcaneed_identity,needsurveyi)
+      ) %>% base::union(
+        extract2(lcaneed_other_cov,needsurveyi)
+      ),collapse="*")
+    )),
+    data=t_survey_data_test[[needsurveyi]],
+    nclass = X,
+    #graphs = TRUE,
+    maxiter = 5000
+  )
+  return(test)
+},t_survey_data_test=t_survey_data_test,needsurveyi=needsurveyi,lcaneed_independence_attitude=lcaneed_independence_attitude,lcaneed_party_constituency=lcaneed_party_constituency,lcaneed_ethnicity=lcaneed_ethnicity,lcaneed_identity=lcaneed_identity,lcaneed_other_cov=lcaneed_other_cov)
+
+stopCluster(cl)
+
+
+
+
+
 sapply(survey_data_test[[1]][,need_independence_attitude$`2004citizen`],function(X) {
   return(sum(is.na(X)))
 })
