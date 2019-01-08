@@ -519,7 +519,7 @@ survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- li
 
 
 
-cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-U24T.txt"))
+cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"))
 exportlib<-c("base",lib,"mice","randomForest","MissMech","fastDummies")
 sapply(exportlib,function(needlib,cl) {
   clusterCall(cl=cl, library, needlib, character.only=TRUE)
@@ -628,7 +628,7 @@ which(as.vector(sapply(survey_data$`2010env.sav`,function(X) {
 
 #Himsc填補遺漏值 filling in missing value
 library(Hmisc)
-cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-U24T.txt"))
+cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"))
 exportlib<-c("base",lib,"Hmisc")
 sapply(exportlib,function(needlib,cl) {
   clusterCall(cl=cl, library, needlib, character.only=TRUE)
@@ -885,10 +885,59 @@ survey_data_test <- lapply(survey_data_test,function(X) {
 #library(psy)
 #psy::scree.plot(fa.class$correlation)
 
+####################################################
+####  latent variables 
+####  政治效能感123
+####################################################
+library(ltm)
+library(eRm)
+library(mirt)
+
+need_efficacy_var<-list(
+  "2004citizen"=c("v47","v48","v52","v49","v50","v51"),
+  "2010env"=c("v61","v70a","v78","v21a","v21b","v26a","v26b","v26c","v26d","v79"),
+  "2010overall"=c("v67d","v67h","v67i","v67f"),
+  "2016citizen"=c("d16a","d16b","d16c","d16d")
+)
+need_efficacy_recode_var<-list(#效能感越高要重編碼為數字越大
+  "onetofour"=list(
+    "2004citizen"=c("v52","v51"),
+    "2010env"=c("v61","v78"),
+    "2010overall"=c(),
+    "2016citizen"=c()
+  ),
+  "onetofive"=list(#效能感越高要重編碼為數字越大
+    "2004citizen"=c("v49","v50"),
+    "2010env"=c("v26b","v79"),
+    "2010overall"=c(),
+    "2016citizen"=c("d16b","d16c")
+  ),
+  "onetosix"=list(#效能感越高要重編碼為數字越大
+    "2004citizen"=c(),
+    "2010env"=c(),
+    "2010overall"=c("v67d","v67h","v67i"),
+    "2016citizen"=c()
+  )
+)
+survey_data_test <- lapply(survey_data_test,function(X,need_efficacy_var_assigned,need_efficacy_recode_var_assigned) {
+  recode_list<-list(
+    list("1"=4,"2"=3,"3"=2,"4"=1),
+    list("1"=5,"2"=4,"4"=2,"5"=1),
+    list("1"=6,"2"=5,"3"=4,"4"=3,"5"=1,"6"=1)
+  )
+  for (alteri in 1:3) {
+    need_efficacy_recode_var <- extract2(need_efficacy_recode_var_assigned[[alteri]],X$SURVEY[1]) %>%
+      intersect(names(X))
+    X %<>% mutate_at(need_efficacy_recode_var,funs(dplyr::recode),!!!recode_list[[alteri]])
+  }
+  return(X)
+},need_efficacy_var_assigned=need_efficacy_var,need_efficacy_recode_var_assigned=need_efficacy_recode_var)
+
 ################################################
 #### latent variables 政治參與
 #### 用item respond抓出隱藏變數「政治參與程度」
 #### https://www.researchgate.net/post/How_to_conduct_item_analysis_with_a_likert_scale_questionaire
+#### mirt help: https://github.com/philchalmers/mirt/wiki
 ################################################
 
 #2004citizen: v28 v29 v30 v31 v32 v33 v34 v35 v36 v37 v38 v39 v40 v59
@@ -898,9 +947,6 @@ survey_data_test <- lapply(survey_data_test,function(X) {
 #load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #load imputed survey
 
-library(ltm)
-library(eRm)
-library(mirt)
 need_particip_var<-list(
   "2004citizen"=c("v28","v29","v30","v31","v32","v33","v34","v35","v36","v37","v38","v39","v40"), #,"v59",v88 v90
   "2010env"=c("v34","v35a","v35b","v35c"), #投票"v104",
@@ -911,19 +957,20 @@ survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigne
   #X<-lapply(X,function(X,need_particip_var_assigned) {
   #for testng prupose
   #X<-dummyremoved_imputed_survey_data[[1]][[1]]
-  need_particip_var_assigned<-need_particip_var
+  #need_particip_var_assigned<-need_particip_var
   need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
     intersect(names(X))
   recode_list<-list( #把越參與的答案改為數字越多，比較好解釋
     "2004citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
-    "2016citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
+    "2010env"=list("1"=2,"2"=1,"是"=2,"否"=1,"有"=2,"沒有"=1),
     "2010overall"=list("1"=3,"2"=2,"3"=1),
-    "2010env"=list("1"=2,"2"=1)
+    "2016citizen"=list("1"=4,"2"=3,"3"=2,"4"=1)
   ) %>%
     extract2(X$SURVEY[1])
-  X %<>% mutate_at(need_particip_var_assigned,funs(dplyr::recode),!!!recode_list)
+  X %<>% mutate_at(need_particip_var_assigned,funs(dplyr::recode),!!!recode_list) %>%
+    mutate_at(need_particip_var_assigned,funs(as.ordered))
   return(X)
-},need_particip_var_assigned)
+},need_particip_var_assigned=need_particip_var)
 
 
 #################### non-parametric IRT Mokken scale analysis Model ####################
@@ -957,6 +1004,28 @@ mirt::fscores(rst_mirt1,method = "EAP") %>% View()
 #################### parametric IRT non-Rasch models - GRM Model ####################
 # mirt::mirt by 'graded'
 # ltm:grm
+survey_data_test <- lapply(survey_data_test, function(X,need_particip_var_assigned) {
+  #X<-survey_data_test[[4]]
+  #need_particip_var_assigned<-need_particip_var
+  needparticip_surveyi<-X$SURVEY[1]
+  need_detailed_particip_var<-extract2(need_particip_var_assigned,needparticip_surveyi)
+  irt_target_d<-X[,need_detailed_particip_var] %>%
+    dplyr::mutate_all(.funs=function(f) {
+      return(as.numeric(levels(f))[f])
+    })
+  estimatemodel<-mirt::mirt(
+    data=irt_target_d,
+    model=1,
+    itemtype = "graded")
+  poliparticipt<-fscores(estimatemodel,method="EAP") %>%
+    as.data.frame()
+  names(poliparticipt)<-c("myown_factoredparticip")
+  X<-bind_cols(X,poliparticipt)
+  #View(X[,c(need_detailed_particip_var,"myown_factoredparticip")])
+  return(X)
+},need_particip_var_assigned=need_particip_var)
+
+
 survey_data_with_particip <- lapply(survey_data_test,function(X,need_particip_var_assigned) {
   #for testing purpose
   X<-survey_data_test[[1]]
@@ -1029,6 +1098,7 @@ ltm::GoF.gpcm(X.gpcm)
 ################### latent variable: 潛在類別模式 ####################
 #################### #################### #################### ####################
 library(poLCA)
+library(parallel)
 lcaneed_independence_attitude<-list(
   "2004citizen"=c("v95","v96","v97"),#公投選項共變
   "2010env"=c(""),#沒有統獨
@@ -1060,46 +1130,55 @@ lcaneed_other_cov<-list(
 t_survey_data_test<-survey_data_test
 needsurveyi<-1
 
-cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-U24T.txt"))
+cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"))
 exportlib<-c("base",lib,"poLCA")
 sapply(exportlib,function(needlib,cl) {
   clusterCall(cl=cl, library, needlib, character.only=TRUE)
 },cl=cl)
-clusterExport(cl,varlist=c("t_survey_data_test","needsurveyi","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"), envir=environment())
+clusterExport(cl,varlist=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"), envir=environment())
 
-LCAmodel_with_indp <- parLapply(cl,t_survey_data_test,function(X,t_survey_data_test,lcaneed_independence_attitude,lcaneed_party_constituency,lcaneed_ethnicity,lcaneed_identity,lcaneed_other_cov) {
+LCAmodel_with_indp <- lapply(t_survey_data_test,function(X,t_survey_data_test,lcaneed_independence_attitude,lcaneed_party_constituency,lcaneed_ethnicity,lcaneed_identity,lcaneed_other_cov) {
   needsurveyi<-X$SURVEY[1]
-  test<-lapply(2:7,function(poXi,s_survey_data,lcaneed_independence_attitude,lcaneed_party_constituency,lcaneed_ethnicity,lcaneed_identity,lcaneed_other_cov) {
-    lcamodelbuildtresult<-poLCA::poLCA(
-      formula=as.formula(paste0(
-        "cbind(",
-        paste(extract2(lcaneed_independence_attitude,needsurveyi),collapse=","),
-        ") ~ ",
-        paste(base::union(
-          extract2(lcaneed_ethnicity,needsurveyi),
-          extract2(lcaneed_identity,needsurveyi)
-        ) %>% base::union(
-          extract2(lcaneed_other_cov,needsurveyi)
-        ),collapse="+")
-        #"1"
-      )),
-      data=X,
-      nclass = poXi,
-      #graphs = TRUE,
-      maxiter = 5000,
-      nrep=50
-    )
-    return(lcamodelbuildtresult)
+  if (length(extract2(lcaneed_independence_attitude,needsurveyi))<=1) {
+    test<-NULL
+  } else {
+    test<-parLapply(cl,2:7,function(poXi,s_survey_data,lcaneed_independence_attitude,lcaneed_party_constituency,lcaneed_ethnicity,lcaneed_identity,lcaneed_other_cov) {
+      lcamodelbuildtresult<-poLCA::poLCA(
+        formula=as.formula(paste0(
+          "cbind(",
+          paste(extract2(lcaneed_independence_attitude,needsurveyi),collapse=","),
+          ") ~ ",
+          paste(base::union(
+            extract2(lcaneed_ethnicity,needsurveyi),
+            extract2(lcaneed_identity,needsurveyi)
+            ) %>% base::union(
+              extract2(lcaneed_other_cov,needsurveyi)
+            ) %>% base::union(
+              extract2(lcaneed_other_cov,needsurveyi)
+            ),
+            collapse="+"
+          )
+          #"1"
+        )),
+        data=s_survey_data,
+        nclass = poXi,
+        #graphs = TRUE,
+        maxiter = 1000,
+        nrep=30
+      )
+      return(lcamodelbuildtresult)
     },s_survey_data=X,lcaneed_independence_attitude=lcaneed_independence_attitude,lcaneed_party_constituency=lcaneed_party_constituency,lcaneed_ethnicity=lcaneed_ethnicity,lcaneed_identity=lcaneed_identity,lcaneed_other_cov=lcaneed_other_cov)
-  return(test)
+    return(test)
+  }
 },t_survey_data_test=t_survey_data_test,lcaneed_independence_attitude=lcaneed_independence_attitude,lcaneed_party_constituency=lcaneed_party_constituency,lcaneed_ethnicity=lcaneed_ethnicity,lcaneed_identity=lcaneed_identity,lcaneed_other_cov=lcaneed_other_cov)
 
 stopCluster(cl)
+save(LCAmodel_with_indp,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercov_party",t_sessioninfo_running,".RData"))
 
 ################### latent variable: 政黨傾向 ####################
 t_survey_data_test<-survey_data_test
 
-cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process.txt"))
+cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"))
 exportlib<-c("base",lib,"poLCA")
 sapply(exportlib,function(needlib,cl) {
   clusterCall(cl=cl, library, needlib, character.only=TRUE)
