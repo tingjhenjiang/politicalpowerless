@@ -938,6 +938,7 @@ survey_data_test <- lapply(survey_data_test,function(X,need_efficacy_var_assigne
 #### 用item respond抓出隱藏變數「政治參與程度」
 #### https://www.researchgate.net/post/How_to_conduct_item_analysis_with_a_likert_scale_questionaire
 #### mirt help: https://github.com/philchalmers/mirt/wiki
+#### http://moodle.ncku.edu.tw/pluginfile.php/977679/mod_resource/content/1/item_response_theory.pdf
 ################################################
 
 #2004citizen: v28 v29 v30 v31 v32 v33 v34 v35 v36 v37 v38 v39 v40 v59
@@ -972,34 +973,6 @@ survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigne
   return(X)
 },need_particip_var_assigned=need_particip_var)
 
-
-#################### non-parametric IRT Mokken scale analysis Model ####################
-#################### mokken, Mokken Scale Analysis in R
-#################### read: https://www.jstatsoft.org/article/view/v020i11/v20i11.pdf
-mokken::coefH(as.data.frame(X[,need_particip_var_assigned]))
-checkmokkenresult<-mokken::check.monotonicity(as.data.frame(X[,need_particip_var_assigned]))
-summary(checkmokkenresult)
-plot(checkmokkenresult)
-scale.checkmokkenresult <- mokken::aisp(as.data.frame(X[,need_particip_var_assigned]))
-
-#################### parametric IRT Rasch models - Partial Credit Model ####################
-# mirt::Rasch
-# eRm::PCM
-#################### parametric IRT Rasch models - Rating Scale Model ####################
-# eRm::RSM
-# mirt:mirt
-# 'grsm' and 'grsmIRT' - graded ratings scale model in the slope-interceptand classical IRT parameterization.
-# 'grsmIRT'is restricted to unidimensional models (Muraki, 1992)
-##############################################################################################
-rst_mirt1 <- mirt::mirt(data = X[,need_particip_var_assigned], model = 1, verbose = T, itemtype= "grsmIRT")
-coef(rst_mirt1)
-for (itemplotn in 1:length(need_particip_var_assigned)) {
-  mirt::itemplot(rst_mirt1, itemplotn)
-  Sys.sleep(1)
-}
-summary(rst_mirt1)
-residuals(rst_mirt1)
-mirt::fscores(rst_mirt1,method = "EAP") %>% View()
 
 #################### parametric IRT non-Rasch models - GRM Model ####################
 # mirt::mirt by 'graded'
@@ -1080,6 +1053,35 @@ for (ctg in 1:4) {
        cex.axis = 0.8)
   Sys.sleep(2)
 }
+
+#################### non-parametric IRT Mokken scale analysis Model ####################
+#################### mokken, Mokken Scale Analysis in R
+#################### read: https://www.jstatsoft.org/article/view/v020i11/v20i11.pdf
+mokken::coefH(as.data.frame(X[,need_particip_var_assigned]))
+checkmokkenresult<-mokken::check.monotonicity(as.data.frame(X[,need_particip_var_assigned]))
+summary(checkmokkenresult)
+plot(checkmokkenresult)
+scale.checkmokkenresult <- mokken::aisp(as.data.frame(X[,need_particip_var_assigned]))
+
+#################### parametric IRT Rasch models - Partial Credit Model ####################
+# mirt::Rasch
+# eRm::PCM
+#################### parametric IRT Rasch models - Rating Scale Model ####################
+# eRm::RSM
+# mirt:mirt
+# 'grsm' and 'grsmIRT' - graded ratings scale model in the slope-interceptand classical IRT parameterization.
+# 'grsmIRT'is restricted to unidimensional models (Muraki, 1992)
+##############################################################################################
+rst_mirt1 <- mirt::mirt(data = X[,need_particip_var_assigned], model = 1, verbose = T, itemtype= "grsmIRT")
+coef(rst_mirt1)
+for (itemplotn in 1:length(need_particip_var_assigned)) {
+  mirt::itemplot(rst_mirt1, itemplotn)
+  Sys.sleep(1)
+}
+summary(rst_mirt1)
+residuals(rst_mirt1)
+mirt::fscores(rst_mirt1,method = "EAP") %>% View()
+
 #################### parametric IRT non-Rasch models - Generalized Partial Credit Model - Polytomous IRT ####################
 #################### Finch, W. Holmes＆French, Brian F. (2015). Latent Variable Modeling with R. Florence: Taylor and Francis
 ## ltm::gpcm
@@ -1101,7 +1103,7 @@ library(poLCA)
 library(parallel)
 lcaneed_independence_attitude<-list(
   "2004citizen"=c("v95","v96","v97"),#公投選項共變
-  "2010env"=c(""),#沒有統獨
+  "2010env"=c(),#沒有統獨
   "2010overall"=c("v90","v91","v92"),
   "2016citizen"=c("h10r")#2016只有一題統獨傾向"
 )
@@ -1112,10 +1114,10 @@ lcaneed_party_constituency<-list(
   "2016citizen"=c("h5","h6r_recode_party_for_forgotten","h7","h8r","h9r")
 )
 lcaneed_ethnicity<-list(
-  "2004citizen"=c("myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid"),
-  "2010env"=c("myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid"),
-  "2010overall"=c("myown_selfid","myown_dad_ethgroup","myown_mom_ethgroup"),
-  "2016citizen"=c("myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid") #到這裡，但還沒有輸出上述的v94r
+  "2004citizen"=c("myown_selfid"),#"myown_dad_ethgroup","myown_mom_ethgroup",
+  "2010env"=c("myown_selfid"),#"myown_dad_ethgroup","myown_mom_ethgroup",
+  "2010overall"=c("myown_selfid"),#,"myown_dad_ethgroup","myown_mom_ethgroup"
+  "2016citizen"=c("myown_selfid") #到這裡，但還沒有輸出上述的v94r #"myown_dad_ethgroup","myown_mom_ethgroup",
 )
 lcaneed_identity<-list(
   "2004citizen"=c("v94r"),
@@ -1124,42 +1126,48 @@ lcaneed_identity<-list(
   "2016citizen"=c() #到這裡，但還沒有輸出上述的v94r
 )
 lcaneed_other_cov<-list(
-  "2004citizen"=c("v87_1","v87_2","v87_3","v87_4","v87_5","v91","v91a","v91b","v92_1","v92_2","v92_3","v92_4")#共變(公投投票選擇及參與政治活動例如凱道選擇)
+  "2004citizen"=c("v87_1","v87_2","v87_3","v87_4","v87_5","v91","v91a","v91b","v92_1","v92_2","v92_3","v92_4"),#共變(公投投票選擇及參與政治活動例如凱道選擇)
+  "2010env"=c(),
+  "2010overall"=c(),
+  "2016citizen"=c()
 )
 ################### latent variable: 統獨傾向 ####################
+load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercovWindows7x64build7601ServicePack1.RData"))
+LCAmodel_with_indp
+
 t_survey_data_test<-survey_data_test
 needsurveyi<-1
 
-cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"))
-exportlib<-c("base",lib,"poLCA")
-sapply(exportlib,function(needlib,cl) {
-  clusterCall(cl=cl, library, needlib, character.only=TRUE)
-},cl=cl)
-clusterExport(cl,varlist=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"), envir=environment())
-
-LCAmodel_with_indp <- lapply(t_survey_data_test,function(X,t_survey_data_test,lcaneed_independence_attitude,lcaneed_party_constituency,lcaneed_ethnicity,lcaneed_identity,lcaneed_other_cov) {
+custom_generate_LCA_model<-function(X,cl,firstlcaneed,secondlcaneed=c(),thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c()) {
+  #lcaneed_independence_attitude
+  #lcaneed_party_constituency
+  #lcaneed_ethnicity
+  #lcaneed_identity
+  #lcaneed_other_cov
   needsurveyi<-X$SURVEY[1]
-  if (length(extract2(lcaneed_independence_attitude,needsurveyi))<=1) {
-    test<-NULL
-  } else {
-    test<-parLapply(cl,2:7,function(poXi,s_survey_data,lcaneed_independence_attitude,lcaneed_party_constituency,lcaneed_ethnicity,lcaneed_identity,lcaneed_other_cov) {
+  cov_parameter_in_formula<-dplyr::union_all(
+    extract2(secondlcaneed,needsurveyi),
+    extract2(thirdlcaneed,needsurveyi),
+    extract2(fourthlcaneed,needsurveyi),
+    extract2(fifthlcaneed,needsurveyi)
+  )
+  if (identical(cov_parameter_in_formula,logical())) {
+    cov_parameter_in_formula<-"1"
+  }
+  modelformula<-paste0(
+    "cbind(",
+    paste(extract2(firstlcaneed,needsurveyi),collapse=","),
+    ") ~ ",
+    paste0(cov_parameter_in_formula,collapse="+"),
+    collapse=""
+  )
+  test<-switch(
+    as.character(length(extract2(firstlcaneed,needsurveyi))),
+    "0"=NULL,
+    "1"=X[,extract2(firstlcaneed,needsurveyi)],
+    {parLapply(cl,2:7,function(poXi,s_survey_data) {
       lcamodelbuildtresult<-poLCA::poLCA(
-        formula=as.formula(paste0(
-          "cbind(",
-          paste(extract2(lcaneed_independence_attitude,needsurveyi),collapse=","),
-          ") ~ ",
-          paste(base::union(
-            extract2(lcaneed_ethnicity,needsurveyi),
-            extract2(lcaneed_identity,needsurveyi)
-            ) %>% base::union(
-              extract2(lcaneed_other_cov,needsurveyi)
-            ) %>% base::union(
-              extract2(lcaneed_other_cov,needsurveyi)
-            ),
-            collapse="+"
-          )
-          #"1"
-        )),
+        formula=as.formula(modelformula),
         data=s_survey_data,
         nclass = poXi,
         #graphs = TRUE,
@@ -1167,12 +1175,20 @@ LCAmodel_with_indp <- lapply(t_survey_data_test,function(X,t_survey_data_test,lc
         nrep=30
       )
       return(lcamodelbuildtresult)
-    },s_survey_data=X,lcaneed_independence_attitude=lcaneed_independence_attitude,lcaneed_party_constituency=lcaneed_party_constituency,lcaneed_ethnicity=lcaneed_ethnicity,lcaneed_identity=lcaneed_identity,lcaneed_other_cov=lcaneed_other_cov)
-    return(test)
-  }
-},t_survey_data_test=t_survey_data_test,lcaneed_independence_attitude=lcaneed_independence_attitude,lcaneed_party_constituency=lcaneed_party_constituency,lcaneed_ethnicity=lcaneed_ethnicity,lcaneed_identity=lcaneed_identity,lcaneed_other_cov=lcaneed_other_cov)
+    },s_survey_data=X)}
+  ) #end of switch
+  return(test)
+}
 
+cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"))
+exportlib<-c("base",lib,"poLCA")
+sapply(exportlib,function(needlib,cl) {
+  clusterCall(cl=cl, library, needlib, character.only=TRUE)
+},cl=cl)
+clusterExport(cl,varlist=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"), envir=environment())
+LCAmodel_with_indp <- lapply(t_survey_data_test,custom_generate_LCA_model,cl=cl,firstlcaneed=lcaneed_independence_attitude) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
 stopCluster(cl)
+
 save(LCAmodel_with_indp,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercov_party",t_sessioninfo_running,".RData"))
 
 ################### latent variable: 政黨傾向 ####################
@@ -1184,32 +1200,10 @@ sapply(exportlib,function(needlib,cl) {
   clusterCall(cl=cl, library, needlib, character.only=TRUE)
 },cl=cl)
 clusterExport(cl,varlist=c("t_survey_data_test","needsurveyi","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"), envir=environment())
-
-
-LCAmodel_with_partyconstituency <- parLapply(cl,1:7,function(X,t_survey_data_test,needsurveyi,lcaneed_independence_attitude,lcaneed_party_constituency,lcaneed_ethnicity,lcaneed_identity,lcaneed_other_cov) {
-  
-  test<-poLCA::poLCA(
-    formula=as.formula(paste0(
-      "cbind(",
-      paste(extract2(lcaneed_party_constituency,needsurveyi),collapse=","),
-      ") ~ ",
-      paste(base::union(
-        extract2(lcaneed_ethnicity,needsurveyi),
-        extract2(lcaneed_identity,needsurveyi)
-      ) %>% base::union(
-        extract2(lcaneed_other_cov,needsurveyi)
-      ),collapse="*")
-    )),
-    data=t_survey_data_test[[needsurveyi]],
-    nclass = X,
-    #graphs = TRUE,
-    maxiter = 5000
-  )
-  return(test)
-},t_survey_data_test=t_survey_data_test,needsurveyi=needsurveyi,lcaneed_independence_attitude=lcaneed_independence_attitude,lcaneed_party_constituency=lcaneed_party_constituency,lcaneed_ethnicity=lcaneed_ethnicity,lcaneed_identity=lcaneed_identity,lcaneed_other_cov=lcaneed_other_cov)
-
+LCAmodel_with_partyconstituency_nocov <- lapply(t_survey_data_test,custom_generate_LCA_model,cl=cl,firstlcaneed=lcaneed_party_constituency) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
 stopCluster(cl)
 
+save(LCAmodel_with_partyconstituency_nocov,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_partyconstituency_nocov",t_sessioninfo_running,".RData"))
 
 
 
