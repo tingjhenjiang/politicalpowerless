@@ -977,7 +977,7 @@ survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigne
 #################### parametric IRT non-Rasch models - GRM Model ####################
 # mirt::mirt by 'graded'
 # ltm:grm
-survey_data_test <- lapply(survey_data_test, function(X,need_particip_var_assigned) {
+survey_data_test_try <- lapply(survey_data_test, function(X,need_particip_var_assigned) {
   #X<-survey_data_test[[4]]
   #need_particip_var_assigned<-need_particip_var
   needparticip_surveyi<-X$SURVEY[1]
@@ -994,6 +994,7 @@ survey_data_test <- lapply(survey_data_test, function(X,need_particip_var_assign
     as.data.frame()
   names(poliparticipt)<-c("myown_factoredparticip")
   X<-bind_cols(X,poliparticipt)
+  X<-estimatemodel
   #View(X[,c(need_detailed_particip_var,"myown_factoredparticip")])
   return(X)
 },need_particip_var_assigned=need_particip_var)

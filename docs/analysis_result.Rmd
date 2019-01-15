@@ -3,6 +3,7 @@ title: "政治上無力者的概念、理論與測量"
 author:
 - name: 江廷振
   affiliation: 國立臺灣大學法律學系碩士班
+date: '`r paste("First created on Jan 15, 2019, 09:00. Last updated on", Sys.time())`'
 output:
   html_document:
     keep_md: yes
@@ -40,7 +41,7 @@ Sys.setlocale(category = "LC_ALL", locale = "cht")
 
 ## 司法裁判對於政治上無力者的分析與觀察不足之處
 
-事實上，在實際的司法裁判案例上就已經針對誰是政治上的無力者一點有過爭論與操作，但是操作過程以及觀察研究方法顯得粗糙而需要改進。我先從對於司法裁判上關於誰是政治上無力者的操作方式檢討作為引子。美國的Scalia大法官曾在Romer v. Evans一案中，主張由於財富是影響力的來源，在同性戀有高可支配所得下，他們的政治力量大於他們的人口比例，所以同性戀不是弱勢{, 1996 #12499@645-646}。無獨有偶，我國的大法官釋字第748號解釋（有關民法規定婚姻僅限同性婚姻是否違反平等權的問題爭議）中，以第8段到第9段的幾個同性婚姻法案在國會所面臨的困境與阻礙（例如祁家威先生屢次請願、訴訟被無視、同性婚姻法案一直卡關）等事實來認定同性戀屬於政治程序上的弱勢。
+事實上，在實際的司法裁判案例上就已經針對誰是政治上的無力者一點有過爭論與操作，但是操作過程以及觀察研究方法顯得粗糙而需要改進。我先從對於司法裁判上關於誰是政治上無力者的操作方式檢討作為引子。美國的Scalia大法官曾在Romer v. Evans一案中，主張由於財富是影響力的來源，在同性戀有高可支配所得下，他們的政治力量大於他們的人口比例，所以同性戀不是弱勢{, 1996 #12499@645-646}。無獨有偶，我國的[大法官釋字第748號解釋](https://www.judicial.gov.tw/constitutionalcourt/p03_01_1.asp?expno=748)（有關民法規定婚姻僅限同性婚姻是否違反平等權的問題爭議）中，以第8段到第9段的幾個同性婚姻法案在國會所面臨的困境與阻礙（例如祁家威先生屢次請願、訴訟被無視、同性婚姻法案一直卡關）等事實來認定同性戀屬於政治程序上的弱勢。
 
 上述論述中，先不提Scalia大法官的主張只是停留在假說的提出與主張而未進入經驗資料驗證的階段。這些論述在理論、概念操作與測量環節均有缺陷不足之處。例如測量環節的問題共有三點，第一是直接以研究處理（treatment，相當於實驗刺激、自變項，在Scalia大法官的主張是「財富」，在748號解釋中則為「人口結構」、「人數」、「刻板印象歧視」等因素）連結後測──即觀察同性戀者參與並動員起來透過社會運動爭取認同／在相關請願及法案審議都失敗的結果──得出實驗結論：同性戀是政治上的強勢者／「[同性戀]……因人口結構因素，為社會上孤立隔絕之少數，並因受刻板印象之影響，久為政治上之弱勢」（自變項與應變項間呈現顯著關連），就此而言缺乏前測對照以估計實驗組的研究處理前後組內差異。
 
@@ -62,11 +63,13 @@ Sys.setlocale(category = "LC_ALL", locale = "cht")
 
 首先，Fenno{Fenno, 1973 #12910}就指出國會議員基本上有三個行為準則：尋求連任、在國會能夠有影響力及制訂好的公共政策。雖然尋求連任本身是幾乎可以說是最終的目的，其他行為準則「只是輔助」，但在尋求連任並不成為太大問題的前提下，國會議員本身也有動能尋求制訂好的公共政策。
 
-在連任方面，國會議員為了連任，不一定傾向將選票極大化，倘若國會議員已經建立好舒適的個人選票（personal vote），無論是選區特性使然（例如我國的金門、苗栗等地；或者如地域主義性質極強的韓國，以全羅道為例：自由派與保守派得票率往往是百分之九十幾與個位數得票率的差別）、或者選民特性使然－－例如，政策回應只是代表的其中一個面向{Eulau, 1989 #12909}或者選民傾向以議員的服務回應或分配回應評估候選人{Griffin, 2010 #12873}，因此其重要性超越政策回應／象徵代表時－－、或者競爭對手過弱，或者議員資源豐沛經營選區得當……等等，一旦議員跨過安全當選的閾值時，此時國會議員理論上也會有空間朝向另外的目標努力。
+在連任方面，國會議員為了連任，不一定傾向將選票極大化，倘若國會議員已經建立好舒適的個人選票（personal vote），無論是選區特性使然（例如我國的金門、苗栗等地；或者如地域主義性質極強的韓國，以全羅道為例：自由派與保守派得票率往往是百分之九十幾與個位數得票率的差別）、或者選民特性使然－－例如，政策回應只是代表的其中一個面向{Eulau, 1989 #12909}，選民傾向以議員的服務回應或分配回應評估候選人{Griffin, 2010 #12873}，因此其重要性超越政策回應／象徵代表時－－、或者競爭對手過弱，或者議員資源豐沛經營選區得當……等等，一旦議員跨過安全當選的閾值時，此時國會議員理論上也會有空間朝向另外的目標努力。
 
 此外，若議員產生方式並非透過選舉而是由政黨提名（如不分區名單），或者是決定議席方式中政黨選票（party vote）的成分與重要性大於個人選票時（例如選制上採複數選區單一投票不可讓渡制SNTV使得議員無須爭取選票極大化），或者選民的投票抉擇因素中政黨認同的強度可能蓋過政策認同，也蓋過服務回應或分配回應時，議員的行為也可能轉向爭取個人在政黨的影響力{Carey, 1995 #12908}{Hirano, 2006 #12911}以及制訂好的公共政策。
 
 其次，國會議員的行為準則雖然理論上（理想層次中）需要透過不斷回應民意，以期爭取選民的認同與支持以避免選民在下次投票中會受到選民的懲罰，但實際上選民與議員雙方間這種民意溝通交換與回應及問責的連線並不一定能夠完美連接。現實世界中的選民可能是完全不過問政治、無法參與也無意願參與政治的「非理想公民」，這也就是Berelson所稱的「民主的弔詭」（paradox of democracy）{Berelson, 1954 #12912}。Miller及Stokes的研究{Miller, 1963 #12740}就發現，國會議員會隨著議題的不同而有不同回應選民的程度，在選民較陌生，難以認知、理解、充分掌握資訊或者較無興趣而欠缺注意、沒有清楚立場的領域中（例如外交國防），國會議員較有充分自主的空間，因而相對於較與人民相關、民意較可能關注、敏感度或張力較強的社會福利與民權領域，國會議員回應民意的程度較低。此種情形下，若又無堅強的以群眾為基礎的利益團體代表選民反應民意與利益或提供資訊時，不僅議員無法感知民意，民意也無從監督從而透過選舉課責，「人頭就不是硬實力」，議員不是參考其他的影響力來源行事（例如政黨、行政機關、同黨議員、政黨國會領導人），就是依據自身的意志及自己對於政策的評估行事。
+
+回應有政治資源的人。
 
 ## 誰決定公共政策的制訂
 
@@ -173,10 +176,10 @@ colnames(political_intefficacy_variable_table)<-c("2004公民","2010環境","201
 * 非競選期間政治參與：依據原本問卷設計中的下述次序變項，以應用試題反應理論（item response theory）的 graded response model 計算測量出一個潛在連續型態的潛在變數，測量過程使用R語言的mirt套件{Chalmers, 2012 #12917}，括弧內為因素負荷量：
 ```{r political_particip_variable_table, echo=FALSE}
 political_particip_variable_table<-as.data.frame(rowr::cbind.fill(
-  c("v28 您有沒有做過請願(簽名)連署","v29 您有沒有因為政治,倫理道德,或是環保的理由拒絕購買或是特別去購買某些產品","v30 您有沒有參加示威遊行","v31 您有沒有參加政治集會或造勢活動","v32 您有沒有找過政治人物或公務人員表達您的看法","v33 您有沒有捐錢給某個社會或政治活動,或者幫他們募款","v34 您有沒有透過媒體去表達您的看法","v35 您有沒有參加網路上的政治論壇或討論群組","v36 請問您有沒有加入和參與政黨","v37 請問您有沒有加入和參與工會,工商同業公會,職業同業公會","v38 請問您有沒有加入和參與宗教團體或教會","v39 請問您有沒有加入和參與運動,休閒或文化團體","v40 請問您有沒有加入和參與其他自願性社團"),
-  c("v34 請問您是環保團體的成員嗎?","v35a 在過去五年間,請問您有沒有做過以下的事情:連署一份有關環保議題的請願書","v35b 在過去五年間,請問您有沒有做過以下的事情:捐款給環保團體","v35c 在過去五年間,請問您有沒有做過以下的事情:參加有關環保議題的抗議行動或遊行"),
-  c("v79a 在過去的一年,您有沒有向政府官員,民意代表或政黨反映意見提出要求?","v79b 在過去的一年,您有沒有向大眾媒體投訴?","v79c 在過去的一年,您有沒有透過網際網路反映意見?","v79d 在過去的一年,您有沒有參加遊行,示威,靜坐或其他自力救濟方式?"),
-  c("h2a 您過去有沒有做過或將來會不會做這些事?a 請願(簽名)連署","h2b 您過去有沒有做過或將來會不會做這些事?b 因為政治的、倫理(道德)的、或是環保的理由拒絕購買或是特別去購買某些產品","h2c 您過去有沒有做過或將來會不會做這些事?c 參加示威遊行","h2d 您過去有沒有做過或將來會不會做這些事?d 參加政治集會或造勢活動","h2e 您過去有沒有做過或將來會不會做這些事?e 找政治人物或公職人員表達您的看法","h2f 您過去有沒有做過或將來會不會做這些事?f 捐錢給某個社會或政治活動,或者幫他們募款","h2g 您過去有沒有做過或將來會不會做這些事?g 透過媒體去表達您的看法","h2h 您過去有沒有做過或將來會不會做這些事?h 透過網路表達您的政治想法","h3a 您過去有沒有做過或將來會不會這樣做?a 跟親朋好友討論不公不義的事情或現象","h3b 您過去有沒有做過或將來會不會這樣做?b 參加抗議不公不義的活動","h3c 您過去有沒有做過或將來會不會這樣做?c 以金錢來支持弱者或公義團體"),
+  c("v28 您有沒有做過請願(簽名)連署(0.815)","v29 您有沒有因為政治,倫理道德,或是環保的理由拒絕購買或是特別去購買某些產品(0.623)","v30 您有沒有參加示威遊行(0.840)","v31 您有沒有參加政治集會或造勢活動(0.777)","v32 您有沒有找過政治人物或公務人員表達您的看法(0.785)","v33 您有沒有捐錢給某個社會或政治活動,或者幫他們募款(0.562)","v34 您有沒有透過媒體去表達您的看法(0.810)","v35 您有沒有參加網路上的政治論壇或討論群組(0.725)","v36 請問您有沒有加入和參與政黨(0.394)","v37 請問您有沒有加入和參與工會,工商同業公會,職業同業公會(0.240)","v38 請問您有沒有加入和參與宗教團體或教會(0.396)","v39 請問您有沒有加入和參與運動,休閒或文化團體(0.512)","v40 請問您有沒有加入和參與其他自願性社團(0.537)","可解釋變異比例：0.415"),
+  c("v34 請問您是環保團體的成員嗎?(0.712)","v35a 在過去五年間,請問您有沒有做過以下的事情:連署一份有關環保議題的請願書(0.699)","v35b 在過去五年間,請問您有沒有做過以下的事情:捐款給環保團體(0.704)","v35c 在過去五年間,請問您有沒有做過以下的事情:參加有關環保議題的抗議行動或遊行(0.603)","可解釋變異比例：0.464","可解釋變異比例：0.542"),
+  c("v79a 在過去的一年,您有沒有向政府官員,民意代表或政黨反映意見提出要求?(0.743)","v79b 在過去的一年,您有沒有向大眾媒體投訴?(0.976)","v79c 在過去的一年,您有沒有透過網際網路反映意見?(0.512)","v79d 在過去的一年,您有沒有參加遊行,示威,靜坐或其他自力救濟方式?(0.633)","可解釋變異比例：0.542"),
+  c("h2a 您過去有沒有做過或將來會不會做這些事?a 請願(簽名)連署(0.796)","h2b 您過去有沒有做過或將來會不會做這些事?b 因為政治的、倫理(道德)的、或是環保的理由拒絕購買或是特別去購買某些產品(0.654)","h2c 您過去有沒有做過或將來會不會做這些事?c 參加示威遊行(0.885)","h2d 您過去有沒有做過或將來會不會做這些事?d 參加政治集會或造勢活動(0.674)","h2e 您過去有沒有做過或將來會不會做這些事?e 找政治人物或公職人員表達您的看法(0.746)","h2f 您過去有沒有做過或將來會不會做這些事?f 捐錢給某個社會或政治活動,或者幫他們募款(0.656)","h2g 您過去有沒有做過或將來會不會做這些事?g 透過媒體去表達您的看法(0.812)","h2h 您過去有沒有做過或將來會不會做這些事?h 透過網路表達您的政治想法(0.781)","h3a 您過去有沒有做過或將來會不會這樣做?a 跟親朋好友討論不公不義的事情或現象(0.583)","h3b 您過去有沒有做過或將來會不會這樣做?b 參加抗議不公不義的活動(0.886)","h3c 您過去有沒有做過或將來會不會這樣做?c 以金錢來支持弱者或公義團體(0.521)","可解釋變異比例：0.541"),
   fill=""
 ))
 colnames(political_particip_variable_table)<-c("2004公民","2010環境","2010綜合","2016公民")
@@ -236,6 +239,41 @@ Heteroscedasticity: prediction必須要隨機分布，不能有pattern，否則�
 # 研究結果與發現
 # 討論與結論
 # 參考文獻
+
+一、中文部分
+
+* 何來美（著）（2017）。《台灣客家政治風雲錄》。臺北市：聯經。
+* 盛杏湲（2008）。〈政黨的國會領導與凝聚力——2000年政黨輪替前後的觀察〉。《臺灣民主季刊》，第5卷第4期，頁 1-46 
+* 黃秀端＆陳鴻鈞（2006）。〈國會中政黨席次大小對互動之影響——第三屆到第五屆的立法院記名表決探析〉。《人文及社會科學集刊》，第18卷第3期，頁 385-415 。 取自 https://www.rchss.sinica.edu.tw/app/ebook/journal/18-03-2006/cc1831.pdf
+* 黃毅志（2008）。〈如何精確測量職業地位？——「改良版臺灣地區新職業聲望與社經地位量表」之建構〉。《臺東大學教育學報》，第19卷第1期，頁 151-159 
+
+二、外文部分
+
+* Agresti, Alan. (2010). Analysis of Ordinal Categorical Data (2 ed.). Hoboken: John Wiley & Sons 
+* Bachrach, Peter＆Baratz, Morton S. (1970). Power and poverty: Theory and practice: Oxford University Press 
+* Bachrach, Peter＆Baratz, Morton S. (1962). Two Faces of Power. American Political Science Review, 56(4), 947-952. doi: 10.2307/1952796
+* Bachrach, Peter＆Baratz, Morton S. (1963). Decisions and Nondecisions: An Analytical Framework. American Political Science Review, 57(3), 632-642. doi: 10.2307/1952568
+* Berelson, Bernard. (1954). Voting. Chicago: University of Chicago Press 
+* Brunner, Martin. (2013). Parliaments and legislative activity motivations for bill introduction. Wiesbaden: Springer Fachmedien Wiesbaden 
+* Carey, John M.＆Shugart, Matthew Soberg. (1995). Incentives to cultivate a personal vote: A rank ordering of electoral formulas. Electoral Studies, 14(4), 417-439. doi: https://doi.org/10.1016/0261-3794(94)00035-2
+* Chalmers, R Philip %J Journal of Statistical Software. (2012). mirt: A multidimensional item response theory package for the R environment. Journal of statistical software, 48(6), 1-29. 
+* Cox, Gary W.＆McCubbins, Mathew Daniel. (2005). Setting the agenda : responsible party government in the U.S. House of Representatives. Cambridge; New York: Cambridge University Press 
+* Dahl, Robert A. (1957). The Concept of Power. Behavioral Science, 2(3), 201-215. doi: 10.1002/bs.3830020303
+* Ely, John Hart. (1980). Democracy and Distrust: A Theory of Judicial Review. Cambridge: Harvard University Press 
+* Eulau, Heinz＆Karps, Paul D. (1989). The Puzzle of Representation: Specifying Components of Responsiveness, in H. Eulau＆J. C. Wahlke (Eds.), The Politics of representation continuities in theory and research (pp. 55-72). Ann Arbor, Michigan: U.M.I., Out-of-Print Books on Demand 
+* Fenno, Richard F. (1973). Congressmen in committees. Boston: Little, Brown 
+* Gilens, Martin＆Page, Benjamin I. (2014). Testing Theories of American Politics: Elites, Interest Groups, and Average Citizens. Perspectives on Politics, 12(03), 564-581. doi: 10.1017/S1537592714001595
+* Griffin, John D.＆Flavin, Patrick. (2010). How Citizens and Their Legislators Prioritize Spheres of Representation. Political Research Quarterly, 64(3), 520-533. doi: 10.1177/1065912910373552
+* Hirano, Shigeo. (2006). Electoral Institutions, Hometowns, and Favored Minorities: Evidence from Japanese Electoral Reforms. World Politics, 59(1), 51-82. doi: 10.1353/wp.2007.0017
+* Mayhew, David R. (2006). Congress : the electoral connection. New Haven, CT; London: Yale University Press 
+* Miller, Wakken E.＆Stokes, Donald E. (1963). Constituency Influence in Congress. American Political Science Review, 57(1), 45-56. doi: 10.2307/1952717
+* Olson, Mancar. (1965). The logic of collective action : public goods and the theory of groups. Cambridge, Mass.: Harvard University Press 
+* Schlozman, Kay Lehman、Brady, Henry E.＆Verba, Sidney. (2018). Unequal and unrepresented : political inequality and the people's voice in the new Gilded Age. Princeton: Princeton University Press 
+* Schlozman, Kay Lehman、Verba, Sidney＆Brady, Henry E. (2012). The Unheavenly Chorus Unequal Political Voice and the Broken Promise of American Democracy. Princeton; Oxford: Princeton University Press 
+* van Buuren, Stef＆Groothuis-Oudshoorn, Catharina Gerarda Maria. (2011). mice: Multivariate Imputation by Chained Equations in R. Journal of statistical software, 45(3), urn:issn:1548-7660. doi: 10.18637/jss.v045.i03
+* Verba, Sidney、Schlozman, Kay Lehman＆Brady, Henry E. (1995). Voice and equality : civic voluntarism in American politics. Cambridge, Mass.: Harvard University Press 
+* Young, Iris Marion. (1990). Justice and the Politics of Difference. Princeton, N.J.: Princeton University Press 
+
 
 standardized beta coefficient
 
