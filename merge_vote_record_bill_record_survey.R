@@ -977,7 +977,7 @@ survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigne
 #################### parametric IRT non-Rasch models - GRM Model ####################
 # mirt::mirt by 'graded'
 # ltm:grm
-survey_data_test_try <- lapply(survey_data_test, function(X,need_particip_var_assigned) {
+survey_data_test <- lapply(survey_data_test, function(X,need_particip_var_assigned) {
   #X<-survey_data_test[[4]]
   #need_particip_var_assigned<-need_particip_var
   needparticip_surveyi<-X$SURVEY[1]
@@ -994,7 +994,7 @@ survey_data_test_try <- lapply(survey_data_test, function(X,need_particip_var_as
     as.data.frame()
   names(poliparticipt)<-c("myown_factoredparticip")
   X<-bind_cols(X,poliparticipt)
-  X<-estimatemodel
+  #X<-estimatemodel
   #View(X[,c(need_detailed_particip_var,"myown_factoredparticip")])
   return(X)
 },need_particip_var_assigned=need_particip_var)
@@ -1133,7 +1133,7 @@ lcaneed_other_cov<-list(
   "2016citizen"=c()
 )
 ################### latent variable: 統獨傾向 ####################
-load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercovWindows7x64build7601ServicePack1.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercovWindows8x64build9200.RData"))
 LCAmodel_with_indp
 
 t_survey_data_test<-survey_data_test
@@ -1187,10 +1187,10 @@ sapply(exportlib,function(needlib,cl) {
   clusterCall(cl=cl, library, needlib, character.only=TRUE)
 },cl=cl)
 clusterExport(cl,varlist=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"), envir=environment())
-LCAmodel_with_indp <- lapply(t_survey_data_test,custom_generate_LCA_model,cl=cl,firstlcaneed=lcaneed_independence_attitude) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
+LCAmodel_with_indp_partyconstituenct <- lapply(t_survey_data_test,custom_generate_LCA_model,cl=cl,firstlcaneed=lcaneed_independence_attitude,secondlcaneed=lcaneed_party_constituency) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
 stopCluster(cl)
 
-save(LCAmodel_with_indp,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercov_party",t_sessioninfo_running,".RData"))
+save(LCAmodel_with_indp_partyconstituenct,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercov_party",t_sessioninfo_running,".RData"))
 
 ################### latent variable: 政黨傾向 ####################
 t_survey_data_test<-survey_data_test
