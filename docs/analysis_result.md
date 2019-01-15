@@ -317,6 +317,7 @@ Heteroscedasticity: prediction必須要隨機分布，不能有pattern，否則�
 
 # 研究結果與發現
 # 討論與結論
+# 參考文獻
 
 standardized beta coefficient
 
