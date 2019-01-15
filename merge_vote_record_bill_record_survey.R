@@ -5,7 +5,7 @@ filespath<-switch(
   t_sessioninfo_running,
   Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
   Windows7x64build7601ServicePack1="C:\\Users\\r03a21033\\DOWNLOADS\\",
-  Windows10x64build16299 = "E:\\Software\\scripts\\R\\",
+  Windows10x64build17763 = "E:\\Software\\scripts\\R\\",
   Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
   )
 #filespath <- "E:\\Software\\scripts\\R\\"
@@ -15,14 +15,14 @@ dataset_file_directory <- switch(
   t_sessioninfo_running,
   Windows7x64build7601ServicePack1="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Windows10x64build16299 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  Windows10x64build17763 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
   )
 ntuspace_file_directory <- switch(
   t_sessioninfo_running,
   Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
   Windows8x64build9200 = "D:\\NTUSpace\\",
-  Windows10x64build16299 = "D:\\NTUSpace\\",
+  Windows10x64build17763 = "D:\\NTUSpace\\",
   Ubuntu16.04.4LTS="/mnt/d/NTUSpace/"
   )
 #選舉資料
@@ -1187,10 +1187,11 @@ sapply(exportlib,function(needlib,cl) {
   clusterCall(cl=cl, library, needlib, character.only=TRUE)
 },cl=cl)
 clusterExport(cl,varlist=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"), envir=environment())
-LCAmodel_with_indp_partyconstituenct <- lapply(t_survey_data_test,custom_generate_LCA_model,cl=cl,firstlcaneed=lcaneed_independence_attitude,secondlcaneed=lcaneed_party_constituency) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
+LCAmodel_with_indp_partyconstituenct <- lapply(t_survey_data_test,custom_generate_LCA_model,cl=cl,firstlcaneed=lcaneed_independence_attitude) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
 stopCluster(cl)
 
-save(LCAmodel_with_indp_partyconstituenct,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercov_party",t_sessioninfo_running,".RData"))
+save(LCAmodel_with_indp,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp",t_sessioninfo_running,".RData"))
+#levels(t_survey_data_test[[1]]$myown_atti_ind)[levels(t_survey_data_test[[1]]$myown_atti_ind)=="1"] <- "統一"
 
 ################### latent variable: 政黨傾向 ####################
 t_survey_data_test<-survey_data_test
@@ -1207,13 +1208,8 @@ stopCluster(cl)
 save(LCAmodel_with_partyconstituency_nocov,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_partyconstituency_nocov",t_sessioninfo_running,".RData"))
 
 
-
-
-sapply(survey_data_test[[1]][,need_independence_attitude$`2004citizen`],function(X) {
-  return(sum(is.na(X)))
-})
-
-
+save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
 
 
 #############################把問卷資料變形以便串連及行政區、選舉資料#################################
