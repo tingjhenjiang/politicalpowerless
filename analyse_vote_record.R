@@ -5,7 +5,7 @@ filespath<-switch(
   t_sessioninfo_running,
   Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
   Windows7x64build7601ServicePack1="C:\\Users\\r03a21033\\DOWNLOADS\\",
-  Windows10x64build16299 = "E:\\Software\\scripts\\R\\",
+  Windows10x64build17763 = "E:\\Software\\scripts\\R\\",
   Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
   )
 #filespath <- "E:\\Software\\scripts\\R\\"
@@ -15,14 +15,14 @@ dataset_file_directory <- switch(
   t_sessioninfo_running,
   Windows7x64build7601ServicePack1="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Windows10x64build16299 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  Windows10x64build17763 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
   )
 ntuspace_file_directory <- switch(
   t_sessioninfo_running,
   Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
   Windows8x64build9200 = "D:\\NTUSpace\\",
-  Windows10x64build16299 = "D:\\NTUSpace\\",
+  Windows10x64build17763 = "D:\\NTUSpace\\",
   Ubuntu16.04.4LTS="/mnt/d/NTUSpace/"
 )
 #選舉資料
@@ -54,7 +54,7 @@ load(paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"
 #save(only_bill_to_survey_information,file=paste0(dataset_file_directory,"rdata",slash,"only_bill_to_survey_information.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"only_bill_to_survey_information.RData"))
 
-legislators_with_election <- legislators_with_election[!is.na(legislators_with_election$wonelection),] %>%
+legislators_with_election <- legislators_with_election %>% #[!is.na(legislators_with_election$wonelection),]
   distinct(term, name, ename, legislator_sex, legislator_party, partyGroup, areaName,
            committee, onboardDate, degree, experience, picUrl,
            leaveFlag, leaveDate, leaveReason, ballotid, birthday,
@@ -126,7 +126,7 @@ legislators_additional_attr<-distinct(legislators_with_election,term,name,degree
 
 #write.xlsx(legislators_additional_attr,file=paste0(dataset_file_directory,"legislator_additional_attributes.xlsx"))
 
-  
+##注意有遺漏的部分委員
 
 testdf <- left_join(mergedf_votes_bills_election_surveyanswer, legislators_with_election) %>%
   left_join(legislators_additional_attr) %>%

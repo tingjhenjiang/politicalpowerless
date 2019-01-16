@@ -144,12 +144,12 @@ legislators <- read.xlsx(paste0(dataset_file_directory, "legislators.xlsx"), she
 legislators_needed <- filter(legislators, term %in% terms) %>% #c("05", "06", "07", "09")
   mutate_at(c("term"), funs(customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>%
   mutate_at(c("term"), as.character)
-legislators_with_election <- left_join(legislators_needed, elections_df_test, by = c("name", "term", "sex"))  %>%
+legislators_with_election <- inner_join(legislators_needed, elections_df_test, by = c("name", "term", "sex"))  %>%
   rename(legislator_sex=sex,
          legislator_party=party.x,
          election_party=party.y,
          legislator_age=age
-  )#
+  )#inner_join目的是要排除沒有當選也沒有遞補進來的立法委員
 #save(elections_df_test,file=paste0(dataset_file_directory,"rdata",slash,"elections_df_test.RData"))
 #save(legislators_with_election, file=paste0(dataset_file_directory,"rdata",slash,"legislators_with_election.RData"))
 #test result: filter(legislators_needed,is.na(zip)) %>% View()
@@ -1237,8 +1237,15 @@ survey_data_melted<-mapply(function(X,Y) {
 }, X=survey_data, Y=survey_q_id)
 
 survey_data_melted_names<-lapply(survey_data_melted,names)
+
+#以下是要把四份問卷合一，但這應該要放棄
 common_var<-Reduce(intersect, survey_data_melted_names) %>%
   setdiff(c("sd"))
+
+#factor to numeric method
+#survey_data_melted<-lapply(survey_data_melted,function(X) {
+#  X<-mutate_at(c(),as.numeric(levels(f))[f]
+
 complete_survey_dataset<-lapply(survey_data_melted,extract,common_var) %>%
   bind_rows() %>%
   mutate_at("SURVEYANSWERVALUE", funs(as.character)) #%>%
