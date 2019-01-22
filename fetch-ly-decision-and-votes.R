@@ -4,6 +4,7 @@ t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
 filespath<-switch(
   t_sessioninfo_running,
   Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
+  Ubuntu18.04.1LTS="/mnt/e/Software/scripts/R/",
   Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
   Windows10x64build17763 = "E:\\Software\\scripts\\R\\",
   Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
@@ -16,14 +17,16 @@ dataset_file_directory <- switch(
   Windows7x64build7601ServicePack1="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   Windows10x64build17763 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
+  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
+  Ubuntu18.04.1LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
   )
 ntuspace_file_directory <- switch(
   t_sessioninfo_running,
   Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
   Windows8x64build9200 = "D:\\NTUSpace\\",
   Windows10x64build17763 = "D:\\NTUSpace\\",
-  Ubuntu16.04.4LTS="/mnt/d/NTUSpace/"
+  Ubuntu16.04.4LTS="/mnt/d/NTUSpace/",
+  Ubuntu18.04.1LTS="/mnt/d/NTUSpace/"
   )
 no_rollcall<-c()
 load(paste0(dataset_file_directory,"rdata",slash,"meetingdata.RData"))
@@ -625,15 +628,17 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
 
 library(parallel)
 
-
-cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"))
-exportlib<-c("base",lib)
-sapply(exportlib,function(needlib,cl) {
-  clusterCall(cl=cl, library, needlib, character.only=TRUE)
-},cl=cl)
-clusterExport(cl,varlist=c("urlarr","fetch_ly_decision_and_vote"), envir=environment())
-
-myown_vote_record_df<-do.call("rbind", parLapply(cl,urlarr,fetch_ly_decision_and_vote) )
+myown_vote_record_df<-do.call("rbind",custom_parallel_lapply(
+  data=urlarr,
+  f=fetch_ly_decision_and_vote,
+  exportvar=c("urlarr","fetch_ly_decision_and_vote"),
+  exportlib=c("base",lib),
+  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+  firstlcaneed=lcaneed_independence_attitude,
+  secondlcaneed=lcaneed_party_constituency,
+  mc.set.seed = TRUE,
+  mc.cores=parallel::detectCores()
+))
 
 stopCluster(cl)
 

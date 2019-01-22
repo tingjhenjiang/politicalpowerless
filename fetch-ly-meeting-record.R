@@ -1,20 +1,32 @@
 t_sessioninfo<-sessionInfo()
 t_sessioninfo_running<-gsub(" ","",t_sessioninfo$running)
 t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
-filespath<-switch(t_sessioninfo_running,
-                  Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
-                  Windows7x64build7601ServicePack1="C:\\Users\\r03a21033\\DOWNLOADS\\",
-                  Windows10x64build16299 = "E:\\Software\\scripts\\R\\",
-                  Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
+filespath<-switch(
+  t_sessioninfo_running,
+  Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
+  Ubuntu18.04.1LTS="/mnt/e/Software/scripts/R/",
+  Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
+  Windows10x64build17763 = "E:\\Software\\scripts\\R\\",
+  Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
 )
 #filespath <- "E:\\Software\\scripts\\R\\"
 #filespath <- "/mnt/e/Software/scripts/R/"
 source(file = paste(filespath, "shared_functions.R", sep = ""))
-dataset_file_directory <- switch(t_sessioninfo_running,
-                                 Windows7x64build7601ServicePack1="C:\\NTUSpace\\dataset\\",
-                                 Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-                                 Windows10x64build16299 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-                                 Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
+dataset_file_directory <- switch(
+  t_sessioninfo_running,
+  Windows7x64build7601ServicePack1="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  Windows10x64build17763 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
+  Ubuntu18.04.1LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
+)
+ntuspace_file_directory <- switch(
+  t_sessioninfo_running,
+  Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
+  Windows8x64build9200 = "D:\\NTUSpace\\",
+  Windows10x64build17763 = "D:\\NTUSpace\\",
+  Ubuntu16.04.4LTS="/mnt/d/NTUSpace/",
+  Ubuntu18.04.1LTS="/mnt/d/NTUSpace/"
 )
 meetingurldata<-paste0(filespath,"vote_record",slash,"meetingrecord.xlsx") %>%
   read.xlsx(sheet = 1) %>%
@@ -22,12 +34,22 @@ meetingurldata<-paste0(filespath,"vote_record",slash,"meetingrecord.xlsx") %>%
 meetingurldata_urlrange<-4:13 #需要的欄位
 meetingdata_range<-19:28
 
-fetchmeetingdata<-lapply(meetingurldata[,meetingurldata_urlrange],function (X) {
-  returnX<-sapply(X,custom_read_file) %>%
-    as.character()
-  message(" ｜ ")
-  return(returnX)
-}) %>%
+fetchmeetingdata<-custom_parallel_lapply(
+  data=meetingurldata[,meetingurldata_urlrange],
+  f=function (X) {
+    returnX<-sapply(X,custom_read_file) %>%
+      as.character()
+    message(" ｜ ")
+    return(returnX)
+  },
+  exportvar=c("meetingurldata","meetingurldata_urlrange","custom_read_file"),
+  exportlib=c("base",lib),
+  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+  firstlcaneed=lcaneed_independence_attitude,
+  secondlcaneed=lcaneed_party_constituency,
+  mc.set.seed = TRUE,
+  mc.cores=parallel::detectCores()
+) %>%
   as.data.frame(stringsAsFactors=FALSE) %>%
   (function(X) {
     names(X)<-paste(names(X),"DATA",sep="")

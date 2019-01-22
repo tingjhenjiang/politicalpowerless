@@ -4,6 +4,7 @@ t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
 filespath<-switch(
   t_sessioninfo_running,
   Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
+  Ubuntu18.04.1LTS="/mnt/e/Software/scripts/R/",
   Windows7x64build7601ServicePack1="C:\\Users\\r03a21033\\DOWNLOADS\\",
   Windows10x64build17763 = "E:\\Software\\scripts\\R\\",
   Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
@@ -16,14 +17,16 @@ dataset_file_directory <- switch(
   Windows7x64build7601ServicePack1="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   Windows10x64build17763 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
+  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
+  Ubuntu18.04.1LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
   )
 ntuspace_file_directory <- switch(
   t_sessioninfo_running,
   Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
   Windows8x64build9200 = "D:\\NTUSpace\\",
   Windows10x64build17763 = "D:\\NTUSpace\\",
-  Ubuntu16.04.4LTS="/mnt/d/NTUSpace/"
+  Ubuntu16.04.4LTS="/mnt/d/NTUSpace/",
+  Ubuntu18.04.1LTS="/mnt/d/NTUSpace/"
 )
 #選舉資料
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
@@ -118,7 +121,8 @@ legislators_additional_attr<-distinct(legislators_with_election,term,name,electi
               legislator_eduyr=19) %>%
   mutate_cond(customgrepl(name,"李全教|李顯榮"),
               legislator_eduyr=23) %>%
-  mutate_cond(customgrepl(name,"王幸男|江玲君|吳清池|邱鏡淳|邱議瑩|林益世|林淑芬|余政道|呂學樟|翁重鈞|郭玟成|陳明文|陳杰|陳啟昱|陳瑩|馬文君|康世儒|黃昭順|楊瓊瓔|蔡煌瑯|鄭汝芬|鄭金玲|鄭麗文|劉銓忠|潘孟安|潘維剛|盧嘉辰|蕭景田|羅明才|王定宇|何欣純|蘇震清|吳思瑤|吳琪銘|呂孫綾|李俊俋|李彥秀|李應元|周陳秀霞|林俊憲|林為洲|林德福|段宜康|徐榛蔚|陳超明|張宏陸|黃秀芳|許淑華|鄭麗君|蕭美琴|蘇治芬|蘇嘉全|王昱婷|朱星羽|何智輝|李和順"), experience=paste0(experience,"職業民意代表")) %>%
+  mutate_cond(customgrepl(name,"李鎮楠|李雅景|李明憲|王雪峰|王幸男|江玲君|吳清池|邱鏡淳|邱議瑩|林益世|林淑芬|余政道|呂學樟|翁重鈞|郭玟成|陳明文|陳杰|陳啟昱|陳瑩|馬文君|康世儒|黃昭順|楊瓊瓔|蔡煌瑯|鄭汝芬|鄭金玲|鄭麗文|劉銓忠|潘孟安|潘維剛|盧嘉辰|蕭景田|羅明才|王定宇|何欣純|蘇震清|吳思瑤|吳琪銘|呂孫綾|李俊俋|李彥秀|李應元|周陳秀霞|林俊憲|林為洲|林德福|段宜康|徐榛蔚|陳超明|張宏陸|黃秀芳|許淑華|鄭麗君|蕭美琴|蘇治芬|蘇嘉全|王昱婷|朱星羽|何智輝|李和順"),
+              experience=paste0(experience,"職業民意代表")) %>%
   mutate_cond(customgrepl(name,"余天|高金素梅"), experience=paste0(experience,"藝人")) %>%
   mutate_cond(customgrepl(name,"林滄敏"), experience=paste0(experience,"商店售貨")) %>%
   mutate_cond(customgrepl(name,"柯建銘|涂醒哲"), experience=paste0(experience,"醫師")) %>%
@@ -128,23 +132,35 @@ legislators_additional_attr<-distinct(legislators_with_election,term,name,electi
   mutate_cond(customgrepl(name,"劉盛良"), experience=paste0(experience,"高中教師")) %>%
   mutate_cond(customgrepl(name,"吳清池"), experience=paste0(experience,"固定攤販與市場售貨")) %>%
   mutate_cond(customgrepl(name,"何金松"), experience=paste0(experience,"金屬機械技術工")) %>%
-  mutate_cond(customgrepl(name,"林炳坤|郭素春|張花冠|王金平|許毓仁"), experience=paste0(experience,"總經理 創業主管")) %>%
-  mutate_cond(customgrepl(name,"徐耀昌|張慶忠|薛凌|顏清標|余宛如|呂玉玲"), experience=paste0(experience,"董事長")) %>%
-  mutate_cond(customgrepl(name,"李俊毅|黃偉哲|鍾紹和|洪宗熠|蔡適應|鄭運鵬|鍾佳濱|顏寬恒|蔡其昌|李文忠"), experience=paste0(experience,"國會助理")) %>%
-  mutate_cond(customgrepl(name,"林岱樺|吳育昇|林鴻池|陳淑慧|葉宜津"), experience=paste0(experience,"訓練班教師")) %>%
+  mutate_cond(customgrepl(name,"林炳坤|郭素春|張花冠|王金平|許毓仁"),
+              experience=paste0(experience,"總經理 創業主管")) %>%
+  mutate_cond(customgrepl(name,"徐耀昌|張慶忠|薛凌|顏清標|余宛如|呂玉玲"),
+              experience=paste0(experience,"董事長")) %>%
+  mutate_cond(customgrepl(name,"李俊毅|黃偉哲|鍾紹和|洪宗熠|蔡適應|鄭運鵬|鍾佳濱|顏寬恒|蔡其昌|李文忠"),
+              experience=paste0(experience,"國會助理")) %>%
+  mutate_cond(customgrepl(name,"林岱樺|吳育昇|林鴻池|陳淑慧|葉宜津"),
+              experience=paste0(experience,"訓練班教師")) %>%
   mutate_cond(customgrepl(name,"吳志揚"), experience=paste0(customgsub(experience,"教授",""),"律師")) %>%
-  mutate_cond(customgrepl(name,"黃義交|蔣孝嚴|鄭天財"), experience=paste0(experience,"主管級公務員")) %>%
-  mutate_cond(customgrepl(name,"林明溱|蔣乃辛"), experience=paste0(experience,"事務工作公務員")) %>%
-  mutate_cond(customgrepl(name,"李復興|李嘉進|郭榮宗|曹爾忠|曾永權|陳雪生|陳歐珀|楊曜"), experience=paste0(experience,"科長 課長 股長 組長 辦公室監督")) %>%
-  mutate_cond(customgrepl(name,"侯彩鳳|許智傑|劉世芳"), experience=paste0(experience,"工程師")) %>%
+  mutate_cond(customgrepl(name,"黃義交|蔣孝嚴|鄭天財"),
+              experience=paste0(experience,"主管級公務員")) %>%
+  mutate_cond(customgrepl(name,"林明溱|蔣乃辛"),
+              experience=paste0(experience,"事務工作公務員")) %>%
+  mutate_cond(customgrepl(name,"李復興|李嘉進|郭榮宗|曹爾忠|曾永權|陳雪生|陳歐珀|楊曜"),
+              experience=paste0(experience,"科長 課長 股長 組長 辦公室監督")) %>%
+  mutate_cond(customgrepl(name,"侯彩鳳|許智傑|劉世芳"),
+              experience=paste0(experience,"工程師")) %>%
+  mutate_cond(customgrepl(name,"李顯榮"),
+              experience=paste0(experience,"建築師")) %>%
   mutate_cond(customgrepl(name,"陳根德"), experience=paste0(experience,"漁民")) %>%
   mutate_cond(customgrepl(name,"傅崐萁"), experience=paste0(experience,"監察人")) %>%
   mutate_cond(customgrepl(name,"黃志雄"), experience=paste0(experience,"職業選手")) %>%
   mutate_cond(customgrepl(name,"廖婉汝"), experience=paste0(experience,"托兒所負責人")) %>%
   mutate_cond(customgrepl(name,"陳賴素美"), experience=paste0(experience,"地政士")) %>%
   mutate_cond(customgrepl(name,"張麗善"), experience=paste0(experience,"護理師")) %>%
-  mutate_cond(customgrepl(name,"陳亭妃|陳學聖|張廖萬堅|趙天麟|李永萍"), experience=paste0(experience,"記者")) %>%
-  mutate_cond(customgrepl(name,"田秋堇|陳節如|黃淑英|王育敏|王榮璋|吳玉琴|李麗芬|林麗蟬|陳曼麗|高潞|鍾孔炤"), experience=paste0(experience,"NGO理事長 NGO執行長 NGO秘書長 工會理事長")) %>%
+  mutate_cond(customgrepl(name,"陳亭妃|陳學聖|張廖萬堅|趙天麟|李永萍"),
+              experience=paste0(experience,"記者")) %>%
+  mutate_cond(customgrepl(name,"田秋堇|陳節如|黃淑英|王育敏|王榮璋|吳玉琴|李麗芬|林麗蟬|陳曼麗|高潞|鍾孔炤"),
+              experience=paste0(experience,"NGO理事長 NGO執行長 NGO秘書長 工會理事長")) %>%
   mutate_cond(customgrepl(name,"鍾孔炤|何智輝"), legislator_ethnicity="客家") %>%
   mutate_cond(customgrepl(experience,"漁民|討海人"), legislator_occp=620, legislator_ses=65.9) %>%
   mutate_cond(customgrepl(experience,"固定攤販與市場售貨"), legislator_occp=532, legislator_ses=67.3) %>%
@@ -176,7 +192,7 @@ legislators_additional_attr<-distinct(legislators_with_election,term,name,electi
 #孫國華 僑選
 #write.xlsx(legislators_additional_attr,file=paste0(dataset_file_directory,"legislator_additional_attributes.xlsx"))
 filter(legislators_additional_attr,is.na(legislator_ses)|is.na(legislator_eduyr)) %>%
-  select(name,legislator_eduyr,education,term,experience,legislator_occp,legislator_ses,legislator_ethnicity,electionarea) %>%
+  select(name,experience,term,legislator_occp,legislator_ses,legislator_eduyr,education,legislator_ethnicity,electionarea) %>%
   View()
 ##注意有遺漏的部分委員
 

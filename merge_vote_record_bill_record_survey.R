@@ -4,6 +4,7 @@ t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
 filespath<-switch(
   t_sessioninfo_running,
   Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
+  Ubuntu18.04.1LTS="/mnt/e/Software/scripts/R/",
   Windows7x64build7601ServicePack1="C:\\Users\\r03a21033\\DOWNLOADS\\",
   Windows10x64build17763 = "E:\\Software\\scripts\\R\\",
   Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
@@ -16,14 +17,16 @@ dataset_file_directory <- switch(
   Windows7x64build7601ServicePack1="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   Windows10x64build17763 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
+  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
+  Ubuntu18.04.1LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
   )
 ntuspace_file_directory <- switch(
   t_sessioninfo_running,
   Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
   Windows8x64build9200 = "D:\\NTUSpace\\",
   Windows10x64build17763 = "D:\\NTUSpace\\",
-  Ubuntu16.04.4LTS="/mnt/d/NTUSpace/"
+  Ubuntu16.04.4LTS="/mnt/d/NTUSpace/",
+  Ubuntu18.04.1LTS="/mnt/d/NTUSpace/"
   )
 #選舉資料
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
@@ -517,75 +520,74 @@ survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- li
 #Package ‘MissMech’
 #To test whether the missing data mechanism, in a set of incompletely ob-served data, is one of missing completely at random (MCAR).For detailed description see Jamshidian, M. Jalal, S., and Jansen, C. (2014). ``Miss-Mech: An R Package for Testing Homoscedasticity, Multivariate Normality, and Missing Com-pletely at Random (MCAR),'' Journal of Statistical Software,  56(6), 1-31. URL http://www.jstatsoft.org/v56/i06/.
 
-
-
-cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"))
-exportlib<-c("base",lib,"mice","randomForest","MissMech","fastDummies")
-sapply(exportlib,function(needlib,cl) {
-  clusterCall(cl=cl, library, needlib, character.only=TRUE)
-},cl=cl)
-clusterExport(cl,varlist=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"), envir=environment())
-
-
-survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
-  #missingvaluecolumn_assigned<-missingvaluecolumn
-  #imputingcalculatebasiscolumn_assigned<-imputingcalculatebasiscolumn
-  #X<-survey_data[[i]] %>%
-  # droplevels()
-  X<-droplevels(X)
-  imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
-    intersect(names(X))
-  imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
-    intersect(names(X))
-  foundationvar<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
-  ini <- mice(X[,foundationvar], maxit = 0)
-  sapply(c("----------------", X$SURVEY[1], "----------------"),print)
-  print(table(ini$nmis))
-  outlist4 <- as.character(ini$loggedEvents[, "out"])
-  print(ini$loggedEvents, 2)
-  fx2 <- flux(X[,foundationvar])
-  outlist2<-row.names(fx2)[fx2$outflux < 0.45]
-  outlist <- unique(c(outlist2, outlist4))
-  foundationvar %<>% setdiff(outlist)
-  print(paste0(c("foundationvar are ",foundationvar), collapse=" "))
-  unusefulcolumns <- setdiff(names(X),foundationvar)
-  #proceeding_na_var<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned) %>%
-  #  setdiff(c("myown_age"))
-  #predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn)
-  predictor_matrix<-mice::quickpred(X[,foundationvar], mincor=0.2)
-  return(predictor_matrix)
-  #X %<>% dplyr::mutate_at(proceeding_na_var,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
-  #  mutate_if(is.factor,funs(factor))
-  #sol: https://stackoverflow.com/questions/13495041/random-forests-in-r-empty-classes-in-y-and-argument-legth-0
-  #sol: https://stackoverflow.com/questions/24239595/error-using-random-forest-mice-package-during-imputation
-  #The frequency distribution of the missing cases per variable can be obtained as:
-  #survey_data_test[[i]] <- mice::mice(X, maxit = 0)
-  #table(survey_data_test[[i]]$nmis)
-  #colSums(is.na(X))
-  #na_count[[i]] <- sapply(X, function(y) sum(length(which(is.na(y)))))
-  #analysisdfonmissingvalue<-X[,imputedvaluecolumn_assigned]
-  #missingvaluepattern[[i]]<-mice::md.pattern(analysisdfonmissingvalue,plot=FALSE)
-  #visdat::vis_miss(analysisdfonmissingvalue)
-  miceMod <- mice::mice(
-    X[,foundationvar],
-    predictorMatrix = predictor_matrix,
-    m=5,
-    method="rf"
-  )  # perform mice imputation, based on random forests.
-  #linear imputation might have error message: system is computationally singular: reciprocal condition number
-  #https://stats.stackexchange.com/questions/214267/why-do-i-get-an-error-when-trying-to-impute-missing-data-using-pmm-in-mice-packa
-  #print(imputingcalculatebasiscolumn_assigned)
-  imputed_survey_data<- mice::complete(miceMod)  # generate the completed data.
-  complete_imputed_survey_data<-bind_cols(X[,unusefulcolumns],imputed_survey_data)
-  complete_imputed_survey_data<-complete_imputed_survey_data[,names(X)]
-  complete_imputed_survey_data
-  return(complete_imputed_survey_data)
-},imputedvaluecolumn=imputedvaluecolumn,imputingcalculatebasiscolumn=imputingcalculatebasiscolumn)
+survey_data_test <- custom_parallel_lapply(
+  data=survey_data,
+  f=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
+    #missingvaluecolumn_assigned<-missingvaluecolumn
+    #imputingcalculatebasiscolumn_assigned<-imputingcalculatebasiscolumn
+    #X<-survey_data[[i]] %>%
+    # droplevels()
+    X<-droplevels(X)
+    imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
+      intersect(names(X))
+    imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
+      intersect(names(X))
+    foundationvar<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
+    ini <- mice(X[,foundationvar], maxit = 0)
+    sapply(c("----------------", X$SURVEY[1], "----------------"),print)
+    print(table(ini$nmis))
+    outlist4 <- as.character(ini$loggedEvents[, "out"])
+    print(ini$loggedEvents, 2)
+    fx2 <- flux(X[,foundationvar])
+    outlist2<-row.names(fx2)[fx2$outflux < 0.45]
+    outlist <- unique(c(outlist2, outlist4))
+    foundationvar %<>% setdiff(outlist)
+    print(paste0(c("foundationvar are ",foundationvar), collapse=" "))
+    unusefulcolumns <- setdiff(names(X),foundationvar)
+    #proceeding_na_var<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned) %>%
+    #  setdiff(c("myown_age"))
+    #predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn)
+    predictor_matrix<-mice::quickpred(X[,foundationvar], mincor=0.2)
+    return(predictor_matrix)
+    #X %<>% dplyr::mutate_at(proceeding_na_var,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
+    #  mutate_if(is.factor,funs(factor))
+    #sol: https://stackoverflow.com/questions/13495041/random-forests-in-r-empty-classes-in-y-and-argument-legth-0
+    #sol: https://stackoverflow.com/questions/24239595/error-using-random-forest-mice-package-during-imputation
+    #The frequency distribution of the missing cases per variable can be obtained as:
+    #survey_data_test[[i]] <- mice::mice(X, maxit = 0)
+    #table(survey_data_test[[i]]$nmis)
+    #colSums(is.na(X))
+    #na_count[[i]] <- sapply(X, function(y) sum(length(which(is.na(y)))))
+    #analysisdfonmissingvalue<-X[,imputedvaluecolumn_assigned]
+    #missingvaluepattern[[i]]<-mice::md.pattern(analysisdfonmissingvalue,plot=FALSE)
+    #visdat::vis_miss(analysisdfonmissingvalue)
+    miceMod <- mice::mice(
+      X[,foundationvar],
+      predictorMatrix = predictor_matrix,
+      m=5,
+      method="rf"
+    )  # perform mice imputation, based on random forests.
+    #linear imputation might have error message: system is computationally singular: reciprocal condition number
+    #https://stats.stackexchange.com/questions/214267/why-do-i-get-an-error-when-trying-to-impute-missing-data-using-pmm-in-mice-packa
+    #print(imputingcalculatebasiscolumn_assigned)
+    imputed_survey_data<- mice::complete(miceMod)  # generate the completed data.
+    complete_imputed_survey_data<-bind_cols(X[,unusefulcolumns],imputed_survey_data)
+    complete_imputed_survey_data<-complete_imputed_survey_data[,names(X)]
+    complete_imputed_survey_data
+    return(complete_imputed_survey_data)
+  },
+  imputedvaluecolumn=imputedvaluecolumn,
+  imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
+  exportvar=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"),
+  exportlib=c("base",lib,"mice","randomForest"), #,"MissMech","fastDummies"
+  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+  mc.set.seed = TRUE,
+  mc.cores=parallel::detectCores()
+)
 #kNN imputation
 #survey_data_test[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
 #}
 #conditional random field
-stopCluster(cl)
 save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_2_df.RData"))
 #write.xlsx(as.data.frame(furtherusefulpredictor),file="furtherusefulpredictor.xlsx")
 lapply(survey_data_test,View)
@@ -628,27 +630,32 @@ which(as.vector(sapply(survey_data$`2010env.sav`,function(X) {
 
 #Himsc填補遺漏值 filling in missing value
 library(Hmisc)
-cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"))
-exportlib<-c("base",lib,"Hmisc")
-sapply(exportlib,function(needlib,cl) {
-  clusterCall(cl=cl, library, needlib, character.only=TRUE)
-},cl=cl)
-clusterExport(cl,varlist=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"), envir=environment())
-survey_data_test <- parLapply(cl,survey_data,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
-  X <- droplevels(X)
-  imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
-    intersect(names(X))
-  imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
-    intersect(names(X))
-  allimpcolumns<-union(imputedvaluecolumn_assigned,imputingcalculatebasiscolumn_assigned) %>%
-    setdiff(c("myown_marriage","v89","v90","v98b","v128_2b","v128_2c","v132b","v125br","v138dr","v43","myown_working_status","v122ar","v122b1r",
-              "v41","myown_vote","v87_3","v88","v91","v17","v16","v87_4","myown_dad_ethgroup","v87_5")) #too few
-  cal_formula<-as.formula(paste("~", paste(allimpcolumns, collapse="+")))
-  print(c("SURVEY IS ",X$SURVEY[1]," AND FORMULA IS ",cal_formula))
-  impute_arg <- aregImpute(cal_formula, data = X[,allimpcolumns], n.impute = 5)
-  return(impute_arg)
-},imputedvaluecolumn=imputedvaluecolumn,imputingcalculatebasiscolumn=imputingcalculatebasiscolumn)
-stopCluster(cl)
+
+survey_data_test <- custom_parallel_lapply(
+  data=t_survey_data_test,
+  f=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
+    X <- droplevels(X)
+    imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
+      intersect(names(X))
+    imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
+      intersect(names(X))
+    allimpcolumns<-union(imputedvaluecolumn_assigned,imputingcalculatebasiscolumn_assigned) %>%
+      setdiff(c("myown_marriage","v89","v90","v98b","v128_2b","v128_2c","v132b","v125br","v138dr","v43","myown_working_status","v122ar","v122b1r",
+                "v41","myown_vote","v87_3","v88","v91","v17","v16","v87_4","myown_dad_ethgroup","v87_5")) #too few
+    cal_formula<-as.formula(paste("~", paste(allimpcolumns, collapse="+")))
+    print(c("SURVEY IS ",X$SURVEY[1]," AND FORMULA IS ",cal_formula))
+    impute_arg <- aregImpute(cal_formula, data = X[,allimpcolumns], n.impute = 5)
+    return(impute_arg)
+  },
+  imputedvaluecolumn=imputedvaluecolumn,
+  imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
+  exportvar=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"),
+  exportlib=c("base",lib,"Hmisc"),
+  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+  mc.set.seed = TRUE,
+  mc.cores=parallel::detectCores()
+)
+
 
 
 #檢查亂報投票意向
@@ -859,7 +866,7 @@ summary( mice.lieing_check_correct_result )
 #reset
 #load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #load imputed survey
-load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_4_df_randomforest.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_5_df_randomforest.RData"))
 ####################################################
 ####  latent variables 
 ####  將職業社經地位、家庭收入、教育程度萃取成為階級
@@ -1102,6 +1109,7 @@ ltm::GoF.gpcm(X.gpcm)
 #################### #################### #################### ####################
 library(poLCA)
 library(parallel)
+library(foreach)
 lcaneed_independence_attitude<-list(
   "2004citizen"=c("v95","v96","v97"),#公投選項共變
   "2010env"=c(),#沒有統獨
@@ -1139,7 +1147,7 @@ LCAmodel_with_indp
 t_survey_data_test<-survey_data_test
 needsurveyi<-1
 
-custom_generate_LCA_model<-function(X,cl,firstlcaneed,secondlcaneed=c(),thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c()) {
+custom_generate_LCA_model<-function(X,firstlcaneed,secondlcaneed=c(),thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(),...) {
   #lcaneed_independence_attitude
   #lcaneed_party_constituency
   #lcaneed_ethnicity
@@ -1162,48 +1170,54 @@ custom_generate_LCA_model<-function(X,cl,firstlcaneed,secondlcaneed=c(),thirdlca
     paste0(cov_parameter_in_formula,collapse="+"),
     collapse=""
   )
-  test<-switch(
+  poLCAresult<-switch(
     as.character(length(extract2(firstlcaneed,needsurveyi))),
     "0"=NULL,
     "1"=X[,extract2(firstlcaneed,needsurveyi)],
-    {parLapply(cl,2:7,function(poXi,s_survey_data) {
+    {custom_parallel_lapply(X=2:7,FUN=function(poXi,s_survey_data) {
+    #lapply(2:7,function(poXi,s_survey_data) {
       lcamodelbuildtresult<-poLCA::poLCA(
-        formula=as.formula(modelformula),
         data=s_survey_data,
+        formula=as.formula(modelformula),
         nclass = poXi,
         #graphs = TRUE,
         maxiter = 1000,
         nrep=30
       )
       return(lcamodelbuildtresult)
-    },s_survey_data=X)}
+    },s_survey_data=X,mc.preschedule=FALSE)}
   ) #end of switch
-  return(test)
+  return(poLCAresult)
 }
 
-cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"))
-exportlib<-c("base",lib,"poLCA")
-sapply(exportlib,function(needlib,cl) {
-  clusterCall(cl=cl, library, needlib, character.only=TRUE)
-},cl=cl)
-clusterExport(cl,varlist=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"), envir=environment())
-LCAmodel_with_indp_partyconstituenct <- lapply(t_survey_data_test,custom_generate_LCA_model,cl=cl,firstlcaneed=lcaneed_independence_attitude) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
-stopCluster(cl)
+LCAmodel_with_indp_covparty <- custom_parallel_lapply(
+  X=t_survey_data_test,
+  FUN=custom_generate_LCA_model,
+  exportvar=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
+  exportlib=c("base",lib,"poLCA"),
+  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+  firstlcaneed=lcaneed_independence_attitude,
+  secondlcaneed=lcaneed_party_constituency
+  ) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
 
-save(LCAmodel_with_indp,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp",t_sessioninfo_running,".RData"))
+save(LCAmodel_with_indp_covparty,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty",t_sessioninfo_running,".RData"))
 #levels(t_survey_data_test[[1]]$myown_atti_ind)[levels(t_survey_data_test[[1]]$myown_atti_ind)=="1"] <- "統一"
 
 ################### latent variable: 政黨傾向 ####################
 t_survey_data_test<-survey_data_test
 
-cl <- makeCluster(detectCores(),outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"))
-exportlib<-c("base",lib,"poLCA")
-sapply(exportlib,function(needlib,cl) {
-  clusterCall(cl=cl, library, needlib, character.only=TRUE)
-},cl=cl)
-clusterExport(cl,varlist=c("t_survey_data_test","needsurveyi","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"), envir=environment())
-LCAmodel_with_partyconstituency_nocov <- lapply(t_survey_data_test,custom_generate_LCA_model,cl=cl,firstlcaneed=lcaneed_party_constituency) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
-stopCluster(cl)
+LCAmodel_with_partyconstituency_nocov <- custom_parallel_lapply(
+  data=t_survey_data_test,
+  f=custom_generate_LCA_model,
+  exportvar=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
+  exportlib=c("base",lib,"poLCA"),
+  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+  firstlcaneed=lcaneed_party_constituency,
+  secondlcaneed=lcaneed_independence_attitude,
+  mc.set.seed = TRUE,
+  mc.cores=parallel::detectCores()
+) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
+
 
 save(LCAmodel_with_partyconstituency_nocov,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_partyconstituency_nocov",t_sessioninfo_running,".RData"))
 
