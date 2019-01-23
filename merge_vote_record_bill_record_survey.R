@@ -1,3 +1,4 @@
+# 第Ｏ部份：環境設定 --------------------------------
 t_sessioninfo<-sessionInfo()
 t_sessioninfo_running<-gsub(" ","",t_sessioninfo$running)
 t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
@@ -33,9 +34,9 @@ overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
 supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2010hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
 terms<-c(5,6,7,8,9)
 gc(verbose=TRUE)
-############################################################################################################################################################
-# 第一部份：立委及選區資料
-##############################################################################
+
+# 第一部份：立委及選區資料 -------------------------------------------
+
 elections_df<-data.frame()
 for (term in terms) {
   message("term=",term)
@@ -158,9 +159,8 @@ legislators_with_election <- inner_join(legislators_needed, elections_df_test, b
 #test result: filter(legislators_needed,is.na(zip)) %>% View()
 
 
-##############################################################################
-# 第二部分：投票及議案及「問卷答案對照意向」資料,主要也就是RData&excel檔
-##############################################################################
+# 第二部分：投票及議案及「問卷答案對照意向」資料,主要也就是RData&excel檔  -------------------------------------------
+
 myown_vote_bills_file <- "votingdf_datafile_myown_englished.xlsx"
 #survey_time_range <- as.data.frame(list(yrmonth=c('099/07', '099/11', '099/12', '100/01', '100/04', '100/06', '105/09', '105/10', '105/11', '105/12', '106/01', '106/04', '106/05')))
 survey_time_range <- as.data.frame(list(yrmonth=c("093/07","093/08","093/09","093/10","093/11","093/12","094/01","094/02","094/03","094/04","094/05","094/06","094/07","094/08","094/09","094/10","094/11","094/12","095/01","095/02","095/03","095/04","095/05","095/06","095/07","095/08","095/09","095/10","095/11","095/12","099/11","099/12","100/01","100/02","100/03","100/04","100/05","100/06","100/07","100/08","100/09","100/10","100/11","100/12","101/01","101/02","101/03","101/04","101/05","101/06","101/07","101/08","101/09","101/10","101/11","105/09","105/11","105/12","106/01","106/04","106/05","106/06","106/08","106/10","106/11","106/12","107/01","107/03","107/04","107/05","107/06","107/07")))
@@ -318,15 +318,13 @@ mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %
 #  View()
 #save(mergedf_votes_bills_election_surveyanswer, file = paste0(dataset_file_directory,"rdata",slash,"mergedf_votes_bills_election_surveyanswer.RData"))
 #mergedf_votes_bills_election_surveyanswer <- data.frame()
-##############################################################################
-# 第三部份：把問卷檔加上行政區、選區屬性
-##############################################################################
+# 第三部份：把問卷檔加上行政區、選區屬性  -------------------------------------------
+
 library(haven)
 library(labelled)
 load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
 
-##=================以下部分因為已有既存資料檔，讀取後略過不執行#=================
-##=================以下部分因為已有既存資料檔，讀取後略過不執行#=================
+##以下部分因為已有既存資料檔，讀取後略過不執行#
 #找出所有行政區對選區資料，並且找出同一鄉鎮市區有不同選區的部分
 #admin_dist_to_elect_dist <- distinct(elections_df_test, term, admincity, electionarea, admindistrict, adminvillage) %>%
 #  filter(!is.na(admincity))# %>%
@@ -343,8 +341,7 @@ load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
 #  unique() %>% 
 #  sort()
 #save(admin_dist_to_elect_dist,duplicated_area,unique_dist_for_elect_dist,file=paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
-##=================以上部分因為已有既存資料檔，讀取後略過不執行#=================
-##=================以上部分因為已有既存資料檔，讀取後略過不執行#=================
+#以上部分因為已有既存資料檔，讀取後略過不執行#
 
 #重要！2010環境的資料因為補選選區有改變，所以在一些鄉鎮市區村里會重複出現多筆紀錄，要先處理一下join的選舉資料
 #duplicated_area_just_one_electionarea <- group_by(duplicated_area, term, admincity, admindistrict, zip, zip3rocyear) %>%
@@ -457,9 +454,7 @@ forwritingfeather<-mapply(function(X,Y,A,B) {
 load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 
 
-####################################################
-############### 清理資料：填補遺漏值 ###############
-####################################################
+# 第四部份：清理資料：填補遺漏值 -------------------------------------------
 
 #assinging missing value
 library(mice)
@@ -859,18 +854,15 @@ mutate_at(binded_check_result,c("zip","party","bluepoints","greenpoints"),funs(a
 #pooled <- pool( fit )
 summary( mice.lieing_check_correct_result )
 
-####################################################
-####  latent variables 
-####  縮減構面及潛在變數開始
-####################################################
+
+# 第五部份：IRT latent variables 環境設定 -------------------------------------------
 #reset
 #load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #load imputed survey
 load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_5_df_randomforest.RData"))
-####################################################
-####  latent variables 
-####  將職業社經地位、家庭收入、教育程度萃取成為階級
-####################################################
+
+# 第五-1部份：IRT latent variables 將職業社經地位、家庭收入、教育程度萃取成為階級  =================================
+
 
 survey_data_test <- lapply(survey_data_test,function(X) {
   #need_ses_var_assigned %<>% extract2(X$SURVEY[1]) %>%
@@ -892,10 +884,7 @@ survey_data_test <- lapply(survey_data_test,function(X) {
 #library(psy)
 #psy::scree.plot(fa.class$correlation)
 
-####################################################
-####  latent variables 
-####  政治效能感123
-####################################################
+# 第五-2部份：IRT latent variables 政治效能感 =================================
 library(ltm)
 library(eRm)
 library(mirt)
@@ -940,13 +929,11 @@ survey_data_test <- lapply(survey_data_test,function(X,need_efficacy_var_assigne
   return(X)
 },need_efficacy_var_assigned=need_efficacy_var,need_efficacy_recode_var_assigned=need_efficacy_recode_var)
 
-################################################
-#### latent variables 政治參與
-#### 用item respond抓出隱藏變數「政治參與程度」
-#### https://www.researchgate.net/post/How_to_conduct_item_analysis_with_a_likert_scale_questionaire
-#### mirt help: https://github.com/philchalmers/mirt/wiki
-#### http://moodle.ncku.edu.tw/pluginfile.php/977679/mod_resource/content/1/item_response_theory.pdf
-################################################
+# 第五-3部份：IRT latent variables  latent variables 政治參與；用item respond抓出隱藏變數「政治參與程度」 =================================
+# https://www.researchgate.net/post/How_to_conduct_item_analysis_with_a_likert_scale_questionaire
+# mirt help: https://github.com/philchalmers/mirt/wiki
+# http://moodle.ncku.edu.tw/pluginfile.php/977679/mod_resource/content/1/item_response_theory.pdf
+
 
 #2004citizen: v28 v29 v30 v31 v32 v33 v34 v35 v36 v37 v38 v39 v40 v59
 #2016citizen-fit2-z1: b4 h2a h2b h2c h2d h2e h2f h2g h2h h3a h3b h3c h4
@@ -981,7 +968,7 @@ survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigne
 },need_particip_var_assigned=need_particip_var)
 
 
-#################### parametric IRT non-Rasch models - GRM Model ####################
+# 第五-3-1部份：parametric IRT non-Rasch models - GRM Model ####################
 # mirt::mirt by 'graded'
 # ltm:grm
 survey_data_test <- lapply(survey_data_test, function(X,need_particip_var_assigned) {
@@ -1062,7 +1049,7 @@ for (ctg in 1:4) {
   Sys.sleep(2)
 }
 
-#################### non-parametric IRT Mokken scale analysis Model ####################
+# 第五-3-2部份：non-parametric IRT Mokken scale analysis Model ####################
 #################### mokken, Mokken Scale Analysis in R
 #################### read: https://www.jstatsoft.org/article/view/v020i11/v20i11.pdf
 mokken::coefH(as.data.frame(X[,need_particip_var_assigned]))
@@ -1071,15 +1058,15 @@ summary(checkmokkenresult)
 plot(checkmokkenresult)
 scale.checkmokkenresult <- mokken::aisp(as.data.frame(X[,need_particip_var_assigned]))
 
-#################### parametric IRT Rasch models - Partial Credit Model ####################
+# 第五-3-3部份：parametric IRT Rasch models - Partial Credit Model ####################
 # mirt::Rasch
 # eRm::PCM
-#################### parametric IRT Rasch models - Rating Scale Model ####################
+# 第五-3-4部份：parametric IRT Rasch models - Rating Scale Model ####################
 # eRm::RSM
 # mirt:mirt
 # 'grsm' and 'grsmIRT' - graded ratings scale model in the slope-interceptand classical IRT parameterization.
 # 'grsmIRT'is restricted to unidimensional models (Muraki, 1992)
-##############################################################################################
+
 rst_mirt1 <- mirt::mirt(data = X[,need_particip_var_assigned], model = 1, verbose = T, itemtype= "grsmIRT")
 coef(rst_mirt1)
 for (itemplotn in 1:length(need_particip_var_assigned)) {
@@ -1090,7 +1077,7 @@ summary(rst_mirt1)
 residuals(rst_mirt1)
 mirt::fscores(rst_mirt1,method = "EAP") %>% View()
 
-#################### parametric IRT non-Rasch models - Generalized Partial Credit Model - Polytomous IRT ####################
+# 第五-3-5部份：parametric IRT non-Rasch models - Generalized Partial Credit Model - Polytomous IRT ####################
 #################### Finch, W. Holmes＆French, Brian F. (2015). Latent Variable Modeling with R. Florence: Taylor and Francis
 ## ltm::gpcm
 ## mirt::mirt by gpcmIRT
@@ -1104,12 +1091,11 @@ ltm::GoF.gpcm(X.gpcm)
 
 #margins(fit1)
 
-#################### #################### #################### ####################
-################### latent variable: 潛在類別模式 ####################
-#################### #################### #################### ####################
+# 第六部份：LCA latent variables 潛在類別模式資料清理  ================================= 
+
 library(poLCA)
 library(parallel)
-library(foreach)
+
 lcaneed_independence_attitude<-list(
   "2004citizen"=c("v95","v96","v97"),#公投選項共變
   "2010env"=c(),#沒有統獨
@@ -1140,9 +1126,9 @@ lcaneed_other_cov<-list(
   "2010overall"=c(),
   "2016citizen"=c()
 )
-################### latent variable: 統獨傾向 ####################
-load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercovWindows8x64build9200.RData"))
-LCAmodel_with_indp
+# 第六-1部份：LCA latent variables 潛在類別模式統獨傾向 =====================
+#load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercovWindows8x64build9200.RData"))
+#LCAmodel_with_indp
 
 t_survey_data_test<-survey_data_test
 needsurveyi<-1
@@ -1203,7 +1189,7 @@ LCAmodel_with_indp_covparty <- custom_parallel_lapply(
 save(LCAmodel_with_indp_covparty,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty",t_sessioninfo_running,".RData"))
 #levels(t_survey_data_test[[1]]$myown_atti_ind)[levels(t_survey_data_test[[1]]$myown_atti_ind)=="1"] <- "統一"
 
-################### latent variable: 政黨傾向 ####################
+# 第六-2部份：LCA latent variables 潛在類別模式政黨傾向 ====================
 t_survey_data_test<-survey_data_test
 
 LCAmodel_with_partyconstituency_nocov <- custom_parallel_lapply(
@@ -1226,7 +1212,7 @@ save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"survey_d
 load(paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
 
 
-#############################把問卷資料變形以便串連及行政區、選舉資料#################################
+# 第七部份：把問卷資料變形以便串連及行政區、選舉資料 ---------------------------------
 library(reshape2)
 
 survey_q_id<-list(
