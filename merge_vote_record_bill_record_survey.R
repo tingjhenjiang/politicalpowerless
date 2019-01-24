@@ -1133,18 +1133,19 @@ lcaneed_other_cov<-list(
 t_survey_data_test<-survey_data_test
 needsurveyi<-1
 
-custom_generate_LCA_model<-function(X, ..., firstlcaneed,secondlcaneed=c(),thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(), exportlib=c("base"), exportvar=c()) {
+custom_generate_LCA_model<-function(X, firstlcaneed,secondlcaneed=c(), ..., exportlib=c("base"), exportvar=c(), outfile="") {#,thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(), exportlib=c("base"), exportvar=c(), outfile=""
+  #X此時就是一個問卷的dataset
   #lcaneed_independence_attitude
   #lcaneed_party_constituency
   #lcaneed_ethnicity
   #lcaneed_identity
   #lcaneed_other_cov
+  message("<===== at custom_generate_LCA_model exportlib is ", exportlib, " and exportvar is ", exportvar, " and outfile is ", outfile, "=====>")
+  otherlcaneed<-unlist(list(...))
   needsurveyi<-X$SURVEY[1]
   cov_parameter_in_formula<-dplyr::union_all(
     magrittr::extract2(secondlcaneed,needsurveyi),
-    magrittr::extract2(thirdlcaneed,needsurveyi),
-    magrittr::extract2(fourthlcaneed,needsurveyi),
-    magrittr::extract2(fifthlcaneed,needsurveyi)
+    magrittr::extract2(otherlcaneed,needsurveyi)
   )
   if (identical(cov_parameter_in_formula,logical())) {
     cov_parameter_in_formula<-"1"
@@ -1160,21 +1161,26 @@ custom_generate_LCA_model<-function(X, ..., firstlcaneed,secondlcaneed=c(),third
     as.character(length(magrittr::extract2(firstlcaneed,needsurveyi))),
     "0"=NULL,
     "1"=X[,magrittr::extract2(firstlcaneed,needsurveyi)],
-    {custom_parallel_lapply(X=1:2,FUN=function(poXi,s_survey_data,modelformula) {
-      #lapply(2:7,function(poXi,s_survey_data) {
-      lcamodelbuildtresult<-poLCA(
-        data=s_survey_data,
-        formula=as.formula(modelformula),
-        nclass = poXi,
-        #graphs = TRUE,
-        maxiter = 1000,
-        nrep=30
+    {
+      custom_parallel_lapply(X=2:7,FUN=function(poXi,s_survey_data,modelformula)
+      {
+        #lapply(2:7,function(poXi,s_survey_data) {
+        lcamodelbuildtresult<-poLCA(
+          data=s_survey_data,
+          formula=as.formula(modelformula),
+          nclass = poXi,
+          #graphs = TRUE,
+          maxiter = 1000,
+          nrep=30
+        )
+        return(lcamodelbuildtresult)
+      },s_survey_data=X,
+      modelformula=modelformula,
+      exportvar=exportvar,
+      exportlib=exportlib,
+      outfile=outfile
       )
-      return(lcamodelbuildtresult)
-    },s_survey_data=X,
-    modelformula=modelformula,
-    exportvar=exportvar,
-    exportlib=exportlib)}
+    }
   ) #end of switch
   return(poLCAresult)
 }
