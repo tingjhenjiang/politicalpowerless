@@ -1,34 +1,14 @@
 # 第Ｏ部份：環境設定 --------------------------------
-t_sessioninfo<-sessionInfo()
-t_sessioninfo_running<-gsub(" ","",t_sessioninfo$running)
-t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
+t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 filespath<-switch(
-  t_sessioninfo_running,
-  Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
-  Ubuntu18.04.1LTS="/mnt/e/Software/scripts/R/",
-  Windows7x64build7601ServicePack1="C:\\Users\\r03a21033\\DOWNLOADS\\",
-  Windows10x64build17763 = "E:\\Software\\scripts\\R\\",
-  Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
-  )
-#filespath <- "E:\\Software\\scripts\\R\\"
-#filespath <- "/mnt/e/Software/scripts/R/"
+  paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
+  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
+  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/d/Software/scripts/",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\"
+)
 source(file = paste(filespath, "shared_functions.R", sep = ""))
-dataset_file_directory <- switch(
-  t_sessioninfo_running,
-  Windows7x64build7601ServicePack1="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Windows10x64build17763 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
-  Ubuntu18.04.1LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
-  )
-ntuspace_file_directory <- switch(
-  t_sessioninfo_running,
-  Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
-  Windows8x64build9200 = "D:\\NTUSpace\\",
-  Windows10x64build17763 = "D:\\NTUSpace\\",
-  Ubuntu16.04.4LTS="/mnt/d/NTUSpace/",
-  Ubuntu18.04.1LTS="/mnt/d/NTUSpace/"
-  )
 #選舉資料
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
 supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2010hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
@@ -984,7 +964,7 @@ survey_data_test <- lapply(survey_data_test, function(X,need_particip_var_assign
     data=irt_target_d,
     model=1,
     itemtype = "graded")
-  poliparticipt<-fscores(estimatemodel,method="EAP") %>%
+  poliparticipt<-mirt::fscores(estimatemodel,method="EAP") %>%
     as.data.frame()
   names(poliparticipt)<-c("myown_factoredparticip")
   X<-bind_cols(X,poliparticipt)
@@ -1217,8 +1197,12 @@ LCAmodel_with_partyconstituency_nocov <- custom_parallel_lapply(
 save(LCAmodel_with_partyconstituency_nocov,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_partyconstituency_nocov",t_sessioninfo_running,".RData"))
 
 
-save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
-load(paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
+# 第六-3部份：潛在類別分析：將分析結果整併入dataset --------------------------------------------------
+
+load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covpartyUbuntu18.04.1LTS_do_not_delete.RData"))
+LCAmodel_with_indp_covparty[[1]]
+#save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
+#load(paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
 
 
 # 第七部份：把問卷資料變形以便串連及行政區、選舉資料 ---------------------------------

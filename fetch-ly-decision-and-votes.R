@@ -1,33 +1,13 @@
-t_sessioninfo<-sessionInfo()
-t_sessioninfo_running<-gsub(" ","",t_sessioninfo$running)
-t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
+t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 filespath<-switch(
-  t_sessioninfo_running,
-  Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
-  Ubuntu18.04.1LTS="/mnt/e/Software/scripts/R/",
-  Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
-  Windows10x64build17763 = "E:\\Software\\scripts\\R\\",
-  Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
-  )
-#filespath <- "E:\\Software\\scripts\\R\\"
-#filespath <- "/mnt/e/Software/scripts/R/"
+  paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
+  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
+  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/d/Software/scripts/",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\"
+)
 source(file = paste(filespath, "shared_functions.R", sep = ""))
-dataset_file_directory <- switch(
-  t_sessioninfo_running,
-  Windows7x64build7601ServicePack1="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Windows10x64build17763 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
-  Ubuntu18.04.1LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
-  )
-ntuspace_file_directory <- switch(
-  t_sessioninfo_running,
-  Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
-  Windows8x64build9200 = "D:\\NTUSpace\\",
-  Windows10x64build17763 = "D:\\NTUSpace\\",
-  Ubuntu16.04.4LTS="/mnt/d/NTUSpace/",
-  Ubuntu18.04.1LTS="/mnt/d/NTUSpace/"
-  )
 no_rollcall<-c()
 load(paste0(dataset_file_directory,"rdata",slash,"meetingdata.RData"))
 urlarr<-as.character(meetingdata$url) %>% unique()
