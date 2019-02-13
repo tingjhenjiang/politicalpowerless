@@ -1,21 +1,13 @@
-t_sessioninfo<-sessionInfo()
-t_sessioninfo_running<-gsub(" ","",t_sessioninfo$running)
-t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
-filespath<-switch(t_sessioninfo_running,
-                  Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
-                  Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
-                  Windows10x64build16299 = "E:\\Software\\scripts\\R\\",
-                  Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
+t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
+filepath<-switch(
+  paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
+  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
+  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/d/Software/scripts/",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\"
 )
-#filespath <- "E:\\Software\\scripts\\R\\"
-#filespath <- "/mnt/e/Software/scripts/R/"
 source(file = paste(filespath, "shared_functions.R", sep = ""))
-dataset_file_directory <- switch(t_sessioninfo_running,
-                                 Windows7x64build7601ServicePack1="C:\\NTUSpace\\dataset\\",
-                                 Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-                                 Windows10x64build16299 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-                                 Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
-)
 #選舉資料
 overall_elec_dist_types<-c('區域','山原','平原','不分區政黨')
 supplement_election_termseven<-c('補選2009苗栗縣1','補選2009南投縣1','補選2009雲林縣2','補選2009臺北市6','補選2010台中縣3','補選2010花蓮縣','補選2010桃園縣2','補選2010桃園縣3','補選2010新竹縣','補選2010嘉義縣2','補選2010臺東縣','補選2011台南市4','補選2011高雄市4')
