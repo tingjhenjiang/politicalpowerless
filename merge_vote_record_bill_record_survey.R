@@ -8,7 +8,8 @@ filespath<-switch(
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\"
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\"
 )
 source(file = paste(filespath, "shared_functions.R", sep = ""))
 #選舉資料
@@ -370,10 +371,13 @@ survey_data <- survey_data[order(names(survey_data))] %>%
   lapply(dplyr::mutate_at,c("myown_job","admincity","admindistrict"),.funs=as.factor)
 #save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 
-#survey_data_labels <- lapply(survey_data,function(X) {
-#  sapply(X,FUN=attr,which="labels")
-#})
-#save(survey_data_labels,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
+labeladjusmentagain = FALSE
+if (labeladjusmentagain) {
+  survey_data_labels <- lapply(survey_data,function(X) {
+    sapply(X,FUN=attr,which="labels")
+  })
+  save(survey_data_labels,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
+}
 #survey_data_labels已經預處理過，直接load即可
 load(paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
 
@@ -498,8 +502,8 @@ survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- li
 #To test whether the missing data mechanism, in a set of incompletely ob-served data, is one of missing completely at random (MCAR).For detailed description see Jamshidian, M. Jalal, S., and Jansen, C. (2014). ``Miss-Mech: An R Package for Testing Homoscedasticity, Multivariate Normality, and Missing Com-pletely at Random (MCAR),'' Journal of Statistical Software,  56(6), 1-31. URL http://www.jstatsoft.org/v56/i06/.
 
 survey_data_test <- custom_parallel_lapply(
-  data=survey_data,
-  f=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
+  X=survey_data,
+  FUN=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
     #missingvaluecolumn_assigned<-missingvaluecolumn
     #imputingcalculatebasiscolumn_assigned<-imputingcalculatebasiscolumn
     #X<-survey_data[[i]] %>%
@@ -565,7 +569,7 @@ survey_data_test <- custom_parallel_lapply(
 #survey_data_test[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
 #}
 #conditional random field
-save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_2_df.RData"))
+save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_6_",t_sessioninfo_running,"df.RData"))
 #write.xlsx(as.data.frame(furtherusefulpredictor),file="furtherusefulpredictor.xlsx")
 lapply(survey_data_test,View)
 View(survey_data$`2010env.sav`[1:20,union(imputedvaluecolumn$`2010env`,imputingcalculatebasiscolumn$`2010env`)])
