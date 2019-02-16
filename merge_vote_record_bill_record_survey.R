@@ -1088,7 +1088,7 @@ lcaneed_independence_attitude<-list(
   "2016citizen"=c("h10r")#2016只有一題統獨傾向"
 )
 lcaneed_party_constituency<-list(
-  "2004citizen"=c("v98r","v99"),
+  "2004citizen"=c("v88","v89","v90","v98r","v99"),
   "2010env"=c("v103r"),#2010env只有一題政黨傾向
   "2010overall"=c("v84","v86","v87a1r","v88r","v93v94sumup"), #v93","v94r" to v93v94sumup
   "2016citizen"=c("h5","h6r_recode_party_for_forgotten","h7","h8r","h9r")
