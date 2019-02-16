@@ -1147,9 +1147,9 @@ custom_generate_LCA_model<-function(X, firstlcaneed,secondlcaneed=c(), ..., expo
     "0"=NULL,
     "1"=X[,magrittr::extract2(firstlcaneed,needsurveyi)],
     {
-      custom_parallel_lapply(X=2:7,FUN=function(poXi,s_survey_data,modelformula)
+      custom_parallel_lapply(X=2:5,FUN=function(poXi,s_survey_data,modelformula,...)
       {
-        #lapply(2:7,function(poXi,s_survey_data) {
+        #### lapply(2:7,function(poXi,s_survey_data) {
         lcamodelbuildtresult<-poLCA(
           data=s_survey_data,
           formula=as.formula(modelformula),
@@ -1159,6 +1159,7 @@ custom_generate_LCA_model<-function(X, firstlcaneed,secondlcaneed=c(), ..., expo
           nrep=30
         )
         return(lcamodelbuildtresult)
+        #poXi
       },s_survey_data=X,
       modelformula=modelformula,
       exportvar=exportvar,
@@ -1169,6 +1170,19 @@ custom_generate_LCA_model<-function(X, firstlcaneed,secondlcaneed=c(), ..., expo
   ) #end of switch
   return(poLCAresult)
 }
+
+###LCAmodel_with_indp_covparty <- list()
+###for (lcamodelit in 1:1) {#length(t_survey_data_test)
+###  LCAmodel_with_indp_covparty[[lcamodelit]]<-custom_parallel_lapply(
+###    X=t_survey_data_test[[lcamodelit]],
+###    FUN=custom_generate_LCA_model,
+###    exportvar=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
+###    exportlib=c("base",lib,"poLCA"),
+###    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+###    firstlcaneed=lcaneed_independence_attitude,
+###    secondlcaneed=lcaneed_party_constituency
+###  )
+###}
 
 LCAmodel_with_indp_covparty <- custom_parallel_lapply(
   X=t_survey_data_test,
