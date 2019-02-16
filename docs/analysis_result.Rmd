@@ -23,31 +23,19 @@ library(kableExtra)
 library(stargazer)
 library(huxtable)
 knitr::opts_chunk$set(echo = TRUE)
-t_sessioninfo<-sessionInfo()
-t_sessioninfo_running<-gsub(" ","",t_sessioninfo$running)
-t_sessioninfo_running<-gsub("[>=()]","",t_sessioninfo_running)
+t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 filespath<-switch(
-  t_sessioninfo_running,
-  Ubuntu16.04.4LTS="/mnt/e/Software/scripts/R/",
-  Windows7x64build7601ServicePack1="C:\\Users\\r03a21033\\DOWNLOADS\\",
-  Windows10x64build17763 = "E:\\Software\\scripts\\R\\",
-  Windows8x64build9200 = "E:\\Software\\scripts\\R\\"
-  )
-#source(file = paste(filespath, "shared_functions.R", sep = ""))
-dataset_file_directory <- switch(
-  t_sessioninfo_running,
-  Windows7x64build7601ServicePack1="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Windows8x64build9200 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Windows10x64build17763 = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  Ubuntu16.04.4LTS="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
-  )
-ntuspace_file_directory <- switch(
-  t_sessioninfo_running,
-  Windows7x64build7601ServicePack1="C:\\NTUSpace\\",
-  Windows8x64build9200 = "D:\\NTUSpace\\",
-  Windows10x64build17763 = "D:\\NTUSpace\\",
-  Ubuntu16.04.4LTS="/mnt/d/NTUSpace/"
-  )
+  paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
+  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
+  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\"
+)
+source(file = paste(filespath, "shared_functions.R", sep = ""))
+
 
 gc(verbose=TRUE)
 #https://cran.r-project.org/web/packages/kableExtra/vignettes/awesome_table_in_html.html
@@ -255,7 +243,7 @@ kable(indattitude_variable_table, format = "html") %>% kable_styling(bootstrap_o
 #  huxtable::set_caption("外顯類別對潛在類別機率表")
 ```
 
-* 政黨傾向：依據問卷中的以下問題類別變項，使用以潛在類別迴歸模式（Latent class regression model）為原理的R語言套件poLCA{Linzer, 2011 #12918}，並以前述統獨傾向外顯變項為共變項，預測／估計受訪者潛在的政黨傾向，分為「泛藍」、「中立」、「泛綠」三類。2010環境並不使用潛在類別模式估計，直接以題目回答結果編碼；括弧內為潛在類別模式估計外顯類別對潛在類別的機率：
+* 政黨傾向：依據問卷中的以下問題類別變項，首先依據{戴士展, 2013 #12889}，將政黨傾向編碼為，使用以潛在類別迴歸模式（Latent class regression model）為原理的R語言套件poLCA{Linzer, 2011 #12918}，並以前述統獨傾向外顯變項為共變項，預測／估計受訪者潛在的政黨傾向，分為「泛藍」、「中立」、「泛綠」三類。2010環境並不使用潛在類別模式估計，直接以題目回答結果編碼；括弧內為潛在類別模式估計外顯類別對潛在類別的機率：
 ```{r partyconstituency_variable_table, echo=FALSE}
 partyconstituency_variable_table<-as.data.frame(rowr::cbind.fill(
   c("v88 請問您這次(今年三月20日)的總統選舉投票給誰","v89 請問您上一次(2000年)總統選舉投給誰","v90請問您上一次(民國九十年)立法委員選舉投給哪一黨的候選人?","v98 請問您是否偏向哪一個政黨","v99請問您覺得自己是偏向(泛綠)陣營,還是(泛藍)陣營?","",""),
