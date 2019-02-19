@@ -483,19 +483,21 @@ generate_predictor_matrix<-function(df,calculationbasisvar=c(),imputedOnlyVars=c
   return(predictorMatrix)
 }
 
-survey_data_test <- lapply(survey_data,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
-  X<-droplevels(X)
-  imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
-    intersect(names(X))
-  imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
-    intersect(names(X))
-  needcols<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)[1:50]
-  #testresult<-fastDummies::dummy_cols(X[,needcols]) %>% dplyr::select_if(is.numeric) %>% 
-  #  MissMech::TestMCARNormality()
-  testresult<-BaylorEdPsych::LittleMCAR(X[,needcols])
-  return(testresult)
-},imputedvaluecolumn=imputedvaluecolumn,imputingcalculatebasiscolumn=imputingcalculatebasiscolumn)
-
+VIMtestplot<-FALSE
+if (VIMtestplot) {
+  survey_data_test <- lapply(survey_data,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
+    X<-droplevels(X)
+    imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
+      intersect(names(X))
+    imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
+      intersect(names(X))
+    needcols<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)[1:50]
+    #testresult<-fastDummies::dummy_cols(X[,needcols]) %>% dplyr::select_if(is.numeric) %>% 
+    #  MissMech::TestMCARNormality()
+    testresult<-BaylorEdPsych::LittleMCAR(X[,needcols])
+    return(testresult)
+  },imputedvaluecolumn=imputedvaluecolumn,imputingcalculatebasiscolumn=imputingcalculatebasiscolumn)
+}
 
 survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- list()
 #Package ‘MissMech’
@@ -503,7 +505,7 @@ survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- li
 
 survey_data_test <- custom_parallel_lapply(
   X=survey_data,
-  FUN=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
+  FUN=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,...) {
     #missingvaluecolumn_assigned<-missingvaluecolumn
     #imputingcalculatebasiscolumn_assigned<-imputingcalculatebasiscolumn
     #X<-survey_data[[i]] %>%
@@ -529,7 +531,7 @@ survey_data_test <- custom_parallel_lapply(
     #  setdiff(c("myown_age"))
     #predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn)
     predictor_matrix<-mice::quickpred(X[,foundationvar], mincor=0.2)
-    return(predictor_matrix)
+    #return(predictor_matrix)
     #X %<>% dplyr::mutate_at(proceeding_na_var,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
     #  mutate_if(is.factor,funs(factor))
     #sol: https://stackoverflow.com/questions/13495041/random-forests-in-r-empty-classes-in-y-and-argument-legth-0
@@ -1205,8 +1207,8 @@ save(LCAmodel_with_indp_covparty,file=paste0(dataset_file_directory,"rdata",slas
 t_survey_data_test<-survey_data_test
 
 LCAmodel_with_partyconstituency_nocov <- custom_parallel_lapply(
-  data=t_survey_data_test,
-  f=custom_generate_LCA_model,
+  X=t_survey_data_test,
+  FUN=custom_generate_LCA_model,
   exportvar=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
   exportlib=c("base",lib,"poLCA"),
   outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
