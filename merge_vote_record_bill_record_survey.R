@@ -842,6 +842,7 @@ summary( mice.lieing_check_correct_result )
 #load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #load imputed survey
 load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_5_df_randomforest.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_6_Ubuntu18.04.2LTSdf.RData"))
 
 # 第五-1部份：IRT latent variables 將職業社經地位、家庭收入、教育程度萃取成為階級  =================================
 
@@ -1090,7 +1091,7 @@ lcaneed_independence_attitude<-list(
 lcaneed_party_constituency<-list(
   "2004citizen"=c("v88","v89","v90","v98r","v99"),
   "2010env"=c("v103r"),#2010env只有一題政黨傾向
-  "2010overall"=c("v84","v86","v87a1r","v88r","v93v94sumup"), #v93","v94r" to v93v94sumup
+  "2010overall"=c("v84","v85v86v87sumup","v88r","v93v94sumup"), #v93","v94r" to v93v94sumup
   "2016citizen"=c("h5","h6r_recode_party_for_forgotten","h7","h8r","h9r")
 )
 lcaneed_ethnicity<-list(
