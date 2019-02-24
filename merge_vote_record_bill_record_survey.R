@@ -16,6 +16,9 @@ source(file = paste(filespath, "shared_functions.R", sep = ""))
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
 supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2010hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
 terms<-c(5,6,7,8,9)
+survey_data_title<-c("2016citizen","2010env","2010overall","2004citizen") %>% sort()
+survey_imputation_and_measurement<-openxlsx::read.xlsx(paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx"),sheet = 1)
+
 gc(verbose=TRUE)
 
 # 第一部份：立委及選區資料 -------------------------------------------
@@ -337,8 +340,6 @@ minus_electionarea <- as.data.frame(list(
   zip = 320, 
   zip3rocyear = 99))
 survey_restricted_data<-read.xlsx(paste0(dataset_file_directory, "basic_social_survey_restricted_data.xlsx"), sheet = 1)
-survey_data_title<-c("2016citizen","2010env","2010overall","2004citizen") %>% sort()
-survey_imputation_and_measurement<-read.xlsx(paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx"),sheet = 1)
 survey_data<-paste0(survey_data_title,".sav") %>%
   sapply(function (X,...) paste0(...,X), dataset_file_directory, "merger_survey_dataset",slash) %>%
   lapply(haven::read_sav) %>%
@@ -567,6 +568,7 @@ survey_data_test <- custom_parallel_lapply(
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
 )
+#survey_data_test[[3]]<-t_survey_data_test[[1]]
 #kNN imputation
 #survey_data_test[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
 #}
@@ -1095,9 +1097,9 @@ lcaneed_independence_attitude<-list(
   "2016citizen"=c("h10r")#2016只有一題統獨傾向"
 )
 lcaneed_party_constituency<-list(
-  "2004citizen"=c("v88","v89","v90","v98r","v99"),
+  "2004citizen"=c("v88","v89","v90","v99"),#,"v98r"
   "2010env"=c("v103r"),#2010env只有一題政黨傾向
-  "2010overall"=c("v84","v85v86v87sumup","v88r","v93v94sumup"), #v93","v94r" to v93v94sumup
+  "2010overall"=c("v84","v85v88sumup"), #,"v85v86v87sumup","v93v94sumup"
   "2016citizen"=c("h5","h6r_recode_party_for_forgotten","h7","h8r","h9r")
 )
 lcaneed_ethnicity<-list(
