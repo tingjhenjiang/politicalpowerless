@@ -847,7 +847,7 @@ summary( mice.lieing_check_correct_result )
 #reset
 #load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #load imputed survey
-load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_5_df_randomforest.RData"))
+#load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_5_df_randomforest.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_6_Ubuntu18.04.2LTSdf.RData"))
 
 # 第五-1部份：IRT latent variables 將職業社經地位、家庭收入、教育程度萃取成為階級  =================================
@@ -1225,8 +1225,28 @@ save(LCAmodel_with_partyconstituency_nocov,file=paste0(dataset_file_directory,"r
 
 # 第六-3部份：潛在類別分析：將分析結果整併入dataset --------------------------------------------------
 
-load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covpartyUbuntu18.04.1LTS_do_not_delete.RData"))
-LCAmodel_with_indp_covparty[[1]]
+#load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covpartyUbuntu18.04.1LTS_do_not_delete.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covpartyUbuntu18.04.2LTS.RData"))
+
+new_LCAmodel_with_indp_covparty_3_3<-poLCA(
+  data=t_survey_data,
+  formula=as.formula(paste0(
+    "cbind(",
+    paste(magrittr::extract2(lcaneed_independence_attitude,"2010overall"),collapse=","),
+    ") ~ ",
+    paste0(lcaneed_party_constituency[[3]][[2]],collapse="+"),
+    collapse=""
+  )),
+  nclass = poXi,
+  #graphs = TRUE,
+  maxiter = 1000,
+  nrep=30,
+  probs.start=poLCA::poLCA.reorder(
+    LCAmodel_with_indp_covparty[[3]][[2]]$probs.start,
+    c(LCAmodel_with_indp_covparty[[3]][[2]]$P[3],LCAmodel_with_indp_covparty[[3]][[2]]$P[1],LCAmodel_with_indp_covparty[[3]][[2]]$P[2])
+  )
+)
+survey_data_test[[3]]$myown_indp_atti<-as.factor(LCAmodel_with_indp_covparty[[3]][[2]]$predclass)
 #save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
 #load(paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
 
