@@ -16,8 +16,9 @@ source(file = paste(filespath, "shared_functions.R", sep = ""))
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
 supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2010hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
 terms<-c(5,6,7,8,9)
-survey_data_title<-c("2016citizen","2010env","2010overall","2004citizen") %>% sort()
+survey_data_title<-c("2004citizen","2010env","2010overall","2016citizen") %>% sort()
 survey_imputation_and_measurement<-openxlsx::read.xlsx(paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx"),sheet = 1)
+survey_codebook<-openxlsx::read.xlsx(paste0(dataset_file_directory,"all_survey_questions_englished.xlsx"),sheet = 4)
 
 gc(verbose=TRUE)
 
@@ -1230,42 +1231,92 @@ save(LCAmodel_with_partyconstituency_nocov,file=paste0(dataset_file_directory,"r
 #load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covpartyUbuntu18.04.1LTS_do_not_delete.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covpartyUbuntu18.04.2LTS.RData"))
 
-new_LCAmodel_with_indp_covparty_3_3<-poLCA(
-  data=t_survey_data,
+new_LCAmodel_with_indp_covparty_3_3<-poLCA::poLCA(
+  data=t_survey_data_test[[3]],
   formula=as.formula(paste0(
     "cbind(",
     paste(magrittr::extract2(lcaneed_independence_attitude,"2010overall"),collapse=","),
     ") ~ ",
-    paste0(lcaneed_party_constituency[[3]][[2]],collapse="+"),
+    paste0(lcaneed_party_constituency[[3]],collapse="+"),
     collapse=""
   )),
-  nclass = poXi,
+  nclass = 3,
   #graphs = TRUE,
   maxiter = 1000,
   nrep=30,
   probs.start=poLCA::poLCA.reorder(
     LCAmodel_with_indp_covparty[[3]][[2]]$probs.start,
-    c(LCAmodel_with_indp_covparty[[3]][[2]]$P[3],LCAmodel_with_indp_covparty[[3]][[2]]$P[1],LCAmodel_with_indp_covparty[[3]][[2]]$P[2])
+    c(3,1,2)
   )
 )
-survey_data_test[[3]]$myown_indp_atti<-as.factor(LCAmodel_with_indp_covparty[[3]][[2]]$predclass)
+LCAmodel_with_indp_covparty[[3]][[2]]<-new_LCAmodel_with_indp_covparty_3_3
+survey_data_test[[1]]$myown_indp_atti<-factor(
+  LCAmodel_with_indp_covparty[[1]][[2]]$predclass,
+  levels = c(1,2,3), labels = c("統一", "中立", "獨立")
+)#save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
+survey_data_test[[3]]$myown_indp_atti<-factor(
+  LCAmodel_with_indp_covparty[[3]][[2]]$predclass,
+  levels = c(1,2,3), labels = c("統一", "中立", "獨立")
+  )
+survey_data_test[[4]]$myown_indp_atti<-LCAmodel_with_indp_covparty[[4]]$h10r
 #save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
-#load(paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
 
 
 # 第七部份：把問卷資料變形以便串連及行政區、選舉資料 ---------------------------------
-library(reshape2)
+load(paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
+#library(reshape2)
 
-survey_q_id<-list(
+survey_oldq_id<-list(
   "2004citizen"=c("v25","v26","v27","v41","v42","v43","v44","v45","v46","v60","v61","v62","v65","v74","v91a","v91b","v92_1","v92_2","v92_3","v92_4","v92_5","v93a","v93b","v95","v96","v97","v105a","v105b","v105c","v106a","v106b","v106c","v107a","v107b","v107c","v114","v118a","v118b","v118c","v118d"),
-  "2010env"=c("v39c", "v39d", "v39e", "v40", "v41", "v78a", "v78b", "v78c", "v78d", "v78e", "v78f", "v78g", "v78h", "v78i", "v90", "v91", "v92"),
+  "2010env"=c("v39a", "v39b", "v39c", "v40", "v78a", "v78b", "v78c", "v78d", "v78e", "v78f", "v78g", "v78h", "v78i", "v90", "v91", "v92"),
   "2010overall"=c("kv21c_0", "kv31_0", "kv67_0", "v14a", "v14b", "v15a", "v15b", "v16a", "v16b", "v19", "v20a", "v20b", "v21c", "v22a", "v22b", "v22c", "v23a", "v23b", "v23c", "v24a", "v24b", "v24c", "v25a", "v25b", "v25c", "v26a", "v26b", "v26c", "v26d", "v26e", "v26f", "v26g", "v27a", "v27b", "v27c", "v27d", "v27e", "v27f", "v27g", "v28a", "v28b", "v29", "v30a", "v30b", "v31", "v32a", "v32b", "v32c", "v36a", "v36b", "v37a", "v37b", "v37c", "v37d", "v37e", "v37f", "v37g", "v37h", "v37i", "v38a1", "v38a2", "v38b1", "v38b2", "v38c1", "v38c2", "v38d1", "v38d2", "v38e1", "v38e2", "v39a", "v39b", "v39c", "v40", "v57", "v58", "v59", "v63", "v66c", "v66f", "v67", "v68", "v69", "v70b", "v70c", "v70d", "v70e", "v70f"),
   "2016citizen"=c("c1a",	"c1b",	"c1c",	"c1d",	"c1e",	"c2",	"c3",	"c4",	"c5",	"c6",	"c10",	"c11",	"c12",	"c13",	"c14",	"d1",	"d2a",	"d2b",	"d3a",	"d3b",	"d4",	"d5a",	"d5b",	"d5c",	"d5d",	"d5e",	"d5f",	"d6a",	"d6b",	"d6c",	"d6d",	"d6e",	"d6f",	"d6g",	"d6h",	"d7a",	"d7b",	"d7c",	"d7d",	"d7e",	"d7f",	"d7g",	"d7h",	"d7i",	"d7j",	"d7k",	"d8a",	"d8b",	"d8c",	"d11a",	"d11b",	"d12",	"d13a",	"d13b",	"d14a",	"d14b",	"d14c",	"d17a",	"d17b",	"d17c",	"e2a",	"e2b",	"e2c",	"e2d",	"e2e",	"e2f",	"e2g",	"e2h",	"e2i",	"f3",	"f4",	"f5",	"f8",	"f9",	"h10")
   )
+survey_q_id<-sapply(survey_data_title,function(X,df,oldvec=c()) {
+  topickeyword<-c("議題","議題（或民主價值與公民意識牽涉群體）","民主價值與公民意識")
+  if(identical(oldvec,c())) {
+    oldvec[[X]]=c()
+  }
+  needq<-dplyr::filter(df,SURVEY==X,CATEGORY %in% topickeyword) %>%
+    dplyr::select(ID) %>%
+    unlist() %>%
+    as.character() %>%
+    union(oldvec[[X]])
+  return(needq)
+},df=survey_imputation_and_measurement)
 
-survey_data_melted<-mapply(function(X,Y) {
+#有些資料在轉換過程中內容會變成label而非coding的資料，要把他變回來
+mistakinglevelvars<-list(
+  "2004citizen"=c('myown_indp_atti','v61','v62','v74','v91a','v91b','v93a','v93b','v95'),
+  "2010env"=c('v14a','v14b','v16a','v16b','v20a','v20b','v28a','v28b','v31','v40','v57','v58','v59'),
+  "2010overall"=c('myown_indp_atti','v61','v62','v80','v89'),
+  "2016citizen"=c('myown_indp_atti','c1a','c1b','c1c','c1d','c1e','c2','c3','c6','c8','c8r','c9','c9r','c11','c14','d1','d4','d8a','d8b','d8c','d9a','d9b','d10','h10','h10r')
+)
+
+#survey_data_melted
+complete_survey_dataset<-mapply(function(X,Y,mistakinglevelvars=c(),dfcodebook=c()) {
+  survey_data_title<-X$SURVEY[1]
+
+  prepare_for_label_adj_df <- lapply(mistakinglevelvars,function(mistakinglevelvar,...) {
+    dfcodebook<-dfcodebook[
+      (dfcodebook$SURVEY==survey_data_title) & (dfcodebook$ID == mistakinglevelvar),
+      c('SURVEY','ID','VALUE','LABEL')]#ID %in% Y
+    dedf_keyvalues<-as.list(getElement(dfcodebook,'VALUE'))
+    names(dedf_keyvalues)<-getElement(dfcodebook,'LABEL')
+    #result<-filter(dfcodebook,SURVEY==X,ID %in% Y)
+    dedf_keyvalues
+  },MoreArgs=list(survey_data_title=survey_data_title,dfcodebook=dfcodebook),
+    SIMPLIFY=FALSE)
+  names(prepare_for_label_adj_df)<-mistakinglevelvars
+
   other_var_as_id<-setdiff(names(X),Y)
-  #X[,other_var_as_id]<-as.character(X[,other_var_as_id])
+  X<-mutate_at(X,Y,as.character)
+  for (recodevar in mistakinglevelvars) {
+    tplistforrecode <- getElement(prepare_for_label_adj_df,recodevar)
+    X[[recodevar]] <- dplyr::recode(getElement(X,recodevar),!!!tplistforrecode)
+    #message("recodevar is ", recodevar," and length is ",length(X$recodevar)," and list is ",tplistforrecode," and names of list is",names(tplistforrecode))
+  }
+  #X
   reshape2::melt(X, id.vars = other_var_as_id, variable.name = "SURVEYQUESTIONID", value.name = "SURVEYANSWERVALUE") %>%
     dplyr::mutate_at("SURVEYANSWERVALUE",funs(as.character)) %>%
     dplyr::group_by( SURVEYQUESTIONID ) %>%
@@ -1275,13 +1326,23 @@ survey_data_melted<-mapply(function(X,Y) {
     dplyr::mutate("same_pos_on_same_q_by_nation"=n()) %>%
     dplyr::ungroup() %>%
     dplyr::mutate("same_pos_to_all_ratio_by_nation"=same_pos_on_same_q_by_nation/all_pos_on_same_q_by_nation*100)
-}, X=survey_data, Y=survey_q_id)
+},
+  X=survey_data_test,
+  Y=survey_q_id,
+  #prepare_for_label_adj_df=prepare_for_label_adj_df,
+  mistakinglevelvars=mistakinglevelvars,
+  MoreArgs=list(dfcodebook=survey_codebook))
+#View(filter(complete_survey_dataset[[1]],SURVEYQUESTIONID=='myown_indp_atti'))
+#dplyr::recode(survey_data_test[[1]]$v61,!!!getElement(getElement(prepare_for_label_adj_df,"2004citizen"),"v61"))
 
-survey_data_melted_names<-lapply(survey_data_melted,names)
+#survey_data_melted
+complete_survey_dataset<-Reduce(plyr::rbind.fill,complete_survey_dataset)
+vhead(complete_survey_dataset)
+#survey_data_melted_names<-lapply(survey_data_melted,names)
 
 #以下是要把四份問卷合一，但這應該要放棄
-common_var<-Reduce(intersect, survey_data_melted_names) %>%
-  setdiff(c("sd"))
+#common_var<-Reduce(intersect, survey_data_melted_names) %>%
+#  setdiff(c("sd"))
 
 #factor to numeric method
 #survey_data_melted<-lapply(survey_data_melted,function(X) {

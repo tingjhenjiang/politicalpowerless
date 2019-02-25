@@ -33,7 +33,7 @@ gc(verbose=TRUE)
 
 load(paste0(dataset_file_directory,"rdata",slash,"legislators_with_election.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"mergedf_votes_bills_election_surveyanswer.RData"))
-load(paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"))
+#load(paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"))
 
 #only_bill_to_survey_information<-distinct(mergedf_votes_bills_election_surveyanswer,stdbilldate,term,period,meetingno,temp_meeting_no,billn,billresult,billid_myown,SURVEY,variable_on_q,value_on_q_variable,SURVEYQUESTIONID,SURVEYANSWERVALUE,LABEL,QUESTION,opinionfromconstituent,opinionfrombill,issue_field1,issue_field2,opinionstrength,opiniondirectionfromconstituent,opiniondirectionfrombill,success_on_bill) %>%
 #  mutate_at("SURVEYANSWERVALUE", funs(as.character))
