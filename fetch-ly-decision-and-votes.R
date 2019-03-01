@@ -12,7 +12,9 @@ filespath<-switch(
 )
 source(file = paste(filespath, "shared_functions.R", sep = ""))
 no_rollcall<-c()
-load(paste0(dataset_file_directory,"rdata",slash,"meetingdata.RData"))
+#load(paste0(dataset_file_directory,"rdata",slash,"meetingdata.RData"))
+load("/mnt/e/meetingdata.RData")
+
 urlarr<-as.character(meetingdata$url) %>% unique()
 #error_vote_record_from_name<-read_csv("error_vote_record_from_name.xlsx")
 error_vote_record_from_name <- read.xlsx("error_vote_record_from_name.xlsx", sheet = 1)
@@ -21,8 +23,8 @@ error_leave_and_attend_legislators <- read.xlsx("leave_and_attend_legislators.xl
   mutate_cond(is.na(replace_with),replace_with="")
 
 myown_vote_record_df<-data.frame()
-replace_troublesome_names<-function(df) {
-  df <- df %>%
+replace_troublesome_names<-function(replacedf) {
+  replacedf <- replacedf %>%
     mutate_cond(customgrepl(legislator_name,"邱　毅"),legislator_name="邱毅") %>%
     mutate_cond(customgrepl(legislator_name,"薛　凌"),legislator_name="薛凌") %>%
     mutate_cond(customgrepl(legislator_name,"陳　瑩"),legislator_name="陳瑩") %>%
@@ -33,7 +35,7 @@ replace_troublesome_names<-function(df) {
     mutate_cond(term==9 & customgrepl(legislator_name,"鄭天財"),legislator_name="鄭天財Sra．Kacaw") %>%
     mutate_cond(term==9 & customgrepl(legislator_name,"高潞"),legislator_name="高潞．以用．巴魕剌Kawlo．Iyun．Pacidal") %>%
     mutate_cond(term==9 & customgrepl(legislator_name,"陳秀霞"),legislator_name="周陳秀霞")
-  return(df)
+  return(replacedf)
 }
 anti_join_with_nrow_zero<-function(X,Y,by=c()) {
   if (nrow(Y)>0) {
@@ -51,9 +53,10 @@ anti_join_with_nrow_zero<-function(X,Y,by=c()) {
 #  write_csv(path="leave_and_attend_legislators.csv")
 #第九會期從377開始 //problem:108
 
-fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
+fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
+#for (url in urlarr) { 
   #url<-urlarr[urln]
-  url<-Y
+  #url<-Y
   urln<-which(meetingdata$url==url)
   #| urln==478
   # | url=="https://lci.ly.gov.tw/LyLCEW/html/agendarec1/03/09/04/01/01/LCEWC03_09040101.htm"
@@ -61,6 +64,7 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
       (is.na(url))
       ) {
     return(data.frame())
+    #next()
   }
   # | !(urln %in% c(469,475))
   #urln=478是一堆有表決結果名單附(n)至(n)形式的，暫存函式如下:
@@ -82,6 +86,7 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
   if (term==6 & period==4 & meetingno==17) {
     #尾部沒有討論事項記名表決，但是有其他事項表決，卻沒有詳細有人名的名單
     return(data.frame())
+    #next()
   }
   
   #clean data 特別處理
@@ -270,12 +275,16 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
   #bill_list<-xml_find_all(doc, xpath) %>%
   #xml_text() %>%
   
+  #把附後(21)、(22)這種形式的紀錄改為附後(21)至(22)
+  paragraph_list %<>% customgsub("(附後)(\\(\\d+\\))、(\\(\\d+\\))","\\1\\2至\\3",perl=TRUE)#、(\(\d+\))
+  paragraph_list[65]
   #開始處理【經記名表決結果，均予以通過，表決結果附後(2)至(5)】這種形式的紀錄
   for (bill_list_exec_check_i in 1:2) {
     bill_list_target<-customgrep(paragraph_list,'記名表決',value=TRUE) %>%
       customgrep("表決結果名單附後|表決結果名單附件|表決結果附後|表決結果名單及時程表附後",value=TRUE)
     if (bill_list_exec_check_i==2 | identical(bill_list_target,character(0))) break
-    bill_list_need_modify_part_matches<-stri_match_all(bill_list_target,regex="(【經記名表決結果，{1}?均{1}.+?通過，{1}[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1})?([(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)]{1}至{1}[(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)]{1}){1}[〕】）]{0,}[；。]{0,1}")
+    #bill_list_need_modify_part_matches<-stri_match_all(bill_list_target,regex="(【經記名表決結果，{1}?均{0,1}.+?通過，{1}[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1})?([(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)]{1}至{1}[(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)]{1}){1}[〕】）]{0,}[；。]{0,1}")
+    bill_list_need_modify_part_matches<-stri_match_all(bill_list_target,regex="([^；()（）﹙﹚【】〔〕]*[(（﹙【〔][其中第|經記名表決結果，]{1}?均{0,1}[^；()（）﹙﹚【】〔〕]+?通過，{1}?[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1})?([﹙(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)﹚]{1}至{1}[﹙(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)﹚]{1}){1}?[〕】）﹚]{0,}[；。]{0,1}")
     if (length(bill_list_need_modify_part_matches)==1) break #no result from checking
     tmpbilllist_rawrecordn_nrows<-nrow(bill_list_need_modify_part_matches[[1]])
     tmpbilllist_rawrecordn_check_value_exist_target<-lapply(bill_list_need_modify_part_matches,is.na) %>% #試著找出有匹配到的結果在哪一個list當中
@@ -288,14 +297,18 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
     #  getElement(1)
     # & !(tmpbilllist_rawrecordn_tmpcheckresult)
     if (tmpbilllist_rawrecordn_nrows>0) {
-      tmpbilllist_rawrecordn_start<-as.integer(bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,4])
-      tmpbilllist_rawrecordn_end<-as.integer(bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,5])
+      #tmpbilllist_rawrecordn_start<-as.integer(bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,4])
+      #工作要在這裡除錯
+      tmpbilllist_rawrecordn_start<-sapply(bill_list_need_modify_part_matches[tmpbilllist_rawrecordn_targetn],function(x,matrixcolumn) x[,matrixcolumn],matrixcolumn=4) %>% unlist()
+      tmpbilllist_rawrecordn_end<-sapply(bill_list_need_modify_part_matches[tmpbilllist_rawrecordn_targetn],function(x,matrixcolumn) x[,matrixcolumn],matrixcolumn=5) %>% unlist()
+      tmpbilllist_rawrecordn_prefix<-sapply(bill_list_need_modify_part_matches[tmpbilllist_rawrecordn_targetn],function(x,matrixcolumn) x[,matrixcolumn],matrixcolumn=2) %>% unlist()
+      tmpbilllist_rawrecordn_original<-sapply(bill_list_need_modify_part_matches[tmpbilllist_rawrecordn_targetn],function(x,matrixcolumn) x[,matrixcolumn],matrixcolumn=1) %>% unlist()
       tmpbilllist_supplementlist<-mapply(function(prefix,beginnum,endnum) {
         tmpbilllist_supplementlist_range<-seq(beginnum,endnum)
         sapply(tmpbilllist_supplementlist_range, function(X) paste0(prefix,"(",X,")】；")) %>%
           custompaste0()
-      }, prefix=bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,2], beginnum=tmpbilllist_rawrecordn_start, endnum=tmpbilllist_rawrecordn_end)
-      paragraph_list<-stri_replace_all_fixed(paragraph_list,bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,1], tmpbilllist_supplementlist, vectorize_all=FALSE)
+      }, prefix=tmpbilllist_rawrecordn_prefix, beginnum=tmpbilllist_rawrecordn_start, endnum=tmpbilllist_rawrecordn_end)
+      paragraph_list<-stri_replace_all_fixed(paragraph_list, tmpbilllist_rawrecordn_original, tmpbilllist_supplementlist, vectorize_all=FALSE)
     }
   }
   
@@ -370,6 +383,7 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
   if (length(roll_call_list_block_sp)<1) {##沒有表決名單的區域
     no_rollcall<-c(no_rollcall,url)
     return(data.frame())
+    #next()
   } else if (length(roll_call_list_block_sp)>2) {
     stop("Error at ", meetingname, url)
   }
@@ -380,6 +394,7 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
 
   if (is.null(bill_list) | agree_record_times<1) {
     return(data.frame())
+    #next()
   }
   
   #檢查抓到的前半部詳細案由是否和後半部表決紀錄筆數是否對得上
@@ -612,18 +627,15 @@ fetch_ly_decision_and_vote <- function(Y) { #length(urlarr)
 library(parallel)
 
 myown_vote_record_df<-do.call("rbind",custom_parallel_lapply(
-  data=urlarr,
-  f=fetch_ly_decision_and_vote,
-  exportvar=c("urlarr","fetch_ly_decision_and_vote"),
+  urlarr[1:4],
+  FUN=fetch_ly_decision_and_vote,
+  exportvar=c("urlarr","fetch_ly_decision_and_vote","meetingdata"),
   exportlib=c("base",lib),
   outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
-  firstlcaneed=lcaneed_independence_attitude,
-  secondlcaneed=lcaneed_party_constituency,
+  meetingdata=meetingdata,
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
 ))
-
-stopCluster(cl)
 
 #myown_vote_record_df<-mapply(fetch_ly_decision_and_vote,X=seq.int(length(urlarr)),Y=urlarr)
 #myown_vote_record_df<-do.call("rbind", lapply(

@@ -1296,7 +1296,6 @@ mistakinglevelvars<-list(
 #survey_data_melted
 complete_survey_dataset<-mapply(function(X,Y,mistakinglevelvars=c(),dfcodebook=c()) {
   survey_data_title<-X$SURVEY[1]
-
   prepare_for_label_adj_df <- lapply(mistakinglevelvars,function(mistakinglevelvar,...) {
     dfcodebook<-dfcodebook[
       (dfcodebook$SURVEY==survey_data_title) & (dfcodebook$ID == mistakinglevelvar),
@@ -1335,23 +1334,27 @@ complete_survey_dataset<-mapply(function(X,Y,mistakinglevelvars=c(),dfcodebook=c
 #View(filter(complete_survey_dataset[[1]],SURVEYQUESTIONID=='myown_indp_atti'))
 #dplyr::recode(survey_data_test[[1]]$v61,!!!getElement(getElement(prepare_for_label_adj_df,"2004citizen"),"v61"))
 
-#survey_data_melted
-complete_survey_dataset<-Reduce(plyr::rbind.fill,complete_survey_dataset)
-vhead(complete_survey_dataset)
+#以下是要把四份問卷合一，但這應該要放棄
+common_var<-Reduce(intersect, lapply(complete_survey_dataset, names )) %>%
+  setdiff(c("sd"))
+
+
+#survey_data_melted 沒有節省欄位直接合併
+#complete_survey_dataset<-Reduce(plyr::rbind.fill,complete_survey_dataset) %>%
+#  extract(common_var)
+#vhead(complete_survey_dataset)
 #survey_data_melted_names<-lapply(survey_data_melted,names)
 
-#以下是要把四份問卷合一，但這應該要放棄
-#common_var<-Reduce(intersect, survey_data_melted_names) %>%
-#  setdiff(c("sd"))
 
 #factor to numeric method
 #survey_data_melted<-lapply(survey_data_melted,function(X) {
 #  X<-mutate_at(c(),as.numeric(levels(f))[f]
 
-complete_survey_dataset<-lapply(survey_data_melted,extract,common_var) %>%
-  bind_rows() %>%
-  mutate_at("SURVEYANSWERVALUE", funs(as.character)) #%>%
+#節省欄位合併
+complete_survey_dataset<-lapply(complete_survey_dataset,select_and_fill_nonexistcol,common_var) %>%
+  plyr::rbind.fill(.) #%>%
   #reshape2::melt(id.vars = setdiff(colnames(.),c("term1","term2")), variable.name = "variable_on_term", value.name = "term")
+vhead(complete_survey_dataset %>% filter(SURVEYQUESTIONID=='myown_indp_atti'))
 
 #save(complete_survey_dataset,file=paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"))
 ##針對調查問卷資料處理變形，以便合併
