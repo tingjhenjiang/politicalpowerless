@@ -345,24 +345,45 @@ survey_data<-paste0(survey_data_title,".sav") %>%
   sapply(function (X,...) paste0(...,X), dataset_file_directory, "merger_survey_dataset",slash) %>%
   lapply(haven::read_sav) %>%
   lapply(dplyr::mutate,stdsurveydate=as.Date(paste(year,sm,sd),"%Y %m %d")) %>%
-  lapply(function(X) {
-    dplyr::mutate_at(X,setdiff(colnames(X),c("myown_age","myown_occp","myown_ses")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) )  )
-    #設定遺漏值
-  }) %>%
   lapply(function(X,survey_imp_measure) {
-    #X<-as.data.frame(X)
+    labelledcolumns<-purrr::map_lgl(X,haven::is.labelled) %>% which(isTRUE(.)) %>% names()
     spsssavsurvey<-X$SURVEY[1]
     message(spsssavsurvey)
     need_survey_measure_scale<-dplyr::filter(survey_imp_measure,SURVEY==spsssavsurvey,MEASUREMENT=="scale",ID %in% names(X)) %>%
-      dplyr::select(ID) %>% unlist() %>% as.character()
-    X %<>% mutate_at(need_survey_measure_scale,funs(as.numeric))
-    
+      dplyr::select(ID) %>% unlist() %>% as.character() %>% intersect(labelledcolumns)
     need_survey_measure_ordinal<-filter(survey_imp_measure,SURVEY==spsssavsurvey,MEASUREMENT=="ordinal",ID %in% names(X)) %>%
-      dplyr::select(ID) %>% unlist() %>% as.character()
-    X %<>% mutate_at(need_survey_measure_ordinal,funs(as.ordered))
-    
-    X<-haven::as_factor(X,only_labelled = TRUE) #類別資料直接用haven函數轉
-  },survey_imp_measure=survey_imputation_and_measurement) #%>%
+      dplyr::select(ID) %>% unlist() %>% as.character() %>% intersect(labelledcolumns)
+    need_survey_measure_categorical<-setdiff(names(X),need_survey_measure_scale) %>%
+      setdiff(need_survey_measure_ordinal) %>% intersect(labelledcolumns)
+    X %<>% dplyr::mutate_at(need_survey_measure_scale,funs(as.numeric)) %>%
+      dplyr::mutate_at(need_survey_measure_ordinal,haven::as_factor,levels='both',ordered=TRUE) %>%
+      dplyr::mutate_at(need_survey_measure_categorical,haven::as_factor,levels='both',only_labelled = TRUE)
+    return(X)
+  },survey_imp_measure=survey_imputation_and_measurement)
+
+#設定遺漏值
+missing_value_labels<-lapply(survey_data,function(X) {
+  missingvaluepattern<-paste0("\\[",c(92:99,992:999,9992:9999),"\\]",collapse="|")
+  labelsofdf<-sapply(X,levels) %>% unlist() %>% unique() %>%
+    customgrep(pattern=missingvaluepattern,value=TRUE) %>%
+    {extract(.,which(!customgrepl(.,pattern="(不固定|人或以上|到處跑|業|機構|學術|國外|從不聽|新雲林|竹塹|台北勞工|新農|草嶺|濁水溪|蘭潭|飛揚|11個或更多)",perl=TRUE)))}
+  #(拒答|遺漏值|忘記|不適用|不知道|跳答|無法選擇|忘記了|拒答）|不知道）|缺漏|不記得)
+  return(labelsofdf)
+})
+survey_data_ <- mapply(function(X,Y) {
+  newdf <- lapply(X, function(dfcolumnvectors,replaced_keys) {
+    if (is.factor(dfcolumnvectors)) {
+      replace_key_value_pairs<-rep(NA,times=length(replaced_keys))
+      names(replace_key_value_pairs)<-replaced_keys
+      dfcolumnvectors<-plyr::revalue(dfcolumnvectors, replace_key_value_pairs)
+    }
+    return(dfcolumnvectors)
+  },replaced_keys=Y) %>%
+    as.data.frame()
+  newdf
+  #to_replace_column<-setdiff(colnames(X),c("myown_age","myown_occp","myown_ses"))
+  #  dplyr::mutate_at(X,to_replace_column,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999,99996:99999),NA ) )  )
+  },X=survey_data,Y=missing_value_labels) #%>%
   #lapply(function (X) { #較早的串連方式，區分會期
   #  othervar<-setdiff(names(X),c("term1","term2"))
   #  reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
@@ -374,45 +395,52 @@ survey_data <- survey_data[order(names(survey_data))] %>%
 #save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined_NAuntransformed.RData"))
 
-labeladjusmentagain = FALSE
+labeladjusmentagain <- FALSE
 if (labeladjusmentagain) {
   survey_data_labels <- lapply(survey_data,function(X) {
-    sapply(X,FUN=attr,which="labels")
+    sapply(X,FUN=attr,which="levels") %>%
+    #sapply(X,FUN=function(X) {
+    #  as.numeric(levels(X))[X]
+    #  }) %>%
+      return()
   })
   save(survey_data_labels,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
 }
 #survey_data_labels已經預處理過，直接load即可
 load(paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
 
-
-forwritingfeather<-mapply(function(X,Y,A,B) {
-  #testing purpose
-  #df<-as.data.frame(survey_data[[1]])
-  #dfcoltypes<-sapply(Y,class)
-  #to_dummy_cols<-names(which(dfcoltypes=="factor"))
-  #to_dummy_cols_global <<- to_dummy_cols
-  #print(to_dummy_cols)
-  #for (to_dummy_col in to_dummy_cols) {
-  #  print(to_dummy_col)
+writingfeather<-FALSE
+if (writingfeather) {
+  forwritingfeather<-mapply(function(X,Y,A,B) {
+    #testing purpose
+    #df<-as.data.frame(survey_data[[1]])
+    #dfcoltypes<-sapply(Y,class)
+    #to_dummy_cols<-names(which(dfcoltypes=="factor"))
+    #to_dummy_cols_global <<- to_dummy_cols
+    #print(to_dummy_cols)
+    #for (to_dummy_col in to_dummy_cols) {
+    #  print(to_dummy_col)
     #df<-dummies::dummy.data.frame(data=df,names=to_dummy_cols,sep="_")
-  #}
-  #View(df[68,])
-  #grep("v28",names(df))
-  #df<-dummies::dummy.data.frame(data=Y,names=to_dummy_cols,sep="_")#%>%
+    #}
+    #View(df[68,])
+    #grep("v28",names(df))
+    #df<-dummies::dummy.data.frame(data=Y,names=to_dummy_cols,sep="_")#%>%
     #dplyr::filter(variable_on_term=="term1") #2004的問卷橫跨立法院多會期，為了節省運算資源所以只保留一期
-  path<-paste0(ntuspace_file_directory,"shared",slash,"dataset",slash,"rdata",slash,"all_survey_combined",X,".feather")
-  #tomutatecol<-setdiff(names(Y),"myown_age")
-  #df %<>% mutate_at(tomutatecol,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ))
-  message("-----writing ",path,"--------------------")
-  Y<-droplevels(Y)
-  needvars<-c("id", union(A,B)  ) %>%
-    intersect(names(Y))
-  needcols <<- needvars
-  feather::write_feather(Y[,needvars], path=path)
-},X=1:4,Y=survey_data,A=imputingcalculatebasiscolumn,B=imputedvaluecolumn)
-#A=imputingcalculatebasiscolumn,B=imputedvaluecolumn
-#A=1:4,B=1:4
-#feather::write_feather(survey_data, path=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.feather"))
+    path<-paste0(ntuspace_file_directory,"shared",slash,"dataset",slash,"rdata",slash,"all_survey_combined",X,".feather")
+    #tomutatecol<-setdiff(names(Y),"myown_age")
+    #df %<>% mutate_at(tomutatecol,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ))
+    message("-----writing ",path,"--------------------")
+    Y<-droplevels(Y)
+    needvars<-c("id", union(A,B)  ) %>%
+      intersect(names(Y))
+    needcols <<- needvars
+    feather::write_feather(Y[,needvars], path=path)
+  },X=1:4,Y=survey_data,A=imputingcalculatebasiscolumn,B=imputedvaluecolumn)
+  #A=imputingcalculatebasiscolumn,B=imputedvaluecolumn
+  #A=1:4,B=1:4
+  #feather::write_feather(survey_data, path=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.feather"))
+}
+
 
 
 #shaped: 299 295 571
@@ -503,6 +531,7 @@ if (VIMtestplot) {
     #testresult<-fastDummies::dummy_cols(X[,needcols]) %>% dplyr::select_if(is.numeric) %>% 
     #  MissMech::TestMCARNormality()
     testresult<-BaylorEdPsych::LittleMCAR(X[,needcols])
+    #testresult<-X[,needcols]
     return(testresult)
   },imputedvaluecolumn=imputedvaluecolumn,imputingcalculatebasiscolumn=imputingcalculatebasiscolumn)
 }
