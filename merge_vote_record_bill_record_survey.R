@@ -372,6 +372,7 @@ survey_data <- survey_data[order(names(survey_data))] %>%
   lapply(dplyr::left_join,survey_restricted_data) %>%
   lapply(dplyr::mutate_at,c("myown_job","admincity","admindistrict"),.funs=as.factor)
 #save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
+#save(survey_data,file=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined_NAuntransformed.RData"))
 
 labeladjusmentagain = FALSE
 if (labeladjusmentagain) {
@@ -440,6 +441,7 @@ forwritingfeather<-mapply(function(X,Y,A,B) {
 #},X=survey_data,Y=survey_restricted_data)
 
 load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
+#load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined_NAuntransformed.RData"))
 
 
 # 第四部份：清理資料：填補遺漏值 -------------------------------------------
@@ -487,7 +489,11 @@ generate_predictor_matrix<-function(df,calculationbasisvar=c(),imputedOnlyVars=c
 
 VIMtestplot<-FALSE
 if (VIMtestplot) {
-  survey_data_test <- lapply(survey_data,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
+  survey_data_test <- lapply(survey_data,function(X) {
+    dplyr::mutate_at(X,setdiff(colnames(X),c("myown_age","myown_occp","myown_ses")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) )  )
+    #設定遺漏值
+  })
+  survey_data_test <- lapply(survey_data_test,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
     X<-droplevels(X)
     imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
       intersect(names(X))

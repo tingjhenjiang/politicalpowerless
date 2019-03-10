@@ -12,14 +12,12 @@ filespath<-switch(
 )
 source(file = paste(filespath, "shared_functions.R", sep = ""))
 no_rollcall<-c()
-#load(paste0(dataset_file_directory,"rdata",slash,"meetingdata.RData"))
-load("/mnt/e/meetingdata.RData")
+#load(paste0(filespath, "vote_record", slash, "meetingdata.RData"))
+
 
 urlarr<-as.character(meetingdata$url) %>% unique()
-#error_vote_record_from_name<-read_csv("error_vote_record_from_name.xlsx")
-error_vote_record_from_name <- read.xlsx("error_vote_record_from_name.xlsx", sheet = 1)
-#error_leave_and_attend_legislators<-read_csv("leave_and_attend_legislators.csv") %>%
-error_leave_and_attend_legislators <- read.xlsx("leave_and_attend_legislators.xlsx", sheet = 1) %>%
+error_vote_record_from_name <- read.xlsx(paste(filespath,"vote_record",slash,"error_vote_record_from_name.xlsx", sep = ""), sheet = 1)
+error_leave_and_attend_legislators <- read.xlsx(paste(filespath,"vote_record",slash,"leave_and_attend_legislators.xlsx", sep = ""), sheet = 1) %>%
   mutate_cond(is.na(replace_with),replace_with="")
 
 myown_vote_record_df<-data.frame()
@@ -98,17 +96,17 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
   if (term==7 & period==2 & meetingno==17) {
     #有一次的表決少了贊成者和棄權者的文字，補上
     #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
-    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070119.htm", sep = ""))
+    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070217.htm", sep = ""))
   }
   if (term==7 & period==3 & meetingno==5) {
     #表決案數字亂碼修正
     #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
-    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070119.htm", sep = ""))
+    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070305.htm", sep = ""))
   }
   if (term==7 & period==3 & meetingno==8) {
     #立法院第7屆第3會期第8次會議議事錄有二個表決紀錄的敘述被合併
     #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
-    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070119.htm", sep = ""))
+    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070308.htm", sep = ""))
   }
   
   #paragraph_list[roll_call_list_block_sp:paragraph_list_length]<-customgsub(paragraph_list[roll_call_list_block_sp:paragraph_list_length],"高金素梅　","高金素梅　　")
@@ -521,6 +519,7 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
         ) %>%
           mutate_all(funs(as.character)) %>%
           mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
+          mutate_at(c("billcontent","url"),funs(stringi::stri_trim_both)) %>%
           replace_troublesome_names()
       }
     
@@ -542,6 +541,7 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
       )  %>%
         mutate_all(funs(as.character)) %>%
         mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
+        mutate_at(c("billcontent","url"),funs(stringi::stri_trim_both)) %>%
         replace_troublesome_names()
     }
     exact_dissent_voter_df<-if (length(exact_dissent_voter)==0) {
@@ -562,6 +562,7 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
       ) %>%
         mutate_all(funs(as.character)) %>%
         mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
+        mutate_at(c("billcontent","url"),funs(stringi::stri_trim_both)) %>%
         replace_troublesome_names()
     }
     
@@ -586,7 +587,8 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
       anti_join_with_nrow_zero(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
       anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
       mutate_all(funs(as.character)) %>%
-      mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer))
+      mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
+      mutate_at(c("billcontent","url"),funs(stringi::stri_trim_both))
 
     leavelegislator_df<-if(nrow(leavelegislator)>0) {
       data.frame(
@@ -606,7 +608,8 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
         anti_join_with_nrow_zero(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
         anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
         mutate_all(funs(as.character)) %>%
-        mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer))
+        mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
+        mutate_at(c("billcontent","url"),funs(stringi::stri_trim_both))
     } else {
       data.frame()
     }
@@ -627,7 +630,7 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
 library(parallel)
 
 myown_vote_record_df<-do.call("rbind",custom_parallel_lapply(
-  urlarr[1:4],
+  urlarr,
   FUN=fetch_ly_decision_and_vote,
   exportvar=c("urlarr","fetch_ly_decision_and_vote","meetingdata"),
   exportlib=c("base",lib),
@@ -635,7 +638,9 @@ myown_vote_record_df<-do.call("rbind",custom_parallel_lapply(
   meetingdata=meetingdata,
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
-))
+)) %>%
+  filter(!is.na(legislator_name))
+
 
 #myown_vote_record_df<-mapply(fetch_ly_decision_and_vote,X=seq.int(length(urlarr)),Y=urlarr)
 #myown_vote_record_df<-do.call("rbind", lapply(
@@ -644,13 +649,14 @@ myown_vote_record_df<-do.call("rbind",custom_parallel_lapply(
 #  ))
 
 #debug
-url<-urlarr[13]
+#url<-urlarr[13]
 #term=1 at billn=1; not vote regularly follows and its billn is NA
 
-
-myown_vote_record_df<-filter(myown_vote_record_df,!is.na(legislator_name))
-
-#save(myown_vote_record_df,file=paste0(dataset_file_directory, "rdata", slash,  "myown_vote_record_df.RData"))
+#save(myown_vote_record_df,file=paste0(filespath, "vote_record", slash, "myown_vote_record_df.RData"))
+#write
+#billcontent	pp_keyword	pp_committee	url	pp_related_q_1	pp_related_q_2	pp_related_q_3	pp_related_q_4	pp_related_q_5	pp_related_q_6	pp_related_q_7	pp_related_q_8	pp_related_q_9	pp_related_q_10	pp_related_q_11	pp_lawamendment	votecontent	pp_enactment	pp_enforcement	pp_res_bynew	pp_res_bycompete	pp_groupbased	date	yrmonth	term	period	meetingno	temp_meeting_no	billn	pp_res_notjudged	pp_ignored	billresult	billconflict	billid_myown
+distinct(myown_vote_record_df,billcontent,url,date,term,period,meetingno,temp_meeting_no,billn,billresult) %>%
+  write.xlsx(paste0(dataset_file_directory,"rdata",slash,"newinputpart.xlsx"))
 
 
 
@@ -713,10 +719,4 @@ if (FALSE) {
 
 testdf<-read.xlsx(file="votingdf_datafile_myown.xlsx",sheetIndex=1,startRow = 1,endRow = 3574,header = T,encoding = "UTF-8")
 
-#save(myown_vote_record_df,file="myown_vote_record_df.RData")
-#save(myown_vote_record_df,file="/mnt/e/Software/scripts/R/vote_record/myown_vote_record_df.RData")
 
-#write
-#billcontent	pp_keyword	pp_committee	url	pp_related_q_1	pp_related_q_2	pp_related_q_3	pp_related_q_4	pp_related_q_5	pp_related_q_6	pp_related_q_7	pp_related_q_8	pp_related_q_9	pp_related_q_10	pp_related_q_11	pp_lawamendment	votecontent	pp_enactment	pp_enforcement	pp_res_bynew	pp_res_bycompete	pp_groupbased	date	yrmonth	term	period	meetingno	temp_meeting_no	billn	pp_res_notjudged	pp_ignored	billresult	billconflict	billid_myown
-#distinct(myown_vote_record_df,billcontent,url,date,term,period,meetingno,temp_meeting_no,billn,billresult) %>%
-#  write.xlsx("newinputpart.xlsx")

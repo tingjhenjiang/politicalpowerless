@@ -11,10 +11,7 @@ filespath<-switch(
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\"
 )
 source(file = paste(filespath, "shared_functions.R", sep = ""))
-ly_meeting_path <- ifelse(check_if_windows(),
-                          paste0(filespath,"vote_record",slash,"2004_meeting",slash,"original",slash,sep="",collapse=""),
-                          paste0(filespath,"vote_record",slash,"2004_meeting",slash,"original",slash,sep="",collapse="")
-)
+ly_meeting_path <- paste0(filespath,"vote_record",slash,"2004_meeting",slash,"original",slash,sep="",collapse="")
 filename<-c(#"立法院第5屆第5會期全院委員談話會紀錄.html",
             "立法院第5屆第5會期第1次臨時會第1次會議紀錄.html",
             "立法院第5屆第5會期第1次臨時會第3次會議紀錄.html",
@@ -40,9 +37,10 @@ filepath <- paste(ly_meeting_path,filename,sep="")
 html<-sapply(filepath,custom_read_file)
 myown_vote_record_detailed_part_df<-data.frame()
 #pattern<-"[\n\r]{1,3}.+贊成者：.+[\n\r]{1,3}(.+)[\n\r]{1,3}.+反對者.+[\n\r]{1,3}(.+)[\n\r]{1,3}([一二三四五六七八九、棄權者：人]+[\n\r]{1,3}(.+)){0,1}"
-error_from_name<-read_csv(paste0(filespath,"vote_record",slash,"2004_meeting",slash,"error_names_replace_complete_record.csv"))
+error_from_name<-read.xlsx(paste0(filespath,"vote_record",slash,"2004_meeting",slash,"errors_processing_data.xlsx"), sheet=1) #read_csv(paste0(filespath,"vote_record",slash,"2004_meeting",slash,"error_names_replace_complete_record.csv"))
 votepattern<-"[\n\r]{1,3}([贊成者一二三四五六七八九零○百十、：人。\\d]*贊成者[贊成者一二三四五六七八九零○百十、：人。\\d]+[\n\r]{1,3}([\u4e00-\u9fa5　．\\s]*))[\n\r]{1,3}([反對者一二三四五六七八九零○百十、：人。\\d]*反對者[反對者一二三四五六七八九零○百十、：人。\\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\\s]*)){0,1}[\n\r]{1,3}([棄權者一二三四五六七八九零○百十、：人。\\d]*棄權者[棄權者一二三四五六七八九零○百十、：人。\\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\\s]*)){0,1}[\n\r]{1}"
-for (i in 1:length(filename)) {#length(filename)
+#regular exp online check 用[\n\r]{1,3}([贊成者一二三四五六七八九零○百十、：人。\d]*贊成者[贊成者一二三四五六七八九零○百十、：人。\d]+[\n\r]{1,3}([\u4e00-\u9fa5　．\s]*))[\n\r]{1,3}([反對者一二三四五六七八九零○百十、：人。\d]*反對者[反對者一二三四五六七八九零○百十、：人。\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\s]*)){0,1}[\n\r]{1,3}([棄權者一二三四五六七八九零○百十、：人。\d]*棄權者[棄權者一二三四五六七八九零○百十、：人。\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\s]*)){0,1}[\n\r]{1}
+for (i in 1:length(filename)) {#length(filename) 1:length(filename)
   #if (i!=2) {
   #  next
   #}
@@ -85,14 +83,16 @@ for (i in 1:length(filename)) {#length(filename)
       paragraph_list[1157:length(paragraph_list)]
     )
   }
-  bill_list<-customgrep(paragraph_list,"報告表決結果|報告重付表決結果",value=TRUE)
-  if (i==8) {
-    #移除未記名表決
-    bill_list<-bill_list[c(2:12)]
-  }
+  paragraph_list<-customgsub(paragraph_list,"\n","")
+  bill_list<-customgrep(paragraph_list,"報告表決結果|報告重付表決結果|報告本案表決結果",value=TRUE)
+  #write_file(paste0(paragraph_list,collapse="\n"), path=paste(dataset_file_directory, "rdata", slash,  "checkcontent.txt", sep = ""), append = FALSE)
   if (i==5) {
     #移除未記名表決
     bill_list<-bill_list[c(1:69,72:76)]
+  }
+  if (i==8) {
+    #移除未記名表決
+    bill_list<-bill_list[c(2:12)]
   }
   if (i==15) {
     #移除未記名表決
@@ -101,8 +101,11 @@ for (i in 1:length(filename)) {#length(filename)
   if (length(bill_list)<1) {
     next
   }
+
+  bill_list<-stringi::stri_trim_both(bill_list)
   pure_html<-paste(paragraph_list,sep="",collapse="\n\r")
   match<-stringr::str_match_all(pure_html,votepattern)
+  testmatch<-stringr::str_match_all(teststr,votepattern)
   scan_area<-match[[1]][,1]
   #檢查抓到的前半部詳細案由是否和後半部表決紀錄筆數是否對得上
   if (length(scan_area)!=length(bill_list))
@@ -112,6 +115,15 @@ for (i in 1:length(filename)) {#length(filename)
     customgsub("\n","")
   dissent_votes_list<-match[[1]][,5]
   giveup_votes_list<-match[[1]][,7]
+  testing_for_check_bill_result_df<-rowr::cbind.fill(
+    "billn"=seq(1:length(bill_list)),
+    "scanarea"=stringi::stri_trim_both(scan_area),
+    "billlist"=bill_list,
+    fill = NA
+  ) %>% as.data.frame()
+  names(testing_for_check_bill_result_df)=c("billn","scanarea","billlist")
+  testing_for_check_bill_result_df %<>% mutate("billresult"=NA)
+  #testing_for_check_bill_result_df<-data.frame()
   for (billn in 1:length(bill_list)) {
     message("i=",i," & filename=",filename[i]," & billn=",billn)
     #if (i %in% 6:15) {
@@ -122,25 +134,36 @@ for (i in 1:length(filename)) {#length(filename)
       #message(paste(agree_vote_names,sep=" ",collapse=" "))
       #%>% stri_extract_all(regex="[\u4e00-\u9fa5　．\\s]{3,}")
     #} else {
-      for (error_from_name_n in 1:nrow(error_from_name)) {
-        agree_votes_list[billn]<-customgsub(agree_votes_list[billn],
+    for (error_from_name_n in 1:nrow(error_from_name)) {
+      agree_votes_list[billn]<-customgsub(agree_votes_list[billn],
+                                          error_from_name$name[error_from_name_n],
+                                          error_from_name$replace[error_from_name_n])
+      exact_agree_voter<-stringr::str_match_all(agree_votes_list[billn],"[\u4e00-\u9fa5．]{2,6}") %>% unlist()
+      dissent_votes_list[billn]<-customgsub(dissent_votes_list[billn],
                                             error_from_name$name[error_from_name_n],
                                             error_from_name$replace[error_from_name_n])
-        exact_agree_voter<-stringr::str_match_all(agree_votes_list[billn],"[\u4e00-\u9fa5．]{2,6}") %>% unlist()
-        dissent_votes_list[billn]<-customgsub(dissent_votes_list[billn],
-                                              error_from_name$name[error_from_name_n],
-                                              error_from_name$replace[error_from_name_n])
-        exact_dissent_voter<-stringr::str_match_all(dissent_votes_list[billn],"[\u4e00-\u9fa5．]{2,6}") %>% unlist()
-        giveup_votes_list[billn]<-customgsub(giveup_votes_list[billn],
-                                             error_from_name$name[error_from_name_n],
-                                             error_from_name$replace[error_from_name_n])
-        exact_giveup_voter<-stringr::str_match_all(giveup_votes_list[billn],"[\u4e00-\u9fa5．]{2,6}") %>% unlist()
-        #test_list<-c(test_list,agree_votes_list[billn])
-      }
+      exact_dissent_voter<-stringr::str_match_all(dissent_votes_list[billn],"[\u4e00-\u9fa5．]{2,6}") %>% unlist()
+      giveup_votes_list[billn]<-customgsub(giveup_votes_list[billn],
+                                           error_from_name$name[error_from_name_n],
+                                           error_from_name$replace[error_from_name_n])
+      exact_giveup_voter<-stringr::str_match_all(giveup_votes_list[billn],"[\u4e00-\u9fa5．]{2,6}") %>% unlist()
+      #test_list<-c(test_list,agree_votes_list[billn])
+    }
       
       #message(paste(agree_votes_list[billn],sep=" ",collapse=" "))
     #}
     billresult<-ifelse(length(exact_agree_voter)>length(exact_dissent_voter),"Passed","NotPassed")
+    testing_for_check_bill_result_df$billresult[billn] <- billresult
+    #data.frame("billn"=billn,"billresult"=billresult)
+    #testing_for_check_bill_result_df_one<-rowr::cbind.fill(
+    #  data.frame("scan_area"=scan_area[billn]),
+    #  data.frame("bill_list"=bill_list[billn]),
+    #  data.frame("agree_voter"=length(exact_agree_voter)),
+    #  data.frame("dissent_voter"=length(exact_dissent_voter)),
+    #  data.frame("billresult"=billresult)
+    #) %>% as.data.frame() %>% mutate_all(funs(stringi::stri_trim_both))
+    #testing_for_check_bill_result_df %<>% rbind(testing_for_check_bill_result_df_one)
+
     exact_giveup_voter_df<-if (length(exact_giveup_voter)==0) {
       data.frame()
     } else {
@@ -213,6 +236,7 @@ for (i in 1:length(filename)) {#length(filename)
     
     
   }
+  #write.xlsx(testing_for_check_bill_result_df,paste0(ly_meeting_path,"testnewinputpart",i,".xlsx"))
   #test_list_chr<-paste(test_list,sep="",collapse="")
   #pure_html
   #write_file(test_list_chr, paste(ly_meeting_path,"tmp.html",sep="",collapse=""))
@@ -220,9 +244,12 @@ for (i in 1:length(filename)) {#length(filename)
 }
 myown_vote_record_detailed_part_df<-filter(myown_vote_record_detailed_part_df,!is.na(legislator_name)) %>%
   mutate_all(funs(as.character)) %>%
-  mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer))
+  mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer))
 #save(myown_vote_record_detailed_part_df,file=paste0(dataset_file_directory, "rdata", slash,  "myown_vote_record_detailed_part_df.RData"))
 load(file=paste0(dataset_file_directory, "rdata", slash,  "myown_vote_record_df.RData"))
+distinct(myown_vote_record_detailed_part_df,billcontent,url,date,term,period,meetingno,temp_meeting_no,billn,billresult) %>%
+  write.xlsx(paste0(dataset_file_directory,"rdata",slash,"myown_vote_record_detailed_part_df_2.xlsx"))
+write_file(as.character(pure_html), path=paste(dataset_file_directory, "rdata", slash,  "checkcontent.txt", sep = ""), append = FALSE)
 myown_vote_record_df<-bind_rows(myown_vote_record_df,myown_vote_record_detailed_part_df)
 #regexp=
 #表決結果名單：[\n\r]{1,3}.+贊成者：.+[\n\r]{1,3}.+[\n\r]{1,3}.+反對者.+[\n\r]{1,3}.+[\n\r]{1,3}([一二三四五六七八九、棄權者：人]+[\n\r]{1,3}.+){0,1}

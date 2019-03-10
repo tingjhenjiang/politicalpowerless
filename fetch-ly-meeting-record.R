@@ -40,10 +40,9 @@ fetchmeetingdata<-meetingurldata[,meetingurldata_urlrange] %>%
   list_of_vec_asmanyrows_to_df() %>%
   mutate_all(as.character)
 #check: utf8::utf8_valid(fetchmeetingdata$HTML5DATA[10])
-#save(fetchmeetingdata,file="/mnt/e/fetchmeetingdata.RData")
-load(file="E:\\fetchmeetingdata.RData")
-load(file="/mnt/e/fetchmeetingdata.RData")
-#load(paste(dataset_file_directory,slash, "rdata", slash,  "fetchmeetingdata.RData", sep = "")) #476 obs at 1233 now 481
+#save(fetchmeetingdata,file=paste0(filespath, "vote_record", slash, "fetchmeetingdata.RData"))
+load(file=paste0(filespath, "vote_record", slash, "fetchmeetingdata.RData"))
+#load(paste0(filespath, "vote_record", slash, "fetchmeetingdata.RData", sep = "")) #476 obs at 1233 now 481
 
 
 #I think there are two variables here: the sequence of bytes and the declared encoding.
@@ -109,12 +108,9 @@ meetingdata<-bind_cols(meetingurldata,fetchmeetingdata) %>%
   ) %>%
   list_of_vec_asmanyrows_to_df()
 #check html content
-write_file(as.character(meetingdata[2,9]), path=paste(dataset_file_directory, "rdata", slash,  "checkcontent.txt", sep = ""), append = FALSE)
-write_file(content, path=paste(dataset_file_directory, "rdata", slash,  "checkcontent.txt", sep = ""), append = FALSE)
+#write_file(as.character(meetingdata[1,c('content')]), path=paste(dataset_file_directory, "rdata", slash,  "checkcontent.txt", sep = ""), append = FALSE)
+#write_file(content, path=paste(dataset_file_directory, "rdata", slash,  "checkcontent.txt", sep = ""), append = FALSE)
 
 #出錯處 at 312 臨時會 第08屆 第04會期 第01次臨時會 第01次會議 or 313
-save(meetingdata, file = paste(dataset_file_directory, "rdata", slash,  "meetingdata.RData", sep = "") )
-save(fetchmeetingdata, file = paste(dataset_file_directory, "rdata", slash,  "fetchmeetingdata.RData", sep = "") )
-save(meetingdata,file="/mnt/e/meetingdata.RData")
-
-#save(meetingdata,file="/mnt/e/Software/scripts/R/vote_record/meetingdata.RData")
+save(meetingdata, file = paste0(filespath, "vote_record", slash, "meetingdata.RData", sep = "") )
+save(fetchmeetingdata, file = paste0(filespath, "vote_record", slash, "fetchmeetingdata.RData", sep = "") )
