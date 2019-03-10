@@ -370,7 +370,7 @@ missing_value_labels<-lapply(survey_data,function(X) {
   #(拒答|遺漏值|忘記|不適用|不知道|跳答|無法選擇|忘記了|拒答）|不知道）|缺漏|不記得)
   return(labelsofdf)
 })
-survey_data_ <- mapply(function(X,Y) {
+survey_data <- mapply(function(X,Y) {
   newdf <- lapply(X, function(dfcolumnvectors,replaced_keys) {
     if (is.factor(dfcolumnvectors)) {
       replace_key_value_pairs<-rep(NA,times=length(replaced_keys))
@@ -517,10 +517,11 @@ generate_predictor_matrix<-function(df,calculationbasisvar=c(),imputedOnlyVars=c
 
 VIMtestplot<-FALSE
 if (VIMtestplot) {
-  survey_data_test <- lapply(survey_data,function(X) {
-    dplyr::mutate_at(X,setdiff(colnames(X),c("myown_age","myown_occp","myown_ses")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) )  )
-    #設定遺漏值
-  })
+  survey_data_test<-survey_data
+  #survey_data_test <- lapply(survey_data,function(X) {
+  #  dplyr::mutate_at(X,setdiff(colnames(X),c("myown_age","myown_occp","myown_ses")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) )  )
+  #  #設定遺漏值
+  #})
   survey_data_test <- lapply(survey_data_test,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
     X<-droplevels(X)
     imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
@@ -609,10 +610,24 @@ survey_data_test <- custom_parallel_lapply(
 #survey_data_test[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
 #}
 #conditional random field
-save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_6_",t_sessioninfo_running,"df.RData"))
+save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_7_",t_sessioninfo_running,"df.RData"))
+load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_7_",t_sessioninfo_running,"df.RData"))
 #write.xlsx(as.data.frame(furtherusefulpredictor),file="furtherusefulpredictor.xlsx")
 lapply(survey_data_test,View)
 View(survey_data$`2010env.sav`[1:20,union(imputedvaluecolumn$`2010env`,imputingcalculatebasiscolumn$`2010env`)])
+
+#checking imputed df
+lapply(survey_data,function(X,need_particip_var,need_ses_var_assigned,imputedvaluecolumn) {
+  survey<-X$SURVEY[1]
+  checkdf<-extract(X,dplyr::intersect(names(X),unique(c(
+    getElement(need_particip_var,survey),
+    need_ses_var_assigned,
+    getElement(imputedvaluecolumn,survey)
+  )))) %>%
+    {colSums(is.na(.))}
+  return(checkdf)
+},need_particip_var=need_particip_var,need_ses_var_assigned=need_ses_var_assigned,imputedvaluecolumn=imputedvaluecolumn)
+
 #1) numeric data
 which(as.vector(sapply(survey_data$`2010env.sav`,is.numeric)))
 #2) factor data with 2 levels
