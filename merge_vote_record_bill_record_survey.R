@@ -108,7 +108,7 @@ elections_df <- elections_df[, c("term", "號次", "名字", "性別", "出生�
 
 #透過全國行政區的行政區名稱，比對不完整鄉鎮市區名稱的郵遞區號行政區，組裝出行政區郵遞區號
 zipcodecsv<-paste0(dataset_file_directory,"zip3.xlsx")
-zipcode_df <- read.xlsx(zipcodecsv, sheet = 1) %>%
+zipcode_df <- openxlsx::read.xlsx(zipcodecsv, sheet = 1) %>%
   rename(admincity = 縣市名稱, admindistrict = 鄉鎮市區名稱) %>%
   mutate_at(c("admindistrict"), funs(customgsub(admindistrict, "區", ""))) %>% ##鄉鎮市區名稱還沒有統一
   mutate_at("term",funs(as.character))
@@ -617,7 +617,7 @@ lapply(survey_data_test,View)
 View(survey_data$`2010env.sav`[1:20,union(imputedvaluecolumn$`2010env`,imputingcalculatebasiscolumn$`2010env`)])
 
 #checking imputed df
-lapply(survey_data,function(X,need_particip_var,need_ses_var_assigned,imputedvaluecolumn) {
+lapply(survey_data_test,function(X,need_particip_var,need_ses_var_assigned,imputedvaluecolumn) {
   survey<-X$SURVEY[1]
   checkdf<-extract(X,dplyr::intersect(names(X),unique(c(
     getElement(need_particip_var,survey),
@@ -628,280 +628,201 @@ lapply(survey_data,function(X,need_particip_var,need_ses_var_assigned,imputedval
   return(checkdf)
 },need_particip_var=need_particip_var,need_ses_var_assigned=need_ses_var_assigned,imputedvaluecolumn=imputedvaluecolumn)
 
-#1) numeric data
-which(as.vector(sapply(survey_data$`2010env.sav`,is.numeric)))
-#2) factor data with 2 levels
-which(as.vector(sapply(survey_data$`2010env.sav`,function (X) {
-  if (!is.factor(X) | !is.ordered(X)) {
-    return(FALSE)
-  }
-  if (length(levels(X))!=2) {
-    return(FALSE)
-  } else {
-    return(TRUE)
-  }
-})))
-#3) factor data with > 2 unordered levels
-which(as.vector(sapply(survey_data$`2010env.sav`,function (X) {
-  if (!is.factor(X)) {
-    return(FALSE)
-  }
-  if (length(levels(X))>2) {
-    return(TRUE)
-  } else {
-    return(FALSE)
-  }
-})))
-#4) factor data with > 2 ordered levels
-which(as.vector(sapply(survey_data$`2010env.sav`,function(X) {
-  if (!is.ordered(X)) {
-    return(FALSE)
-  }
-  if (length(levels(X))>2) {
-    return(TRUE)
-  } else {
-    return(FALSE)
-  }
-})))
-
-#Himsc填補遺漏值 filling in missing value
-library(Hmisc)
-
-survey_data_test <- custom_parallel_lapply(
-  data=t_survey_data_test,
-  f=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
-    X <- droplevels(X)
-    imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
+if (FALSE) { #此部分屬於舊code，僅保留參考用
+  #1) numeric data
+  which(as.vector(sapply(survey_data$`2010env.sav`,is.numeric)))
+  #2) factor data with 2 levels
+  which(as.vector(sapply(survey_data$`2010env.sav`,function (X) {
+    if (!is.factor(X) | !is.ordered(X)) {
+      return(FALSE)
+    }
+    if (length(levels(X))!=2) {
+      return(FALSE)
+    } else {
+      return(TRUE)
+    }
+  })))
+  #3) factor data with > 2 unordered levels
+  which(as.vector(sapply(survey_data$`2010env.sav`,function (X) {
+    if (!is.factor(X)) {
+      return(FALSE)
+    }
+    if (length(levels(X))>2) {
+      return(TRUE)
+    } else {
+      return(FALSE)
+    }
+  })))
+  #4) factor data with > 2 ordered levels
+  which(as.vector(sapply(survey_data$`2010env.sav`,function(X) {
+    if (!is.ordered(X)) {
+      return(FALSE)
+    }
+    if (length(levels(X))>2) {
+      return(TRUE)
+    } else {
+      return(FALSE)
+    }
+  })))
+  
+  #Himsc填補遺漏值 filling in missing value
+  library(Hmisc)
+  
+  survey_data_test <- custom_parallel_lapply(
+    data=t_survey_data_test,
+    f=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
+      X <- droplevels(X)
+      imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
+        intersect(names(X))
+      imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
+        intersect(names(X))
+      allimpcolumns<-union(imputedvaluecolumn_assigned,imputingcalculatebasiscolumn_assigned) %>%
+        setdiff(c("myown_marriage","v89","v90","v98b","v128_2b","v128_2c","v132b","v125br","v138dr","v43","myown_working_status","v122ar","v122b1r",
+                  "v41","myown_vote","v87_3","v88","v91","v17","v16","v87_4","myown_dad_ethgroup","v87_5")) #too few
+      cal_formula<-as.formula(paste("~", paste(allimpcolumns, collapse="+")))
+      print(c("SURVEY IS ",X$SURVEY[1]," AND FORMULA IS ",cal_formula))
+      impute_arg <- aregImpute(cal_formula, data = X[,allimpcolumns], n.impute = 5)
+      return(impute_arg)
+    },
+    imputedvaluecolumn=imputedvaluecolumn,
+    imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
+    exportvar=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"),
+    exportlib=c("base",lib,"Hmisc"),
+    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+    mc.set.seed = TRUE,
+    mc.cores=parallel::detectCores()
+  )
+  
+  
+  
+  #檢查亂報投票意向
+  
+  survey_data_test <- lapply(survey_data,function(X,need_ses_var_assigned) {
+    need_ses_var_assigned %<>% extract2(X$SURVEY[1]) %>%
       intersect(names(X))
-    imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
-      intersect(names(X))
-    allimpcolumns<-union(imputedvaluecolumn_assigned,imputingcalculatebasiscolumn_assigned) %>%
-      setdiff(c("myown_marriage","v89","v90","v98b","v128_2b","v128_2c","v132b","v125br","v138dr","v43","myown_working_status","v122ar","v122b1r",
-                "v41","myown_vote","v87_3","v88","v91","v17","v16","v87_4","myown_dad_ethgroup","v87_5")) #too few
-    cal_formula<-as.formula(paste("~", paste(allimpcolumns, collapse="+")))
-    print(c("SURVEY IS ",X$SURVEY[1]," AND FORMULA IS ",cal_formula))
-    impute_arg <- aregImpute(cal_formula, data = X[,allimpcolumns], n.impute = 5)
-    return(impute_arg)
-  },
-  imputedvaluecolumn=imputedvaluecolumn,
-  imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
-  exportvar=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"),
-  exportlib=c("base",lib,"Hmisc"),
-  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
-  mc.set.seed = TRUE,
-  mc.cores=parallel::detectCores()
-)
-
-
-
-#檢查亂報投票意向
-
-survey_data_test <- lapply(survey_data,function(X,need_ses_var_assigned) {
-  need_ses_var_assigned %<>% extract2(X$SURVEY[1]) %>%
-    intersect(names(X))
-  X %<>% mutate_at(missingvaluecolumn_assigned,funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) )
-  efa.results<-factanal(x=as.matrix(X[,need_ses_var_assigned]) ,factors=4, rotation="promax")
-},need_ses_var)
-
-zip_to_party<-distinct(elections_df_test,term,zip,party,wonelection) %>%
-  mutate_at("zip",funs(as.character)) %>%
-  mutate_at("party",funs(as.character)) %>%
-  unique()
-#正確的選區與參選人
-lieing_check<-read.xlsx(paste(dataset_file_directory,"merger_survey_dataset",slash,"recode_record.xlsx",sep=""), sheet = 4) %>% #, endRow = 1896
-  distinct(lieing_check,h5,h6r,h7,h8,h9,id,zip,code) %>% #,h5,h6r,h7,h8,h9 #,v84,v85,v86,v88,v93,v94
-  mutate("term"=9) %>%
-  rename(party=code) %>%
-  mutate_at(c("zip","party"),funs(as.character)) #要檢驗的所有投票意向
-zip_to_party_with_jump_answer<-distinct(lieing_check,term,party,zip) %>%
-  filter(customgrepl(party,"廢票|沒有投票權")) %>%
-  cbind("wonelection"=NA) %>%
-  rbind(zip_to_party)
-
-lieing_check<-mutate(lieing_check,bluepoints=0,greenpoints=0) %>%
-  #mutate(bluepoints=ifelse(v84 %in% c(1),bluepoints+1,bluepoints)) %>% #
-  mutate(bluepoints=ifelse(h5 %in% c(1,3),bluepoints+1,bluepoints)) %>%
-  #mutate(bluepoints=ifelse(v86 %in% c(1,3),bluepoints+1,bluepoints)) %>% #
-  mutate(bluepoints=ifelse(h6r %in% c(1,3),bluepoints+1,bluepoints)) %>%
-  #mutate(bluepoints=ifelse(v88 %in% c(1,3),bluepoints+1,bluepoints)) %>% #
-  mutate(bluepoints=ifelse(h7 %in% c(1,3,4),bluepoints+1,bluepoints)) %>%
-  #mutate(bluepoints=ifelse(v93 %in% c(1,3,5),bluepoints+1,bluepoints)) %>% #
-  mutate(bluepoints=ifelse(h8 %in% c(1,3,4,9),bluepoints+1,bluepoints)) %>%
-  #mutate(bluepoints=ifelse(v94 %in% c(1,3,5),bluepoints+1,bluepoints)) %>% #
-  mutate(bluepoints=ifelse(h9 %in% c(1,3,4,9),bluepoints+1,bluepoints)) %>%
-  #mutate(greenpoints=ifelse(v84 %in% c(2),greenpoints+1,greenpoints)) %>% #
-  mutate(greenpoints=ifelse(h5 %in% c(2),greenpoints+1,greenpoints)) %>%
-  #mutate(greenpoints=ifelse(v86 %in% c(2,4),greenpoints+1,greenpoints)) %>% #
-  mutate(greenpoints=ifelse(h6r %in% c(2,6,9,19),greenpoints+1,greenpoints)) %>%
-  #mutate(greenpoints=ifelse(v88 %in% c(2,4),greenpoints+1,greenpoints)) %>% #
-  mutate(greenpoints=ifelse(h7 %in% c(2,6,9,19),greenpoints+1,greenpoints)) %>%
-  #mutate(greenpoints=ifelse(v93 %in% c(2,4),greenpoints+1,greenpoints)) %>% #
-  mutate(greenpoints=ifelse(h8 %in% c(2,5,7,10),greenpoints+1,greenpoints)) %>%
-  #mutate(greenpoints=ifelse(v94 %in% c(2,4),greenpoints+1,greenpoints))#
-  mutate(greenpoints=ifelse(h9 %in% c(2,5,7,10),greenpoints+1,greenpoints))
-
-clear_observed_value_green<-filter(lieing_check, greenpoints>=3, greenpoints>bluepoints, term==9) %>%
-  anti_join(zip_to_party_with_jump_answer) %>%
-  select(-party) %>%
-  left_join(zip_to_party) %>%
-  filter(customgrepl(party,"民主進步黨|台灣團結聯盟|時代力量|綠黨社會民主黨聯盟|綠黨"))
-clear_observed_value_blue<-filter(lieing_check, bluepoints>=3, bluepoints>greenpoints, term==9) %>%
-  anti_join(zip_to_party_with_jump_answer) %>%
-  select(-party) %>%
-  left_join(zip_to_party) %>%
-  filter(customgrepl(party,"中國國民黨|新黨|親民黨"))
-
-
-#lieing_check,h6r %in% c(1,3), h7 %in% c(1,3,4), h8 %in% c(1,3,4,9)
-
-#c("跳答","忘記了、不知道","拒答")
-lieing_check_with_value<-filter(lieing_check,!(h6r %in% c(96,97,98,99)) ) %>%
-  #v86 %in% c(7,9,96,97,98,99) 
-  anti_join(zip_to_party_with_jump_answer) %>%
-  anti_join(clear_observed_value_green,by=c("id")) %>%
-  anti_join(clear_observed_value_blue,by=c("id")) %>%
-  mutate("party"=NA)
-lieing_check_missing<-filter(lieing_check, h6r %in% c(96,97,98,99)) %>%
-  #v86 %in% c(7,9,96,97,98,99) & (v85!=99)
-  mutate("party"=NA) %>%
-  anti_join(clear_observed_value_green,by=c("id")) %>%
-  anti_join(clear_observed_value_blue,by=c("id"))
-
-exclude_result_blue<-cbind("bluepoints"=rep(3:5,each=4),party=c("民主進步黨","時代力量","台灣團結聯盟","綠黨社會民主黨聯盟")) %>%
-  as.data.frame() %>%
-  mutate_at(c("party","bluepoints"),funs(as.character)) %>%
-  mutate_at("bluepoints",funs(as.numeric))
-exclude_result_green<-cbind("greenpoints"=rep(3:5,each=3),party=c("中國國民黨","親民黨","新黨")) %>%
-  as.data.frame() %>%
-  mutate_at(c("party","greenpoints"),funs(as.character)) %>%
-  mutate_at("greenpoints",funs(as.numeric))
-
-correct_check_result<-filter(lieing_check,!(party %in% c("跳答","忘記了、不知道","拒答","忘記了,不知道","跳答或不適用","選人不選黨") ) ) %>% #(v85==99) | 
-  semi_join(zip_to_party_with_jump_answer) %>%
-  bind_rows(clear_observed_value_green,clear_observed_value_blue)# %>%
-#mutate("party"=h6r)# %>%
-#mutate_at("party",funs(as.factor))# %>%
-#bind_rows(lieing_check_result) %>%
-#bind_rows(lieing_check_missing)
-binded_check_result<-bind_rows(correct_check_result,lieing_check_with_value,lieing_check_missing) %>%
-  #anti_join(exclude_result_blue) %>%
-  #anti_join(exclude_result_green) %>% %>%
-  #mutate_cond(paste0(bluepoints, party) %in% do.call(paste0, exclude_result_blue),party=NA) %>%
-  #mutate_cond(paste0(greenpoints, party) %in% do.call(paste0, exclude_result_green),party=NA) %>%
-  mutate_at(c("id","zip","h5","h6r","h7","h8","h9","party"),funs(as.factor)) %>%
-  #,"v84","v86","v88","v93","v94"
-  arrange(id,wonelection) %>%
-  group_by(id) %>%
-  filter(!(duplicated(id)))
-
-
-#group_by(binded_check_result,id) %>%
-#  filter(n()>1) %>%
-#  View()
-#binded_check_result<-binded_check_result[order(testorder),]
-#binded_check_result<-group_by(binded_check_result,id) %>%
-#  filter(!(duplicated(id)))
-#select(X2016_citizen_with_restricted,id) %>%
-#  group_by(id) %>% 
-#  filter(n()>1) %>%
-#  View()
-#select(X2016_citizen_with_restricted,id) %>%
-#group_by(id) %>% 
-#filter(duplicated(id)) %>%
-#View()
-duplicated(X2016_citizen_with_restricted$id)
-length(X2016_citizen_with_restricted$id[duplicated(X2016_citizen_with_restricted$id)])
-
-#identical(filter(zip_to_party_with_jump_answer,zip==103)[3,2],filter(lieing_check_with_value,zip==103)[1,8])
-#標準化z-normalization或min-max scale
-
-
-
-
-
-
-## Extract all variable names in dataset
-allVars <- names(binded_check_result)
-## names of variables with missingness
-missVars <- names(binded_check_result)[colSums(is.na(binded_check_result)) > 0]
-predictorMatrix <- matrix(0, ncol = length(allVars), nrow = length(allVars))
-rownames(predictorMatrix) <- allVars
-colnames(predictorMatrix) <- allVars
-imputerVars <- c("zip","h6r","party","bluepoints","greenpoints")#,"v86"
-imputerMatrix <- predictorMatrix
-imputerMatrix[,imputerVars] <- 1
-imputedOnlyVars <- c("party")
-## Imputers that have missingness must be imputed.
-imputedVars <- intersect(unique(c(imputedOnlyVars, imputerVars)), missVars)
-imputedMatrix <- predictorMatrix
-imputedMatrix[imputedVars,] <- 1
-predictorMatrix <- imputerMatrix * imputedMatrix
-## Diagonals must be zeros (a variable cannot impute itself)
-diag(predictorMatrix) <- 0
-predictorMatrix
-require(mice)
-i<-1
-repeat {
-  original_binded_check_result<-if(i==1) {
-    binded_check_result %>%
-      filter(!is.na(party))
-  } else {
-    original_binded_check_result %>%
-      filter(!is.na(party))
-  }
-  binded_check_result$party <- factor(binded_check_result$party) 
-  mice.lieing_check_imputing <- mice(binded_check_result,
-                                     m = 1,           # 產生三個被填補好的資料表
-                                     maxit = 7,      # max iteration
-                                     method = "rf", # 使用CART決策樹，進行遺漏值預測
-                                     predictorMatrix = predictorMatrix,
-                                     seed = 188)      # set.seed()，令抽樣每次都一樣
-  complete(mice.lieing_check_imputing, 1)
-  mice.lieing_check_imputing_result<-complete(mice.lieing_check_imputing, 1) %>%
-    mutate_at(c("zip","party","bluepoints","greenpoints"),funs( as.character )) %>%
-    mutate_at(c("bluepoints","greenpoints"),funs( as.numeric ))
-  predict_binded_check_result<-anti_join(mice.lieing_check_imputing_result,original_binded_check_result,by=c("id"))
-  correct_part_mice.lieing_check_imputing_result<-predict_binded_check_result %>%
-    semi_join(zip_to_party_with_jump_answer,by=c("zip","party","term")) %>%
-    anti_join(exclude_result_blue) %>%
-    anti_join(exclude_result_green) %>%
-    mutate_cond(paste0(bluepoints, party) %in% do.call(paste0, exclude_result_blue),party=NA) %>%
-    mutate_cond(paste0(greenpoints, party) %in% do.call(paste0, exclude_result_green),party=NA) %>%
-    mutate_cond(customgrepl(party,"沒有投票權"),party=NA) %>%
-    filter(!is.na(party))
-  incorrect_part_mice.lieing_check_imputing_result<-predict_binded_check_result %>%
-    anti_join(correct_part_mice.lieing_check_imputing_result,by=c("id"))
-  if (nrow(incorrect_part_mice.lieing_check_imputing_result)==0) {
-    binded_check_result<-mice.lieing_check_imputing_result
-    break
-  } else {
-    message("i=",i,"; ",nrow(incorrect_part_mice.lieing_check_imputing_result))
-    incorrect_part_mice.lieing_check_imputing_result<-mutate(incorrect_part_mice.lieing_check_imputing_result,"party"=NA)
-    binded_check_result<-bind_rows(original_binded_check_result,correct_part_mice.lieing_check_imputing_result,incorrect_part_mice.lieing_check_imputing_result) %>%
-      mutate_at(c("party","zip"),funs(as.factor))
-    original_binded_check_result<-bind_rows(original_binded_check_result,correct_part_mice.lieing_check_imputing_result)
-  }
-  i <- i + 1
+    X %<>% mutate_at(missingvaluecolumn_assigned,funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) )
+    efa.results<-factanal(x=as.matrix(X[,need_ses_var_assigned]) ,factors=4, rotation="promax")
+  },need_ses_var)
+  
+  zip_to_party<-distinct(elections_df_test,term,zip,party,wonelection) %>%
+    mutate_at("zip",funs(as.character)) %>%
+    mutate_at("party",funs(as.character)) %>%
+    unique()
+  #正確的選區與參選人
+  lieing_check<-read.xlsx(paste(dataset_file_directory,"merger_survey_dataset",slash,"recode_record.xlsx",sep=""), sheet = 4) %>% #, endRow = 1896
+    distinct(lieing_check,h5,h6r,h7,h8,h9,id,zip,code) %>% #,h5,h6r,h7,h8,h9 #,v84,v85,v86,v88,v93,v94
+    mutate("term"=9) %>%
+    rename(party=code) %>%
+    mutate_at(c("zip","party"),funs(as.character)) #要檢驗的所有投票意向
+  zip_to_party_with_jump_answer<-distinct(lieing_check,term,party,zip) %>%
+    filter(customgrepl(party,"廢票|沒有投票權")) %>%
+    cbind("wonelection"=NA) %>%
+    rbind(zip_to_party)
+  
+  lieing_check<-mutate(lieing_check,bluepoints=0,greenpoints=0) %>%
+    #mutate(bluepoints=ifelse(v84 %in% c(1),bluepoints+1,bluepoints)) %>% #
+    mutate(bluepoints=ifelse(h5 %in% c(1,3),bluepoints+1,bluepoints)) %>%
+    #mutate(bluepoints=ifelse(v86 %in% c(1,3),bluepoints+1,bluepoints)) %>% #
+    mutate(bluepoints=ifelse(h6r %in% c(1,3),bluepoints+1,bluepoints)) %>%
+    #mutate(bluepoints=ifelse(v88 %in% c(1,3),bluepoints+1,bluepoints)) %>% #
+    mutate(bluepoints=ifelse(h7 %in% c(1,3,4),bluepoints+1,bluepoints)) %>%
+    #mutate(bluepoints=ifelse(v93 %in% c(1,3,5),bluepoints+1,bluepoints)) %>% #
+    mutate(bluepoints=ifelse(h8 %in% c(1,3,4,9),bluepoints+1,bluepoints)) %>%
+    #mutate(bluepoints=ifelse(v94 %in% c(1,3,5),bluepoints+1,bluepoints)) %>% #
+    mutate(bluepoints=ifelse(h9 %in% c(1,3,4,9),bluepoints+1,bluepoints)) %>%
+    #mutate(greenpoints=ifelse(v84 %in% c(2),greenpoints+1,greenpoints)) %>% #
+    mutate(greenpoints=ifelse(h5 %in% c(2),greenpoints+1,greenpoints)) %>%
+    #mutate(greenpoints=ifelse(v86 %in% c(2,4),greenpoints+1,greenpoints)) %>% #
+    mutate(greenpoints=ifelse(h6r %in% c(2,6,9,19),greenpoints+1,greenpoints)) %>%
+    #mutate(greenpoints=ifelse(v88 %in% c(2,4),greenpoints+1,greenpoints)) %>% #
+    mutate(greenpoints=ifelse(h7 %in% c(2,6,9,19),greenpoints+1,greenpoints)) %>%
+    #mutate(greenpoints=ifelse(v93 %in% c(2,4),greenpoints+1,greenpoints)) %>% #
+    mutate(greenpoints=ifelse(h8 %in% c(2,5,7,10),greenpoints+1,greenpoints)) %>%
+    #mutate(greenpoints=ifelse(v94 %in% c(2,4),greenpoints+1,greenpoints))#
+    mutate(greenpoints=ifelse(h9 %in% c(2,5,7,10),greenpoints+1,greenpoints))
+  
+  clear_observed_value_green<-filter(lieing_check, greenpoints>=3, greenpoints>bluepoints, term==9) %>%
+    anti_join(zip_to_party_with_jump_answer) %>%
+    select(-party) %>%
+    left_join(zip_to_party) %>%
+    filter(customgrepl(party,"民主進步黨|台灣團結聯盟|時代力量|綠黨社會民主黨聯盟|綠黨"))
+  clear_observed_value_blue<-filter(lieing_check, bluepoints>=3, bluepoints>greenpoints, term==9) %>%
+    anti_join(zip_to_party_with_jump_answer) %>%
+    select(-party) %>%
+    left_join(zip_to_party) %>%
+    filter(customgrepl(party,"中國國民黨|新黨|親民黨"))
+  
+  
+  #lieing_check,h6r %in% c(1,3), h7 %in% c(1,3,4), h8 %in% c(1,3,4,9)
+  
+  #c("跳答","忘記了、不知道","拒答")
+  lieing_check_with_value<-filter(lieing_check,!(h6r %in% c(96,97,98,99)) ) %>%
+    #v86 %in% c(7,9,96,97,98,99) 
+    anti_join(zip_to_party_with_jump_answer) %>%
+    anti_join(clear_observed_value_green,by=c("id")) %>%
+    anti_join(clear_observed_value_blue,by=c("id")) %>%
+    mutate("party"=NA)
+  lieing_check_missing<-filter(lieing_check, h6r %in% c(96,97,98,99)) %>%
+    #v86 %in% c(7,9,96,97,98,99) & (v85!=99)
+    mutate("party"=NA) %>%
+    anti_join(clear_observed_value_green,by=c("id")) %>%
+    anti_join(clear_observed_value_blue,by=c("id"))
+  
+  exclude_result_blue<-cbind("bluepoints"=rep(3:5,each=4),party=c("民主進步黨","時代力量","台灣團結聯盟","綠黨社會民主黨聯盟")) %>%
+    as.data.frame() %>%
+    mutate_at(c("party","bluepoints"),funs(as.character)) %>%
+    mutate_at("bluepoints",funs(as.numeric))
+  exclude_result_green<-cbind("greenpoints"=rep(3:5,each=3),party=c("中國國民黨","親民黨","新黨")) %>%
+    as.data.frame() %>%
+    mutate_at(c("party","greenpoints"),funs(as.character)) %>%
+    mutate_at("greenpoints",funs(as.numeric))
+  
+  correct_check_result<-filter(lieing_check,!(party %in% c("跳答","忘記了、不知道","拒答","忘記了,不知道","跳答或不適用","選人不選黨") ) ) %>% #(v85==99) | 
+    semi_join(zip_to_party_with_jump_answer) %>%
+    bind_rows(clear_observed_value_green,clear_observed_value_blue)# %>%
+  #mutate("party"=h6r)# %>%
+  #mutate_at("party",funs(as.factor))# %>%
+  #bind_rows(lieing_check_result) %>%
+  #bind_rows(lieing_check_missing)
+  binded_check_result<-bind_rows(correct_check_result,lieing_check_with_value,lieing_check_missing) %>%
+    #anti_join(exclude_result_blue) %>%
+    #anti_join(exclude_result_green) %>% %>%
+    #mutate_cond(paste0(bluepoints, party) %in% do.call(paste0, exclude_result_blue),party=NA) %>%
+    #mutate_cond(paste0(greenpoints, party) %in% do.call(paste0, exclude_result_green),party=NA) %>%
+    mutate_at(c("id","zip","h5","h6r","h7","h8","h9","party"),funs(as.factor)) %>%
+    #,"v84","v86","v88","v93","v94"
+    arrange(id,wonelection) %>%
+    group_by(id) %>%
+    filter(!(duplicated(id)))
+  
+  
+  #group_by(binded_check_result,id) %>%
+  #  filter(n()>1) %>%
+  #  View()
+  #binded_check_result<-binded_check_result[order(testorder),]
+  #binded_check_result<-group_by(binded_check_result,id) %>%
+  #  filter(!(duplicated(id)))
+  #select(X2016_citizen_with_restricted,id) %>%
+  #  group_by(id) %>% 
+  #  filter(n()>1) %>%
+  #  View()
+  #select(X2016_citizen_with_restricted,id) %>%
+  #group_by(id) %>% 
+  #filter(duplicated(id)) %>%
+  #View()
+  duplicated(X2016_citizen_with_restricted$id)
+  length(X2016_citizen_with_restricted$id[duplicated(X2016_citizen_with_restricted$id)])
+  
+  #identical(filter(zip_to_party_with_jump_answer,zip==103)[3,2],filter(lieing_check_with_value,zip==103)[1,8])
+  #標準化z-normalization或min-max scale
 }
-mutate_at(binded_check_result,c("zip","party","bluepoints","greenpoints"),funs(as.character)) %>%
-  mutate_at(c("bluepoints","greenpoints"),funs(as.numeric)) %>%
-  mutate_cond( !(paste0(zip, party) %in% do.call(paste0, zip_to_party_with_jump_answer[,c(1,2)]) ),party=NA) %>%
-  #semi_join(zip_to_party_with_jump_answer,by=c("zip","party","term")) %>%
-  #anti_join(exclude_result_blue) %>%
-  #anti_join(exclude_result_green) %>%
-  arrange(id) %>%
-  write_csv(path="predict_party_tendancy.csv")
-#fit <- with ( mice.lieing_check_correct_result, glm( party ~ zip + h5 + h6r + h7 + h8 + h9 ) )
-#pooled <- pool( fit )
-summary( mice.lieing_check_correct_result )
 
 
 # 第五部份：IRT latent variables 環境設定 -------------------------------------------
 #reset
 #load(paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.RData"))
 #load imputed survey
-#load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_5_df_randomforest.RData"))
-load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_6_Ubuntu18.04.2LTSdf.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_7_Ubuntu18.04.2LTSdf.RData"))
 
 # 第五-1部份：IRT latent variables 將職業社經地位、家庭收入、教育程度萃取成為階級  =================================
 
@@ -1000,15 +921,22 @@ survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigne
   #need_particip_var_assigned<-need_particip_var
   need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
     intersect(names(X))
-  recode_list<-list( #把越參與的答案改為數字越多，比較好解釋
-    "2004citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
-    "2010env"=list("1"=2,"2"=1,"是"=2,"否"=1,"有"=2,"沒有"=1),
-    "2010overall"=list("1"=3,"2"=2,"3"=1),
-    "2016citizen"=list("1"=4,"2"=3,"3"=2,"4"=1)
-  ) %>%
-    extract2(X$SURVEY[1])
-  X %<>% mutate_at(need_particip_var_assigned,funs(dplyr::recode),!!!recode_list) %>%
-    mutate_at(need_particip_var_assigned,funs(as.ordered))
+  customreordercatbylabelname<-function(X,desc=FALSE) {
+    forcats::fct_reorder(X,as.character(X),.fun=unique,.desc=desc) %>%
+      return()
+  }
+  X <- mutate_at(X,need_particip_var_assigned,funs(customreordercatbylabelname),desc=TRUE)
+  #forcats::fct_reorder(f,sort(levels(f),decreasing=FALSE))
+  #forcats::fct_reorder(f,sort(levels(f),decreasing=TRUE))
+  #recode_list<-list( #把越參與的答案改為數字越多，比較好解釋
+  #  "2004citizen"=list("1"=4,"2"=3,"3"=2,"4"=1),
+  #  "2010env"=list("1"=2,"2"=1,"是"=2,"否"=1,"有"=2,"沒有"=1),
+  #  "2010overall"=list("1"=3,"2"=2,"3"=1),
+  #  "2016citizen"=list("1"=4,"2"=3,"3"=2,"4"=1)
+  #) %>%
+  #  extract2(X$SURVEY[1])
+  #X %<>% mutate_at(need_particip_var_assigned,funs(dplyr::recode),!!!recode_list) %>%
+  #  mutate_at(need_particip_var_assigned,funs(as.ordered))
   return(X)
 },need_particip_var_assigned=need_particip_var)
 
@@ -1023,7 +951,8 @@ survey_data_test <- lapply(survey_data_test, function(X,need_particip_var_assign
   need_detailed_particip_var<-extract2(need_particip_var_assigned,needparticip_surveyi)
   irt_target_d<-X[,need_detailed_particip_var] %>%
     dplyr::mutate_all(.funs=function(f) {
-      return(as.numeric(levels(f))[f])
+      #return(as.numeric(levels(f))[f])
+      (seq(from=1,to=length(f)))[f] %>% return()
     })
   estimatemodel<-mirt::mirt(
     data=irt_target_d,
@@ -1302,12 +1231,12 @@ new_LCAmodel_with_indp_covparty_3_3<-poLCA::poLCA(
 LCAmodel_with_indp_covparty[[3]][[2]]<-new_LCAmodel_with_indp_covparty_3_3
 survey_data_test[[1]]$myown_indp_atti<-factor(
   LCAmodel_with_indp_covparty[[1]][[2]]$predclass,
-  levels = c(1,2,3), labels = c("統一", "中立", "獨立")
+  levels = c(1,2,3), labels = c("[1] 統一", "[2] 中立", "[3] 獨立")
 )#save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
 survey_data_test[[3]]$myown_indp_atti<-factor(
   LCAmodel_with_indp_covparty[[3]][[2]]$predclass,
-  levels = c(1,2,3), labels = c("統一", "中立", "獨立")
-  )
+  levels = c(1,2,3), labels = c("[1] 統一", "[2] 中立", "[3] 獨立")
+)
 survey_data_test[[4]]$myown_indp_atti<-LCAmodel_with_indp_covparty[[4]]$h10r
 #save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_test.RData"))
 
@@ -1336,16 +1265,18 @@ survey_q_id<-sapply(survey_data_title,function(X,df,oldvec=c()) {
 },df=survey_imputation_and_measurement)
 
 #有些資料在轉換過程中內容會變成label而非coding的資料，要把他變回來
-mistakinglevelvars<-list(
-  "2004citizen"=c('myown_indp_atti','v61','v62','v74','v91a','v91b','v93a','v93b','v95'),
-  "2010env"=c('v14a','v14b','v16a','v16b','v20a','v20b','v28a','v28b','v31','v40','v57','v58','v59'),
-  "2010overall"=c('myown_indp_atti','v61','v62','v80','v89'),
-  "2016citizen"=c('myown_indp_atti','c1a','c1b','c1c','c1d','c1e','c2','c3','c6','c8','c8r','c9','c9r','c11','c14','d1','d4','d8a','d8b','d8c','d9a','d9b','d10','h10','h10r')
-)
-
-#survey_data_melted
-complete_survey_dataset<-mapply(function(X,Y,mistakinglevelvars=c(),dfcodebook=c()) {
-  survey_data_title<-X$SURVEY[1]
+covert_label_according_to_xls_codebook<-FALSE
+if(covert_label_according_to_xls_codebook) {
+  mistakinglevelvars<-list(
+    "2004citizen"=c('myown_indp_atti','v61','v62','v74','v91a','v91b','v93a','v93b','v95'),
+    "2010env"=c('v14a','v14b','v16a','v16b','v20a','v20b','v28a','v28b','v31','v40','v57','v58','v59'),
+    "2010overall"=c('myown_indp_atti','v61','v62','v80','v89'),
+    "2016citizen"=c('myown_indp_atti','c1a','c1b','c1c','c1d','c1e','c2','c3','c6','c8','c8r','c9','c9r','c11','c14','d1','d4','d8a','d8b','d8c','d9a','d9b','d10','h10','h10r')
+  )
+  #以下部分是從先前問卷舊標籤factor方式而來，如果要使用還需要重新修改
+  prepare_for_label_adj_df<-prepare_for_label_adj_df
+  mistakinglevelvars<-mistakinglevelvars
+  dfcodebook<-survey_codebook
   prepare_for_label_adj_df <- lapply(mistakinglevelvars,function(mistakinglevelvar,...) {
     dfcodebook<-dfcodebook[
       (dfcodebook$SURVEY==survey_data_title) & (dfcodebook$ID == mistakinglevelvar),
@@ -1355,17 +1286,22 @@ complete_survey_dataset<-mapply(function(X,Y,mistakinglevelvars=c(),dfcodebook=c
     #result<-filter(dfcodebook,SURVEY==X,ID %in% Y)
     dedf_keyvalues
   },MoreArgs=list(survey_data_title=survey_data_title,dfcodebook=dfcodebook),
-    SIMPLIFY=FALSE)
+  SIMPLIFY=FALSE)
   names(prepare_for_label_adj_df)<-mistakinglevelvars
-
-  other_var_as_id<-setdiff(names(X),Y)
-  X<-mutate_at(X,Y,as.character)
   for (recodevar in mistakinglevelvars) {
     tplistforrecode <- getElement(prepare_for_label_adj_df,recodevar)
     X[[recodevar]] <- dplyr::recode(getElement(X,recodevar),!!!tplistforrecode)
     #message("recodevar is ", recodevar," and length is ",length(X$recodevar)," and list is ",tplistforrecode," and names of list is",names(tplistforrecode))
   }
   #X
+}
+
+#survey_data_melted
+complete_survey_dataset<-mapply(function(X,Y) {
+  survey_data_title<-X$SURVEY[1]
+
+  other_var_as_id<-setdiff(names(X),Y)
+  X<-mutate_at(X,Y,as.character)
   reshape2::melt(X, id.vars = other_var_as_id, variable.name = "SURVEYQUESTIONID", value.name = "SURVEYANSWERVALUE") %>%
     dplyr::mutate_at("SURVEYANSWERVALUE",funs(as.character)) %>%
     dplyr::group_by( SURVEYQUESTIONID ) %>%
@@ -1377,10 +1313,7 @@ complete_survey_dataset<-mapply(function(X,Y,mistakinglevelvars=c(),dfcodebook=c
     dplyr::mutate("same_pos_to_all_ratio_by_nation"=same_pos_on_same_q_by_nation/all_pos_on_same_q_by_nation*100)
 },
   X=survey_data_test,
-  Y=survey_q_id,
-  #prepare_for_label_adj_df=prepare_for_label_adj_df,
-  mistakinglevelvars=mistakinglevelvars,
-  MoreArgs=list(dfcodebook=survey_codebook))
+  Y=survey_q_id)
 #View(filter(complete_survey_dataset[[1]],SURVEYQUESTIONID=='myown_indp_atti'))
 #dplyr::recode(survey_data_test[[1]]$v61,!!!getElement(getElement(prepare_for_label_adj_df,"2004citizen"),"v61"))
 
@@ -1402,12 +1335,214 @@ common_var<-Reduce(intersect, lapply(complete_survey_dataset, names )) %>%
 
 #節省欄位合併
 complete_survey_dataset<-lapply(complete_survey_dataset,select_and_fill_nonexistcol,common_var) %>%
-  plyr::rbind.fill(.) #%>%
+  plyr::rbind.fill(.) %>%
+  rename(ansv_and_label=SURVEYANSWERVALUE)#%>%
   #reshape2::melt(id.vars = setdiff(colnames(.),c("term1","term2")), variable.name = "variable_on_term", value.name = "term")
 vhead(complete_survey_dataset %>% filter(SURVEYQUESTIONID=='myown_indp_atti'))
 
-#save(complete_survey_dataset,file=paste0(dataset_file_directory,"rdata",slash,"complete_survey_dataset.RData"))
+#save(complete_survey_dataset,file=paste0(filespath,"vote_record",slash,"complete_survey_dataset.RData"))
 ##針對調查問卷資料處理變形，以便合併
 
 #"c1a","c1b","c1c","c1d","c1e","c2","c3","c4","c5","c6","c10","c11","c12","c13","c14","d1","d2a","d2b","d3a","d3b","d4","d5a","d5b","d5c","d5d","d5e","d5f","d6a","d6b","d6c","d6d","d6e","d6f","d6g","d6h","d7a","d7b","d7c","d7d","d7e","d7f","d7g","d7h","d7i","d7j","d7k","d8a","d8b","d8c","d11a","d11b","d12","d13a","d13b","d14a","d14b","d14c","d17a","d17b","d17c","e2a","e2b","e2c","e2d","e2e","e2f","e2g","e2h","e2i","f3","f4","f5","f8","f9","h10","kh10"
 
+# 第八部份：問卷資料串連立委資料、選舉資料 ---------------------------------
+
+#load(paste0(dataset_file_directory,"rdata",slash,"elections_df_test.RData"))
+
+#直接讀取分析立法通過的資料集
+#as glmdata_pass_on_bill
+#distinct(glmdata,)
+#load(file=paste0(dataset_file_directory,"rdata",slash,"pass_on_bill.RData"))
+
+load(paste0(dataset_file_directory,"rdata",slash,"mergedf_votes_bills_election_surveyanswer.RData"))
+#load(paste0(filespath,"vote_record",slash,"complete_survey_dataset.RData"))
+
+#only_bill_to_survey_information<-distinct(mergedf_votes_bills_election_surveyanswer,stdbilldate,term,period,meetingno,temp_meeting_no,billn,billresult,billid_myown,SURVEY,variable_on_q,value_on_q_variable,SURVEYQUESTIONID,SURVEYANSWERVALUE,LABEL,QUESTION,opinionfromconstituent,opinionfrombill,issue_field1,issue_field2,opinionstrength,opiniondirectionfromconstituent,opiniondirectionfrombill,success_on_bill) %>%
+#  mutate_at("SURVEYANSWERVALUE", funs(as.character))
+#save(only_bill_to_survey_information,file=paste0(dataset_file_directory,"rdata",slash,"only_bill_to_survey_information.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"only_bill_to_survey_information.RData"))
+
+load(paste0(dataset_file_directory,"rdata",slash,"legislators_with_election.RData"))
+legislators_with_election <- legislators_with_election %>% #[!is.na(legislators_with_election$wonelection),]
+  distinct(term, name, ename, legislator_sex, legislator_party, partyGroup, areaName,
+           committee, onboardDate, degree, experience, picUrl,
+           leaveFlag, leaveDate, leaveReason, ballotid, birthday,
+           legislator_age, birthplace, education, incumbent, wonelection,
+           election_party, electionarea, plranking, elec_dist_type)
+legislators_additional_attr<-distinct(legislators_with_election,term,name,electionarea,degree,experience,education) %>%
+  mutate(legislator_eduyr=NA,legislator_occp=NA,legislator_ses=NA,legislator_ethnicity=NA) %>%
+  mutate_at("legislator_occp",funs(as.character)) %>%
+  mutate_cond(is.na(education), education=degree) %>%
+  mutate_cond((term=="5") & customgrepl(name,"李桐豪|殷乃平|陳飛龍|高明見|顧崇廉|蔡中涵|劉松藩|劉憶如|鍾榮吉"), electionarea="全國不分區政黨") %>%
+  mutate_cond((term=="5") & customgrepl(name,"林政義|孫國華|楊富美|關沃暖"), electionarea="全國不分區政黨") %>% #僑選
+  mutate_cond((term=="5") & customgrepl(name,"林正二|林春德|林惠官|章仁香|楊仁福|廖國棟"), electionarea="全國平地原住民") %>%
+  mutate_cond((term=="5") & customgrepl(name,"高金素梅|曾華德"), electionarea="全國山地原住民") %>%
+  mutate_cond((term=="6") & customgrepl(name,"林正二|陳瑩|楊仁福|廖國棟"), electionarea="全國平地原住民") %>%
+  mutate_cond((term=="6") & customgrepl(name,"孔文吉|林春德|高金素梅|曾華德"), electionarea="全國山地原住民") %>%
+  mutate_cond(customgrepl(name,"鍾孔炤|何智輝|李應元|李永得|劉東隆|羅文嘉|鍾榮吉|鍾紹和|蘇貞昌|吳志揚|邱鏡淳|何智輝|傅學鵬|陳庚金|彭百顯|鍾榮吉|邱連輝|饒穎奇|吳國棟|傅崐萁|田智宣|饒穎奇|林郁方|林光華|彭紹瑾|劉盛良|趙麗雲|呂學樟"), legislator_ethnicity="客家") %>%
+  mutate_cond(customgrepl(electionarea,"原住民") | customgrepl(name,"高潞|谷辣斯"), legislator_ethnicity="原住民") %>%
+  mutate_cond(customgrepl(name,"尹伶瑛|段宜康"), legislator_ethnicity="外省") %>%
+  mutate_cond(customgrepl(name,"簡東明Uliw．Qaljupayare"), education=paste0(education,"省立屏東師專畢業")) %>%
+  mutate_cond(customgrepl(name,"周陳秀霞"), education=paste0(education,"臺南縣立官田國民中學畢業")) %>%
+  mutate_cond(customgrepl(name,"吳琪銘"), education=paste0(education,"德霖技術學院畢")) %>%
+  mutate_cond(customgrepl(name,"林國正"), education=paste0(education,"臺灣大學國家發展訮究所博士班")) %>%
+  mutate_cond(customgrepl(name,"林郁方"), education=paste0(education,"美國維吉尼亞大學國際政治學博士")) %>%
+  mutate_cond(customgrepl(name,"呂玉玲"), education=paste0(education,"南亞技術學院企業管理科")) %>%
+  mutate_cond(customgrepl(name,"劉銓忠"), education=paste0(education,"培元高級職業學校畢業")) %>%
+  mutate_cond(customgrepl(name,"蔡煌瑯"), education=paste0(education,"政治大學行政專科")) %>%
+  mutate_cond(customgrepl(name,"陳節如"), education=paste0(education,"國立臺灣師範大學英語系")) %>%
+  mutate_cond(customgrepl(name,"林淑芬"), education=paste0(education,"國立中興大學社會系")) %>%
+  mutate_cond(customgrepl(name,"林淑芬") & term==9, education=paste0(education,"世新大學社會發展研究所")) %>%
+  mutate_cond(customgrepl(name,"蔡家福"), education=paste0(education,"育達高職")) %>%
+  mutate_cond(customgrepl(name,"饒穎奇"), education=paste0(education,"中興大學社會學系畢業")) %>%
+  mutate_cond(customgrepl(name,"程振隆"), education=paste0(education,"美國加州人文大學碩士 http://www.csea.org.tw/index/index.php?index=../03/01")) %>%
+  mutate_cond(customgrepl(name,"謝鈞惠"), education=paste0(education,"美國舊金山大學公共行政研究所結業 83年台南縣省議員選舉公報")) %>%
+  mutate_cond(customgrepl(name,"陳唐山|黃昭輝"), experience=paste0(experience,"學術科研機構研究員")) %>%
+  mutate_cond(customgrepl(name,"王廷升|張顯耀|費鴻泰|林郁方|孫國華|李全教"), experience=paste0(experience,"副教授 助理教授"), education="博士") %>%
+  mutate_cond(customgrepl(education,"國小|小學"), legislator_eduyr=6) %>%
+  mutate_cond(customgrepl(education,"國中"), legislator_eduyr=9) %>%
+  mutate_cond(customgrepl(education,"中學|高中|高職|高工畢|高商畢|高級職業學校畢"), legislator_eduyr=12) %>%
+  mutate_cond(customgrepl(education,"專科畢業|學士班結業|商專畢|工專畢|大學進修|師專畢"), legislator_eduyr=14) %>%
+  mutate_cond(
+    (customgrepl(education,"大專|大學|學系|技術學院|學士") & !customgrepl(education,"學士班|學士班結業|大學進修|研究班|研究班進修")) |
+      customgrepl(education,"系畢|系畢業|學系畢|大學畢業")  , legislator_eduyr=16) %>%
+  mutate_cond(
+    (customgrepl(education,"研究") & !customgrepl(education,"研究所|研究所研究|研究班|研究班進修") ) |
+      customgrepl(education,"研究所研究|碩士班研究|碩士班|研究生|碩士生|研究所結業|研究所肄業") , legislator_eduyr=17.5) %>%
+  mutate_cond(customgrepl(education,"碩士|研究所|研究所碩士") & !customgrepl(education,"碩士班|研究所結業|研究所研究|研究生|碩士學分班|研究所肄業"), legislator_eduyr=19) %>%
+  mutate_cond(customgrepl(education,"碩士班畢業|研究所畢業"), legislator_eduyr=19) %>%
+  mutate_cond(customgrepl(education,"博士班|博士研究"), legislator_eduyr=21) %>%
+  mutate_cond(customgrepl(education,"博士") & !customgrepl(education,"博士班|博士研究|榮譽博士"), legislator_eduyr=23) %>%
+  mutate_cond(customgrepl(name,"陳東榮"),
+              legislator_eduyr=0) %>%
+  mutate_cond(customgrepl(name,"林文郎|林德福|劉政鴻|李鎮楠|蔡家福|劉銓忠"),
+              legislator_eduyr=12) %>%
+  mutate_cond(customgrepl(name,"王幸男"),
+              legislator_eduyr=13) %>%
+  mutate_cond(customgrepl(name,"黃逢時"), # 專科沒畢業
+              legislator_eduyr=13) %>%
+  mutate_cond(customgrepl(name,"李文忠|李明憲|李鎮楠|林惠官|高仲源|黃宗源|鄭美蘭|劉俊雄|曾華德|盧博基|康世儒|蔡煌瑯"),
+              legislator_eduyr=14) %>%
+  mutate_cond(customgrepl(name,"陳朝龍") & term==5,
+              legislator_eduyr=14) %>%
+  mutate_cond(customgrepl(name,"周雅淑|黃政哲|楊仁福|劉松藩|顧崇廉|張俊雄|林淑芬|陳節如"),
+              legislator_eduyr=16) %>%
+  mutate_cond(customgrepl(name,"何智輝|邱垂貞|曾華德|陳景峻|謝鈞惠"),
+              legislator_eduyr=17.5) %>%
+  mutate_cond(customgrepl(name,"陳景峻") & term==5,
+              legislator_eduyr=17.5) %>%
+  mutate_cond(customgrepl(name,"陳景峻") & term==6,
+              legislator_eduyr=19) %>%
+  mutate_cond(customgrepl(name,"王雪峰|邱太三|陳茂男|陳金德|陳健治|張秀珍|蔡豪|程振隆|鄭國忠"),
+              legislator_eduyr=19) %>%
+  mutate_cond(customgrepl(name,"李全教|李顯榮"),
+              legislator_eduyr=23) %>%
+  mutate_cond(customgrepl(name,"李鎮楠|李雅景|李明憲|王雪峰|王幸男|江玲君|吳清池|邱鏡淳|邱議瑩|林益世|林淑芬|余政道|呂學樟|翁重鈞|郭玟成|陳明文|陳杰|陳啟昱|陳瑩|馬文君|康世儒|黃昭順|楊瓊瓔|蔡煌瑯|鄭汝芬|鄭金玲|鄭麗文|劉銓忠|潘孟安|潘維剛|盧嘉辰|蕭景田|羅明才|王定宇|何欣純|蘇震清|吳思瑤|吳琪銘|呂孫綾|李俊俋|李彥秀|李應元|周陳秀霞|林俊憲|林為洲|林德福|段宜康|徐榛蔚|陳超明|張宏陸|黃秀芳|許淑華|鄭麗君|蕭美琴|蘇治芬|蘇嘉全|王昱婷|朱星羽|何智輝|李和順|杜文卿|沈智慧|邱垂貞|邱創進|卓榮泰|卓伯源|周雅淑|周慧瑛|林文郎|林育生|柯淑敏|唐碧娥|徐志明|郭俊銘|陳宗義|陳志彬|陳茂男|陳金德|陳健治|陳進丁|陳景峻|陳朝龍|陳麗惠|張秀珍|張蔡美|張學舜|章仁香|許舒博|彭添富|曾華德|廖本煙|蔡啟芳|蔡鈴蘭|鄭余鎮|鄭美蘭|鄭朝明|鄭貴蓮|劉文雄|劉松藩|劉俊雄|劉政鴻|盧博基|賴勁麟|藍美津|謝明源|謝章捷|尹伶瑛|朱俊曉|林耘生|林國慶|陳東榮|陳朝容|陳憲中|曹來旺|葉芳雄|楊宗哲|蔡錦隆|顏文章|林國正"),
+              experience=paste0(experience,"職業民意代表")) %>%
+  mutate_cond(customgrepl(name,"余天|高金素梅"), experience=paste0(experience,"藝人")) %>%
+  mutate_cond(customgrepl(name,"林滄敏"), experience=paste0(experience,"商店售貨")) %>%
+  mutate_cond(customgrepl(name,"柯建銘|涂醒哲|沈富雄|林進興|洪奇昌|陳其邁|侯水盛"), experience=paste0(experience,"醫師")) %>%
+  mutate_cond(customgrepl(name,"孫大千"), experience=paste0(experience,"化工研究員")) %>%
+  mutate_cond(customgrepl(name,"吳成典|黃劍輝"), experience=paste0(experience,"總經理")) %>%
+  mutate_cond(customgrepl(name,"徐少萍|林正二|林春德|許榮淑|楊仁福"), experience=paste0(experience,"國中教師")) %>%
+  mutate_cond(customgrepl(name,"劉盛良|謝鈞惠|顏錦福"), experience=paste0(experience,"高中教師")) %>%
+  mutate_cond(customgrepl(name,"陳宗仁"), experience=paste0(experience,"商專教師")) %>%
+  mutate_cond(customgrepl(name,"吳清池"), experience=paste0(experience,"固定攤販與市場售貨")) %>%
+  mutate_cond(customgrepl(name,"何金松"), experience=paste0(experience,"金屬機械技術工")) %>%
+  mutate_cond(customgrepl(name,"林惠官"), experience=paste0(experience,"金屬機械技術工 鐵道工人")) %>%
+  mutate_cond(customgrepl(name,"李昆澤"), experience=paste0(experience,"電器維修工")) %>%
+  mutate_cond(customgrepl(name,"林炳坤|郭素春|張花冠|王金平|許毓仁|林國華|陳建銘|湯火聖|何敏豪"),
+              experience=paste0(experience,"總經理 創業主管")) %>%
+  mutate_cond(customgrepl(name,"徐耀昌|張慶忠|薛凌|顏清標|余宛如|呂玉玲|林南生|陳宏昌|梁牧養|許登宮|程振隆|楊文欣|蔡豪|鍾金江|羅世雄|黃良華"),
+              experience=paste0(experience,"董事長")) %>%
+  mutate_cond(customgrepl(name,"李俊毅|黃偉哲|鍾紹和|洪宗熠|蔡適應|鄭運鵬|鍾佳濱|顏寬恒|蔡其昌|李文忠|趙永清|羅文嘉"),
+              experience=paste0(experience,"國會助理")) %>%
+  mutate_cond(customgrepl(name,"張川田|林重謨"),
+              experience=paste0(experience,"政治人物幕僚")) %>%
+  mutate_cond(customgrepl(name,"楊富美"),
+              experience=paste0(experience,"醫藥專業人員")) %>%
+  mutate_cond(customgrepl(name,"林岱樺|吳育昇|林鴻池|陳淑慧|葉宜津"),
+              experience=paste0(experience,"訓練班教師")) %>%
+  mutate_cond(customgrepl(name,"吳志揚"), experience=paste0(customgsub(experience,"教授",""),"律師")) %>%
+  mutate_cond(customgrepl(name,"黃義交|蔣孝嚴|鄭天財|饒穎奇"),
+              experience=paste0(experience,"主管級公務員")) %>%
+  mutate_cond(customgrepl(name,"林明溱|蔣乃辛"),
+              experience=paste0(experience,"事務工作公務員")) %>%
+  mutate_cond(customgrepl(name,"蔡正元"),
+              experience=paste0(experience,"商學專業人員")) %>%
+  mutate_cond(customgrepl(name,"李復興|李嘉進|郭榮宗|曹爾忠|曾永權|陳雪生|陳歐珀|楊曜"),
+              experience=paste0(experience,"科長 課長 股長 組長 辦公室監督")) %>%
+  mutate_cond(customgrepl(name,"侯彩鳳|許智傑|劉世芳"),
+              experience=paste0(experience,"工程師")) %>%
+  mutate_cond(customgrepl(name,"陳忠信|張俊宏"),
+            experience=paste0(experience,"編輯")) %>%
+  mutate_cond(customgrepl(name,"林濁水|李敖"),
+              experience=paste0(experience,"作家")) %>%
+  mutate_cond(customgrepl(name,"李顯榮"),
+              experience=paste0(experience,"建築師")) %>%
+  mutate_cond(customgrepl(name,"陳根德"), experience=paste0(experience,"漁民")) %>%
+  mutate_cond(customgrepl(name,"傅崐萁"), experience=paste0(experience,"監察人")) %>%
+  mutate_cond(customgrepl(name,"黃志雄|鄭志龍"), experience=paste0(experience,"職業選手")) %>%
+  mutate_cond(customgrepl(name,"廖婉汝"), experience=paste0(experience,"托兒所負責人")) %>%
+  mutate_cond(customgrepl(name,"陳賴素美"), experience=paste0(experience,"地政士")) %>%
+  mutate_cond(customgrepl(name,"蔡家福"), experience=paste0(experience,"土地登記代理人")) %>%
+  mutate_cond(customgrepl(name,"高志鵬"),
+              experience=paste0(experience,"律師")) %>%
+  mutate_cond(customgrepl(name,"張麗善|莊和子"), experience=paste0(experience,"護理師")) %>%
+  mutate_cond(customgrepl(name,"陳亭妃|陳學聖|張廖萬堅|趙天麟|李永萍|王世勛"),
+              experience=paste0(experience,"記者")) %>%
+  mutate_cond(customgrepl(name,"田秋堇|陳節如|黃淑英|王育敏|王榮璋|吳玉琴|李麗芬|林麗蟬|陳曼麗|高潞|鍾孔炤"),
+              experience=paste0(experience,"NGO理事長 NGO執行長 NGO秘書長 工會理事長")) %>%
+  mutate_cond(customgrepl(experience,"漁民|討海人"), legislator_occp=620, legislator_ses=65.9) %>%
+  mutate_cond(customgrepl(experience,"固定攤販與市場售貨"), legislator_occp=532, legislator_ses=67.3) %>%
+  mutate_cond(customgrepl(experience,"商店售貨"), legislator_occp=531, legislator_ses=71.8) %>%
+  mutate_cond(customgrepl(experience,"營建採礦技術工|水泥公司工人"), legislator_occp=710, legislator_ses=72.0) %>%
+  mutate_cond(customgrepl(experience,"電器維修工|金屬機械技術工|鐵道工人"), legislator_occp=720, legislator_ses=74.2) %>%
+  mutate_cond(customgrepl(experience,"辦公室事務性工作|公所秘書|事務工作公務員"), legislator_occp=410, legislator_ses=76.5) %>%
+  mutate_cond(customgrepl(experience,"職業選手"), legislator_occp=322, legislator_ses=77.5) %>%
+  mutate_cond(customgrepl(experience,"補習班教師|訓練班教師"), legislator_occp=303, legislator_ses=78.4) %>%
+  mutate_cond(customgrepl(experience,"社會工作員|輔導員|社工"), legislator_occp=312, legislator_ses=74.5) %>%
+  mutate_cond(customgrepl(experience,"護理師|醫藥專業人員"), legislator_occp=223, legislator_ses=79.1) %>%
+  mutate_cond(customgrepl(experience,"記者|主播|採訪中心主任|作家|編輯"), legislator_occp=212, legislator_ses=80.0) %>%
+  mutate_cond(customgrepl(experience,"藝人|主唱"), legislator_occp=213, legislator_ses=80.0) %>%
+  mutate_cond(customgrepl(experience,"國會助理|省議員助理|政治人物幕僚"), legislator_occp=311, legislator_ses=80.1) %>%
+  mutate_cond(customgrepl(experience,"高中教師|中學教師|中學教員|國中教師|國小教師|國中小教師|商工教師|商專教師|補校教師"), legislator_occp=202, legislator_ses=81.1) %>%
+  mutate_cond(customgrepl(experience,"股長|襄理|課長|科長|副理|環保署資深科學主管") | customgrepl(name,"吳光訓"), legislator_occp=370, legislator_ses=81.9) %>%
+  mutate_cond(customgrepl(experience,"專案經理"), legislator_occp=120, legislator_ses=81.4) %>%
+  mutate_cond(customgrepl(experience,"牧師|宗教專業人員"), legislator_occp=214, legislator_ses=80.0) %>%
+  mutate_cond(customgrepl(experience,"商學專業人員"), legislator_occp=230, legislator_ses=85.1) %>%
+  mutate_cond(customgrepl(experience,"測量技士|土木技師|化工研究員|工程師|建築師|水利技師"), legislator_occp=250, legislator_ses=83.2) %>%
+  mutate_cond(customgrepl(experience,"(基金會){0}(集團){0,1}(托兒所){0,1}董事長|總經理|監察人|(托兒所){0,1}負責人"), legislator_occp=110, legislator_ses=83.3) %>%
+  mutate_cond(customgrepl(experience,"會計師"), legislator_occp=230, legislator_ses=85.1) %>%
+  mutate_cond(customgrepl(experience,"法官|律師|地政士|土地登記代理人") | customgrepl(name,"吳志揚") & !customgrepl(name,"鄭天財Sra．Kacaw"), legislator_occp=211, legislator_ses=86.0) %>%
+  mutate_cond(customgrepl(experience,"教授|學系主任|系主任|學術科研機構研究員|大專講師"), legislator_occp=201, legislator_ses=87.9) %>%
+  mutate_cond(customgrepl(experience,"醫師|產科主任"), legislator_occp=221, legislator_ses=86.0) %>%
+  mutate_cond(customgrepl(experience,"旅長|軍總司令|國防管理學院院長"), legislator_occp="012", legislator_ses=81.4) %>%
+  mutate_cond(customgrepl(experience,"NGO理事長|NGO執行長|NGO秘書長|產業總工會理事長|主管級公務員|職業民意代表") | customgrepl(name,"劉建國"), legislator_occp=140, legislator_ses=81.4) %>%
+  mutate_cond(!is.na(legislator_ses), legislator_ses=(legislator_ses-55)*3) %>%
+  select(term,name,electionarea,legislator_eduyr,education,experience,legislator_occp,legislator_ses,legislator_ethnicity)
+#陳東榮 no degree
+#孫國華 僑選
+#write.xlsx(legislators_additional_attr,file=paste0(dataset_file_directory,"legislator_additional_attributes.xlsx"))
+filter(legislators_additional_attr,is.na(legislator_ses)|is.na(legislator_eduyr)) %>%
+  select(name,experience,term,legislator_occp,legislator_ses,legislator_eduyr,education,legislator_ethnicity,electionarea) %>%
+  View()
+##注意有遺漏的部分委員
+
+testdf <- left_join(mergedf_votes_bills_election_surveyanswer, legislators_with_election) %>%
+  left_join(legislators_additional_attr) %>%
+  mutate_at("SURVEYANSWERVALUE", funs(as.character))
+
+#只有針對議案的決定，而非有無代理
+testdf <- mutate_at(complete_survey_dataset,"term", funs(as.numeric)) %>%
+  inner_join(only_bill_to_survey_information)
+
+#沒有投票權也會串到立委，也就是只串選區的串法
+testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionarea", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE"))
+#只串到支持的候選人的串法
+#testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionarea", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE", "myown_constituency_party_vote"="election_party"))
+#串全國，不限選區
+#testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE", "myown_constituency_party_vote"="election_party"))
+
+# only observe if bills are passed
+testdf<-inner_join(complete_survey_dataset, only_bill_to_survey_information,by = c("SURVEY", "term", "SURVEYQUESTIONID", "SURVEYANSWERVALUE"))
