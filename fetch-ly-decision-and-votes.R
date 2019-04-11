@@ -1,24 +1,23 @@
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 filespath<-switch(
   paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
-  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
-  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\",
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\",
-  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\"
+  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
+  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
+  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\vote_record\\"
 )
 source(file = paste(filespath, "shared_functions.R", sep = ""))
 no_rollcall<-c()
-#load(paste0(filespath, "vote_record", slash, "meetingdata.RData"))
 
-
+load(paste0(filespath, "data", slash, "meetingdata.RData"))
 urlarr<-as.character(meetingdata$url) %>% unique()
-error_vote_record_from_name <- read.xlsx(paste(filespath,"vote_record",slash,"error_vote_record_from_name.xlsx", sep = ""), sheet = 1)
-error_leave_and_attend_legislators <- read.xlsx(paste(filespath,"vote_record",slash,"leave_and_attend_legislators.xlsx", sep = ""), sheet = 1) %>%
+error_vote_record_from_name <- read.xlsx(paste(filespath, "data", slash, "error_vote_record_from_name.xlsx", sep = ""), sheet = 1)
+error_leave_and_attend_legislators <- read.xlsx(paste(filespath, "data", slash, "leave_and_attend_legislators.xlsx", sep = ""), sheet = 1) %>%
   mutate_cond(is.na(replace_with),replace_with="")
 
 myown_vote_record_df<-data.frame()
@@ -75,7 +74,7 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
   meetingno<-meetingdata$meetingno[urln]
   temp_meeting_no<-meetingdata$temp_meeting_no[urln]
   date<-as.character(meetingdata$date[urln]) %>% trimws()
-  if (is.na(temp_meeting_no)) {
+  if (is.na(temp_meeting_no) | as.character(temp_meeting_no)=="NA") {
     temp_meeting_no<-0
   }
   #content<-read_file(url)
@@ -92,22 +91,22 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
   if (term==7 & period==1 & meetingno==19) {
     #有一次的表決少了贊成者和棄權者的文字，補上
     #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
-    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070119.htm", sep = ""))
+    content<-read_file(paste(filespath,"processed_ly_meeting_record",slash,"LCEWC03_070119.htm", sep = ""))
   }
   if (term==7 & period==2 & meetingno==17) {
     #有一次的表決少了贊成者和棄權者的文字，補上
     #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
-    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070217.htm", sep = ""))
+    content<-read_file(paste(filespath,"processed_ly_meeting_record",slash,"LCEWC03_070217.htm", sep = ""))
   }
   if (term==7 & period==3 & meetingno==5) {
     #表決案數字亂碼修正
     #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
-    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070305.htm", sep = ""))
+    content<-read_file(paste(filespath,"processed_ly_meeting_record",slash,"LCEWC03_070305.htm", sep = ""))
   }
   if (term==7 & period==3 & meetingno==8) {
     #立法院第7屆第3會期第8次會議議事錄有二個表決紀錄的敘述被合併
     #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
-    content<-read_file(paste(filespath,"vote_record",slash,"processed_ly_meeting_record",slash,"LCEWC03_070308.htm", sep = ""))
+    content<-read_file(paste(filespath,"processed_ly_meeting_record",slash,"LCEWC03_070308.htm", sep = ""))
   }
   
   #paragraph_list[roll_call_list_block_sp:paragraph_list_length]<-customgsub(paragraph_list[roll_call_list_block_sp:paragraph_list_length],"高金素梅　","高金素梅　　")
@@ -642,6 +641,7 @@ myown_vote_record_df<-do.call("rbind",custom_parallel_lapply(
 )) %>%
   filter(!is.na(legislator_name))
 
+save(myown_vote_record_df,file=paste0(filespath, "data", slash, "myown_vote_record_df.RData"))
 
 #myown_vote_record_df<-mapply(fetch_ly_decision_and_vote,X=seq.int(length(urlarr)),Y=urlarr)
 #myown_vote_record_df<-do.call("rbind", lapply(
@@ -653,22 +653,24 @@ myown_vote_record_df<-do.call("rbind",custom_parallel_lapply(
 #url<-urlarr[13]
 #term=1 at billn=1; not vote regularly follows and its billn is NA
 
-#save(myown_vote_record_df,file=paste0(filespath, "vote_record", slash, "myown_vote_record_df.RData"))
+
 #write
 #billcontent	pp_keyword	pp_committee	url	pp_related_q_1	pp_related_q_2	pp_related_q_3	pp_related_q_4	pp_related_q_5	pp_related_q_6	pp_related_q_7	pp_related_q_8	pp_related_q_9	pp_related_q_10	pp_related_q_11	pp_lawamendment	votecontent	pp_enactment	pp_enforcement	pp_res_bynew	pp_res_bycompete	pp_groupbased	date	yrmonth	term	period	meetingno	temp_meeting_no	billn	pp_res_notjudged	pp_ignored	billresult	billconflict	billid_myown
-distinct(myown_vote_record_df,billcontent,url,date,term,period,meetingno,temp_meeting_no,billn,billresult) %>%
-  write.xlsx(paste0(dataset_file_directory,"rdata",slash,"newinputpart.xlsx"))
+#distinct(myown_vote_record_df,billcontent,url,date,term,period,meetingno,temp_meeting_no,billn,billresult) %>%
+#  write.xlsx(paste0(dataset_file_directory,"rdata",slash,"newinputpart.xlsx"))
 
 
 
 ##debug area
-url_urln_df<-data.frame("urln"=1:nrow(meetingdata),
-                        "url"=as.character(meetingdata$url),
-                        "termmeetingtime"=meetingdata$termmeetingtime,
-                        "term"=as.integer(meetingdata$term),
-                        "period"=as.integer(meetingdata$period),
-                        "meetingno"=as.integer(meetingdata$meetingno)
-)
+if (FALSE) {
+  url_urln_df<-data.frame("urln"=1:nrow(meetingdata),
+                          "url"=as.character(meetingdata$url),
+                          "termmeetingtime"=meetingdata$termmeetingtime,
+                          "term"=as.integer(meetingdata$term),
+                          "period"=as.integer(meetingdata$period),
+                          "meetingno"=as.integer(meetingdata$meetingno)
+  )
+}
 #處理中文字間隔有問題的部分
 #廖國棟 Sufin．Siluko
 #劉銓忠費鴻泰
@@ -678,16 +680,16 @@ url_urln_df<-data.frame("urln"=1:nrow(meetingdata),
 
 
 #errorposition<-customgrep(myown_vote_record_df$legislator_name,"　")
-errorposition<-distinct(myown_vote_record_df,legislator_name)
+#errorposition<-distinct(myown_vote_record_df,legislator_name)
 #errorposition<-errorposition[c(377:384),]
 #testerrorrows<-myown_vote_record_df[errorposition,] %>%
 #  distinct(errorrows,legislator_name)
-testerrorrows<-as.character(errorposition[c(229:231),])
+#testerrorrows<-as.character(errorposition[c(229:231),])
 #  
-error_vote_record_from_name_append<-filter(myown_vote_record_df,legislator_name %in% testerrorrows)
-error_vote_record_from_name_append<-error_vote_record_from_name_append[,c(2:7)] %>%
-  cbind(correct_legislator_name="")
-error_vote_record_from_name<-rbind(error_vote_record_from_name,error_vote_record_from_name_append)
+#error_vote_record_from_name_append<-filter(myown_vote_record_df,legislator_name %in% testerrorrows)
+#error_vote_record_from_name_append<-error_vote_record_from_name_append[,c(2:7)] %>%
+#  cbind(correct_legislator_name="")
+#error_vote_record_from_name<-rbind(error_vote_record_from_name,error_vote_record_from_name_append)
 #error_vote_record_from_name<-error_vote_record_from_name[,c()]
 #error_vote_record_from_name$term<-as.integer(as.character(error_vote_record_from_name$term))
 #error_vote_record_from_name$period<-as.integer(as.character(error_vote_record_from_name$period))
@@ -709,15 +711,7 @@ if (FALSE) {
   write.foreign(vote_bills_df,"myownvotebill.datafile.txt","myownvotebill.codefile.sps",package="SPSS")
   write_csv(vote_bills_df,path="myownvotebill.csv")
 }
-#
-#
-#
-#
-#
-#
-#
-#
 
-testdf<-read.xlsx(file="votingdf_datafile_myown.xlsx",sheetIndex=1,startRow = 1,endRow = 3574,header = T,encoding = "UTF-8")
+#testdf<-read.xlsx(file="votingdf_datafile_myown.xlsx",sheetIndex=1,startRow = 1,endRow = 3574,header = T,encoding = "UTF-8")
 
 

@@ -1,17 +1,19 @@
+# 第Ｏ部份：環境設定 --------------------------------
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 filespath<-switch(
   paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
-  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
-  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\",
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\"
+  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
+  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
+  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\vote_record\\"
 )
 source(file = paste(filespath, "shared_functions.R", sep = ""))
-ly_meeting_path <- paste0(filespath,"vote_record",slash,"2004_meeting",slash,"original",slash,sep="",collapse="")
+ly_meeting_path <- paste0(filespath, "2004_meeting", slash, "original", slash, sep="", collapse="")
 filename<-c(#"立法院第5屆第5會期全院委員談話會紀錄.html",
             "立法院第5屆第5會期第1次臨時會第1次會議紀錄.html",
             "立法院第5屆第5會期第1次臨時會第3次會議紀錄.html",
@@ -37,7 +39,7 @@ filepath <- paste(ly_meeting_path,filename,sep="")
 html<-sapply(filepath,custom_read_file)
 myown_vote_record_detailed_part_df<-data.frame()
 #pattern<-"[\n\r]{1,3}.+贊成者：.+[\n\r]{1,3}(.+)[\n\r]{1,3}.+反對者.+[\n\r]{1,3}(.+)[\n\r]{1,3}([一二三四五六七八九、棄權者：人]+[\n\r]{1,3}(.+)){0,1}"
-error_from_name<-read.xlsx(paste0(filespath,"vote_record",slash,"2004_meeting",slash,"errors_processing_data.xlsx"), sheet=1) #read_csv(paste0(filespath,"vote_record",slash,"2004_meeting",slash,"error_names_replace_complete_record.csv"))
+error_from_name<-read.xlsx(paste0(filespath, slash, "2004_meeting", slash, "errors_processing_data.xlsx"), sheet=1) #read_csv(paste0(filespath,"vote_record",slash,"2004_meeting",slash,"error_names_replace_complete_record.csv"))
 votepattern<-"[\n\r]{1,3}([贊成者一二三四五六七八九零○百十、：人。\\d]*贊成者[贊成者一二三四五六七八九零○百十、：人。\\d]+[\n\r]{1,3}([\u4e00-\u9fa5　．\\s]*))[\n\r]{1,3}([反對者一二三四五六七八九零○百十、：人。\\d]*反對者[反對者一二三四五六七八九零○百十、：人。\\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\\s]*)){0,1}[\n\r]{1,3}([棄權者一二三四五六七八九零○百十、：人。\\d]*棄權者[棄權者一二三四五六七八九零○百十、：人。\\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\\s]*)){0,1}[\n\r]{1}"
 #regular exp online check 用[\n\r]{1,3}([贊成者一二三四五六七八九零○百十、：人。\d]*贊成者[贊成者一二三四五六七八九零○百十、：人。\d]+[\n\r]{1,3}([\u4e00-\u9fa5　．\s]*))[\n\r]{1,3}([反對者一二三四五六七八九零○百十、：人。\d]*反對者[反對者一二三四五六七八九零○百十、：人。\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\s]*)){0,1}[\n\r]{1,3}([棄權者一二三四五六七八九零○百十、：人。\d]*棄權者[棄權者一二三四五六七八九零○百十、：人。\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\s]*)){0,1}[\n\r]{1}
 for (i in 1:length(filename)) {#length(filename) 1:length(filename)
@@ -45,7 +47,8 @@ for (i in 1:length(filename)) {#length(filename) 1:length(filename)
   #  next
   #}
   url<-filepath[i]
-  urln<-paste("p_",i,sep="",collapse="")
+  #urln<-paste("p_",i,sep="",collapse="")
+  urln<-i
   content<-html[i]
   doc <- read_html(content,encoding="UTF-8")
   xpath<-"//p"
@@ -105,7 +108,7 @@ for (i in 1:length(filename)) {#length(filename) 1:length(filename)
   bill_list<-stringi::stri_trim_both(bill_list)
   pure_html<-paste(paragraph_list,sep="",collapse="\n\r")
   match<-stringr::str_match_all(pure_html,votepattern)
-  testmatch<-stringr::str_match_all(teststr,votepattern)
+  #testmatch<-stringr::str_match_all(teststr,votepattern)
   scan_area<-match[[1]][,1]
   #檢查抓到的前半部詳細案由是否和後半部表決紀錄筆數是否對得上
   if (length(scan_area)!=length(bill_list))
@@ -179,7 +182,7 @@ for (i in 1:length(filename)) {#length(filename) 1:length(filename)
             "url"=url,
             "urln"=urln,
             "date"=date[i]
-      )
+      ) %>% as.data.frame()
     }
     exact_agree_voter_df<-if (length(exact_agree_voter)==0) {
       data.frame()
@@ -196,7 +199,7 @@ for (i in 1:length(filename)) {#length(filename) 1:length(filename)
             "url"=url,
             "urln"=urln,
             "date"=date[i]
-      )
+      ) %>% as.data.frame()
     }
     exact_dissent_voter_df<-if (length(exact_dissent_voter)==0) {
       data.frame()
@@ -213,7 +216,7 @@ for (i in 1:length(filename)) {#length(filename) 1:length(filename)
             "url"=url,
             "urln"=urln,
             "date"=date[i]
-      )
+      ) %>% as.data.frame()
     }
     myown_vote_record_detailed_part_df<-rbind(
       myown_vote_record_detailed_part_df,
@@ -244,8 +247,8 @@ for (i in 1:length(filename)) {#length(filename) 1:length(filename)
 }
 myown_vote_record_detailed_part_df<-filter(myown_vote_record_detailed_part_df,!is.na(legislator_name)) %>%
   mutate_all(funs(as.character)) %>%
-  mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer))
-#save(myown_vote_record_detailed_part_df,file=paste0(dataset_file_directory, "rdata", slash,  "myown_vote_record_detailed_part_df.RData"))
+  mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer))
+#save(myown_vote_record_detailed_part_df,file=paste0(filespath,  "data", slash,  "myown_vote_record_detailed_part_df.RData"))
 load(file=paste0(dataset_file_directory, "rdata", slash,  "myown_vote_record_df.RData"))
 distinct(myown_vote_record_detailed_part_df,billcontent,url,date,term,period,meetingno,temp_meeting_no,billn,billresult) %>%
   write.xlsx(paste0(dataset_file_directory,"rdata",slash,"myown_vote_record_detailed_part_df_2.xlsx"))

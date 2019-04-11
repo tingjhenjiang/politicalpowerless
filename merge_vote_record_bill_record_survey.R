@@ -2,15 +2,15 @@
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 filespath<-switch(
   paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
-  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
-  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\",
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\",
-  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\"
+  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
+  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
+  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\vote_record\\"
 )
 source(file = paste(filespath, "shared_functions.R", sep = ""))
 #選舉資料
@@ -154,7 +154,8 @@ legislators_with_election <- legislators_with_election %>% #[!is.na(legislators_
            legislator_age, birthplace, education, incumbent, wonelection,
            election_party, electionarea, plranking, elec_dist_type)
 legislators_ethicity<-list(
-  'hakka'='羅文嘉|林郁方|羅志明|彭添富|邱垂貞|張昌財|邱創良|鄭金玲|張學舜|邱鏡淳|陳進興|呂學樟|何智輝|徐耀昌|林豐喜|邱太三|郭俊銘|鍾紹和|傅崐萁|饒穎奇|李桐豪|鍾榮吉|徐中雄|吳志揚|彭紹瑾|鄭金玲|葉芳雄|管碧玲|張慶惠|劉盛良|廖正井|趙麗雲|邱志偉|呂玉玲|徐欣瑩|邱文彥|陳碧涵|吳宜臻|李應元|陳賴素美|徐志榮|鍾佳濱|鍾孔炤|林為洲|陳明真',
+  'hakka'='羅文嘉|林郁方|羅志明|彭添富|邱垂貞|張昌財|邱創良|鄭金玲|張學舜|邱鏡淳|陳進興|呂學樟|何智輝|徐耀昌|林豐喜|邱太三|郭俊銘|鍾紹和|傅崐萁|饒穎奇|李桐豪|鍾榮吉|徐中雄|吳志揚|彭紹瑾|鄭金玲|葉芳雄|管碧玲|張慶惠|劉盛良|廖正井|趙麗雲|邱志偉|呂玉玲|徐欣瑩|邱文彥|陳碧涵|吳宜臻|李應元|陳賴素美|徐志榮|鍾佳濱|鍾孔炤|林為洲|陳明真|馬文君|劉建國|黃昭順|蘇震清',
+  #from 圖解客家政治與經濟 馬文君|劉建國|黃昭順|邱議瑩|邱志偉|管碧玲|蘇震清|
   'foreignstates'='尹伶瑛|段宜康|趙麗雲|吳育昇|丁守中|朱鳳芝|周守訓|邱毅|帥化民|洪秀柱|孫大千|李慶安|李慶華|潘維剛|蔣孝嚴|賴士葆|費鴻泰|盧秀燕|王榮璋|顧立雄|段宜康|王定宇|趙天麟|梁文傑|王鍾渝|李永萍|江綺雯|沈智慧',
   'holo'='尤清|王拓|王金平|王政中|王昱婷|王雪峰|江丙坤|江昭儀|何金松|何敏豪|余政道|吳東昇|吳敦義|呂新民|李文忠|李全教|蔡正元|李嘉進|林豐正|郭素春|邱毅|李明憲|李俊毅|李鴻鈞|杜文卿|沈富雄|邱永仁',
   'unknown'='王幸男|王淑慧|朱星羽|李和順|李雅景|李鎮楠|李顯榮|李雅景',
@@ -325,43 +326,45 @@ filter(legislators_additional_attr,is.na(legislator_ses)|is.na(legislator_eduyr)
 
 # 第二部分：投票及議案及「問卷答案對照意向」資料,主要也就是RData&excel檔  -------------------------------------------
 
-myown_vote_bills_file <- "votingdf_datafile_myown_englished.xlsx"
+myown_vote_bills_file <- paste0(dataset_file_directory, "votingdf_datafile_myown_englished.xlsx", sep="")
 #survey_time_range <- as.data.frame(list(yrmonth=c('099/07', '099/11', '099/12', '100/01', '100/04', '100/06', '105/09', '105/10', '105/11', '105/12', '106/01', '106/04', '106/05')))
 survey_time_range <- as.data.frame(list(yrmonth=c("093/07","093/08","093/09","093/10","093/11","093/12","094/01","094/02","094/03","094/04","094/05","094/06","094/07","094/08","094/09","094/10","094/11","094/12","095/01","095/02","095/03","095/04","095/05","095/06","095/07","095/08","095/09","095/10","095/11","095/12","099/11","099/12","100/01","100/02","100/03","100/04","100/05","100/06","100/07","100/08","100/09","100/10","100/11","100/12","101/01","101/02","101/03","101/04","101/05","101/06","101/07","101/08","101/09","101/10","101/11","105/09","105/11","105/12","106/01","106/04","106/05","106/06","106/08","106/10","106/11","106/12","107/01","107/03","107/04","107/05","107/06","107/07")))
-partyseats <- data.frame(
-  "term"=7,
-  "party"=c("中國國民黨","民主進步黨","無黨團結聯盟","親民黨","無黨籍及未經政黨推薦"),                       
-  "seats"=c(81,27,3,1,1),
-  "rulingparty"=factor(c(1,0,0,0,0)),
-  "seatsgaptorulingparty"=c(0,54,78,80,80)
-  ) %>%
-  bind_rows(
-    data.frame(
-      "term"=9,
-      "party"=c("中國國民黨","民主進步黨","時代力量","親民黨","無黨團結聯盟","無黨籍及未經政黨推薦"),
-      "seats"=c(35,68,5,3,1,1),
-      "rulingparty"=factor(c(0,1,0,0,0,0)),
-      "seatsgaptorulingparty"=c(33,0,63,65,67,67)
+if (FALSE) { #舊方法暫時忽略
+  partyseats <- data.frame(
+    "term"=7,
+    "party"=c("中國國民黨","民主進步黨","無黨團結聯盟","親民黨","無黨籍及未經政黨推薦"),                       
+    "seats"=c(81,27,3,1,1),
+    "rulingparty"=factor(c(1,0,0,0,0)),
+    "seatsgaptorulingparty"=c(0,54,78,80,80)
+    ) %>%
+    bind_rows(
+      data.frame(
+        "term"=9,
+        "party"=c("中國國民黨","民主進步黨","時代力量","親民黨","無黨團結聯盟","無黨籍及未經政黨推薦"),
+        "seats"=c(35,68,5,3,1,1),
+        "rulingparty"=factor(c(0,1,0,0,0,0)),
+        "seatsgaptorulingparty"=c(33,0,63,65,67,67)
+        )
+    ) %>%
+    bind_rows(
+      data.frame(
+        "term"=5,
+        "party"=c("中國國民黨","民主進步黨","親民黨","台灣團結聯盟","新黨","台灣吾黨","無黨籍及未經政黨推薦"),
+        "seats"=c(68,87,46,13,1,1,9),
+        "rulingparty"=factor(c(0,1,0,0,0,0,0)),
+        "seatsgaptorulingparty"=c(19,0,41,41,44,86,78)
       )
-  ) %>%
-  bind_rows(
-    data.frame(
-      "term"=5,
-      "party"=c("中國國民黨","民主進步黨","親民黨","台灣團結聯盟","新黨","台灣吾黨","無黨籍及未經政黨推薦"),
-      "seats"=c(68,87,46,13,1,1,9),
-      "rulingparty"=factor(c(0,1,0,0,0,0,0)),
-      "seatsgaptorulingparty"=c(19,0,41,41,44,86,78)
+    ) %>%
+    bind_rows(
+      data.frame(
+        "term"=6,
+        "party"=c("中國國民黨","民主進步黨","親民黨","台灣團結聯盟","新黨","無黨團結聯盟","無黨籍及未經政黨推薦"),
+        "seats"=c(79,89,34,12,1,6,4),
+        "rulingparty"=factor(c(0,1,0,0,0,0,0)),
+        "seatsgaptorulingparty"=c(10,0,55,77,88,83,85)
+      )
     )
-  ) %>%
-  bind_rows(
-    data.frame(
-      "term"=6,
-      "party"=c("中國國民黨","民主進步黨","親民黨","台灣團結聯盟","新黨","無黨團結聯盟","無黨籍及未經政黨推薦"),
-      "seats"=c(79,89,34,12,1,6,4),
-      "rulingparty"=factor(c(0,1,0,0,0,0,0)),
-      "seatsgaptorulingparty"=c(10,0,55,77,88,83,85)
-    )
-  )
+}
 bills_answer_to_bill <- read.xlsx(myown_vote_bills_file, sheet = 4)
 bills_billcontent <- read.xlsx(myown_vote_bills_file, sheet = 1) %>%
   mutate_at("billcontent", funs(as.character)) %>%
@@ -369,10 +372,17 @@ bills_billcontent <- read.xlsx(myown_vote_bills_file, sheet = 1) %>%
 #as.character(unique(bills_billcontent$pp_related_q_1))
 
 #讀取投票紀錄資料-此處通常預處理好，直接load下面mergedf_votes_bills_election_surveyanswer
-load(paste0(dataset_file_directory,"rdata",slash,"myown_vote_record_df.RData"))
-load(paste0(dataset_file_directory,"rdata",slash,"myown_vote_record_detailed_part_df.RData"))
-myown_vote_record_df<-bind_rows(myown_vote_record_df,myown_vote_record_detailed_part_df)
-#save(myown_vote_record_df,file=paste0(dataset_file_directory,"rdata",slash,"myown_vote_record_df.RData"))
+load(paste0(filespath, "data", slash, "myown_vote_record_df.RData"))
+load(paste0(filespath, "data", slash, "myown_vote_record_detailed_part_df.RData"))
+duplicated_meeting_in_vote_record <- list(
+  distinct(myown_vote_record_df,term,period,temp_meeting_no,meetingno) %>% arrange(term,period,temp_meeting_no,meetingno),
+  distinct(myown_vote_record_detailed_part_df,term,period,temp_meeting_no,meetingno) %>% arrange(term,period,temp_meeting_no,meetingno)
+)
+duplicated_meeting_in_vote_record <- dplyr::inner_join(duplicated_meeting_in_vote_record[[1]],duplicated_meeting_in_vote_record[[2]])
+myown_vote_record_df <- dplyr::anti_join(myown_vote_record_df, duplicated_meeting_in_vote_record) %>%
+  bind_rows(myown_vote_record_detailed_part_df) %>%
+  dplyr::arrange(term, period, temp_meeting_no, meetingno, billn)
+#save(myown_vote_record_df,file=paste0(filespath, "data", slash, "myown_vote_record_df_across2004.RData"))
 
 
 myown_vote_record_df %<>%
@@ -396,16 +406,16 @@ myown_vote_record_df %<>%
 
 ##算出同黨票數
 load(paste0(dataset_file_directory,"rdata",slash,"legislators_with_election.RData"))
-legislator_term_name_party<-distinct(legislators_with_election,term,name,party.x) %>%
-  rename(party=party.x) %>%
+legislator_term_name_party<-distinct(legislators_with_election,term,name,legislator_party) %>%
+  #mutate(party=legislator_party) %>%
   mutate_at("term",funs(as.numeric))
 myown_vote_record_df_with_party<-left_join(myown_vote_record_df,legislator_term_name_party,by=c("term","legislator_name"="name")) %>%
-  distinct(votedecision,legislator_name,billid_myown,party) %>%
-  filter(!is.na(party)) %>%
-  group_by(billid_myown,party) %>%
+  distinct(votedecision,legislator_name,billid_myown,legislator_party) %>%
+  filter(!is.na(legislator_party)) %>%
+  group_by(billid_myown,legislator_party) %>%
   mutate("total_votes_from_same_party"=n()) %>%
   ungroup() %>%
-  group_by(votedecision,billid_myown,party) %>%
+  group_by(votedecision,billid_myown,legislator_party) %>%
   mutate("same_votes_from_same_party"=n()) %>%
   ungroup() %>%
   mutate("percent_of_same_votes_from_same_party"=same_votes_from_same_party/total_votes_from_same_party*100) %>%
@@ -415,7 +425,7 @@ myown_vote_record_df_with_party<-left_join(myown_vote_record_df,legislator_term_
 
 mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %in% terms) %>%
   left_join(myown_vote_record_df_with_party) %>%
-  left_join(partyseats) %>%
+  #left_join(partyseats) %>%
   right_join(bills_billcontent, by = c("billid_myown","term","period","meetingno","temp_meeting_no","billn","billresult","date")) %>% ##,"url"
   right_join(bills_answer_to_bill) %>%  ##問題在這邊
   #篩選出研究範圍
@@ -487,7 +497,7 @@ mergedf_votes_bills_election_surveyanswer <- filter(myown_vote_record_df, term %
 #  distinct(name,votedecision,variable_on_q,respondopinion,billid_myown,party) %>%
 #  arrange(party,billid_myown,variable_on_q,respondopinion) %>%
 #  View()
-#save(mergedf_votes_bills_election_surveyanswer, file = paste0(dataset_file_directory,"rdata",slash,"mergedf_votes_bills_election_surveyanswer.RData"))
+#save(mergedf_votes_bills_election_surveyanswer, file = paste0(filespath, "data", slash, "mergedf_votes_bills_election_surveyanswer.RData"))
 #mergedf_votes_bills_election_surveyanswer <- data.frame()
 
 # 第三部份：把問卷檔加上行政區、選區屬性  -------------------------------------------

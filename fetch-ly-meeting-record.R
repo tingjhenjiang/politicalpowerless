@@ -1,18 +1,18 @@
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 filespath<-switch(
   paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
-  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
-  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\",
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\",
-  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\"
+  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
+  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
+  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\vote_record\\"
 )
 source(file = paste(filespath, "shared_functions.R", sep = ""))
-meetingurldata<-paste0(filespath,"vote_record",slash,"meetingrecord.xlsx") %>%
+meetingurldata<-paste0(filespath, "data", slash, "meetingrecord.xlsx") %>%
   read.xlsx(sheet = 1) %>%
   filter(kind!="談話會")
 meetingurldata_urlrange<-4:13 #需要的欄位
@@ -34,7 +34,7 @@ fetchmeetingdata<-meetingurldata[,meetingurldata_urlrange] %>%
   },
   exportvar=c("meetingurldata","meetingurldata_urlrange","custom_read_file"),
   exportlib=c("base",lib),
-  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+  outfile=paste0(dataset_file_directory, "rdata", slash, "parallel_handling_process-", t_sessioninfo_running, ".txt"),
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
 )  %>%
@@ -103,7 +103,7 @@ meetingdata<-bind_cols(meetingurldata,fetchmeetingdata) %>%
   exportvar=c("meetingurldata","meetingurldata_urlrange","custom_read_file","fetchmeetingdata"),
   exportlib=c("base",lib),
   meetingdata_range=meetingdata_range,
-  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+  outfile=paste0(dataset_file_directory, "rdata", slash, "parallel_handling_process-",t_sessioninfo_running,".txt"),
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
   ) %>%
@@ -113,5 +113,5 @@ meetingdata<-bind_cols(meetingurldata,fetchmeetingdata) %>%
 #write_file(content, path=paste(dataset_file_directory, "rdata", slash,  "checkcontent.txt", sep = ""), append = FALSE)
 
 #出錯處 at 312 臨時會 第08屆 第04會期 第01次臨時會 第01次會議 or 313
-save(meetingdata, file = paste0(filespath, "vote_record", slash, "meetingdata.RData", sep = "") )
-save(fetchmeetingdata, file = paste0(filespath, "vote_record", slash, "fetchmeetingdata.RData", sep = "") )
+save(meetingdata, file = paste0(filespath, "vote_record", slash, "data", slash, "meetingdata.RData", sep = "") )
+save(fetchmeetingdata, file = paste0(filespath, "vote_record", slash, "data", slash, "fetchmeetingdata.RData", sep = "") )
