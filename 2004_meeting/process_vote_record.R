@@ -248,12 +248,12 @@ for (i in 1:length(filename)) {#length(filename) 1:length(filename)
 myown_vote_record_detailed_part_df<-filter(myown_vote_record_detailed_part_df,!is.na(legislator_name)) %>%
   mutate_all(funs(as.character)) %>%
   mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer))
-#save(myown_vote_record_detailed_part_df,file=paste0(filespath,  "data", slash,  "myown_vote_record_detailed_part_df.RData"))
+#save(myown_vote_record_detailed_part_df,file=paste0(filespath, "data", slash,  "myown_vote_record_detailed_part_df.RData"))
 load(file=paste0(dataset_file_directory, "rdata", slash,  "myown_vote_record_df.RData"))
-distinct(myown_vote_record_detailed_part_df,billcontent,url,date,term,period,meetingno,temp_meeting_no,billn,billresult) %>%
-  write.xlsx(paste0(dataset_file_directory,"rdata",slash,"myown_vote_record_detailed_part_df_2.xlsx"))
-write_file(as.character(pure_html), path=paste(dataset_file_directory, "rdata", slash,  "checkcontent.txt", sep = ""), append = FALSE)
-myown_vote_record_df<-bind_rows(myown_vote_record_df,myown_vote_record_detailed_part_df)
+#distinct(myown_vote_record_detailed_part_df,billcontent,url,date,term,period,meetingno,temp_meeting_no,billn,billresult) %>%
+#  write.xlsx(paste0(dataset_file_directory,"rdata",slash,"myown_vote_record_detailed_part_df_2.xlsx"))
+#write_file(as.character(pure_html), path=paste(dataset_file_directory, "rdata", slash,  "checkcontent.txt", sep = ""), append = FALSE)
+#myown_vote_record_df<-bind_rows(myown_vote_record_df,myown_vote_record_detailed_part_df)
 #regexp=
 #表決結果名單：[\n\r]{1,3}.+贊成者：.+[\n\r]{1,3}.+[\n\r]{1,3}.+反對者.+[\n\r]{1,3}.+[\n\r]{1,3}([一二三四五六七八九、棄權者：人]+[\n\r]{1,3}.+){0,1}
 #n_occur <- data.frame(table(test_final$ID))

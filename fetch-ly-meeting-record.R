@@ -41,8 +41,8 @@ fetchmeetingdata<-meetingurldata[,meetingurldata_urlrange] %>%
   list_of_vec_asmanyrows_to_df() %>%
   mutate_all(as.character)
 #check: utf8::utf8_valid(fetchmeetingdata$HTML5DATA[10])
-#save(fetchmeetingdata,file=paste0(filespath, "vote_record", slash, "fetchmeetingdata.RData"))
-load(file=paste0(filespath, "vote_record", slash, "fetchmeetingdata.RData"))
+#save(fetchmeetingdata,file=paste0(filespath, "data", slash, "fetchmeetingdata.RData"))
+load(file=paste0(filespath, "data", slash, "fetchmeetingdata.RData"))
 #load(paste0(filespath, "vote_record", slash, "fetchmeetingdata.RData", sep = "")) #476 obs at 1233 now 481
 
 
@@ -113,5 +113,4 @@ meetingdata<-bind_cols(meetingurldata,fetchmeetingdata) %>%
 #write_file(content, path=paste(dataset_file_directory, "rdata", slash,  "checkcontent.txt", sep = ""), append = FALSE)
 
 #出錯處 at 312 臨時會 第08屆 第04會期 第01次臨時會 第01次會議 or 313
-save(meetingdata, file = paste0(filespath, "vote_record", slash, "data", slash, "meetingdata.RData", sep = "") )
-save(fetchmeetingdata, file = paste0(filespath, "vote_record", slash, "data", slash, "fetchmeetingdata.RData", sep = "") )
+save(meetingdata, file = paste0(filespath, "data", slash, "meetingdata.RData", sep = "") )

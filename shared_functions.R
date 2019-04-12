@@ -59,8 +59,8 @@ dataset_file_directory <- switch(
   "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz" = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/d/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/d/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/g/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/g/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
 )
 ntuspace_file_directory <- switch(
   paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
@@ -71,7 +71,7 @@ ntuspace_file_directory <- switch(
   "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz" = "D:\\NTUSpace\\",
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/d/NTUSpace/",
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/d/NTUSpace/",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/d/NTUSpace/"
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/g/NTUSpace/"
 )
 
 custompaste0<-function(str,connect=c(),reverse=FALSE,sep="",collapse="") {
