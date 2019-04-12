@@ -198,7 +198,11 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
     customgsub("(Pacidal|Pacida){1} {0,1}　{1} {0,1}","Pacidal　　")
   replace_leave_and_attend_legislator_pattern<-filter(error_leave_and_attend_legislators,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no))
   if (nrow(replace_leave_and_attend_legislator_pattern)>0) {
-    check_leave_and_attend_legislator_chr_paragraph<- stri_replace_all_fixed(check_leave_and_attend_legislator_chr_paragraph,replace_leave_and_attend_legislator_pattern$legislator_name, replace_leave_and_attend_legislator_pattern$replace_with,vectorize_all=FALSE)
+    check_leave_and_attend_legislator_chr_paragraph <- stri_replace_all_fixed(
+      check_leave_and_attend_legislator_chr_paragraph,
+      replace_leave_and_attend_legislator_pattern$legislator_name,
+      replace_leave_and_attend_legislator_pattern$replace_with,vectorize_all=FALSE
+    )
   }
   
   leavelegislator<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"請假委員",value=TRUE)
