@@ -25,7 +25,7 @@ survey_time_range <- list(
   "2010env"=data.frame("SURVEY"="2010env","yrmonth"=c("099/07","099/08","099/09","099/10","099/11","099/12","100/01","100/02","100/03","100/04","100/05","100/06","100/07","100/08","100/09","100/10","100/11","100/12","101/01","101/02","101/03","101/04","101/05","101/06","101/07","101/08")),
   "2010overall"=data.frame("SURVEY"="2010overall","yrmonth"=c("099/07","099/08","099/09","099/10","099/11","099/12","100/01","100/02","100/03","100/04","100/05","100/06","100/07","100/08","100/09","100/10","100/11","100/12","101/01","101/02","101/03","101/04","101/05","101/06","101/07","101/08","101/09","101/10","101/11")),
   "2016citizen"=data.frame("SURVEY"="2016citizen","yrmonth"=c("105/09","105/11","105/12","106/01","106/04","106/05","106/06","106/08","106/10","106/11","106/12","107/01","107/03","107/04","107/05","107/06","107/07","107/08","107/09","107/10","107/11"))
-  )
+)
 survey_time_range_df <- plyr::rbind.fill(survey_time_range)
 term_to_survey <- data.frame("term"=c(5,6,7,7,8,8,9), "SURVEY"=c("2004citizen","2004citizen","2010env","2010overall","2010env","2010overall","2016citizen"))
 gc(verbose=TRUE)
@@ -138,7 +138,7 @@ all_admin_dist_with_zip <- left_join(all_admin_dist_try, zipcode_df) %>%
 elections_df_test <- elections_df %>%
   mutate_at(c("term"), funs(customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>%
   mutate_at(c("term"), as.character) #%>%
-  #left_join(all_admin_dist_with_zip)
+#left_join(all_admin_dist_with_zip)
 
 #立委資料與選區資料合併
 #legislators <- read_csv(file = paste0(dataset_file_directory, "legislators.csv"))
@@ -175,7 +175,7 @@ legislators_ethicity <- list(
   "newresident"="",
   'other'='吳成典',
   'unknown'='王幸男|王淑慧|朱星羽|李和順|李雅景|李鎮楠|李顯榮|李雅景'
-  )
+)
 legislators_ethicity_json <- paste0(dataset_file_directory, "legislators_ethicity_originalcollection.txt") %>%
   jsonlite::fromJSON()
 legislators_ethicity_df <- mapply(c, legislators_ethicity, legislators_ethicity_json, SIMPLIFY=FALSE) %>% 
@@ -360,7 +360,7 @@ if (FALSE) { #舊方法暫時忽略
     "seats"=c(81,27,3,1,1),
     "rulingparty"=factor(c(1,0,0,0,0)),
     "seatsgaptorulingparty"=c(0,54,78,80,80)
-    ) %>%
+  ) %>%
     bind_rows(
       data.frame(
         "term"=9,
@@ -368,7 +368,7 @@ if (FALSE) { #舊方法暫時忽略
         "seats"=c(35,68,5,3,1,1),
         "rulingparty"=factor(c(0,1,0,0,0,0)),
         "seatsgaptorulingparty"=c(33,0,63,65,67,67)
-        )
+      )
     ) %>%
     bind_rows(
       data.frame(
@@ -490,14 +490,14 @@ mergedf_votes_bills_election_surveyanswer <- distinct(legislators_with_election,
   mutate_cond( (opiniondirectionfromconstituent!=opiniondirectionfrombill & opiniondirectionfromconstituent != "x" & opiniondirectionfromconstituent != "b") & (billresult=="NotPassed"), success_on_bill=1 ) %>%
   mutate_cond(votedecision=="贊成", opiniondirectionfromlegislator=opiniondirectionfrombill) %>%
   mutate_cond(votedecision=="反對", opiniondirectionfromlegislator=recode(opiniondirectionfrombill,
-    "n"="m","m"="n",
-    "cpg"="NOTcpg","NOTcpg"="cpg","envenerg"="NOTenvenerg","NOTenvenerg"="envenerg","nuenerg"="NOTnuenerg","NOTnuenerg"="nuenerg",
-    "crop"="NOTcrop","NOTcrop"="crop","otherenerg"="NOTotherenerg","NOTotherenerg"="otherenerg",
-    "NOTgovpushrichpeoplemore"="govpushrichpeoplemore","NOTgovmore"="govmore","NOTnoint"="noint","NOTpoorontheirown"="poorontheirown",
-    "govpushrichpeoplemore"="NOTgovpushrichpeoplemore","govmore"="NOTgovmore","noint"="NOTnoint","poorontheirown"="NOTpoorontheirown",
-    "bygov"="NOTbygov","byent"="NOTbyent","bynpo"="NOTbynpo","byrelg"="NOTbyrelg","byfamily"="NOTbyfamily",
-    "NOTbygov"="bygov","NOTbyent"="byent","NOTbynpo"="bynpo","NOTbyrelg"="byrelg","NOTbyfamily"="byfamily"
-    )) %>%
+                                                                        "n"="m","m"="n",
+                                                                        "cpg"="NOTcpg","NOTcpg"="cpg","envenerg"="NOTenvenerg","NOTenvenerg"="envenerg","nuenerg"="NOTnuenerg","NOTnuenerg"="nuenerg",
+                                                                        "crop"="NOTcrop","NOTcrop"="crop","otherenerg"="NOTotherenerg","NOTotherenerg"="otherenerg",
+                                                                        "NOTgovpushrichpeoplemore"="govpushrichpeoplemore","NOTgovmore"="govmore","NOTnoint"="noint","NOTpoorontheirown"="poorontheirown",
+                                                                        "govpushrichpeoplemore"="NOTgovpushrichpeoplemore","govmore"="NOTgovmore","noint"="NOTnoint","poorontheirown"="NOTpoorontheirown",
+                                                                        "bygov"="NOTbygov","byent"="NOTbyent","bynpo"="NOTbynpo","byrelg"="NOTbyrelg","byfamily"="NOTbyfamily",
+                                                                        "NOTbygov"="bygov","NOTbyent"="byent","NOTbynpo"="bynpo","NOTbyrelg"="byrelg","NOTbyfamily"="byfamily"
+  )) %>%
   #==opiniondirectionfrombill & !(opiniondirectionfrombill %in% c('b','x')), respondopinion=2
   # 反對核電怎麼編碼？
   mutate_cond(opiniondirectionfromconstituent!=opiniondirectionfromlegislator, respondopinion=0) %>%
@@ -516,10 +516,10 @@ mergedf_votes_bills_election_surveyanswer <- distinct(legislators_with_election,
 
 
 #%>%
-  #mutate(term=stringi::stri_sub(electionname,from=1,length=1)) #%>%
-  #mutate(electionarea=last(unlist(strsplit(electionname,split="\\."))))
+#mutate(term=stringi::stri_sub(electionname,from=1,length=1)) #%>%
+#mutate(electionarea=last(unlist(strsplit(electionname,split="\\."))))
 #names(bulletin_links) %>% sapply(function(X) {
-  #last(unlist(strsplit(X,split="\\.")))
+#last(unlist(strsplit(X,split="\\.")))
 #})
 #可以看到有回應也有不回應
 #distinct(mergedf_votes_bills_election_surveyanswer,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfrombill,opiniondirectionfromlegislator,respondopinion) %>%
@@ -611,16 +611,17 @@ survey_data <- mapply(function(X,Y) {
     }
     return(dfcolumnvectors)
   },replaced_keys=Y) %>%
-    as.data.frame()
+    as.data.frame() %>%
+    mutate_if(is.factor,droplevels)
   newdf
   #to_replace_column<-setdiff(colnames(X),c("myown_age","myown_occp","myown_ses"))
   #  dplyr::mutate_at(X,to_replace_column,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999,99996:99999),NA ) )  )
-  },X=survey_data,Y=missing_value_labels) #%>%
-  #lapply(function (X) { #較早的串連方式，區分會期
-  #  othervar<-setdiff(names(X),c("term1","term2"))
-  #  reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
-  #    dplyr::filter(!is.na(term))
-  #})  %>%
+},X=survey_data,Y=missing_value_labels) #%>%
+#lapply(function (X) { #較早的串連方式，區分會期
+#  othervar<-setdiff(names(X),c("term1","term2"))
+#  reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
+#    dplyr::filter(!is.na(term))
+#})  %>%
 survey_data <- survey_data[order(names(survey_data))] %>%
   lapply(dplyr::left_join,survey_restricted_data) %>%
   lapply(dplyr::mutate_at,c("myown_job","admincity","admindistrict"),.funs=as.factor)
@@ -631,9 +632,9 @@ labeladjusmentagain <- FALSE
 if (labeladjusmentagain) {
   survey_data_labels <- lapply(survey_data,function(X) {
     sapply(X,FUN=attr,which="levels") %>%
-    #sapply(X,FUN=function(X) {
-    #  as.numeric(levels(X))[X]
-    #  }) %>%
+      #sapply(X,FUN=function(X) {
+      #  as.numeric(levels(X))[X]
+      #  }) %>%
       return()
   })
   save(survey_data_labels,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
@@ -678,26 +679,26 @@ if (writingfeather) {
 #shaped: 299 295 571
 #先依據是否有多數選區存在於單一鄉鎮市區拆開，先串有同一鄉鎮市區內有多選區的，再串同一鄉鎮市區內只有一選區的，然後分別join之後再合併
 #mapply(function(X,Y) {
-  ##X=survey_data[[1]]; Y=survey_restricted_data[[1]]; Z<-survey_data_labels[[1]] #for testing purpose
-  #stopifnot(X$SURVEY[1]==Y$SURVEY[1])
-  #Y %<>% mutate_at(c("village","zip","admincity","admindistrict","adminvillage"),funs(as.factor))
-  #in_complicated_district<-filter(X, id %in% Y$id) %>%
-  #  #mutate_at(c("zip","id"),funs(as.character)) %>%
-  #  left_join(Y,by=c("SURVEY","id")) %>% #不用zip join 因為會有label, factor的問題
-  #  #mutate_at("term",funs(as.character)) %>%
-  #  left_join(admin_dist_to_elect_dist,by=c("admincity","admindistrict","adminvillage")) %>% #by=c("term","admincity","admindistrict","adminvillage"
-  #  rename(restricted_zip=zip.y) %>%
-  #  rename(zip=zip.x)
-  ##findduplicatedrowsindf(in_complicated_district,c("id")) %>% View()
-  #in_simple_district <- filter(X, !(id %in% Y$id)) %>%
-  #  mutate_at(c("zip"), as.integer) %>%
-  #  left_join(unique_dist_for_elect_dist)#串連選區和行政區資料
-  ##mutate_at("term",funs(as.character)) %>%
-  #bind_rows(in_simple_district, in_complicated_district) %>%
-  #  arrange(id) %>%
-  #  mutate_at(c("zip","id","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"),funs(as.factor)) %>%
-  #  mutate_at(setdiff(names(.),c("myown_age")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
-  #  mutate_if(is.factor,funs(droplevels))
+##X=survey_data[[1]]; Y=survey_restricted_data[[1]]; Z<-survey_data_labels[[1]] #for testing purpose
+#stopifnot(X$SURVEY[1]==Y$SURVEY[1])
+#Y %<>% mutate_at(c("village","zip","admincity","admindistrict","adminvillage"),funs(as.factor))
+#in_complicated_district<-filter(X, id %in% Y$id) %>%
+#  #mutate_at(c("zip","id"),funs(as.character)) %>%
+#  left_join(Y,by=c("SURVEY","id")) %>% #不用zip join 因為會有label, factor的問題
+#  #mutate_at("term",funs(as.character)) %>%
+#  left_join(admin_dist_to_elect_dist,by=c("admincity","admindistrict","adminvillage")) %>% #by=c("term","admincity","admindistrict","adminvillage"
+#  rename(restricted_zip=zip.y) %>%
+#  rename(zip=zip.x)
+##findduplicatedrowsindf(in_complicated_district,c("id")) %>% View()
+#in_simple_district <- filter(X, !(id %in% Y$id)) %>%
+#  mutate_at(c("zip"), as.integer) %>%
+#  left_join(unique_dist_for_elect_dist)#串連選區和行政區資料
+##mutate_at("term",funs(as.character)) %>%
+#bind_rows(in_simple_district, in_complicated_district) %>%
+#  arrange(id) %>%
+#  mutate_at(c("zip","id","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"),funs(as.factor)) %>%
+#  mutate_at(setdiff(names(.),c("myown_age")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
+#  mutate_if(is.factor,funs(droplevels))
 #},X=survey_data,Y=survey_restricted_data)
 
 load(paste0(filespath,"data",slash,"all_survey_combined.RData"))
@@ -842,7 +843,7 @@ survey_data_test <- custom_parallel_lapply(
 #survey_data_test[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
 #}
 #conditional random field
-save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_7_",t_sessioninfo_running,"df.RData"))
+save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_8_",t_sessioninfo_running,"df.RData"))
 load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_7_",t_sessioninfo_running,"df.RData"))
 #write.xlsx(as.data.frame(furtherusefulpredictor),file="furtherusefulpredictor.xlsx")
 lapply(survey_data_test,View)
@@ -856,7 +857,7 @@ lapply(survey_data_test,function(X,need_particip_var,need_ses_var_assigned,imput
     need_ses_var_assigned,
     getElement(imputedvaluecolumn,survey)
   )))) %>%
-    {colSums(is.na(.))}
+  {colSums(is.na(.))}
   return(checkdf)
 },need_particip_var=need_particip_var,need_ses_var_assigned=need_ses_var_assigned,imputedvaluecolumn=imputedvaluecolumn)
 
@@ -1309,9 +1310,9 @@ lcaneed_independence_attitude<-list(
   "2016citizen"=c("h10r")#2016只有一題統獨傾向"
 )
 lcaneed_party_constituency<-list(
-  "2004citizen"=c("v88","v89","v90","v99"),#,"v98r"
+  "2004citizen"=c("v88","v89","v90","v99","v98b"),#可用 v88 v89 v90 v98b v99 (多類別)"v98r"
   "2010env"=c("v103r"),#2010env只有一題政黨傾向
-  "2010overall"=c("v84","v85v88sumup"), #,"v85v86v87sumup","v93v94sumup"
+  "2010overall"=c("v87a1r","v93","v94"), #可用 v84 v86 v87a1r v93 v94(多類):v88,"v85v86v87sumup","v93v94sumup","v85v88sumup"
   "2016citizen"=c("h5","h6r_recode_party_for_forgotten","h7","h8r","h9r")
 )
 lcaneed_ethnicity<-list(
@@ -1336,10 +1337,18 @@ lcaneed_other_cov<-list(
 #load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercovWindows8x64build9200.RData"))
 #LCAmodel_with_indp
 
-t_survey_data_test<-survey_data_test
+t_survey_data_test<-survey_data_test[3]
 needsurveyi<-1
-
-custom_generate_LCA_model<-function(X, firstlcaneed,secondlcaneed=c(), ..., exportlib=c("base"), exportvar=c(), outfile="") {#,thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(), exportlib=c("base"), exportvar=c(), outfile=""
+custom_poLCA <- function(formula, data, nclass = 2, maxiter = 1000, graphs = FALSE, 
+                         tol = 1e-10, na.rm = TRUE, probs.start = NULL, nrep = 1, 
+                         verbose = TRUE, calc.se = TRUE) {
+  result <- poLCA::poLCA(formula, data, nclass, maxiter, graphs, 
+                         tol, na.rm, probs.start, nrep, 
+                         verbose, calc.se)
+  result$nclass <- nclass
+  return(result)
+}
+custom_generate_LCA_model<-function(X, n_latentclasses=2:5, n_rep=30, firstlcaneed,secondlcaneed=c(), ..., exportlib=c("base"), exportvar=c(), outfile="") {#,thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(), exportlib=c("base"), exportvar=c(), outfile=""
   #X此時就是一個問卷的dataset
   #lcaneed_independence_attitude
   #lcaneed_party_constituency
@@ -1353,6 +1362,9 @@ custom_generate_LCA_model<-function(X, firstlcaneed,secondlcaneed=c(), ..., expo
     magrittr::extract2(secondlcaneed,needsurveyi),
     magrittr::extract2(otherlcaneed,needsurveyi)
   )
+  if (class(n_latentclasses)=='list') {
+    n_latentclasses <- magrittr::extract2(n_latentclasses,needsurveyi)
+  }
   if (identical(cov_parameter_in_formula,logical())) {
     cov_parameter_in_formula<-"1"
   }
@@ -1368,7 +1380,7 @@ custom_generate_LCA_model<-function(X, firstlcaneed,secondlcaneed=c(), ..., expo
     "0"=NULL,
     "1"=X[,magrittr::extract2(firstlcaneed,needsurveyi)],
     {
-      custom_parallel_lapply(X=2:5,FUN=function(poXi,s_survey_data,modelformula,...)
+      custom_parallel_lapply(X=n_latentclasses,FUN=function(poXi,s_survey_data,modelformula,...)
       {
         #### lapply(2:7,function(poXi,s_survey_data) {
         lcamodelbuildtresult<-poLCA(
@@ -1377,8 +1389,9 @@ custom_generate_LCA_model<-function(X, firstlcaneed,secondlcaneed=c(), ..., expo
           nclass = poXi,
           #graphs = TRUE,
           maxiter = 1000,
-          nrep=30
+          nrep=n_rep
         )
+        lcamodelbuildtresult$nclass <- poXi
         return(lcamodelbuildtresult)
         #poXi
       },s_survey_data=X,
@@ -1405,15 +1418,39 @@ custom_generate_LCA_model<-function(X, firstlcaneed,secondlcaneed=c(), ..., expo
 ###  )
 ###}
 
-LCAmodel_with_indp_covparty <- custom_parallel_lapply(
+#先測試 degree of freedom 是否為負數不然白忙一場
+LCAmodel_with_indp_covparty_testfor_resid_df <- custom_parallel_lapply(
   X=t_survey_data_test,
   FUN=custom_generate_LCA_model,
   exportvar=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
   exportlib=c("base",lib,"poLCA"),
   outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+  n_rep=1,
   firstlcaneed=lcaneed_independence_attitude,
   secondlcaneed=lcaneed_party_constituency
-  ) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
+) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
+LCAmodel_with_indp_covparty_test_correct_classes <- lapply(LCAmodel_with_indp_covparty_testfor_resid_df, function(X) {
+  #,getElement,"resid.df"
+  if (class(X)=="list") {
+    class_assigned<-sapply(X,function(Z) {Z$nclass})
+    wheredfbiggerthanzero<-which(sapply(X,getElement,"resid.df")>0)
+    correct_class_to_assign<-class_assigned[wheredfbiggerthanzero]
+    return(correct_class_to_assign)
+  } else {
+    return(NULL)
+  }
+}) %>%
+  setNames(stringi::stri_replace(names(.),replacement="",regex=".sav"))
+LCAmodel_with_indp_covparty<-custom_parallel_lapply(
+  X=t_survey_data_test,
+  FUN=custom_generate_LCA_model,
+  exportvar=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
+  exportlib=c("base",lib,"poLCA"),
+  n_latentclasses=LCAmodel_with_indp_covparty_test_correct_classes,
+  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+  firstlcaneed=lcaneed_independence_attitude,
+  secondlcaneed=lcaneed_party_constituency
+)
 
 save(LCAmodel_with_indp_covparty,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty",t_sessioninfo_running,".RData"))
 #levels(t_survey_data_test[[1]]$myown_atti_ind)[levels(t_survey_data_test[[1]]$myown_atti_ind)=="1"] <- "統一"
@@ -1442,7 +1479,30 @@ save(LCAmodel_with_partyconstituency_nocov,file=paste0(dataset_file_directory,"r
 #load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covpartyUbuntu18.04.1LTS_do_not_delete.RData"))
 load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covpartyUbuntu18.04.2LTS.RData"))
 
-new_LCAmodel_with_indp_covparty_3_3<-poLCA::poLCA(
+new_LCAmodel_with_indp_covparty_2004citizen_3_classes<-poLCA::poLCA(
+  data=t_survey_data_test[[1]],
+  formula=as.formula(paste0(
+    "cbind(",
+    paste(magrittr::extract2(lcaneed_independence_attitude,"2004citizen"),collapse=","),
+    ") ~ ",
+    paste0(lcaneed_party_constituency[[1]],collapse="+"),
+    collapse=""
+  )),
+  nclass = 3,
+  #graphs = TRUE,
+  maxiter = 1000,
+  nrep=30,
+  probs.start=poLCA::poLCA.reorder(
+    LCAmodel_with_indp_covparty[[1]][[2]]$probs.start,
+    c(2,3,1)
+  )
+)
+table(LCAmodel_with_indp_covparty[[1]][[2]]$predclass)
+survey_data_test[[1]]$myown_indp_atti<-factor(
+  LCAmodel_with_indp_covparty[[1]][[2]]$predclass,
+  levels = c(1,2,3), labels = c("[2] 中立", "[1] 統一", "[3] 獨立") #needs interpretation and modify here
+) %>% table()
+new_LCAmodel_with_indp_covparty_2010overall_3_classes<-poLCA::poLCA(
   data=t_survey_data_test[[3]],
   formula=as.formula(paste0(
     "cbind(",
@@ -1469,6 +1529,11 @@ survey_data_test[[3]]$myown_indp_atti<-factor(
   LCAmodel_with_indp_covparty[[3]][[2]]$predclass,
   levels = c(1,2,3), labels = c("[1] 統一", "[2] 中立", "[3] 獨立")
 )
+table(LCAmodel_with_indp_covparty[[3]][[2]]$predclass)
+survey_data_test[[3]]$myown_indp_atti<-factor(
+  LCAmodel_with_indp_covparty[[3]][[2]]$predclass,
+  levels = c(1,2,3), labels = c("[2] 中立", "[1] 統一", "[3] 獨立") #needs interpretation and modify here
+) %>% table()
 survey_data_test[[4]]$myown_indp_atti<-LCAmodel_with_indp_covparty[[4]]$h10r
 #save(survey_data_test,file=paste0(filespath,"data",slash,"survey_data_test.RData"))
 
@@ -1482,7 +1547,7 @@ survey_oldq_id<-list(
   "2010env"=c("v39a", "v39b", "v39c", "v40", "v78a", "v78b", "v78c", "v78d", "v78e", "v78f", "v78g", "v78h", "v78i", "v90", "v91", "v92"),
   "2010overall"=c("kv21c_0", "kv31_0", "kv67_0", "v14a", "v14b", "v15a", "v15b", "v16a", "v16b", "v19", "v20a", "v20b", "v21c", "v22a", "v22b", "v22c", "v23a", "v23b", "v23c", "v24a", "v24b", "v24c", "v25a", "v25b", "v25c", "v26a", "v26b", "v26c", "v26d", "v26e", "v26f", "v26g", "v27a", "v27b", "v27c", "v27d", "v27e", "v27f", "v27g", "v28a", "v28b", "v29", "v30a", "v30b", "v31", "v32a", "v32b", "v32c", "v36a", "v36b", "v37a", "v37b", "v37c", "v37d", "v37e", "v37f", "v37g", "v37h", "v37i", "v38a1", "v38a2", "v38b1", "v38b2", "v38c1", "v38c2", "v38d1", "v38d2", "v38e1", "v38e2", "v39a", "v39b", "v39c", "v40", "v57", "v58", "v59", "v63", "v66c", "v66f", "v67", "v68", "v69", "v70b", "v70c", "v70d", "v70e", "v70f"),
   "2016citizen"=c("c1a",	"c1b",	"c1c",	"c1d",	"c1e",	"c2",	"c3",	"c4",	"c5",	"c6",	"c10",	"c11",	"c12",	"c13",	"c14",	"d1",	"d2a",	"d2b",	"d3a",	"d3b",	"d4",	"d5a",	"d5b",	"d5c",	"d5d",	"d5e",	"d5f",	"d6a",	"d6b",	"d6c",	"d6d",	"d6e",	"d6f",	"d6g",	"d6h",	"d7a",	"d7b",	"d7c",	"d7d",	"d7e",	"d7f",	"d7g",	"d7h",	"d7i",	"d7j",	"d7k",	"d8a",	"d8b",	"d8c",	"d11a",	"d11b",	"d12",	"d13a",	"d13b",	"d14a",	"d14b",	"d14c",	"d17a",	"d17b",	"d17c",	"e2a",	"e2b",	"e2c",	"e2d",	"e2e",	"e2f",	"e2g",	"e2h",	"e2i",	"f3",	"f4",	"f5",	"f8",	"f9",	"h10")
-  )
+)
 survey_q_id<-sapply(survey_data_title,function(X,df,oldvec=c()) {
   topickeyword<-c("議題","議題（或民主價值與公民意識牽涉群體）","民主價值與公民意識")
   if(identical(oldvec,c())) {
@@ -1531,7 +1596,7 @@ if(covert_label_according_to_xls_codebook) {
 #survey_data_melted
 complete_survey_dataset<-mapply(function(X,Y) {
   survey_data_title<-X$SURVEY[1]
-
+  
   other_var_as_id<-setdiff(names(X),Y)
   X<-mutate_at(X,Y,as.character)
   reshape2::melt(X, id.vars = other_var_as_id, variable.name = "SURVEYQUESTIONID", value.name = "SURVEYANSWERVALUE") %>%
@@ -1544,8 +1609,8 @@ complete_survey_dataset<-mapply(function(X,Y) {
     dplyr::ungroup() %>%
     dplyr::mutate("same_pos_to_all_ratio_by_nation"=same_pos_on_same_q_by_nation/all_pos_on_same_q_by_nation*100)
 },
-  X=survey_data_test,
-  Y=survey_q_id)
+X=survey_data_test,
+Y=survey_q_id)
 #View(filter(complete_survey_dataset[[1]],SURVEYQUESTIONID=='myown_indp_atti'))
 #dplyr::recode(survey_data_test[[1]]$v61,!!!getElement(getElement(prepare_for_label_adj_df,"2004citizen"),"v61"))
 
@@ -1569,7 +1634,7 @@ common_var<-Reduce(intersect, lapply(complete_survey_dataset, names )) %>%
 complete_survey_dataset<-lapply(complete_survey_dataset,select_and_fill_nonexistcol,common_var) %>%
   plyr::rbind.fill(.) %>%
   rename(ansv_and_label=SURVEYANSWERVALUE)#%>%
-  #reshape2::melt(id.vars = setdiff(colnames(.),c("term1","term2")), variable.name = "variable_on_term", value.name = "term")
+#reshape2::melt(id.vars = setdiff(colnames(.),c("term1","term2")), variable.name = "variable_on_term", value.name = "term")
 vhead(complete_survey_dataset %>% filter(SURVEYQUESTIONID=='myown_indp_atti'))
 withoutlabelansv <- unique(complete_survey_dataset$ansv_and_label)[c(31,104:116,135:144,167:173,180:188,209:222,285:287,293:299)]
 filter(complete_survey_dataset, ansv_and_label %in% withoutlabelansv) %>%
