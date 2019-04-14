@@ -1085,46 +1085,48 @@ library(ltm)
 library(eRm)
 library(mirt)
 
-need_efficacy_var<-list(
-  "2004citizen"=c("v47","v48","v52","v49","v50","v51"),
-  "2010env"=c("v61","v70a","v78","v21a","v21b","v26a","v26b","v26c","v26d","v79"),
-  "2010overall"=c("v67d","v67h","v67i","v67f"),
-  "2016citizen"=c("d16a","d16b","d16c","d16d")
-)
-need_efficacy_recode_var<-list(#效能感越高要重編碼為數字越大
-  "onetofour"=list(
-    "2004citizen"=c("v52","v51"),
-    "2010env"=c("v61","v78"),
-    "2010overall"=c(),
-    "2016citizen"=c()
-  ),
-  "onetofive"=list(#效能感越高要重編碼為數字越大
-    "2004citizen"=c("v49","v50"),
-    "2010env"=c("v26b","v79"),
-    "2010overall"=c(),
-    "2016citizen"=c("d16b","d16c")
-  ),
-  "onetosix"=list(#效能感越高要重編碼為數字越大
-    "2004citizen"=c(),
-    "2010env"=c(),
-    "2010overall"=c("v67d","v67h","v67i"),
-    "2016citizen"=c()
+analysingefficacy <- FALSE
+if (analysingefficacy) {
+  need_efficacy_var<-list(
+    "2004citizen"=c("v47","v48","v52","v49","v50","v51"),
+    "2010env"=c("v61","v70a","v78","v21a","v21b","v26a","v26b","v26c","v26d","v79"),
+    "2010overall"=c("v67d","v67h","v67i","v67f"),
+    "2016citizen"=c("d16a","d16b","d16c","d16d")
   )
-)
-survey_data_test <- lapply(survey_data_test,function(X,need_efficacy_var_assigned,need_efficacy_recode_var_assigned) {
-  recode_list<-list(
-    list("1"=4,"2"=3,"3"=2,"4"=1),
-    list("1"=5,"2"=4,"4"=2,"5"=1),
-    list("1"=6,"2"=5,"3"=4,"4"=3,"5"=1,"6"=1)
+  need_efficacy_recode_var<-list(#效能感越高要重編碼為數字越大
+    "onetofour"=list(
+      "2004citizen"=c("v52","v51"),
+      "2010env"=c("v61","v78"),
+      "2010overall"=c(),
+      "2016citizen"=c()
+    ),
+    "onetofive"=list(#效能感越高要重編碼為數字越大
+      "2004citizen"=c("v49","v50"),
+      "2010env"=c("v26b","v79"),
+      "2010overall"=c(),
+      "2016citizen"=c("d16b","d16c")
+    ),
+    "onetosix"=list(#效能感越高要重編碼為數字越大
+      "2004citizen"=c(),
+      "2010env"=c(),
+      "2010overall"=c("v67d","v67h","v67i"),
+      "2016citizen"=c()
+    )
   )
-  for (alteri in 1:3) {
-    need_efficacy_recode_var <- extract2(need_efficacy_recode_var_assigned[[alteri]],X$SURVEY[1]) %>%
-      intersect(names(X))
-    X %<>% mutate_at(need_efficacy_recode_var,funs(dplyr::recode),!!!recode_list[[alteri]])
-  }
-  return(X)
-},need_efficacy_var_assigned=need_efficacy_var,need_efficacy_recode_var_assigned=need_efficacy_recode_var)
-
+  survey_data_test <- lapply(survey_data_test,function(X,need_efficacy_var_assigned,need_efficacy_recode_var_assigned) {
+    recode_list<-list(
+      list("1"=4,"2"=3,"3"=2,"4"=1),
+      list("1"=5,"2"=4,"4"=2,"5"=1),
+      list("1"=6,"2"=5,"3"=4,"4"=3,"5"=1,"6"=1)
+    )
+    for (alteri in 1:3) {
+      need_efficacy_recode_var <- extract2(need_efficacy_recode_var_assigned[[alteri]],X$SURVEY[1]) %>%
+        intersect(names(X))
+      X %<>% mutate_at(need_efficacy_recode_var,funs(dplyr::recode),!!!recode_list[[alteri]])
+    }
+    return(X)
+  },need_efficacy_var_assigned=need_efficacy_var,need_efficacy_recode_var_assigned=need_efficacy_recode_var)
+}
 # 第五-3部份：IRT latent variables  latent variables 政治參與；用item respond抓出隱藏變數「政治參與程度」 =================================
 # https://www.researchgate.net/post/How_to_conduct_item_analysis_with_a_likert_scale_questionaire
 # mirt help: https://github.com/philchalmers/mirt/wiki
@@ -1190,7 +1192,8 @@ survey_data_test <- lapply(survey_data_test, function(X,need_particip_var_assign
   estimatemodel<-mirt::mirt(
     data=irt_target_d,
     model=1,
-    itemtype = "graded")
+    itemtype = "graded",
+    technical = list("NCYCLES"=40000))
   poliparticipt<-mirt::fscores(estimatemodel,method="EAP") %>%
     as.data.frame()
   names(poliparticipt)<-c("myown_factoredparticip")
@@ -1200,62 +1203,63 @@ survey_data_test <- lapply(survey_data_test, function(X,need_particip_var_assign
   return(X)
 },need_particip_var_assigned=need_particip_var)
 
-
-survey_data_with_particip <- lapply(survey_data_test,function(X,need_particip_var_assigned) {
-  #for testing purpose
-  X<-survey_data_test[[1]]
-  need_particip_var_assigned<-need_particip_var
+using_ltm_package <- FALSE
+if (using_ltm_package) {
+  survey_data_with_particip <- lapply(survey_data_test,function(X,need_particip_var_assigned) {
+    #for testing purpose
+    X<-survey_data_test[[1]]
+    need_particip_var_assigned<-need_particip_var
+    
+    need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
+      intersect(names(X))
+    fit1 <- ltm::grm(X[,need_particip_var_assigned], constrained = TRUE, start.val = "random")
+    fit2 <- ltm::grm(X[,need_particip_var_assigned], na.action = na.omit, start.val = "random")
+    fit_testresult<-anova(fit1, fit2)
+    if ((fit_testresult$p.value<=0.05) & (fit_testresult$L0 < fit_testresult$L1) ) {
+      fit<-fit2
+    } else {
+      fit<-fit1
+    }
+    margins(fit)
+    summary(fit)
+    coef(fit)
+    #if (fit_testresult$aic0>fit_testresult$aic1 & fit_testresult$bic0>fit_testresult$bic1) {
+    #  fit<-fit2
+    #} else {
+    #  fit<-fit1
+    #}
+    X %<>% left_join(
+      fit %>%
+        factor.scores() %>%
+        use_series("score.dat") %>%
+        dplyr::select(-contains("Exp"),-contains("Obs")) %>%
+        rename(myown_factored_partcip=z1,myown_factored_partcip.se=se.z1)
+    )
+    X$myown_factored_partcip %<>% scale() %>% as.numeric()
+    X
+  },need_particip_var)
   
-  need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
-    intersect(names(X))
-  fit1 <- ltm::grm(X[,need_particip_var_assigned], constrained = TRUE, start.val = "random")
-  fit2 <- ltm::grm(X[,need_particip_var_assigned], na.action = na.omit, start.val = "random")
-  fit_testresult<-anova(fit1, fit2)
-  if ((fit_testresult$p.value<=0.05) & (fit_testresult$L0 < fit_testresult$L1) ) {
-    fit<-fit2
-  } else {
-    fit<-fit1
+  information(fit, c(-4, 4))
+  sapply(1:length(participation_var[[itrn]]),function (X) information(fit, c(-4, 4), items = c(X)) )
+  #characteristic curve for each item
+  plot(fit, lwd = 0.8, cex = 0.8, legend = TRUE, cx = "left", xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8, cex.axis = 0.8)
+  #information curve
+  plot(fit, type = "IIC", lwd = 0.8, cex = 0.5, legend = TRUE, cx = "topleft",xlab = "Latent Trait", cex.main = 0.8, cex.lab = 1, cex.axis = 1)
+  #test information curve
+  plot(fit, type = "IIC", items = 0, lwd = 2, xlab = "Latent Trait",cex.main = 1, cex.lab = 1, cex.axis = 1)
+  info1 <- information(fit, c(-4, 0))
+  info2 <- information(fit, c(0, 4))
+  text(-2.5, 8, labels = paste("Information in (-4, 0):",paste(round(100 * info1$PropRange, 1), "%", sep = ""),"\n\nInformation in (0, 4):",paste(round(100 * info2$PropRange, 1), "%", sep = "")), cex = 0.7)
+  par(mfrow = c(1, 1)) #configure how many figures would show in row and column
+  #characteristic curve overall in different category
+  #plot(fit, category = 1, lwd = 0.8, cex = 0.8, legend = TRUE, cx = -0.8,cy = 0.85, xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8,cex.axis = 0.8)
+  for (ctg in 1:4) {
+    plot(fit, category = ctg, lwd = 0.8, cex = 0.8, annot = TRUE,
+         xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8,
+         cex.axis = 0.8)
+    Sys.sleep(2)
   }
-  margins(fit)
-  summary(fit)
-  coef(fit)
-  #if (fit_testresult$aic0>fit_testresult$aic1 & fit_testresult$bic0>fit_testresult$bic1) {
-  #  fit<-fit2
-  #} else {
-  #  fit<-fit1
-  #}
-  X %<>% left_join(
-    fit %>%
-      factor.scores() %>%
-      use_series("score.dat") %>%
-      dplyr::select(-contains("Exp"),-contains("Obs")) %>%
-      rename(myown_factored_partcip=z1,myown_factored_partcip.se=se.z1)
-  )
-  X$myown_factored_partcip %<>% scale() %>% as.numeric()
-  X
-},need_particip_var)
-
-information(fit, c(-4, 4))
-sapply(1:length(participation_var[[itrn]]),function (X) information(fit, c(-4, 4), items = c(X)) )
-#characteristic curve for each item
-plot(fit, lwd = 0.8, cex = 0.8, legend = TRUE, cx = "left", xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8, cex.axis = 0.8)
-#information curve
-plot(fit, type = "IIC", lwd = 0.8, cex = 0.5, legend = TRUE, cx = "topleft",xlab = "Latent Trait", cex.main = 0.8, cex.lab = 1, cex.axis = 1)
-#test information curve
-plot(fit, type = "IIC", items = 0, lwd = 2, xlab = "Latent Trait",cex.main = 1, cex.lab = 1, cex.axis = 1)
-info1 <- information(fit, c(-4, 0))
-info2 <- information(fit, c(0, 4))
-text(-2.5, 8, labels = paste("Information in (-4, 0):",paste(round(100 * info1$PropRange, 1), "%", sep = ""),"\n\nInformation in (0, 4):",paste(round(100 * info2$PropRange, 1), "%", sep = "")), cex = 0.7)
-par(mfrow = c(1, 1)) #configure how many figures would show in row and column
-#characteristic curve overall in different category
-#plot(fit, category = 1, lwd = 0.8, cex = 0.8, legend = TRUE, cx = -0.8,cy = 0.85, xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8,cex.axis = 0.8)
-for (ctg in 1:4) {
-  plot(fit, category = ctg, lwd = 0.8, cex = 0.8, annot = TRUE,
-       xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8,
-       cex.axis = 0.8)
-  Sys.sleep(2)
 }
-
 # 第五-3-2部份：non-parametric IRT Mokken scale analysis Model ####################
 #################### mokken, Mokken Scale Analysis in R
 #################### read: https://www.jstatsoft.org/article/view/v020i11/v20i11.pdf
@@ -1297,6 +1301,8 @@ plot(survey_data.gpcm,type=c("IIC"), lwd = 0.8, cex = 0.8, legend = TRUE, cx = "
 ltm::GoF.gpcm(X.gpcm)
 
 #margins(fit1)
+#save(survey_data_test, file=paste0(filespath,"data",slash,"miced_survey_7_Ubuntu18.04.2LTSdf_with_mirt.RData"))
+load(paste0(filespath,"data",slash,"miced_survey_7_Ubuntu18.04.2LTSdf_with_mirt.RData"))
 
 # 第六部份：LCA latent variables 潛在類別模式資料清理  ================================= 
 
@@ -1312,7 +1318,7 @@ lcaneed_independence_attitude<-list(
 lcaneed_party_constituency<-list(
   "2004citizen"=c("v88","v89","v90","v99","v98b"),#可用 v88 v89 v90 v98b v99 (多類別)"v98r"
   "2010env"=c("v103r"),#2010env只有一題政黨傾向
-  "2010overall"=c("v87a1r","v93","v94"), #可用 v84 v86 v87a1r v93 v94(多類):v88,"v85v86v87sumup","v93v94sumup","v85v88sumup"
+  "2010overall"=c("v84","v93v94sumup"), #可用 v84 v86 v87a1r v93 v94(多類):v88,"v85v86v87sumup","v93v94sumup","v85v88sumup"
   "2016citizen"=c("h5","h6r_recode_party_for_forgotten","h7","h8r","h9r")
 )
 lcaneed_ethnicity<-list(
@@ -1339,16 +1345,8 @@ lcaneed_other_cov<-list(
 
 t_survey_data_test<-survey_data_test[3]
 needsurveyi<-1
-custom_poLCA <- function(formula, data, nclass = 2, maxiter = 1000, graphs = FALSE, 
-                         tol = 1e-10, na.rm = TRUE, probs.start = NULL, nrep = 1, 
-                         verbose = TRUE, calc.se = TRUE) {
-  result <- poLCA::poLCA(formula, data, nclass, maxiter, graphs, 
-                         tol, na.rm, probs.start, nrep, 
-                         verbose, calc.se)
-  result$nclass <- nclass
-  return(result)
-}
-custom_generate_LCA_model<-function(X, n_latentclasses=2:5, n_rep=30, firstlcaneed,secondlcaneed=c(), ..., exportlib=c("base"), exportvar=c(), outfile="") {#,thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(), exportlib=c("base"), exportvar=c(), outfile=""
+
+custom_generate_LCA_model<-function(X, n_latentclasses=2:5, n_rep=30, firstlcaneed, secondlcaneed=c(), ..., exportlib=c("base"), exportvar=c(), outfile="") {#,thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(), exportlib=c("base"), exportvar=c(), outfile=""
   #X此時就是一個問卷的dataset
   #lcaneed_independence_attitude
   #lcaneed_party_constituency
@@ -1382,23 +1380,25 @@ custom_generate_LCA_model<-function(X, n_latentclasses=2:5, n_rep=30, firstlcane
     {
       custom_parallel_lapply(X=n_latentclasses,FUN=function(poXi,s_survey_data,modelformula,...)
       {
+        library(poLCA) #for fixing stange situation that Windows does not fork well
         #### lapply(2:7,function(poXi,s_survey_data) {
         lcamodelbuildtresult<-poLCA(
-          data=s_survey_data,
-          formula=as.formula(modelformula),
+          data = s_survey_data,
+          formula = as.formula(modelformula),
           nclass = poXi,
           #graphs = TRUE,
           maxiter = 1000,
-          nrep=n_rep
+          nrep = n_rep
         )
         lcamodelbuildtresult$nclass <- poXi
+        lcamodelbuildtresult$modelformula <- modelformula
         return(lcamodelbuildtresult)
         #poXi
-      },s_survey_data=X,
-      modelformula=modelformula,
-      exportvar=exportvar,
-      exportlib=exportlib,
-      outfile=outfile
+      },s_survey_data = X,
+      modelformula = modelformula,
+      exportvar = exportvar,
+      exportlib = exportlib,
+      outfile = outfile
       )
     }
   ) #end of switch
@@ -1418,39 +1418,78 @@ custom_generate_LCA_model<-function(X, n_latentclasses=2:5, n_rep=30, firstlcane
 ###  )
 ###}
 
-#先測試 degree of freedom 是否為負數不然白忙一場
-LCAmodel_with_indp_covparty_testfor_resid_df <- custom_parallel_lapply(
-  X=t_survey_data_test,
-  FUN=custom_generate_LCA_model,
-  exportvar=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
-  exportlib=c("base",lib,"poLCA"),
-  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
-  n_rep=1,
-  firstlcaneed=lcaneed_independence_attitude,
-  secondlcaneed=lcaneed_party_constituency
-) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
-LCAmodel_with_indp_covparty_test_correct_classes <- lapply(LCAmodel_with_indp_covparty_testfor_resid_df, function(X) {
-  #,getElement,"resid.df"
-  if (class(X)=="list") {
-    class_assigned<-sapply(X,function(Z) {Z$nclass})
-    wheredfbiggerthanzero<-which(sapply(X,getElement,"resid.df")>0)
-    correct_class_to_assign<-class_assigned[wheredfbiggerthanzero]
-    return(correct_class_to_assign)
-  } else {
-    return(NULL)
+#測試調整參數用
+lcaneed_party_constituency[["2010overall"]] <- c("v87a1r","v85v86v87sumup") #可用 v84 v86 v87a1r v93 v94(多類):v88,"v85v86v87sumup","v93v94sumup","v85v88sumup"
+cov_vars <- c("v84", "v86", "v87a1r", "v93", "v94", "v88", "v85v86v87sumup", "v93v94sumup", "v85v88sumup")
+cov_vars_combns <- unlist(
+  lapply(1:length(cov_vars),
+         function(i)combn(1:length(cov_vars),i,simplify=FALSE)
+  )
+  ,recursive=FALSE) %>%
+  lapply(FUN=function(X,var) extract(var,X), var=cov_vars)
+need_in_lcaneed_party_constituency_combn_i<-258
+LCAmodel_with_indp_covparty_combn<-list()
+for (lcaneed_party_constituency_combn_item in cov_vars_combns[need_in_lcaneed_party_constituency_combn_i:length(cov_vars_combns)]) {
+  need_in_lcaneed_party_constituency_combn <- list()
+  need_in_lcaneed_party_constituency_combn[['2010overall']] <- lcaneed_party_constituency_combn_item
+  #先測試 degree of freedom 是否為負數不然白忙一場
+  LCAmodel_with_indp_covparty_testfor_resid_df <- custom_parallel_lapply(
+    X=t_survey_data_test,
+    FUN=custom_generate_LCA_model,
+    exportvar=c("t_survey_data_test","custom_parallel_lapply","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
+    exportlib=c("base",lib,"poLCA","parallel"),
+    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+    n_rep=1,
+    firstlcaneed=lcaneed_independence_attitude,
+    secondlcaneed=need_in_lcaneed_party_constituency_combn
+  ) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
+  LCAmodel_with_indp_covparty_test_correct_classes <- lapply(LCAmodel_with_indp_covparty_testfor_resid_df, function(X) {
+    #,getElement,"resid.df"
+    if (class(X)=="list") {
+      class_assigned<-sapply(X,function(Z) {Z$nclass})
+      wheredfbiggerthanzero<-which(sapply(X,getElement,"resid.df")>0)
+      correct_class_to_assign<-class_assigned[wheredfbiggerthanzero]
+      return(correct_class_to_assign)
+    } else {
+      return(NULL)
+    }
+  }) %>%
+    setNames(stringi::stri_replace(names(.),replacement="",regex=".sav"))
+  LCAmodel_with_indp_covparty<-custom_parallel_lapply(
+    X=t_survey_data_test,
+    FUN=custom_generate_LCA_model,
+    exportvar=c("t_survey_data_test","custom_parallel_lapply","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
+    exportlib=c("base",lib,"poLCA","parallel"),
+    n_latentclasses=LCAmodel_with_indp_covparty_test_correct_classes,
+    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+    firstlcaneed=lcaneed_independence_attitude,
+    secondlcaneed=need_in_lcaneed_party_constituency_combn
+  )
+  LCAmodel_with_indp_covparty_combn[[need_in_lcaneed_party_constituency_combn_i]] <- list(
+    "formula"=paste(need_in_lcaneed_party_constituency_combn,collapse="+"),
+    "correctclasses"=LCAmodel_with_indp_covparty_test_correct_classes,
+    "model"=LCAmodel_with_indp_covparty
+    )
+  need_in_lcaneed_party_constituency_combn_i <- need_in_lcaneed_party_constituency_combn_i+1
+  if ((need_in_lcaneed_party_constituency_combn_i %% 15)==0) {
+    save(LCAmodel_with_indp_covparty_combn,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
   }
-}) %>%
-  setNames(stringi::stri_replace(names(.),replacement="",regex=".sav"))
-LCAmodel_with_indp_covparty<-custom_parallel_lapply(
-  X=t_survey_data_test,
-  FUN=custom_generate_LCA_model,
-  exportvar=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
-  exportlib=c("base",lib,"poLCA"),
-  n_latentclasses=LCAmodel_with_indp_covparty_test_correct_classes,
-  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
-  firstlcaneed=lcaneed_independence_attitude,
-  secondlcaneed=lcaneed_party_constituency
-)
+}
+
+LCAresult_to_sheet <- function(str) {
+  str %<>% customgsub(pattern = '[ ]{2,}', replacement = "[", perl = TRUE) %>%
+    customgsub(pattern = '\\[\\[', replacement = '\\[') %>%
+    stringi::stri_split_lines() %>%
+    unlist() %>%
+    lapply(unlist) %>%
+    lapply(stringi::stri_split,regex = "\\[") %>%
+    lapply(unlist) %>%
+    lapply(t) %>%
+    lapply(as.data.frame) %>%
+    plyr::rbind.fill()
+  View(str)
+}
+LCAresult_to_sheet()
 
 save(LCAmodel_with_indp_covparty,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty",t_sessioninfo_running,".RData"))
 #levels(t_survey_data_test[[1]]$myown_atti_ind)[levels(t_survey_data_test[[1]]$myown_atti_ind)=="1"] <- "統一"

@@ -32,7 +32,7 @@ fetchmeetingdata<-meetingurldata[,meetingurldata_urlrange] %>%
     names(returnX)<-paste(names(X),"DATA",sep="")
     return(returnX)
   },
-  exportvar=c("meetingurldata","meetingurldata_urlrange","custom_read_file"),
+  exportvar=c("meetingurldata","meetingurldata_urlrange","custom_read_file","customgrepl","custom_detect_and_transform_utf8"),
   exportlib=c("base",lib),
   outfile=paste0(dataset_file_directory, "rdata", slash, "parallel_handling_process-", t_sessioninfo_running, ".txt"),
   mc.set.seed = TRUE,

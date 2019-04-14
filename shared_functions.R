@@ -7,7 +7,7 @@ chooseCRANmirror(ind=which(grepl("http://cran.csie.ntu.edu.tw/",getCRANmirrors()
 #  install.packages('feather', repo=i)
 #}
 #lib<-c("stringi","stringr","XML","xml2","rvest","htmltidy","curl","RCurl","gdata","readr","DBI","lazyeval","dplyr","rmarkdown","rticles","knitr","data.table","ggplot2","scales","reshape2","janitor","stargazer","xtable","apa","tesseract","pdftools","tiff","schoolmath","jsonlite","foreign","MASS","class","caret","tm","kernlab","jiebaR","RTextTools","tmcn","text2vec","RODBC","xlsx")
-lib<-c("stringi","XML","xml2","readr","dplyr","magrittr","openxlsx")
+lib<-c("stringi","XML","xml2","readr","dplyr","magrittr","openxlsx","plyr")
 #,"Rcmdr"
 sapply(lib,function (X) {
   if(!require(X,character.only=TRUE)) {
@@ -52,9 +52,9 @@ if (FALSE && paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)=="Ubuntu
 
 dataset_file_directory <- switch(
   paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="Z:\\dataset(2004-2016)\\",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="Y:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz" = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz" = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
@@ -302,12 +302,12 @@ custom_parallel_lapply<-switch(
     tryCatch({stopCluster(cl)},
              # 遇到 warning 時的自訂處理函數
              warning = function(msg) {
-               message("tryCatch Original warning message:")
+               message("tryCatch Original warning message while stopCluster:")
                message(paste0(msg,"\n"))
              },
              # 遇到 error 時的自訂處理函數
              error = function(msg) {
-               message("tryCatch Original error message:")
+               message("tryCatch Original error message while stopCluster:")
                message(paste0(msg,"\n"))
              }
     )
@@ -390,7 +390,22 @@ custom_detect_and_transform_utf8<-Vectorize(FUN=function(srcstr) {
   }
   return(srcstr)
 })
-  
+
+list_allcombn_of_model <- function(vars,prefix="1~") {
+  n <- length(vars)
+  id <- unlist(
+    lapply(1:n,
+           function(i)combn(1:n,i,simplify=FALSE)
+    )
+    ,recursive=FALSE)
+  Formulas <- sapply(id,function(i)
+    paste(prefix, paste(vars[i],collapse="+"))
+  )
+  return(Formulas)
+  #gregmisc::combinations
+  #MuMIn::dredge
+}
+
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"
 #research_odbc_ch <- odbcConnect(research_odbc, believeNRows = FALSE, rows_at_time = 1, DBMSencoding="UTF-8")
