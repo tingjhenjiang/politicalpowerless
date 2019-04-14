@@ -10,7 +10,8 @@ filespath<-switch(
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
-  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\vote_record\\"
+  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\vote_record\\",
+  "Windows10x64build17134Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\vote_record\\"
 )
 source(file = paste(filespath, "shared_functions.R", sep = ""))
 #選舉資料
@@ -1263,12 +1264,14 @@ if (using_ltm_package) {
 # 第五-3-2部份：non-parametric IRT Mokken scale analysis Model ####################
 #################### mokken, Mokken Scale Analysis in R
 #################### read: https://www.jstatsoft.org/article/view/v020i11/v20i11.pdf
-mokken::coefH(as.data.frame(X[,need_particip_var_assigned]))
-checkmokkenresult<-mokken::check.monotonicity(as.data.frame(X[,need_particip_var_assigned]))
-summary(checkmokkenresult)
-plot(checkmokkenresult)
-scale.checkmokkenresult <- mokken::aisp(as.data.frame(X[,need_particip_var_assigned]))
-
+using_IRT_Mokken <- FALSE
+if (using_IRT_Mokken) {
+  mokken::coefH(as.data.frame(X[,need_particip_var_assigned]))
+  checkmokkenresult<-mokken::check.monotonicity(as.data.frame(X[,need_particip_var_assigned]))
+  summary(checkmokkenresult)
+  plot(checkmokkenresult)
+  scale.checkmokkenresult <- mokken::aisp(as.data.frame(X[,need_particip_var_assigned]))
+}
 # 第五-3-3部份：parametric IRT Rasch models - Partial Credit Model ####################
 # mirt::Rasch
 # eRm::PCM
@@ -1277,29 +1280,32 @@ scale.checkmokkenresult <- mokken::aisp(as.data.frame(X[,need_particip_var_assig
 # mirt:mirt
 # 'grsm' and 'grsmIRT' - graded ratings scale model in the slope-interceptand classical IRT parameterization.
 # 'grsmIRT'is restricted to unidimensional models (Muraki, 1992)
-
-rst_mirt1 <- mirt::mirt(data = X[,need_particip_var_assigned], model = 1, verbose = T, itemtype= "grsmIRT")
-coef(rst_mirt1)
-for (itemplotn in 1:length(need_particip_var_assigned)) {
-  mirt::itemplot(rst_mirt1, itemplotn)
-  Sys.sleep(1)
+usinggrsm <- FALSE
+if (usinggrsm) {
+  rst_mirt1 <- mirt::mirt(data = X[,need_particip_var_assigned], model = 1, verbose = T, itemtype= "grsmIRT")
+  coef(rst_mirt1)
+  for (itemplotn in 1:length(need_particip_var_assigned)) {
+    mirt::itemplot(rst_mirt1, itemplotn)
+    Sys.sleep(1)
+  }
+  summary(rst_mirt1)
+  residuals(rst_mirt1)
+  mirt::fscores(rst_mirt1,method = "EAP") %>% View()
 }
-summary(rst_mirt1)
-residuals(rst_mirt1)
-mirt::fscores(rst_mirt1,method = "EAP") %>% View()
-
 # 第五-3-5部份：parametric IRT non-Rasch models - Generalized Partial Credit Model - Polytomous IRT ####################
 #################### Finch, W. Holmes＆French, Brian F. (2015). Latent Variable Modeling with R. Florence: Taylor and Francis
 ## ltm::gpcm
 ## mirt::mirt by gpcmIRT
 ## 2016 not fit: gpcm, rasch 1PL all not fit;
-gpcmconstraint<-"gpcm" #c("gpcm", "1PL", "rasch")
-X.gpcm<-ltm::gpcm(X[,need_particip_var_assigned],constraint=gpcmconstraint,start.val="random")
-summary(X.gpcm)
-plot(survey_data.gpcm, lwd = 0.8, cex = 0.8, legend = TRUE, cx = "left", xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8, cex.axis = 0.8)
-plot(survey_data.gpcm,type=c("IIC"), lwd = 0.8, cex = 0.8, legend = TRUE, cx = "left", xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8, cex.axis = 0.8)
-ltm::GoF.gpcm(X.gpcm)
-
+usinggpcm <- FALSE
+if (usinggpcm) {
+  gpcmconstraint<-"gpcm" #c("gpcm", "1PL", "rasch")
+  X.gpcm<-ltm::gpcm(X[,need_particip_var_assigned],constraint=gpcmconstraint,start.val="random")
+  summary(X.gpcm)
+  plot(survey_data.gpcm, lwd = 0.8, cex = 0.8, legend = TRUE, cx = "left", xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8, cex.axis = 0.8)
+  plot(survey_data.gpcm,type=c("IIC"), lwd = 0.8, cex = 0.8, legend = TRUE, cx = "left", xlab = "Latent Trait", cex.main = 0.8, cex.lab = 0.8, cex.axis = 0.8)
+  ltm::GoF.gpcm(X.gpcm)
+}
 #margins(fit1)
 #save(survey_data_test, file=paste0(filespath,"data",slash,"miced_survey_7_Ubuntu18.04.2LTSdf_with_mirt.RData"))
 load(paste0(filespath,"data",slash,"miced_survey_7_Ubuntu18.04.2LTSdf_with_mirt.RData"))
@@ -1318,13 +1324,13 @@ lcaneed_independence_attitude<-list(
 lcaneed_party_constituency<-list(
   "2004citizen"=c("v88","v89","v90","v99","v98b"),#可用 v88 v89 v90 v98b v99 (多類別)"v98r"
   "2010env"=c("v103r"),#2010env只有一題政黨傾向
-  "2010overall"=c("v84","v93v94sumup"), #可用 v84 v86 v87a1r v93 v94(多類):v88,"v85v86v87sumup","v93v94sumup","v85v88sumup"
+  "2010overall"=c("v84","v86","v87a1r","v93","v94","v88","v85v86v87sumup","v93v94sumup","v85v88sumup"), #可用 v84 v86 v87a1r v93 v94(多類):v88,"v85v86v87sumup","v93v94sumup","v85v88sumup"
   "2016citizen"=c("h5","h6r_recode_party_for_forgotten","h7","h8r","h9r")
 )
 lcaneed_ethnicity<-list(
   "2004citizen"=c("myown_selfid"),#"myown_dad_ethgroup","myown_mom_ethgroup",
   "2010env"=c("myown_selfid"),#"myown_dad_ethgroup","myown_mom_ethgroup",
-  "2010overall"=c("myown_selfid"),#,"myown_dad_ethgroup","myown_mom_ethgroup"
+  "2010overall"=c("myown_selfid","myown_dad_ethgroup","myown_mom_ethgroup"),#,"myown_dad_ethgroup","myown_mom_ethgroup"
   "2016citizen"=c("myown_selfid") #到這裡，但還沒有輸出上述的v94r #"myown_dad_ethgroup","myown_mom_ethgroup",
 )
 lcaneed_identity<-list(
@@ -1342,9 +1348,6 @@ lcaneed_other_cov<-list(
 # 第六-1部份：LCA latent variables 潛在類別模式統獨傾向 =====================
 #load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercovWindows8x64build9200.RData"))
 #LCAmodel_with_indp
-
-t_survey_data_test<-survey_data_test[3]
-needsurveyi<-1
 
 custom_generate_LCA_model<-function(X, n_latentclasses=2:5, n_rep=30, firstlcaneed, secondlcaneed=c(), ..., exportlib=c("base"), exportvar=c(), outfile="") {#,thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(), exportlib=c("base"), exportvar=c(), outfile=""
   #X此時就是一個問卷的dataset
@@ -1419,19 +1422,61 @@ custom_generate_LCA_model<-function(X, n_latentclasses=2:5, n_rep=30, firstlcane
 ###}
 
 #測試調整參數用
-lcaneed_party_constituency[["2010overall"]] <- c("v87a1r","v85v86v87sumup") #可用 v84 v86 v87a1r v93 v94(多類):v88,"v85v86v87sumup","v93v94sumup","v85v88sumup"
-cov_vars <- c("v84", "v86", "v87a1r", "v93", "v94", "v88", "v85v86v87sumup", "v93v94sumup", "v85v88sumup")
+t_survey_data_test<-survey_data_test[3]
+needsurveyi <- 1
+needsurvey <- t_survey_data_test[[1]]$SURVEY[needsurveyi]
+
+cov_vars <- c(lcaneed_party_constituency[[needsurvey]],lcaneed_ethnicity[[needsurvey]],lcaneed_identity[[needsurvey]],lcaneed_other_cov[[needsurvey]])
 cov_vars_combns <- unlist(
   lapply(1:length(cov_vars),
          function(i)combn(1:length(cov_vars),i,simplify=FALSE)
   )
   ,recursive=FALSE) %>%
   lapply(FUN=function(X,var) extract(var,X), var=cov_vars)
-need_in_lcaneed_party_constituency_combn_i<-258
-LCAmodel_with_indp_covparty_combn<-list()
+
+load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn-backup(509processed).RData"))
+load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
+list_information_df_of_lca <- lapply(LCAmodel_with_indp_covparty_combn, function(X) {
+  workable_model_len <- length(X$model[[1]])
+  if (workable_model_len>0) {
+    ret_inf <- lapply(X$model[[1]], function(model) {
+      data.frame(
+        "nclass"=model$nclass,
+        "modelformula"=model$modelformula,
+        "bic"=model$bic,
+        "aic"=model$aic,
+        "residf"=model$resid.df,
+        "chisq"=model$Chisq,
+        "Gsq"=model$Gsq,
+        "llik"=model$llik
+      )
+    }) %>%
+      plyr::rbind.fill()
+  } else {
+    ret_inf <- data.frame()
+  }
+  return(ret_inf)
+})%>%
+  plyr::rbind.fill()
+modelformula_prefix <- "cbind(v90,v91,v92) ~"
+need_in_lcaneed_party_constituency_combn_i<-1
+filter_and_arranged_inf_of_lca <- filter(list_information_df_of_lca,nclass>2) %>%
+  arrange(bic)
+#custom setup to generate model here ","
+need_in_lcaneed_party_constituency_combn[[needsurvey]] <- 
+  filter_and_arranged_inf_of_lca[[7,c("modelformula")]] %>% as.character() %>% stringi::stri_split(regex=" ~ ") %>% unlist() %>% getElement(2) %>%  stringi::stri_split(regex="\\+") %>% unlist()
+if (length(LCAmodel_with_indp_covparty_combn)<1) {LCAmodel_with_indp_covparty_combn<-list()}
 for (lcaneed_party_constituency_combn_item in cov_vars_combns[need_in_lcaneed_party_constituency_combn_i:length(cov_vars_combns)]) {
   need_in_lcaneed_party_constituency_combn <- list()
-  need_in_lcaneed_party_constituency_combn[['2010overall']] <- lcaneed_party_constituency_combn_item
+  need_in_lcaneed_party_constituency_combn[[needsurvey]] <- lcaneed_party_constituency_combn_item
+  lcaformula<-paste(need_in_lcaneed_party_constituency_combn[[needsurvey]],collapse = "+") %>%
+    paste(modelformula_prefix, ., collapse = "")
+  if (lcaformula %in% as.character(list_information_df_of_lca$modelformula)) {
+    message(lcaformula," in!")
+    next()
+  } else {
+    message(lcaformula," not in! to be processed")
+  }
   #先測試 degree of freedom 是否為負數不然白忙一場
   LCAmodel_with_indp_covparty_testfor_resid_df <- custom_parallel_lapply(
     X=t_survey_data_test,
@@ -1465,21 +1510,29 @@ for (lcaneed_party_constituency_combn_item in cov_vars_combns[need_in_lcaneed_pa
     firstlcaneed=lcaneed_independence_attitude,
     secondlcaneed=need_in_lcaneed_party_constituency_combn
   )
-  LCAmodel_with_indp_covparty_combn[[need_in_lcaneed_party_constituency_combn_i]] <- list(
+  LCAmodel_with_indp_covparty_combn <- rlist::list.append(LCAmodel_with_indp_covparty_combn,list(
     "formula"=paste(need_in_lcaneed_party_constituency_combn,collapse="+"),
     "correctclasses"=LCAmodel_with_indp_covparty_test_correct_classes,
     "model"=LCAmodel_with_indp_covparty
-    )
+  ))
   need_in_lcaneed_party_constituency_combn_i <- need_in_lcaneed_party_constituency_combn_i+1
   if ((need_in_lcaneed_party_constituency_combn_i %% 15)==0) {
     save(LCAmodel_with_indp_covparty_combn,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
   }
 }
 
-LCAresult_to_sheet <- function(str) {
-  str %<>% customgsub(pattern = '[ ]{2,}', replacement = "[", perl = TRUE) %>%
+#View(filter(list_information_df_of_lca,nclass>2))
+stdout <- vector('character')
+con    <- textConnection('stdout', 'wr', local = TRUE)
+sink(con)
+LCAmodel_with_indp_covparty
+sink()
+close(con)
+LCAresult_to_sheet(stdout)
+
+LCAresult_to_sheet <- function(LCAstr) {
+  LCAstr <- customgsub(LCAstr, pattern = '[ ]{2,}', replacement = "[", perl = TRUE) %>%
     customgsub(pattern = '\\[\\[', replacement = '\\[') %>%
-    stringi::stri_split_lines() %>%
     unlist() %>%
     lapply(unlist) %>%
     lapply(stringi::stri_split,regex = "\\[") %>%
@@ -1487,9 +1540,8 @@ LCAresult_to_sheet <- function(str) {
     lapply(t) %>%
     lapply(as.data.frame) %>%
     plyr::rbind.fill()
-  View(str)
+  View(LCAstr)
 }
-LCAresult_to_sheet()
 
 save(LCAmodel_with_indp_covparty,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty",t_sessioninfo_running,".RData"))
 #levels(t_survey_data_test[[1]]$myown_atti_ind)[levels(t_survey_data_test[[1]]$myown_atti_ind)=="1"] <- "統一"
