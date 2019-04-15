@@ -19,7 +19,7 @@ if (nchar(Sys.getenv("SPARK_HOME")) < 1) {
   Sys.setenv(SPARK_HOME = "/usr/local/spark")
 }
 Sys.setenv(JAVA_HOME = "/usr/lib/jvm/java-8-oracle")
-if (FALSE && paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)=="Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz" && FALSE) {
+if (FALSE && t_sessioninfo_running_with_cpu=="Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz" && FALSE) {
   sparkpackage<-"sparklyr"
   sparkconfiglist<-merge(sparklyr::spark_config(), list(
     sparklyr.log.console = TRUE,
@@ -51,7 +51,7 @@ if (FALSE && paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)=="Ubuntu
 }
 
 dataset_file_directory <- switch(
-  paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
+  t_sessioninfo_running_with_cpu,
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="Y:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
@@ -64,7 +64,7 @@ dataset_file_directory <- switch(
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/g/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
 )
 ntuspace_file_directory <- switch(
-  paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
+  t_sessioninfo_running_with_cpu,
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\NTUSpace\\",
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\NTUSpace\\",
   "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\NTUSpace\\",

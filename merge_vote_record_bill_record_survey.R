@@ -1,7 +1,8 @@
 # 第Ｏ部份：環境設定 --------------------------------
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
+t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
 filespath<-switch(
-  paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
+  t_sessioninfo_running_with_cpu,
   "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
   "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
@@ -835,7 +836,7 @@ survey_data_test <- custom_parallel_lapply(
   imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
   exportvar=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"),
   exportlib=c("base",lib,"mice","randomForest"), #,"MissMech","fastDummies"
-  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
 )
@@ -858,7 +859,7 @@ lapply(survey_data_test,function(X,need_particip_var,need_ses_var_assigned,imput
     need_ses_var_assigned,
     getElement(imputedvaluecolumn,survey)
   )))) %>%
-  {colSums(is.na(.))}
+    {colSums(is.na(.))}
   return(checkdf)
 },need_particip_var=need_particip_var,need_ses_var_assigned=need_ses_var_assigned,imputedvaluecolumn=imputedvaluecolumn)
 
@@ -922,7 +923,7 @@ if (FALSE) { #此部分屬於舊code，僅保留參考用
     imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
     exportvar=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"),
     exportlib=c("base",lib,"Hmisc"),
-    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
     mc.set.seed = TRUE,
     mc.cores=parallel::detectCores()
   )
@@ -1349,7 +1350,7 @@ lcaneed_other_cov<-list(
 #load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercovWindows8x64build9200.RData"))
 #LCAmodel_with_indp
 
-custom_generate_LCA_model<-function(X, n_latentclasses=2:5, n_rep=30, firstlcaneed, secondlcaneed=c(), ..., exportlib=c("base"), exportvar=c(), outfile="") {#,thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(), exportlib=c("base"), exportvar=c(), outfile=""
+custom_generate_LCA_model<-function(X, n_latentclasses=2:5, nrep=30, maxiter=1000, firstlcaneed, secondlcaneed=c(), ..., exportlib=c("base"), exportvar=c(), outfile="") {#,thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(), exportlib=c("base"), exportvar=c(), outfile=""
   #X此時就是一個問卷的dataset
   #lcaneed_independence_attitude
   #lcaneed_party_constituency
@@ -1381,7 +1382,7 @@ custom_generate_LCA_model<-function(X, n_latentclasses=2:5, n_rep=30, firstlcane
     "0"=NULL,
     "1"=X[,magrittr::extract2(firstlcaneed,needsurveyi)],
     {
-      custom_parallel_lapply(X=n_latentclasses,FUN=function(poXi,s_survey_data,modelformula,...)
+      custom_parallel_lapply(X=n_latentclasses,FUN=function(poXi,s_survey_data,modelformula,n_rep,maxiter,...)
       {
         library(poLCA) #for fixing stange situation that Windows does not fork well
         #### lapply(2:7,function(poXi,s_survey_data) {
@@ -1389,9 +1390,9 @@ custom_generate_LCA_model<-function(X, n_latentclasses=2:5, n_rep=30, firstlcane
           data = s_survey_data,
           formula = as.formula(modelformula),
           nclass = poXi,
+          nrep = nrep,
+          maxiter = maxiter
           #graphs = TRUE,
-          maxiter = 1000,
-          nrep = n_rep
         )
         lcamodelbuildtresult$nclass <- poXi
         lcamodelbuildtresult$modelformula <- modelformula
@@ -1399,6 +1400,8 @@ custom_generate_LCA_model<-function(X, n_latentclasses=2:5, n_rep=30, firstlcane
         #poXi
       },s_survey_data = X,
       modelformula = modelformula,
+      nrep = nrep,
+      maxiter = maxiter,
       exportvar = exportvar,
       exportlib = exportlib,
       outfile = outfile
@@ -1415,7 +1418,7 @@ custom_generate_LCA_model<-function(X, n_latentclasses=2:5, n_rep=30, firstlcane
 ###    FUN=custom_generate_LCA_model,
 ###    exportvar=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
 ###    exportlib=c("base",lib,"poLCA"),
-###    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+###    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
 ###    firstlcaneed=lcaneed_independence_attitude,
 ###    secondlcaneed=lcaneed_party_constituency
 ###  )
@@ -1436,6 +1439,7 @@ cov_vars_combns <- unlist(
 
 load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn-backup(509processed).RData"))
 load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
+modelformula_prefix <- "cbind(v90,v91,v92) ~"
 list_information_df_of_lca <- lapply(LCAmodel_with_indp_covparty_combn, function(X) {
   workable_model_len <- length(X$model[[1]])
   if (workable_model_len>0) {
@@ -1453,27 +1457,38 @@ list_information_df_of_lca <- lapply(LCAmodel_with_indp_covparty_combn, function
     }) %>%
       plyr::rbind.fill()
   } else {
-    ret_inf <- data.frame()
+    simformula <- X$formula
+    #customgsub(X$formula,pattern = '", "', replacement = "+") %>%
+    #customgsub(pattern = '[c()"]', replacement = '') %>%
+    #paste(modelformula_prefix, ., collapse="")
+    ret_inf <- data.frame("nclass"=NA, "modelformula"=simformula, "bic"=NA,
+                          "aic"=NA, "residf"=NA, "chisq"=NA, "Gsq"=NA, "llik"=NA)
   }
   return(ret_inf)
 })%>%
-  plyr::rbind.fill()
-modelformula_prefix <- "cbind(v90,v91,v92) ~"
+  plyr::rbind.fill() #View(filter(list_information_df_of_lca,nclass>2) %>% arrange(bic))
 need_in_lcaneed_party_constituency_combn_i<-1
 filter_and_arranged_inf_of_lca <- filter(list_information_df_of_lca,nclass>2) %>%
-  arrange(bic)
+  arrange(bic) #View(filter_and_arranged_inf_of_lca)
 #custom setup to generate model here ","
-need_in_lcaneed_party_constituency_combn[[needsurvey]] <- 
-  filter_and_arranged_inf_of_lca[[7,c("modelformula")]] %>% as.character() %>% stringi::stri_split(regex=" ~ ") %>% unlist() %>% getElement(2) %>%  stringi::stri_split(regex="\\+") %>% unlist()
+prompt_for_lcamodel <- TRUE
 if (length(LCAmodel_with_indp_covparty_combn)<1) {LCAmodel_with_indp_covparty_combn<-list()}
 for (lcaneed_party_constituency_combn_item in cov_vars_combns[need_in_lcaneed_party_constituency_combn_i:length(cov_vars_combns)]) {
   need_in_lcaneed_party_constituency_combn <- list()
   need_in_lcaneed_party_constituency_combn[[needsurvey]] <- lcaneed_party_constituency_combn_item
+  if (prompt_for_lcamodel) {
+    process_lca_formula_n <- readline(prompt="Enter an integer: ") %>%
+      as.integer()
+    need_in_lcaneed_party_constituency_combn[[needsurvey]] <- 
+      filter_and_arranged_inf_of_lca[[process_lca_formula_n,c("modelformula")]] %>% as.character() %>% stringi::stri_split(regex=" ~ ") %>% unlist() %>% getElement(2) %>%  stringi::stri_split(regex="\\+") %>% unlist()
+  }
   lcaformula<-paste(need_in_lcaneed_party_constituency_combn[[needsurvey]],collapse = "+") %>%
     paste(modelformula_prefix, ., collapse = "")
   if (lcaformula %in% as.character(list_information_df_of_lca$modelformula)) {
     message(lcaformula," in!")
-    next()
+    if (prompt_for_lcamodel!=TRUE) {
+      next()
+    }
   } else {
     message(lcaformula," not in! to be processed")
   }
@@ -1483,8 +1498,9 @@ for (lcaneed_party_constituency_combn_item in cov_vars_combns[need_in_lcaneed_pa
     FUN=custom_generate_LCA_model,
     exportvar=c("t_survey_data_test","custom_parallel_lapply","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
     exportlib=c("base",lib,"poLCA","parallel"),
-    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
-    n_rep=1,
+    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
+    nrep = 1,
+    maxiter = 1,
     firstlcaneed=lcaneed_independence_attitude,
     secondlcaneed=need_in_lcaneed_party_constituency_combn
   ) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
@@ -1506,29 +1522,37 @@ for (lcaneed_party_constituency_combn_item in cov_vars_combns[need_in_lcaneed_pa
     exportvar=c("t_survey_data_test","custom_parallel_lapply","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
     exportlib=c("base",lib,"poLCA","parallel"),
     n_latentclasses=LCAmodel_with_indp_covparty_test_correct_classes,
-    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+    nrep = 150,
+    maxiter = 4000,
+    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
     firstlcaneed=lcaneed_independence_attitude,
     secondlcaneed=need_in_lcaneed_party_constituency_combn
   )
-  LCAmodel_with_indp_covparty_combn <- rlist::list.append(LCAmodel_with_indp_covparty_combn,list(
-    "formula"=paste(need_in_lcaneed_party_constituency_combn,collapse="+"),
-    "correctclasses"=LCAmodel_with_indp_covparty_test_correct_classes,
-    "model"=LCAmodel_with_indp_covparty
-  ))
-  need_in_lcaneed_party_constituency_combn_i <- need_in_lcaneed_party_constituency_combn_i+1
-  if ((need_in_lcaneed_party_constituency_combn_i %% 15)==0) {
-    save(LCAmodel_with_indp_covparty_combn,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
+  if (prompt_for_lcamodel) {
+    cat("\014")
+    stdout<-capture.output(LCAmodel_with_indp_covparty)
+    LCAresult_to_sheet(stdout)
+    next()
+  } else {
+    LCAmodel_with_indp_covparty_combn <- rlist::list.append(LCAmodel_with_indp_covparty_combn,list(
+      "formula"=paste(unlist(need_in_lcaneed_party_constituency_combn),collapse="+") %>% paste(modelformula_prefix, .),
+      "correctclasses"=LCAmodel_with_indp_covparty_test_correct_classes,
+      "model"=LCAmodel_with_indp_covparty
+    ))
+    need_in_lcaneed_party_constituency_combn_i <- need_in_lcaneed_party_constituency_combn_i+1
+    if ((need_in_lcaneed_party_constituency_combn_i %% 10)==0) {
+      save(LCAmodel_with_indp_covparty_combn,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
+    }
   }
 }
 
-#View(filter(list_information_df_of_lca,nclass>2))
-stdout <- vector('character')
-con    <- textConnection('stdout', 'wr', local = TRUE)
-sink(con)
-LCAmodel_with_indp_covparty
-sink()
-close(con)
-LCAresult_to_sheet(stdout)
+#LCAmodel_with_indp_covparty_combn <- lapply(LCAmodel_with_indp_covparty_combn, function(X,modelformula_prefix,...) {
+#  simformula <- customgsub(X$formula,pattern = '", "', replacement = "+") %>%
+#    customgsub(pattern = '[c()"]', replacement = '') %>%
+#    paste(modelformula_prefix, ., collapse="")
+#  X$formula <- simformula
+#  return(X)
+#},modelformula_prefix=modelformula_prefix)
 
 LCAresult_to_sheet <- function(LCAstr) {
   LCAstr <- customgsub(LCAstr, pattern = '[ ]{2,}', replacement = "[", perl = TRUE) %>%
@@ -1554,7 +1578,7 @@ LCAmodel_with_partyconstituency_nocov <- custom_parallel_lapply(
   FUN=custom_generate_LCA_model,
   exportvar=c("t_survey_data_test","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
   exportlib=c("base",lib,"poLCA"),
-  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
   firstlcaneed=lcaneed_party_constituency,
   secondlcaneed=lcaneed_independence_attitude,
   mc.set.seed = TRUE,

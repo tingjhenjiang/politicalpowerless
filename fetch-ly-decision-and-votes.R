@@ -1,6 +1,7 @@
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
+t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
 filespath<-switch(
-  paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
+  t_sessioninfo_running_with_cpu,
   "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
   "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
@@ -639,7 +640,7 @@ myown_vote_record_df<-do.call("rbind",custom_parallel_lapply(
   FUN=fetch_ly_decision_and_vote,
   exportvar=c("urlarr","fetch_ly_decision_and_vote","meetingdata"),
   exportlib=c("base",lib),
-  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running,".txt"),
+  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
   meetingdata=meetingdata,
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()

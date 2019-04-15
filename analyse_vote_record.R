@@ -1,6 +1,7 @@
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
+t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
 filespath<-switch(
-  paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
+  t_sessioninfo_running_with_cpu,
   "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
   "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",

@@ -1,6 +1,7 @@
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
+t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
 filespath<-switch(
-  paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
+  t_sessioninfo_running_with_cpu,
   "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
   "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
@@ -35,7 +36,7 @@ fetchmeetingdata<-meetingurldata[,meetingurldata_urlrange] %>%
   },
   exportvar=c("meetingurldata","meetingurldata_urlrange","custom_read_file","customgrepl","custom_detect_and_transform_utf8"),
   exportlib=c("base",lib),
-  outfile=paste0(dataset_file_directory, "rdata", slash, "parallel_handling_process-", t_sessioninfo_running, ".txt"),
+  outfile=paste0(dataset_file_directory, "rdata", slash, "parallel_handling_process-", t_sessioninfo_running_with_cpu, ".txt"),
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
 )  %>%
@@ -104,7 +105,7 @@ meetingdata<-bind_cols(meetingurldata,fetchmeetingdata) %>%
   exportvar=c("meetingurldata","meetingurldata_urlrange","custom_read_file","fetchmeetingdata"),
   exportlib=c("base",lib),
   meetingdata_range=meetingdata_range,
-  outfile=paste0(dataset_file_directory, "rdata", slash, "parallel_handling_process-",t_sessioninfo_running,".txt"),
+  outfile=paste0(dataset_file_directory, "rdata", slash, "parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
   ) %>%
