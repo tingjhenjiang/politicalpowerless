@@ -1350,22 +1350,23 @@ lcaneed_other_cov<-list(
 #load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercovWindows8x64build9200.RData"))
 #LCAmodel_with_indp
 
-custom_generate_LCA_model<-function(X, n_latentclasses=2:5, nrep=30, maxiter=1000, firstlcaneed, secondlcaneed=c(), ..., exportlib=c("base"), exportvar=c(), outfile="") {#,thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(), exportlib=c("base"), exportvar=c(), outfile=""
+custom_generate_LCA_model<-function(X, n_latentclasses=c(3:5), nrep=30, maxiter=1000, firstlcaneed, secondlcaneed=c(), ..., exportlib=c("base"), exportvar=c(), outfile="") {#,thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(), exportlib=c("base"), exportvar=c(), outfile=""
   #X此時就是一個問卷的dataset
   #lcaneed_independence_attitude
   #lcaneed_party_constituency
   #lcaneed_ethnicity
   #lcaneed_identity
   #lcaneed_other_cov
-  message("<===== at custom_generate_LCA_model exportlib is ", exportlib, " and exportvar is ", exportvar, " and outfile is ", outfile, "=====>")
-  otherlcaneed<-unlist(list(...))
+  #message("<===== at custom_generate_LCA_model exportlib is ", exportlib, " and exportvar is ", exportvar, " and outfile is ", outfile, "=====>")
+  otherlcaneed<-unlist(list(...)) #testing: otherlcaneed<-NULL
   needsurveyi<-X$SURVEY[1]
   cov_parameter_in_formula<-dplyr::union_all(
     magrittr::extract2(secondlcaneed,needsurveyi),
     magrittr::extract2(otherlcaneed,needsurveyi)
   )
-  if (class(n_latentclasses)=='list') {
-    n_latentclasses <- magrittr::extract2(n_latentclasses,needsurveyi)
+  if (needsurveyi %in% names(n_latentclasses)) {
+    #n_latentclasses <- magrittr::extract2(n_latentclasses,needsurveyi)
+    n_latentclasses <- getElement(n_latentclasses,needsurveyi)
   }
   if (identical(cov_parameter_in_formula,logical())) {
     cov_parameter_in_formula<-"1"
@@ -1382,18 +1383,22 @@ custom_generate_LCA_model<-function(X, n_latentclasses=2:5, nrep=30, maxiter=100
     "0"=NULL,
     "1"=X[,magrittr::extract2(firstlcaneed,needsurveyi)],
     {
-      custom_parallel_lapply(X=n_latentclasses,FUN=function(poXi,s_survey_data,modelformula,n_rep,maxiter,...)
+      custom_parallel_lapply(X=n_latentclasses,FUN=function(poXi,s_survey_data,modelformula,nrep,maxiter,...)
       {
         library(poLCA) #for fixing stange situation that Windows does not fork well
         #### lapply(2:7,function(poXi,s_survey_data) {
-        lcamodelbuildtresult<-poLCA(
-          data = s_survey_data,
-          formula = as.formula(modelformula),
-          nclass = poXi,
-          nrep = nrep,
-          maxiter = maxiter
-          #graphs = TRUE,
-        )
+        lcamodelbuildtresult <-if (gtools::invalid(poXi) || (is.integer(poXi) && poXi<=0)) {
+          list("model"=NULL)
+        } else {
+          poLCA(
+            data = s_survey_data,
+            formula = as.formula(modelformula),
+            nclass = poXi,
+            nrep = nrep,
+            maxiter = maxiter
+            #graphs = TRUE,
+          )
+        }
         lcamodelbuildtresult$nclass <- poXi
         lcamodelbuildtresult$modelformula <- modelformula
         return(lcamodelbuildtresult)
@@ -1424,127 +1429,146 @@ custom_generate_LCA_model<-function(X, n_latentclasses=2:5, nrep=30, maxiter=100
 ###  )
 ###}
 
-#測試調整參數用
-t_survey_data_test<-survey_data_test[3]
-needsurveyi <- 1
-needsurvey <- t_survey_data_test[[1]]$SURVEY[needsurveyi]
-
-cov_vars <- c(lcaneed_party_constituency[[needsurvey]],lcaneed_ethnicity[[needsurvey]],lcaneed_identity[[needsurvey]],lcaneed_other_cov[[needsurvey]])
-cov_vars_combns <- unlist(
-  lapply(1:length(cov_vars),
-         function(i)combn(1:length(cov_vars),i,simplify=FALSE)
-  )
-  ,recursive=FALSE) %>%
-  lapply(FUN=function(X,var) extract(var,X), var=cov_vars)
 
 load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn-backup(509processed).RData"))
 load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
-modelformula_prefix <- "cbind(v90,v91,v92) ~"
-list_information_df_of_lca <- lapply(LCAmodel_with_indp_covparty_combn, function(X) {
-  workable_model_len <- length(X$model[[1]])
-  if (workable_model_len>0) {
-    ret_inf <- lapply(X$model[[1]], function(model) {
-      data.frame(
-        "nclass"=model$nclass,
-        "modelformula"=model$modelformula,
-        "bic"=model$bic,
-        "aic"=model$aic,
-        "residf"=model$resid.df,
-        "chisq"=model$Chisq,
-        "Gsq"=model$Gsq,
-        "llik"=model$llik
-      )
-    }) %>%
-      plyr::rbind.fill()
-  } else {
-    simformula <- X$formula
-    #customgsub(X$formula,pattern = '", "', replacement = "+") %>%
-    #customgsub(pattern = '[c()"]', replacement = '') %>%
-    #paste(modelformula_prefix, ., collapse="")
-    ret_inf <- data.frame("nclass"=NA, "modelformula"=simformula, "bic"=NA,
-                          "aic"=NA, "residf"=NA, "chisq"=NA, "Gsq"=NA, "llik"=NA)
-  }
-  return(ret_inf)
-})%>%
-  plyr::rbind.fill() #View(filter(list_information_df_of_lca,nclass>2) %>% arrange(bic))
+save(LCAmodel_with_indp_covparty_combn,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
+LCAmodel_with_indp_covparty_combn<-list("2004citizen"=list(),"2010overall"=LCAmodel_with_indp_covparty_combn)
+save(LCAmodel_with_indp_covparty_combn,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn_for_apply.RData"))
+load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn_for_apply.RData"))
+
+#測試調整參數用
+t_survey_data_test<-survey_data_test
 need_in_lcaneed_party_constituency_combn_i<-1
-filter_and_arranged_inf_of_lca <- filter(list_information_df_of_lca,nclass>2) %>%
-  arrange(bic) #View(filter_and_arranged_inf_of_lca)
-#custom setup to generate model here ","
 prompt_for_lcamodel <- TRUE
-if (length(LCAmodel_with_indp_covparty_combn)<1) {LCAmodel_with_indp_covparty_combn<-list()}
-for (lcaneed_party_constituency_combn_item in cov_vars_combns[need_in_lcaneed_party_constituency_combn_i:length(cov_vars_combns)]) {
-  need_in_lcaneed_party_constituency_combn <- list()
-  need_in_lcaneed_party_constituency_combn[[needsurvey]] <- lcaneed_party_constituency_combn_item
-  if (prompt_for_lcamodel) {
-    process_lca_formula_n <- readline(prompt="Enter an integer: ") %>%
-      as.integer()
-    need_in_lcaneed_party_constituency_combn[[needsurvey]] <- 
-      filter_and_arranged_inf_of_lca[[process_lca_formula_n,c("modelformula")]] %>% as.character() %>% stringi::stri_split(regex=" ~ ") %>% unlist() %>% getElement(2) %>%  stringi::stri_split(regex="\\+") %>% unlist()
-  }
-  lcaformula<-paste(need_in_lcaneed_party_constituency_combn[[needsurvey]],collapse = "+") %>%
-    paste(modelformula_prefix, ., collapse = "")
-  if (lcaformula %in% as.character(list_information_df_of_lca$modelformula)) {
-    message(lcaformula," in!")
-    if (prompt_for_lcamodel!=TRUE) {
-      next()
-    }
-  } else {
-    message(lcaformula," not in! to be processed")
-  }
-  #先測試 degree of freedom 是否為負數不然白忙一場
-  LCAmodel_with_indp_covparty_testfor_resid_df <- custom_parallel_lapply(
-    X=t_survey_data_test,
-    FUN=custom_generate_LCA_model,
-    exportvar=c("t_survey_data_test","custom_parallel_lapply","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
-    exportlib=c("base",lib,"poLCA","parallel"),
-    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
-    nrep = 1,
-    maxiter = 1,
-    firstlcaneed=lcaneed_independence_attitude,
-    secondlcaneed=need_in_lcaneed_party_constituency_combn
-  ) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
-  LCAmodel_with_indp_covparty_test_correct_classes <- lapply(LCAmodel_with_indp_covparty_testfor_resid_df, function(X) {
-    #,getElement,"resid.df"
-    if (class(X)=="list") {
-      class_assigned<-sapply(X,function(Z) {Z$nclass})
-      wheredfbiggerthanzero<-which(sapply(X,getElement,"resid.df")>0)
-      correct_class_to_assign<-class_assigned[wheredfbiggerthanzero]
-      return(correct_class_to_assign)
+#test <- lapply(t_survey_data_test, function(a_single_survey_dataset,...)  {
+for (key in names(t_survey_data_test)) {
+  message("need_in_lcaneed_party_constituency_combn_i is ",need_in_lcaneed_party_constituency_combn_i)
+  a_single_survey_dataset <- t_survey_data_test[[key]]
+  needsurveyi <- 1
+  needsurvey <- a_single_survey_dataset$SURVEY[1]
+  cov_vars <- c(lcaneed_party_constituency[[needsurvey]],lcaneed_ethnicity[[needsurvey]],lcaneed_identity[[needsurvey]],lcaneed_other_cov[[needsurvey]])
+  cov_vars_combns <- unlist(
+    lapply(1:length(cov_vars),
+           function(i)combn(1:length(cov_vars),i,simplify=FALSE)
+    )
+    ,recursive=FALSE) %>%
+    lapply(FUN=function(X,var) extract(var,X), var=cov_vars)
+  modelformula_prefix <- paste0(lcaneed_independence_attitude[[needsurvey]], collapse=",", sep="") %>%
+    paste0("cbind(", ., ") ~")#"cbind(v90,v91,v92) ~"
+  list_information_df_of_lca <- lapply(getElement(LCAmodel_with_indp_covparty_combn,needsurvey), function(X) {
+    #X <- getElement(LCAmodel_with_indp_covparty_combn,needsurvey)[[20]]
+    workable_model <- which(sapply(X$model,class)=="poLCA") 
+    workable_model_len <- length(workable_model)
+    if (workable_model_len>0) {
+      ret_inf <- lapply(X[workable_model]$model, function(model) {
+        data.frame(
+          "nclass"=model$nclass,
+          "modelformula"=model$modelformula,
+          "bic"=model$bic,
+          "aic"=model$aic,
+          "residf"=model$resid.df,
+          "chisq"=model$Chisq,
+          "Gsq"=model$Gsq,
+          "llik"=model$llik
+        )
+      }) %>%
+        plyr::rbind.fill()
     } else {
-      return(NULL)
+      ret_inf <- data.frame("nclass"=NA, "modelformula"=X$formula, "bic"=NA,
+                            "aic"=NA, "residf"=NA, "chisq"=NA, "Gsq"=NA, "llik"=NA)
     }
+    return(ret_inf)
   }) %>%
-    setNames(stringi::stri_replace(names(.),replacement="",regex=".sav"))
-  LCAmodel_with_indp_covparty<-custom_parallel_lapply(
-    X=t_survey_data_test,
-    FUN=custom_generate_LCA_model,
-    exportvar=c("t_survey_data_test","custom_parallel_lapply","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
-    exportlib=c("base",lib,"poLCA","parallel"),
-    n_latentclasses=LCAmodel_with_indp_covparty_test_correct_classes,
-    nrep = 150,
-    maxiter = 4000,
-    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
-    firstlcaneed=lcaneed_independence_attitude,
-    secondlcaneed=need_in_lcaneed_party_constituency_combn
-  )
-  if (prompt_for_lcamodel) {
-    cat("\014")
-    stdout<-capture.output(LCAmodel_with_indp_covparty)
-    LCAresult_to_sheet(stdout)
-    next()
+    plyr::rbind.fill() #View(filter(list_information_df_of_lca,nclass>2) %>% arrange(bic))
+  if (!is.null(list_information_df_of_lca)) {
+    filter_and_arranged_inf_of_lca <- filter(list_information_df_of_lca,nclass>2) %>%
+      arrange(bic)
   } else {
-    LCAmodel_with_indp_covparty_combn <- rlist::list.append(LCAmodel_with_indp_covparty_combn,list(
-      "formula"=paste(unlist(need_in_lcaneed_party_constituency_combn),collapse="+") %>% paste(modelformula_prefix, .),
-      "correctclasses"=LCAmodel_with_indp_covparty_test_correct_classes,
-      "model"=LCAmodel_with_indp_covparty
-    ))
-    need_in_lcaneed_party_constituency_combn_i <- need_in_lcaneed_party_constituency_combn_i+1
-    if ((need_in_lcaneed_party_constituency_combn_i %% 10)==0) {
-      save(LCAmodel_with_indp_covparty_combn,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
-    }
+    filter_and_arranged_inf_of_lca <- NULL
   }
-}
+  if (length(LCAmodel_with_indp_covparty_combn)<1) {LCAmodel_with_indp_covparty_combn<-list()}
+  for (lcaneed_party_constituency_combn_item in cov_vars_combns[need_in_lcaneed_party_constituency_combn_i:length(cov_vars_combns)]) {
+    need_in_lcaneed_party_constituency_combn <- list()
+    need_in_lcaneed_party_constituency_combn[[needsurvey]] <- lcaneed_party_constituency_combn_item
+    if (prompt_for_lcamodel) {
+      process_lca_formula_n <- as.integer(readline(prompt="Enter an integer: "))
+      need_in_lcaneed_party_constituency_combn[[needsurvey]] <- 
+        filter_and_arranged_inf_of_lca[[process_lca_formula_n,c("modelformula")]] %>% as.character() %>% stringi::stri_split(regex=" ~ ") %>% unlist() %>% getElement(2) %>%  stringi::stri_split(regex="\\+") %>% unlist()
+    }
+    lcaformula<-paste(need_in_lcaneed_party_constituency_combn[[needsurvey]],collapse = "+") %>%
+      paste(modelformula_prefix, ., collapse = "")
+    if (lcaformula %in% as.character(list_information_df_of_lca$modelformula)) {
+      message(lcaformula," in!")
+      if (prompt_for_lcamodel!=TRUE) {
+        next()
+      }
+    } else {
+      message(lcaformula," not in! to be processed")
+    }
+    #先測試 degree of freedom 是否為負數不然白忙一場
+    LCAmodel_with_indp_covparty_testfor_resid_df <- custom_generate_LCA_model(
+      X=a_single_survey_dataset,
+      exportvar=c("t_survey_data_test","custom_parallel_lapply","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
+      exportlib=c("base","magrittr","dplyr","poLCA","parallel"),
+      outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
+      nrep = 1,
+      maxiter = 1,
+      firstlcaneed=lcaneed_independence_attitude,
+      secondlcaneed=need_in_lcaneed_party_constituency_combn
+    ) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
+    LCAmodel_with_indp_covparty_test_correct_classes <- lapply(LCAmodel_with_indp_covparty_testfor_resid_df, function(X) {
+      return_classes <- switch(class(X),
+        "list"={
+          class_assigned<-sapply(X,function(Z) {Z$nclass})
+          wheredfbiggerthanzero<-which(sapply(X,getElement,"resid.df")>0)
+          class_assigned[wheredfbiggerthanzero]
+        },
+        "poLCA"=if(X$resid.df>0) X$nclass else NULL,
+        NULL
+      )
+      return(return_classes)
+    }) #%>%
+      #setNames(stringi::stri_replace(names(.),replacement="",regex=".sav"))
+    LCAmodel_with_indp_covparty<-custom_generate_LCA_model(
+      X=a_single_survey_dataset,
+      exportvar=c("t_survey_data_test","custom_parallel_lapply","lcaneed_independence_attitude","lcaneed_party_constituency","lcaneed_ethnicity","lcaneed_identity","lcaneed_other_cov"),
+      exportlib=c("base","magrittr","dplyr","poLCA","parallel"),
+      n_latentclasses=LCAmodel_with_indp_covparty_test_correct_classes,
+      nrep = 45,
+      maxiter = 2000,
+      outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
+      firstlcaneed=lcaneed_independence_attitude,
+      secondlcaneed=need_in_lcaneed_party_constituency_combn
+    )
+    if (prompt_for_lcamodel) {
+      cat("\014")
+      stdout<-capture.output(LCAmodel_with_indp_covparty)
+      LCAresult_to_sheet(stdout)
+      next()
+    } else {
+      LCAmodel_with_indp_covparty_combn[[needsurvey]] <- rlist::list.append(LCAmodel_with_indp_covparty_combn[[needsurvey]],list(
+        "formula"=paste(unlist(need_in_lcaneed_party_constituency_combn),collapse="+") %>% paste(modelformula_prefix, .),
+        "correctclasses"=LCAmodel_with_indp_covparty_test_correct_classes,
+        "model"=LCAmodel_with_indp_covparty
+      ))
+      need_in_lcaneed_party_constituency_combn_i <- need_in_lcaneed_party_constituency_combn_i+1
+      if ((need_in_lcaneed_party_constituency_combn_i %% 8)==0) {
+        save(LCAmodel_with_indp_covparty_combn,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
+      }
+    }
+    #break
+  }
+  break
+}#,lcaneed_independence_attitude=lcaneed_independence_attitude,lcaneed_ethnicity=lcaneed_ethnicity,lcaneed_identity=lcaneed_identity,lcaneed_other_cov=lcaneed_other_cov)
+
+
+
+
+#LCAmodel_with_indp_covparty_combn[["2010overall"]]<-lapply(LCAmodel_with_indp_covparty_combn[["2010overall"]], function(X) {
+#  X$model<-X$model[[1]]
+#})
+
 
 #LCAmodel_with_indp_covparty_combn <- lapply(LCAmodel_with_indp_covparty_combn, function(X,modelformula_prefix,...) {
 #  simformula <- customgsub(X$formula,pattern = '", "', replacement = "+") %>%
