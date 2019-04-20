@@ -4,13 +4,13 @@ t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cp
 source(file = "shared_functions.R")
 #選舉資料
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
-supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2010hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
+supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2009hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
 terms<-c(5,6,7,8,9)
 
 
 # 第一部份：立委及選區資料 -------------------------------------------
 
-elections_df<-data.frame()
+elections_df <- elections_df_onekind <-data.frame()
 for (term in terms) {
   message("term=",term)
   term_character<-paste0("0",term)
@@ -81,7 +81,17 @@ for (term in terms) {
       #                "鄉鎮市區.y",   "鄉鎮市區名稱", "村里別.y",     "村里名稱")
       #名字 名字.x 號次 排名 性別 性別.x 出生日期 出生日期.x 年齡 年齡.x 出生地 出生地.x 
     }
-    elections_df_onekind <- cbind(term = term_character, elections_df_onekind, elec_dist_type = elec_dist_type)
+    elections_df_onekind <- cbind(term = term_character, elections_df_onekind, elec_dist_type = elec_dist_type) %>%
+      mutate_cond(term=="05" && elec_dist_type=="district", 年齡=91-as.integer(出生日期)) %>%
+      mutate_cond(term=="05" && elec_dist_type=="ab_m", 年齡=91-as.integer(出生日期)) %>%
+      mutate_cond(term=="05" && elec_dist_type=="ab_plain", 年齡=91-as.integer(出生日期)) %>%
+      mutate_cond(term=="06" && elec_dist_type=="district", 年齡=93-as.integer(出生日期)) %>%
+      mutate_cond(term=="06" && elec_dist_type=="ab_m", 年齡=93-as.integer(出生日期)) %>%
+      mutate_cond(term=="06" && elec_dist_type=="ab_plain", 年齡=93-as.integer(出生日期))
+    if (elections_df_onekind$年齡[1]==99 | is.na(elections_df_onekind$年齡[1])) {
+      message("term = ", term, " and elec_dist_type = ", elec_dist_type, " and birthday format = ", elections_df_onekind$出生日期[1])
+      stop()
+    }
     elections_df <- bind_rows(elections_df,elections_df_onekind) #結合參選人以及選區的資料
   } #分區、全國區結束
   #check: filter(elections_df,is.na(選舉區名稱)) %>% View()
@@ -89,15 +99,14 @@ for (term in terms) {
 }
 elections_df <- elections_df[, c("term", "號次", "名字", "性別", "出生日期", "年齡", "出生地", "學歷", "現任", "當選註記", "政黨名稱", "選舉區名稱", "縣市名稱", "鄉鎮市區名稱", "村里名稱", "排名", "elec_dist_type")] %>%
   rename(ballotid = 號次, name = 名字, sex = 性別, birthday = 出生日期, age = 年齡, birthplace = 出生地, education = 學歷, incumbent = 現任, wonelection = 當選註記, party = 政黨名稱, electionarea = 選舉區名稱, admincity = 縣市名稱, admindistrict = 鄉鎮市區名稱, adminvillage = 村里名稱, plranking = 排名) %>%
-  mutate_at(c("sex"), funs(customgsub(sex, "2", "女"))) %>%
-  mutate_at(c("sex"), funs(customgsub(sex, "1", "男")))
+  mutate_at(c("sex"), dplyr::recode_factor, `2`="女", `1`="男")
 
 #透過全國行政區的行政區名稱，比對不完整鄉鎮市區名稱的郵遞區號行政區，組裝出行政區郵遞區號
 zipcodecsv<-paste0(dataset_file_directory,"zip3.xlsx")
 zipcode_df <- openxlsx::read.xlsx(zipcodecsv, sheet = 1) %>%
   rename(admincity = 縣市名稱, admindistrict = 鄉鎮市區名稱) %>%
   mutate_at(c("admindistrict"), funs(customgsub(admindistrict, "區", ""))) %>% ##鄉鎮市區名稱還沒有統一
-  mutate_at("term",funs(as.character))
+  mutate_at("term",as.character)
 ##從選區資料抓出舊制全國縣市鄉鎮市區
 all_admin_dist <- distinct(elections_df, term, admincity, admindistrict) %>%
   filter(!is.na(admincity)) %>%

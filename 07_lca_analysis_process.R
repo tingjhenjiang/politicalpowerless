@@ -21,12 +21,12 @@ lcaneed_independence_attitude<-list(
   "2016citizen"=c("h10r")#2016只有一題統獨傾向"
 )
 lcaneed_party_constituency<-list(
-  "2004citizen"=c("v88","v89","v90","v99","v98b"),#可用 v88 v89 v90 v98b v99 (多類別)"v98r"
+  "2004citizen"=c("v88","v89","v90","v98r","v99"),#可用 v88 v89 v90 v99 (多類別)"v98r"
   "2010env"=c("v103r"),#2010env只有一題政黨傾向
-  "2010overall"=c("v84","v86","v87a1r","v93","v94","v88","v85v86v87sumup","v93v94sumup","v85v88sumup"), #可用 v84 v86 v87a1r v93 v94(多類):v88,"v85v86v87sumup","v93v94sumup","v85v88sumup"
+  "2010overall"=c("v84","v86","v87a1r","v85v86v87sumup","v93v94sumup","v85v88sumup"), #可用 v84 v86 v87a1r v93 v94(多類):v88,"v85v86v87sumup","v93v94sumup","v85v88sumup"
   "2016citizen"=c("h5","h6r_recode_party_for_forgotten","h7","h8r","h9r")
 )
-#lapply(survey_data_test[[1]][,lcaneed_party_constituency[[1]]], is.na) %>%
+#lapply(survey_data_test[[1]][,c(lcaneed_party_constituency[[1]],"v98r")], is.na) %>%
 #  lapply(sum)
 lcaneed_ethnicity<-list(
   "2004citizen"=c("myown_selfid"),#"myown_dad_ethgroup","myown_mom_ethgroup",
@@ -148,7 +148,6 @@ load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covpar
 if ({usingLCAmodel2010overall<-TRUE; usingLCAmodel2010overall}) {
   message("NICE") #LCAmodel_with_indp_covparty_combn_2010overall
 }
-load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn_2010overall.RData"))
 load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
 #save(LCAmodel_with_indp_covparty_combn,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
 LCAmodel_with_indp_covparty_combn<-list("2004citizen"=LCAmodel_with_indp_covparty_combn[["2004citizen"]],"2010overall"=LCAmodel_with_indp_covparty_combn_2010overall)
@@ -176,7 +175,7 @@ for (key in names(t_survey_data_test[3])) {
     ,recursive=FALSE) %>%
     lapply(FUN=function(X,var) extract(var,X), var=cov_vars)
   if (needsurvey=="2004citizen") {
-    cov_vars_combns %<>% rlist::list.filter("v98b" %in% .)
+    #cov_vars_combns %<>% rlist::list.filter("v98b" %in% .)
   }
   modelformula_prefix <- paste0(lcaneed_independence_attitude[[needsurvey]], collapse=",", sep="") %>%
     paste0("cbind(", ., ") ~")#"cbind(v90,v91,v92) ~"
@@ -331,6 +330,7 @@ for (key in names(t_survey_data_test[3])) {
   }
   break
 }#,lcaneed_independence_attitude=lcaneed_independence_attitude,lcaneed_ethnicity=lcaneed_ethnicity,lcaneed_identity=lcaneed_identity,lcaneed_other_cov=lcaneed_other_cov)
+
 a_single_survey_dataset <- survey_data_test[[1]]
 need_in_lcaneed_party_constituency_combn<-list("2004citizen"=c("v98b"), "2010overall"=c("v87a1r","v94","v89r"))
 testmodel <- poLCA::poLCA( #custom_generate_LCA_model(
@@ -345,8 +345,8 @@ testmodel <- poLCA::poLCA( #custom_generate_LCA_model(
   #firstlcaneed=lcaneed_independence_attitude,
   #secondlcaneed=need_in_lcaneed_party_constituency_combn
 )
-#2004citizen cbind(v95,v96,v97) ~ v98b
-#2010overall cbind(v90,v91,v92) ~ v87a1r+v94+v89r
+#2004citizen cbind(v95,v96,v97) ~ v98b needs 1781
+#2010overall cbind(v90,v91,v92) ~ v87a1r+v94+v89r needs 2209
 #save(LCAmodel_with_indp_covparty_combn_2010overall,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn_2010overall.RData"))
 #LCAmodel_with_indp_covparty_combn[["2010overall"]]<-lapply(LCAmodel_with_indp_covparty_combn[["2010overall"]], function(X) {
 #  X$model<-X$model[[1]]
@@ -378,7 +378,6 @@ LCAmodel_with_partyconstituency_nocov <- custom_parallel_lapply(
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
 ) #,secondlcaneed=lcaneed_party_constituency,thirdlcaneed=lcaneed_ethnicity,fourthlcaneed=lcaneed_identity,fifthlcaneed=lcaneed_other_cov
-
 
 save(LCAmodel_with_partyconstituency_nocov,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_partyconstituency_nocov",t_sessioninfo_running,".RData"))
 
@@ -433,24 +432,12 @@ if({LCA_recoding_by_restarting_modeling<-FALSE;LCA_recoding_by_restarting_modeli
   )
 }
 
-LCAmodel_with_indp_covparty[[3]][[2]]<-new_LCAmodel_with_indp_covparty_3_3
 survey_data_test[[1]]$myown_indp_atti <- LCAmodel_2004citizen$predclass %>%
-  dplyr::recode_factor(`1`="[5] 獨立", `2`="[2] 稍微支持統一", `3`="[3] 中立", `4`="[1] 統一", `5`="[4] 稍微支持獨立")
-  
-  
-survey_data_test[[1]]$myown_indp_atti<-factor(
-  LCAmodel_with_indp_covparty[[1]][[2]]$predclass,
-  levels = c(1,2,3), labels = c("[1] 統一", "[2] 中立", "[3] 獨立")
-)#save(survey_data_test,file=paste0(filespath,"data",slash,"survey_data_test.RData"))
-survey_data_test[[3]]$myown_indp_atti<-factor(
-  LCAmodel_with_indp_covparty[[3]][[2]]$predclass,
-  levels = c(1,2,3), labels = c("[1] 統一", "[2] 中立", "[3] 獨立")
-)
-table(LCAmodel_with_indp_covparty[[3]][[2]]$predclass)
-survey_data_test[[3]]$myown_indp_atti<-factor(
-  LCAmodel_with_indp_covparty[[3]][[2]]$predclass,
-  levels = c(1,2,3), labels = c("[2] 中立", "[1] 統一", "[3] 獨立") #needs interpretation and modify here
-) %>% table()
+  dplyr::recode_factor(`1`="[1] 統一", `2`="[2] 中立", `3`="[3] 獨立", .ordered = TRUE)
+survey_data_test[[3]]$myown_indp_atti <- LCAmodel_2010overall$predclass %>%
+  dplyr::recode_factor(`3`="[1] 統一", `2`="[2] 中立", `1`="[3] 獨立", .ordered = TRUE)
 survey_data_test[[4]]$myown_indp_atti<-survey_data_test[[4]]$h10r
+
+
 #save(survey_data_test,file=paste0(filespath,"data",slash,"survey_data_test.RData"))
 
