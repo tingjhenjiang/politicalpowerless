@@ -355,7 +355,7 @@ save(legislators_additional_attr,file=paste0(filespath,"data",slash,"legislator_
 
 # 第二部分：投票及議案及「問卷答案對照意向」資料,主要也就是RData&excel檔  -------------------------------------------
 
-if (FALSE) { #舊方法暫時忽略
+if ({incoporate_party_seats<-FALSE; incoporate_party_seats}) { #舊方法暫時忽略
   partyseats <- data.frame(
     "term"=7,
     "party"=c("中國國民黨","民主進步黨","無黨團結聯盟","親民黨","無黨籍及未經政黨推薦"),                       
@@ -631,8 +631,8 @@ survey_data <- survey_data[order(names(survey_data))] %>%
 #save(survey_data,file=paste0(filespath,"data",slash,"all_survey_combined.RData"))
 #save(survey_data,file=paste0(filespath,"data",slash,"all_survey_combined_NAuntransformed.RData"))
 
-labeladjusmentagain <- FALSE
-if (labeladjusmentagain) {
+
+if ({labeladjusmentagain <- FALSE; labeladjusmentagain}) {
   survey_data_labels <- lapply(survey_data,function(X) {
     sapply(X,FUN=attr,which="levels") %>%
       #sapply(X,FUN=function(X) {
@@ -645,8 +645,8 @@ if (labeladjusmentagain) {
 #survey_data_labels已經預處理過，直接load即可
 load(paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
 
-writingfeather<-FALSE
-if (writingfeather) {
+
+if ({writingfeather<-FALSE;writingfeather}) {
   forwritingfeather<-mapply(function(X,Y,A,B) {
     #testing purpose
     #df<-as.data.frame(survey_data[[1]])
@@ -751,8 +751,8 @@ generate_predictor_matrix<-function(df,calculationbasisvar=c(),imputedOnlyVars=c
   return(predictorMatrix)
 }
 
-VIMtestplot<-FALSE
-if (VIMtestplot) {
+
+if ({VIMtestplot<-FALSE;VIMtestplot}) {
   survey_data_test<-survey_data
   #survey_data_test <- lapply(survey_data,function(X) {
   #  dplyr::mutate_at(X,setdiff(colnames(X),c("myown_age","myown_occp","myown_ses")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) )  )
@@ -864,7 +864,7 @@ lapply(survey_data_test,function(X,need_particip_var,need_ses_var_assigned,imput
   return(checkdf)
 },need_particip_var=need_particip_var,need_ses_var_assigned=need_ses_var_assigned,imputedvaluecolumn=imputedvaluecolumn)
 
-if (FALSE) { #此部分屬於舊code，僅保留參考用
+if ({oldimputationmethod<-FALSE; oldimputationmethod}) { #此部分屬於舊code，僅保留參考用
   #1) numeric data
   which(as.vector(sapply(survey_data$`2010env.sav`,is.numeric)))
   #2) factor data with 2 levels
@@ -1088,8 +1088,8 @@ library(ltm)
 library(eRm)
 library(mirt)
 
-analysingefficacy <- FALSE
-if (analysingefficacy) {
+
+if ({analysingefficacy <- FALSE;analysingefficacy}) {
   need_efficacy_var<-list(
     "2004citizen"=c("v47","v48","v52","v49","v50","v51"),
     "2010env"=c("v61","v70a","v78","v21a","v21b","v26a","v26b","v26c","v26d","v79"),
@@ -1206,8 +1206,8 @@ survey_data_test <- lapply(survey_data_test, function(X,need_particip_var_assign
   return(X)
 },need_particip_var_assigned=need_particip_var)
 
-using_ltm_package <- FALSE
-if (using_ltm_package) {
+
+if ({using_ltm_package <- FALSE;using_ltm_package}) {
   survey_data_with_particip <- lapply(survey_data_test,function(X,need_particip_var_assigned) {
     #for testing purpose
     X<-survey_data_test[[1]]
@@ -1266,8 +1266,8 @@ if (using_ltm_package) {
 # 第五-3-2部份：non-parametric IRT Mokken scale analysis Model ####################
 #################### mokken, Mokken Scale Analysis in R
 #################### read: https://www.jstatsoft.org/article/view/v020i11/v20i11.pdf
-using_IRT_Mokken <- FALSE
-if (using_IRT_Mokken) {
+
+if ({using_IRT_Mokken <- FALSE;using_IRT_Mokken}) {
   mokken::coefH(as.data.frame(X[,need_particip_var_assigned]))
   checkmokkenresult<-mokken::check.monotonicity(as.data.frame(X[,need_particip_var_assigned]))
   summary(checkmokkenresult)
@@ -1282,8 +1282,8 @@ if (using_IRT_Mokken) {
 # mirt:mirt
 # 'grsm' and 'grsmIRT' - graded ratings scale model in the slope-interceptand classical IRT parameterization.
 # 'grsmIRT'is restricted to unidimensional models (Muraki, 1992)
-usinggrsm <- FALSE
-if (usinggrsm) {
+
+if ({usinggrsm <- FALSE;usinggrsm}) {
   rst_mirt1 <- mirt::mirt(data = X[,need_particip_var_assigned], model = 1, verbose = T, itemtype= "grsmIRT")
   coef(rst_mirt1)
   for (itemplotn in 1:length(need_particip_var_assigned)) {
@@ -1299,8 +1299,8 @@ if (usinggrsm) {
 ## ltm::gpcm
 ## mirt::mirt by gpcmIRT
 ## 2016 not fit: gpcm, rasch 1PL all not fit;
-usinggpcm <- FALSE
-if (usinggpcm) {
+
+if ({usinggpcm <- FALSE;usinggpcm}) {
   gpcmconstraint<-"gpcm" #c("gpcm", "1PL", "rasch")
   X.gpcm<-ltm::gpcm(X[,need_particip_var_assigned],constraint=gpcmconstraint,start.val="random")
   summary(X.gpcm)
@@ -1446,8 +1446,13 @@ LCAresult_to_sheet <- function(LCAstr) {
 
 
 load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn-backup(509processed).RData"))
+if ({usingLCAmodel2010overall<-TRUE; usingLCAmodel2010overall}) {
+  message("NICE") #LCAmodel_with_indp_covparty_combn_2010overall
+}
+load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn_2010overall.RData"))
 load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
 #save(LCAmodel_with_indp_covparty_combn,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn.RData"))
+LCAmodel_with_indp_covparty_combn<-list("2004citizen"=LCAmodel_with_indp_covparty_combn[["2004citizen"]],"2010overall"=LCAmodel_with_indp_covparty_combn_2010overall)
 LCAmodel_with_indp_covparty_combn<-list("2004citizen"=list(),"2010overall"=LCAmodel_with_indp_covparty_combn)
 #save(LCAmodel_with_indp_covparty_combn,file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn_for_apply.RData"))
 load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn_for_apply.RData"))
@@ -1459,10 +1464,9 @@ prompt_for_lcamodel <- FALSE #prompt_for_lcamodel <- TRUE
 only_check_between_models <- FALSE #only_check_between_models <- TRUE
 #names(t_survey_data_test)<-c("2004citizen", "2010env", "2010overall", "2016citizen")
 #test <- lapply(t_survey_data_test, function(a_single_survey_dataset,...)  {
-for (key in names(t_survey_data_test)) {
+for (key in names(t_survey_data_test[3])) {
   message("need_in_lcaneed_party_constituency_combn_i is ",need_in_lcaneed_party_constituency_combn_i)
   a_single_survey_dataset <- t_survey_data_test[[key]]
-  needsurveyi <- 1
   needsurvey <- a_single_survey_dataset$SURVEY[1]
   cov_vars <- c(lcaneed_party_constituency[[needsurvey]],lcaneed_ethnicity[[needsurvey]],lcaneed_identity[[needsurvey]],lcaneed_other_cov[[needsurvey]])
   cov_vars_combns <- unlist(
@@ -1471,6 +1475,9 @@ for (key in names(t_survey_data_test)) {
     )
     ,recursive=FALSE) %>%
     lapply(FUN=function(X,var) extract(var,X), var=cov_vars)
+  if (needsurvey=="2004citizen") {
+    cov_vars_combns %<>% rlist::list.filter("v98b" %in% .)
+  }
   modelformula_prefix <- paste0(lcaneed_independence_attitude[[needsurvey]], collapse=",", sep="") %>%
     paste0("cbind(", ., ") ~")#"cbind(v90,v91,v92) ~"
   list_information_df_of_lca <- lapply(getElement(LCAmodel_with_indp_covparty_combn,needsurvey), function(X) {
@@ -1500,14 +1507,17 @@ for (key in names(t_survey_data_test)) {
   }) %>%
     plyr::rbind.fill() #View(filter(list_information_df_of_lca,nclass>2) %>% arrange(bic))
   if (only_check_between_models) {
-    list_information_df_of_lcas[[key]] <- list_information_df_of_lca
+    if (!exists("list_information_df_of_lcas")) {list_information_df_of_lcas <- list()}
+    list_information_df_of_lcas[[needsurvey]] <- list_information_df_of_lca
     next()
   }
   if (!is.null(list_information_df_of_lca)) {
     filter_and_arranged_inf_of_lca <- filter(list_information_df_of_lca,nclass>2) %>%
       arrange(bic)
     if (prompt_for_lcamodel) {
-      filter_and_arranged_inf_of_lca <- filter(filter_and_arranged_inf_of_lca,!stringr::str_detect(modelformula,"v92_"))
+      if (needsurvey=="2004citizen") {
+        filter_and_arranged_inf_of_lca <- filter(filter_and_arranged_inf_of_lca,!stringr::str_detect(modelformula,"v92_"))
+      }
       View(filter_and_arranged_inf_of_lca)
     }
   } else {
@@ -1556,7 +1566,8 @@ for (key in names(t_survey_data_test)) {
       return(return_classes)
     }) #%>%
       #setNames(stringi::stri_replace(names(.),replacement="",regex=".sav"))
-    LCAmodel_with_indp_covparty<-switch(as.character(prompt_for_lcamodel),
+    if (prompt_for_lcamodel) {LCAmodeling_again <- readline(prompt="Modeling again? (N=NO): ")}
+    LCAmodel_with_indp_covparty<-switch(as.character(prompt_for_lcamodel && LCAmodeling_again=="N"),
       "TRUE"={
         for (lcamodelitem in LCAmodel_with_indp_covparty_combn[[needsurvey]]) {
           message(lcamodelitem$model[[1]]$modelformula)
@@ -1592,11 +1603,13 @@ for (key in names(t_survey_data_test)) {
       ))
     if (gtools::invalid(LCAmodel_with_indp_covparty)) {next()}
     if (prompt_for_lcamodel) {
-      path_to_temp_xlsx_for_lca_result <- "LCAModel.xlsx"
+      path_to_temp_xlsx_for_lca_result <- here::here("LCAModel.xlsx")
       cat("\014")
       stdout<-capture.output(LCAmodel_with_indp_covparty)
       openxlsx::write.xlsx(LCAresult_to_sheet(stdout), file=path_to_temp_xlsx_for_lca_result)
-      shell(path_to_temp_xlsx_for_lca_result)
+      #shell(path_to_temp_xlsx_for_lca_result)
+      #shell.exec(path_to_temp_xlsx_for_lca_result)
+      #system(shell.exec,path_to_temp_xlsx_for_lca_result)
       next()
     } else {
       LCAmodel_with_indp_covparty_combn[[needsurvey]] <- rlist::list.append(LCAmodel_with_indp_covparty_combn[[needsurvey]],list(
