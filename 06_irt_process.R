@@ -77,7 +77,7 @@ if ({analysingefficacy <- FALSE;analysingefficacy}) {
     for (alteri in 1:3) {
       need_efficacy_recode_var <- extract2(need_efficacy_recode_var_assigned[[alteri]],X$SURVEY[1]) %>%
         intersect(names(X))
-      X %<>% mutate_at(need_efficacy_recode_var,funs(dplyr::recode),!!!recode_list[[alteri]])
+      X %<>% mutate_at(need_efficacy_recode_var, dplyr::recode, !!!recode_list[[alteri]])
     }
     return(X)
   },need_efficacy_var_assigned=need_efficacy_var,need_efficacy_recode_var_assigned=need_efficacy_recode_var)
@@ -115,7 +115,7 @@ survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigne
     forcats::fct_reorder(X,as.character(X),.fun=unique,.desc=desc) %>%
       return()
   }
-  X <- mutate_at(X,need_particip_var_assigned,funs(customreordercatbylabelname),desc=TRUE)
+  X <- mutate_at(X,need_particip_var_assigned, customreordercatbylabelname, desc=TRUE)
   #forcats::fct_reorder(f,sort(levels(f),decreasing=FALSE))
   #forcats::fct_reorder(f,sort(levels(f),decreasing=TRUE))
   #recode_list<-list( #把越參與的答案改為數字越多，比較好解釋
@@ -125,7 +125,7 @@ survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigne
   #  "2016citizen"=list("1"=4,"2"=3,"3"=2,"4"=1)
   #) %>%
   #  extract2(X$SURVEY[1])
-  #X %<>% mutate_at(need_particip_var_assigned,funs(dplyr::recode),!!!recode_list) %>%
+  #X %<>% mutate_at(need_particip_var_assigned, dplyr::recode,!!!recode_list) %>%
   #  mutate_at(need_particip_var_assigned,funs(as.ordered))
   return(X)
 },need_particip_var_assigned=need_particip_var)

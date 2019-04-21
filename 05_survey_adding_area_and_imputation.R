@@ -2,10 +2,9 @@
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
 source(file = "shared_functions.R")
-survey_data_title<-c("2004citizen","2010env","2010overall","2016citizen") %>% sort()
 gc(verbose=TRUE)
 
-survey_imputation_and_measurement<-openxlsx::read.xlsx(paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx"),sheet = 1)
+survey_imputation_and_measurement<-openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1)
 
 
 
@@ -20,7 +19,7 @@ load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
 
 ##以下部分因為已有既存資料檔，讀取後略過不執行#
 #找出所有行政區對選區資料，並且找出同一鄉鎮市區有不同選區的部分
-#admin_dist_to_elect_dist <- distinct(elections_df_test, term, admincity, electionarea, admindistrict, adminvillage) %>%
+#admin_dist_to_elect_dist <- distinct(elections_df, term, admincity, electionarea, admindistrict, adminvillage) %>%
 #  filter(!is.na(admincity))# %>%
 ##  left_join(all_admin_dist_with_zip)
 #duplicated_area <- distinct(admin_dist_to_elect_dist,term,electionarea,admincity,admindistrict) %>% #,zip,zip3rocyear
@@ -47,10 +46,11 @@ minus_electionarea <- as.data.frame(list(
   "admindistrict" = "中壢市", 
   zip = 320, 
   zip3rocyear = 99))
-survey_restricted_data<-read.xlsx(paste0(dataset_file_directory, "basic_social_survey_restricted_data.xlsx"), sheet = 1)
 survey_data<-paste0(survey_data_title,".sav") %>%
   sapply(function (X,...) paste0(...,X), dataset_file_directory, "merger_survey_dataset",slash) %>%
   lapply(haven::read_sav) %>%
+  lapply(mutate_cond,SURVEY=="2010overall" & sm==91, sm=7) %>% #處理訪問時間不一致
+  lapply(mutate_cond,SURVEY=="2010overall" & sd==91, sd=15) %>% #處理訪問時間不一致
   lapply(dplyr::mutate,stdsurveydate=as.Date(paste(year,sm,sd),"%Y %m %d")) %>%
   lapply(function(X,survey_imp_measure) {
     labelledcolumns<-purrr::map_lgl(X,haven::is.labelled) %>% which(isTRUE(.)) %>% names()
@@ -62,7 +62,7 @@ survey_data<-paste0(survey_data_title,".sav") %>%
       dplyr::select(ID) %>% unlist() %>% as.character() %>% intersect(labelledcolumns)
     need_survey_measure_categorical<-setdiff(names(X),need_survey_measure_scale) %>%
       setdiff(need_survey_measure_ordinal) %>% intersect(labelledcolumns)
-    X %<>% dplyr::mutate_at(need_survey_measure_scale,funs(as.numeric)) %>%
+    X %<>% dplyr::mutate_at(need_survey_measure_scale, as.numeric) %>%
       dplyr::mutate_at(need_survey_measure_ordinal,haven::as_factor,levels='both',ordered=TRUE) %>%
       dplyr::mutate_at(need_survey_measure_categorical,haven::as_factor,levels='both',only_labelled = TRUE)
     return(X)
@@ -91,15 +91,17 @@ survey_data <- mapply(function(X,Y) {
   newdf
   #to_replace_column<-setdiff(colnames(X),c("myown_age","myown_occp","myown_ses"))
   #  dplyr::mutate_at(X,to_replace_column,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999,99996:99999),NA ) )  )
-},X=survey_data,Y=missing_value_labels) #%>%
+},X=survey_data,Y=missing_value_labels) %>%
+  {.[order(names(.))]} %>%
+  lapply(dplyr::left_join,{
+    read.xlsx(paste0(dataset_file_directory, "basic_social_survey_restricted_data.xlsx"), sheet = 1)
+  }) %>%
+  lapply(dplyr::mutate_at,c("myown_job","admincity","admindistrict"),.funs=as.factor)#%>%
 #lapply(function (X) { #較早的串連方式，區分會期
 #  othervar<-setdiff(names(X),c("term1","term2"))
 #  reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
 #    dplyr::filter(!is.na(term))
 #})  %>%
-survey_data <- survey_data[order(names(survey_data))] %>%
-  lapply(dplyr::left_join,survey_restricted_data) %>%
-  lapply(dplyr::mutate_at,c("myown_job","admincity","admindistrict"),.funs=as.factor)
 #save(survey_data,file=paste0(filespath,"data",slash,"all_survey_combined.RData"))
 #save(survey_data,file=paste0(filespath,"data",slash,"all_survey_combined_NAuntransformed.RData"))
 
@@ -156,11 +158,11 @@ if ({writingfeather<-FALSE;writingfeather}) {
 #mapply(function(X,Y) {
 ##X=survey_data[[1]]; Y=survey_restricted_data[[1]]; Z<-survey_data_labels[[1]] #for testing purpose
 #stopifnot(X$SURVEY[1]==Y$SURVEY[1])
-#Y %<>% mutate_at(c("village","zip","admincity","admindistrict","adminvillage"),funs(as.factor))
+#Y %<>% mutate_at(c("village","zip","admincity","admindistrict","adminvillage"), as.factor)
 #in_complicated_district<-filter(X, id %in% Y$id) %>%
-#  #mutate_at(c("zip","id"),funs(as.character)) %>%
+#  #mutate_at(c("zip","id"), as.character) %>%
 #  left_join(Y,by=c("SURVEY","id")) %>% #不用zip join 因為會有label, factor的問題
-#  #mutate_at("term",funs(as.character)) %>%
+#  #mutate_at("term", as.character) %>%
 #  left_join(admin_dist_to_elect_dist,by=c("admincity","admindistrict","adminvillage")) %>% #by=c("term","admincity","admindistrict","adminvillage"
 #  rename(restricted_zip=zip.y) %>%
 #  rename(zip=zip.x)
@@ -168,10 +170,10 @@ if ({writingfeather<-FALSE;writingfeather}) {
 #in_simple_district <- filter(X, !(id %in% Y$id)) %>%
 #  mutate_at(c("zip"), as.integer) %>%
 #  left_join(unique_dist_for_elect_dist)#串連選區和行政區資料
-##mutate_at("term",funs(as.character)) %>%
+##mutate_at("term", as.character) %>%
 #bind_rows(in_simple_district, in_complicated_district) %>%
 #  arrange(id) %>%
-#  mutate_at(c("zip","id","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"),funs(as.factor)) %>%
+#  mutate_at(c("zip","id","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"), as.factor) %>%
 #  mutate_at(setdiff(names(.),c("myown_age")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
 #  mutate_if(is.factor,funs(droplevels))
 #},X=survey_data,Y=survey_restricted_data)
@@ -318,8 +320,9 @@ survey_data_test <- custom_parallel_lapply(
 #survey_data_test[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
 #}
 #conditional random field
-save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_8_",t_sessioninfo_running,"df.RData"))
+save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_7_",t_sessioninfo_running,"df.RData"))
 load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_7_",t_sessioninfo_running,"df.RData"))
+
 #write.xlsx(as.data.frame(furtherusefulpredictor),file="furtherusefulpredictor.xlsx")
 lapply(survey_data_test,View)
 View(survey_data$`2010env.sav`[1:20,union(imputedvaluecolumn$`2010env`,imputingcalculatebasiscolumn$`2010env`)])
@@ -412,16 +415,16 @@ if ({oldimputationmethod<-FALSE; oldimputationmethod}) { #此部分屬於舊code
     efa.results<-factanal(x=as.matrix(X[,need_ses_var_assigned]) ,factors=4, rotation="promax")
   },need_ses_var)
   
-  zip_to_party<-distinct(elections_df_test,term,zip,party,wonelection) %>%
-    mutate_at("zip",funs(as.character)) %>%
-    mutate_at("party",funs(as.character)) %>%
+  zip_to_party<-distinct(elections_df,term,zip,party,wonelection) %>%
+    mutate_at("zip", as.character) %>%
+    mutate_at("party", as.character) %>%
     unique()
   #正確的選區與參選人
   lieing_check<-read.xlsx(paste(dataset_file_directory,"merger_survey_dataset",slash,"recode_record.xlsx",sep=""), sheet = 4) %>% #, endRow = 1896
     distinct(lieing_check,h5,h6r,h7,h8,h9,id,zip,code) %>% #,h5,h6r,h7,h8,h9 #,v84,v85,v86,v88,v93,v94
     mutate("term"=9) %>%
     rename(party=code) %>%
-    mutate_at(c("zip","party"),funs(as.character)) #要檢驗的所有投票意向
+    mutate_at(c("zip","party"), as.character) #要檢驗的所有投票意向
   zip_to_party_with_jump_answer<-distinct(lieing_check,term,party,zip) %>%
     filter(customgrepl(party,"廢票|沒有投票權")) %>%
     cbind("wonelection"=NA) %>%
@@ -478,18 +481,18 @@ if ({oldimputationmethod<-FALSE; oldimputationmethod}) { #此部分屬於舊code
   
   exclude_result_blue<-cbind("bluepoints"=rep(3:5,each=4),party=c("民主進步黨","時代力量","台灣團結聯盟","綠黨社會民主黨聯盟")) %>%
     as.data.frame() %>%
-    mutate_at(c("party","bluepoints"),funs(as.character)) %>%
-    mutate_at("bluepoints",funs(as.numeric))
+    mutate_at(c("party","bluepoints"), as.character) %>%
+    mutate_at("bluepoints", as.numeric)
   exclude_result_green<-cbind("greenpoints"=rep(3:5,each=3),party=c("中國國民黨","親民黨","新黨")) %>%
     as.data.frame() %>%
-    mutate_at(c("party","greenpoints"),funs(as.character)) %>%
-    mutate_at("greenpoints",funs(as.numeric))
+    mutate_at(c("party","greenpoints"), as.character) %>%
+    mutate_at("greenpoints", as.numeric)
   
   correct_check_result<-filter(lieing_check,!(party %in% c("跳答","忘記了、不知道","拒答","忘記了,不知道","跳答或不適用","選人不選黨") ) ) %>% #(v85==99) | 
     semi_join(zip_to_party_with_jump_answer) %>%
     bind_rows(clear_observed_value_green,clear_observed_value_blue)# %>%
   #mutate("party"=h6r)# %>%
-  #mutate_at("party",funs(as.factor))# %>%
+  #mutate_at("party", as.factor)# %>%
   #bind_rows(lieing_check_result) %>%
   #bind_rows(lieing_check_missing)
   binded_check_result<-bind_rows(correct_check_result,lieing_check_with_value,lieing_check_missing) %>%
@@ -497,7 +500,7 @@ if ({oldimputationmethod<-FALSE; oldimputationmethod}) { #此部分屬於舊code
     #anti_join(exclude_result_green) %>% %>%
     #mutate_cond(paste0(bluepoints, party) %in% do.call(paste0, exclude_result_blue),party=NA) %>%
     #mutate_cond(paste0(greenpoints, party) %in% do.call(paste0, exclude_result_green),party=NA) %>%
-    mutate_at(c("id","zip","h5","h6r","h7","h8","h9","party"),funs(as.factor)) %>%
+    mutate_at(c("id","zip","h5","h6r","h7","h8","h9","party"), as.factor) %>%
     #,"v84","v86","v88","v93","v94"
     arrange(id,wonelection) %>%
     group_by(id) %>%

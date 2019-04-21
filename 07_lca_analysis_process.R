@@ -2,7 +2,6 @@
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
 source(file = "shared_functions.R")
-survey_data_title<-c("2004citizen","2010env","2010overall","2016citizen") %>% sort()
 
 gc(verbose=TRUE)
 

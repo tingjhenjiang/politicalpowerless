@@ -217,8 +217,8 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
         "date"=date
       ) %>%
         replace_troublesome_names() %>%
-        dplyr::mutate_at(c("legislator_name","term","period","meetingno","temp_meeting_no","url","urln","date"),funs(as.character)) %>%
-        mutate_at(c("term","period","meetingno","temp_meeting_no","urln"),funs(as.integer))
+        dplyr::mutate_at(c("legislator_name","term","period","meetingno","temp_meeting_no","url","urln","date"),as.character) %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no","urln"),as.integer)
     })
   
   attendlegislator<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"出席委員",value=TRUE) %>%
@@ -239,8 +239,8 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
     "urln"=urln,
     "date"=date
   ) %>%
-    mutate_at(c("term","period","meetingno","temp_meeting_no","urln"),funs(as.character)) %>%
-    mutate_at(c("term","period","meetingno","temp_meeting_no","urln"),funs(as.integer)) %>%
+    mutate_at(c("term","period","meetingno","temp_meeting_no","urln"),as.character) %>%
+    mutate_at(c("term","period","meetingno","temp_meeting_no","urln"),as.integer) %>%
     replace_troublesome_names()
   
   leave_and_attend_legislators<-bind_rows(leave_and_attend_legislators,leavelegislator,attendlegislator)
@@ -510,9 +510,9 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
               "urln"=urln,
               "date"=date
         ) %>%
-          mutate_all(funs(as.character)) %>%
+          mutate_all(as.character) %>%
           mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
-          mutate_at(c("billcontent","url"),funs(stringi::stri_trim_both)) %>%
+          mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
           replace_troublesome_names()
       }
     
@@ -532,9 +532,9 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
             "urln"=urln,
             "date"=date
       )  %>%
-        mutate_all(funs(as.character)) %>%
-        mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
-        mutate_at(c("billcontent","url"),funs(stringi::stri_trim_both)) %>%
+        mutate_all(as.character) %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
+        mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
         replace_troublesome_names()
     }
     exact_dissent_voter_df<-if (length(exact_dissent_voter)==0) {
@@ -553,9 +553,9 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
             "urln"=urln,
             "date"=date
       ) %>%
-        mutate_all(funs(as.character)) %>%
-        mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
-        mutate_at(c("billcontent","url"),funs(stringi::stri_trim_both)) %>%
+        mutate_all(as.character) %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
+        mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
         replace_troublesome_names()
     }
     
@@ -572,16 +572,16 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
       "billcontent"=bill_list[billn],
       "billresult"=billresult
     ) %>%
-      mutate_all(funs(as.character)) %>%
-      mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer)) %>%
+      mutate_all(as.character) %>%
+      mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),as.integer) %>%
       right_join(attendlegislator) %>%
       mutate("votedecision"="未投票") %>%
       anti_join_with_nrow_zero(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
       anti_join_with_nrow_zero(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
       anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-      mutate_all(funs(as.character)) %>%
-      mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
-      mutate_at(c("billcontent","url"),funs(stringi::stri_trim_both))
+      mutate_all(as.character) %>%
+      mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
+      mutate_at(c("billcontent","url"),stringi::stri_trim_both)
 
     leavelegislator_df<-if(nrow(leavelegislator)>0) {
       data.frame(
@@ -593,16 +593,16 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
         "billcontent"=bill_list[billn],
         "billresult"=billresult
       ) %>%
-        mutate_all(funs(as.character)) %>%
-        mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),funs(as.integer)) %>%
+        mutate_all(as.character) %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),as.integer) %>%
         right_join(leavelegislator) %>%
         mutate("votedecision"="未出席") %>%
         anti_join_with_nrow_zero(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
         anti_join_with_nrow_zero(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
         anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-        mutate_all(funs(as.character)) %>%
-        mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
-        mutate_at(c("billcontent","url"),funs(stringi::stri_trim_both))
+        mutate_all(as.character) %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
+        mutate_at(c("billcontent","url"),stringi::stri_trim_both)
     } else {
       data.frame()
     }

@@ -1,100 +1,49 @@
+# 第Ｏ部份：環境設定 --------------------------------
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
-filespath<-switch(
-  t_sessioninfo_running_with_cpu,
-  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
-  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
-  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\vote_record\\",
-  "Windows10x64build17134Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\vote_record\\"
-)
-source(file = paste(filespath, "shared_functions.R", sep = ""))
-#選舉資料
-overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
-supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2010hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
+source(file = "shared_functions.R")
 terms<-c(5,6,7,8,9)
 gc(verbose=TRUE)
+options(scipen = 999)
 
+model_indp_var <- c("myown_selfid", "myown_factoredses", "myown_factoredparticip", "gap_eduyr", "gap_ses", "gap_ethnicity", "gap_age", "days_diff_survey_bill")
+power_analysis_general_formula_suffix <- paste0(model_indp_var,collapse="+")
+respondopinion_by_district_legislator_formula <- paste0("respondopinion ~ ",power_analysis_general_formula_suffix)
 
-##############################################################################
-# 第四部份：總結合併資料階段
-##############################################################################
-
-##############################################################################
-# 第O部份：清理資料：設定遺漏值
-##############################################################################
-
-#sapply(testdf,class)
-
-#beforecleannames<-names(testdf)
-
-testdf %<>% 
-  mutate(gap_between_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
-  mutate_cond(myown_eduyr %in% c(96:99,996:999,9996:9999), myown_eduyr=NA) %>%
-  #mutate_cond(myown_ext_pol_efficacy %in% c(94:99,996:999,9996:9999), myown_ext_pol_efficacy=NA) %>%
-  #mutate_cond(myown_int_pol_efficacy %in% c(94:99,996:999,9996:9999), myown_int_pol_efficacy=NA) %>%
-  mutate_cond(myown_working_status %in% c(96:99,996:999,9996:9999), myown_working_status=NA) %>%
-  mutate_cond(SURVEYANSWERVALUE %in% c(96:99,996:999,9996:9999), respondopinion=NA, opiniondirection=NA) %>%
-  #reshape2::melt(id.vars = setdiff(names(.), c("issue_field1","issue_field2")), variable.name = "issuefield_num", value.name = "issuefield" ) %>% #再根據不同利益區別
-  mutate_at(intersect(colnames(.),c("SURVEY","zip","stratum2","myown_areakind","psu","ssu",
-                                    "myown_sex","myown_dad_ethgroup","myown_selfid","myown_mom_ethgroup",
-                                    "myown_marriage","myown_religion","myown_ext_pol_efficacy","myown_int_pol_efficacy",
-                                    "myown_approach_to_politician_or_petition","myown_vote",
-                                    "myown_family_income_ingroup",
-                                    "myown_protest","myown_constituency_party_vote",
-                                    "myown_working_status","myown_industry","myown_job_status",
-                                    "term","electionarea","admincity","admindistrict",
-                                    "village","adminvillage","votedecision","billresult",
-                                    "pp_committee","pp_lawamendment","pp_enactment",
-                                    "pp_enforcement","pp_res_bynew","pp_res_bycompete",
-                                    "pp_groupbased","pp_res_notjudged","pp_ignored",
-                                    "billconflict","variable_on_q","value_on_q_variable",
-                                    "opinionfromconstituent","opinionfrombill",
-                                    "opiniondirectionfromconstituent","opiniondirectionfrombill",
-                                    "opiniondirectionfromlegislator","respondopinion",
-                                    "legislator_sex","legislator_party","partyGroup",
-                                    "areaName","leaveFlag","education","incumbent",
-                                    "wonelection","elec_dist_type",
-                                    "vote_along_with_majority_in_party","success_on_bill",
-                                    "issue_field1","issue_field2"
-  )), funs(as.factor)) %>%
-  mutate_at(intersect(colnames(.),c("wsel","myown_wsel","year","year_m","myown_age","myown_eduyr",
-                                    "myown_ses","myown_occp","myown_workers_numbers","myown_hire_people_no",
-                                    "myown_manage_people_no","myown_family_income",
-                                    "opinionstrength","eduyrgap",
-                                    "myown_family_income_ranking","myown_family_income_stdev",
-                                    "myown_factoredclass","myown_selfid_population" #,
-  )),funs(as.numeric)) %>%
-  mutate_at(intersect(colnames(.),c("wave","qtype","SURVEYQUESTIONID","SURVEYANSWERVALUE",
-                                    "name","url","date","pp_keyword","votecontent",
-                                    "billcontent","LABEL","QUESTION","ename","committee",
-                                    "onboardDate","degree","experience","picUrl","leaveDate",
-                                    "leaveReason","ballotid","birthday","birthplace",
-                                    "yrmonth"
-  )),funs(as.character)) %>%
-  mutate_at(intersect(colnames(.),c("zip3rocyear","period","meetingno","temp_meeting_no",
-                                    "billn","urln","pp_duplicated_item",
-                                    "legislator_age","plranking"  #,
-  )),funs(as.integer))
-
-testdf %<>% mutate(eduyrgap=NA,sesgap=NA,sexgap=NA,agegap=NA) %>%
-  #dplyr::select(-billcontent.y,-billcontent.x) %>%
-  mutate_cond(!is.na(myown_age), agegap=abs(myown_age-legislator_age)) %>%
-  mutate_cond(!is.na(myown_eduyr), eduyrgap=abs(myown_eduyr-legislator_eduyr)) %>%
-  mutate_cond(!is.na(myown_ses), sesgap=abs(myown_ses-legislator_ses)) %>%
-  mutate_cond((myown_sex==1 & legislator_sex=="男") | (myown_sex==2 & legislator_sex=="女"), sexgap=0) %>%
-  mutate_cond((myown_sex==2 & legislator_sex=="男") | (myown_sex==1 & legislator_sex=="女"), sexgap=1) %>%
-  mutate_at("sexgap",funs(as.factor)) %>%
-  mutate_cond(respondopinion=="x", respondopinion=NA)
-
-#%>%
-
-
+names(overall_district_legislators_only_power_dfdata[[1]])
+if ({USING_ridge<-TRUE; USING_ridge}) {
+  #library(glmnet)
+  set.seed(22)
+  overall_district_legislators_only_power_split <- rsample::initial_split(data = overall_district_legislators_only_power_dfdata[[1]], prop = 0.7, strata = "respondopinion")
+  overall_district_legislators_only_power_train <- rsample::training(overall_district_legislators_only_power_split)
+  overall_district_legislators_only_power_test <- rsample::testing(overall_district_legislators_only_power_split)
+  
+  overall_district_legislators_only_power_train_x <- model.matrix(object = as.formula(respondopinion_by_district_legislator_formula),
+                                                                  data =  overall_district_legislators_only_power_dfdata[[1]])[, -1]
+  overall_district_legislators_only_power_train_y <- log(overall_district_legislators_only_power_train$respondopinion)
+  overall_district_legislators_only_power_test_x <- model.matrix(as.formula(respondopinion_by_district_legislator_formula), overall_district_legislators_only_power_test[[1]])[, -1]
+  overall_district_legislators_only_power_test_y <- log(overall_district_legislators_only_power_test$respondopinion)
+  # 使用rcorr()產生Matrix of correlations and P-values
+  res2 <- filter(complete_survey_dataset,SURVEY=="2010overall") %>%
+    distinct(myown_wsel, myown_sex, myown_age, myown_dad_ethgroup, myown_mom_ethgroup, myown_selfid, myown_eduyr, myown_factoredses, myown_factoredparticip) %>%
+    {Hmisc::rcorr(as.matrix(.[,sapply(., is.numeric)]))}
+}
+#Ordered Logistic
+if ({USING_ordered_logistic<-TRUE; USING_ordered_logistic}) {
+  model_respondopinion_by_district_legislator <- overall_district_legislators_only_power_dfdata[[1]] %$%
+    MASS::polr(respondopinion_by_district_legislator_formula, Hess=TRUE) %>%
+    MASS::stepAIC()
+  ctable <- coef(summary(model_respondopinion_by_district_legislator))
+  pvaluetable <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+  confi_table <- confint.default(model_respondopinion_by_district_legislator) %>%
+    rbind(matrix(rep("",4),nrow=2,ncol=2))
+  odds_ratio_table <- c(exp(coef(model_respondopinion_by_district_legislator)),"","")
+  #predict_value_mean <- MASS::polr.predicts(model_respondopinion_by_district_legislator, values="mean")
+  final_ctable <- cbind(ctable, "p value" = pvaluetable, confi_table, "OR"=odds_ratio_table)#, "CI" = 
+}
+model_ses_to_particip <- overall_district_legislators_only_power_dfdata[[1]] %$%
+   glm(myown_factoredparticip ~ myown_factoredses, family=gaussian)
+  
 
 
 ##測試參加政治與階級間關係
@@ -104,52 +53,6 @@ testdf %<>% mutate(eduyrgap=NA,sesgap=NA,sexgap=NA,agegap=NA) %>%
         )
 ) + labs(title = "各個階級的不參與政治程度") + geom_point()+geom_smooth(method="lm"))
 ##2010env不參與程度不好、2010overall不參與程度也不好
-
-
-
-
-gc() #- do it now
-gc(TRUE)
-
-
-
-
-#將職業社經地位差距、教育程度差距萃取成為階級差距
-dataset.for.classgap.fa<-distinct(testdf,SURVEY,id,eduyrgap,sesgap) %>%
-  filter(!is.na(eduyrgap),!is.na(sesgap))
-fa.classgap<-factanal(x= ~eduyrgap+sesgap, 1, data = dataset.for.classgap.fa, rotation="varimax", scores=c("regression"),na.action = na.omit)
-testdf<-left_join(testdf,cbind(dataset.for.classgap.fa,"myown_factoredclassgap"=fa.classgap$scores[,1]))
-
-
-
-filter(testdf,is.na(SURVEYANSWERVALUE) | is.na(respondopinion)) %>%
-  #distinct(LABEL) %>%
-  #unique() %>%
-  View()
-
-##
-sapply(testdf, function(x) sum(is.na(x))) %>% View()
-sapply(testdf, function(x) length(unique(x))) %>% View()
-#glmdata[]<-lapply(glmdata, car::recode,"94:999=NA")
-sapply(glmdata, table)
-sapply(glmdata, class)
-
-
-#可以看到有回應也有不回應
-distinct(testdf,id,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfromlegislator,respondopinion) %>%
-  #testdf %>%
-  filter(billid_myown=="9-2-0-16-67",variable_on_q=="pp_related_q_1",value_on_q_variable=="2016citizen@c2") %>%
-  arrange(name,party) %>%
-  View()
-
-distinct(glmdata,id,votedecision,billid_myown,variable_on_q,value_on_q_variable,name,party,opiniondirectionfromconstituent,opiniondirectionfromlegislator,same_opinion_from_same_party,all_opinion_from_same_party,opinion_pressure_from_party,respondopinion) %>%
-  group_by(billid_myown,variable_on_q,value_on_q_variable,opiniondirectionfromconstituent) %>%
-  #testdf %>%
-  filter(all_opinion_from_same_party!=same_opinion_from_same_party) %>%
-  arrange(name,party) %>%
-  View()
-
-
 
 
 ##############################################################################
@@ -163,6 +66,26 @@ glmdata %<>% dplyr::group_by( SURVEYQUESTIONID,electionarea ) %>%
   dplyr::mutate("same_pos_on_same_q_by_electionarea"=n()) %>%
   dplyr::ungroup() %>%
   dplyr::mutate("same_pos_to_all_ratio_by_electionarea"=same_pos_on_same_q_by_electionarea/all_pos_on_same_q_by_electionarea*100)
+
+#分組處理政黨成員投票情形
+
+#group_by(billid_myown,legislator_party) %>%
+#mutate("total_votes_from_same_party"=n()) %>%
+#ungroup() %>%
+#group_by(votedecision,billid_myown,legislator_party) %>%
+#mutate("same_votes_from_same_party"=n()) %>%
+#ungroup() %>%
+#mutate("percent_of_same_votes_from_same_party"=same_votes_from_same_party/total_votes_from_same_party*100) %>%
+#mutate("vote_along_with_majority_in_party"=ifelse(percent_of_same_votes_from_same_party>50,1,0)) %>%
+
+#%>%
+#dplyr::group_by( SURVEYQUESTIONID ) %>%
+#dplyr::mutate("all_pos_on_same_q_by_nation"=n()) %>%
+#dplyr::ungroup() %>%
+#dplyr::group_by(SURVEYQUESTIONID,SURVEYANSWERVALUE) %>%
+#dplyr::mutate("same_pos_on_same_q_by_nation"=n()) %>%
+#dplyr::ungroup() %>%
+#dplyr::mutate("same_pos_to_all_ratio_by_nation"=same_pos_on_same_q_by_nation/all_pos_on_same_q_by_nation*100)
 
 
 #計算出同立場的人數
@@ -518,20 +441,20 @@ print(paste('Accuracy',1-misClasificError))
 #可以看到沒有繼續當的立委沒串到
 distinct(legislators_with_election, term, name) %>%
   filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞"))
-distinct(mergedf_votes_bills_election_surveyanswer, term, name) %>%
+distinct(mergedf_votes_bills_surveyanswer, term, name) %>%
   filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞"))
 
 
-setdiff(distinct(legislators_with_election, term, name), distinct(mergedf_votes_bills_election_surveyanswer, term, name)) %>%
+setdiff(distinct(legislators_with_election, term, name), distinct(mergedf_votes_bills_surveyanswer)) %>%
   filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞")) #%>%
 #%>% View()
-setdiff(distinct(mergedf_votes_bills_election_surveyanswer, term, name), distinct(legislators_with_election, term, name)) %>%
+setdiff(distinct(mergedf_votes_bills_surveyanswer, term, name), distinct(legislators_with_election, term, name)) %>%
   filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞")) #%>%
 #%>% View()
 distinct(legislators_with_election, term, name) %>% View()
 #廖國棟,簡東明,鄭天財,陳秀霞,高潞‧以用‧巴魕剌Kawlo．Iyun．Pacidal
 #簡東明Uliw．Qaljupayare,#廖國棟Sufin．Siluko,#鄭天財Sra．Kacaw,#周陳秀霞,#高潞．以用．巴魕剌Kawlo．Iyun．Pacidal
-filter(mergedf_votes_bills_election_surveyanswer, customgrepl(name, "高潞")) %>%
+filter(mergedf_votes_bills_surveyanswer, customgrepl(name, "高潞")) %>%
   distinct(name)
 
 ggplot(glmdata, aes(x = myown_family_income, y = respondopinion)) +

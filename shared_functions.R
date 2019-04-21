@@ -32,6 +32,7 @@ filespath<-switch(
 if (nchar(Sys.getenv("SPARK_HOME")) < 1) {
   Sys.setenv(SPARK_HOME = "/usr/local/spark")
 }
+survey_data_title<-c("2004citizen","2010env","2010overall","2016citizen") %>% sort()
 Sys.setenv(JAVA_HOME = "/usr/lib/jvm/java-8-oracle")
 if (FALSE && t_sessioninfo_running_with_cpu=="Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz" && FALSE) {
   sparkpackage<-"sparklyr"
@@ -69,7 +70,7 @@ dataset_file_directory <- switch(
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="Y:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-  "Windows10x64build17134Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="Y:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
+  "Windows10x64build17134Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="Z:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz" = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz" = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
@@ -77,6 +78,7 @@ dataset_file_directory <- switch(
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/g/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/g/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
 )
+
 ntuspace_file_directory <- switch(
   t_sessioninfo_running_with_cpu,
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\NTUSpace\\",
@@ -267,8 +269,8 @@ check_if_windows<-function () {
   running<-backgroundinfo$running
   return(customgrepl(backgroundinfo$running,"Windows"))
 }
-
 slash<-ifelse(check_if_windows(),"\\","/")
+path_to_survey_imputation_and_measurement_file<-paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx")
 
 gcreset<-function() {
   gc(reset = TRUE)

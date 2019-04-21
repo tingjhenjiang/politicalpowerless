@@ -164,7 +164,7 @@ for (i in 1:length(filename)) {#length(filename) 1:length(filename)
     #  data.frame("agree_voter"=length(exact_agree_voter)),
     #  data.frame("dissent_voter"=length(exact_dissent_voter)),
     #  data.frame("billresult"=billresult)
-    #) %>% as.data.frame() %>% mutate_all(funs(stringi::stri_trim_both))
+    #) %>% as.data.frame() %>% mutate_all(stringi::stri_trim_both)
     #testing_for_check_bill_result_df %<>% rbind(testing_for_check_bill_result_df_one)
 
     exact_giveup_voter_df<-if (length(exact_giveup_voter)==0) {
@@ -246,8 +246,8 @@ for (i in 1:length(filename)) {#length(filename) 1:length(filename)
   
 }
 myown_vote_record_detailed_part_df<-filter(myown_vote_record_detailed_part_df,!is.na(legislator_name)) %>%
-  mutate_all(funs(as.character)) %>%
-  mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer))
+  mutate_all(as.character) %>%
+  mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer)
 #save(myown_vote_record_detailed_part_df,file=paste0(filespath, "data", slash,  "myown_vote_record_detailed_part_df.RData"))
 load(file=paste0(dataset_file_directory, "rdata", slash,  "myown_vote_record_df.RData"))
 #distinct(myown_vote_record_detailed_part_df,billcontent,url,date,term,period,meetingno,temp_meeting_no,billn,billresult) %>%
