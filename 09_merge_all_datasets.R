@@ -23,12 +23,15 @@ gc(verbose=TRUE)
 
 # 第八部份：問卷資料串連立委資料、選舉資料 ---------------------------------
 
+library(parallel)
 #load(paste0(filespath,"data",slash,"elections_df_test.RData"))
 
 #直接讀取分析立法通過的資料集
 #as glmdata_pass_on_bill
 #distinct(glmdata,)
 #load(file=paste0(dataset_file_directory,"rdata",slash,"pass_on_bill.RData"))
+#load(paste0(filespath,"data",slash,"mergedf__votes_bills_surveyanswer.RData"))
+#new_mergedf_votes_bills_surveyanswer<-mergedf_votes_bills_surveyanswer
 load(paste0(filespath,"data",slash,"complete_survey_dataset.RData"))
 load(paste0(filespath,"data",slash,"mergedf_votes_bills_surveyanswer.RData"))
 load(paste0(filespath,"data",slash,"legislators_additional_attr.RData"))
@@ -36,7 +39,12 @@ load(paste0(filespath,"data",slash,"legislators_with_election.RData"))
 legislators_with_election %<>% select(-degree,-experience,-education,-wonelection)
 #admincity admindistrict adminvillage
 
-#legislator_age待修
+View(mergedf_votes_bills_surveyanswer)
+remove(mergedf_votes_bills_surveyanswer)
+sapply(names(mergedf_votes_bills_surveyanswer), function(X,df1,df2) {
+  message(X,identical(df1$X,df2$X))
+},df1=new_mergedf_votes_bills_surveyanswer, df2=mergedf_votes_bills_surveyanswer)
+#legislator_age待修 
 
 #only_bill_to_survey_information<-distinct(mergedf_votes_bills_surveyanswer,stdbilldate,term,period,meetingno,temp_meeting_no,billn,billresult,billid_myown,SURVEY,variable_on_q,value_on_q_variable,SURVEYQUESTIONID,SURVEYANSWERVALUE,LABEL,QUESTION,opinionfromconstituent,opinionfrombill,issue_field1,issue_field2,opinionstrength,opiniondirectionfromconstituent,opiniondirectionfrombill,success_on_bill) %>%
 #  mutate_at("SURVEYANSWERVALUE", as.character)
@@ -56,7 +64,7 @@ list(
 ) %>%
   sapply(nrow)
 #有多個村里會重複所以join時會膨脹
-overall_district_legislators_only_power_dfdata <- lapply(survey_data_title[3], function(needsurvey) {
+overall_district_legislators_only_power_dfdata <- custom_parallel_lapply(survey_data_title, function(needsurvey) {
   filter(complete_survey_dataset, SURVEY==needsurvey) %>% #135654
     left_join(term_to_survey) %>% #135654
     left_join(legislators_with_election) %>% #135654
@@ -73,7 +81,8 @@ overall_district_legislators_only_power_dfdata <- lapply(survey_data_title[3], f
     left_join(mergedf_votes_bills_surveyanswer) %>% #346050
     inner_join(survey_time_range_df) %>% #231990  %>% nrow()
     mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days"))
-  })
+  }, exportlib=c("base","magrittr","dplyr","parallel"),
+  exportvar=c("complete_survey_dataset","custom_parallel_lapply","mergedf_votes_bills_surveyanswer","legislators_with_election","legislators_additional_attr","term_to_survey","survey_time_range_df","mutate_cond"))
   #mutate_at("SURVEYANSWERVALUE", as.character)
 lapply(survey_data_title[2], function(SURVEY) {SURVEY})
 #只有針對議案的決定，而非有無代理

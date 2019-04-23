@@ -4,11 +4,12 @@ t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cp
 source(file = "shared_functions.R")
 terms<-c(5,6,7,8,9)
 gc(verbose=TRUE)
-options(scipen = 999)
+#options(scipen = 999)
 
-model_indp_var <- c("myown_selfid", "myown_factoredses", "myown_factoredparticip", "gap_eduyr", "gap_ses", "gap_ethnicity", "gap_age", "days_diff_survey_bill")
+model_indp_var <- c("myown_selfid", "myown_factoredses", "myown_factoredparticip", "gap_sex", "gap_eduyr", "gap_ses", "gap_ethnicity", "gap_age", "days_diff_survey_bill")
 power_analysis_general_formula_suffix <- paste0(model_indp_var,collapse="+")
 respondopinion_by_district_legislator_formula <- paste0("respondopinion ~ ",power_analysis_general_formula_suffix)
+pass_on_bill_formula <- paste0("pass_on_bill ~ ",power_analysis_general_formula_suffix)
 
 names(overall_district_legislators_only_power_dfdata[[1]])
 if ({USING_ridge<-TRUE; USING_ridge}) {
@@ -29,17 +30,21 @@ if ({USING_ridge<-TRUE; USING_ridge}) {
     {Hmisc::rcorr(as.matrix(.[,sapply(., is.numeric)]))}
 }
 #Ordered Logistic
-if ({USING_ordered_logistic<-TRUE; USING_ordered_logistic}) {
-  model_respondopinion_by_district_legislator <- overall_district_legislators_only_power_dfdata[[1]] %$%
-    MASS::polr(respondopinion_by_district_legislator_formula, Hess=TRUE) %>%
-    MASS::stepAIC()
-  ctable <- coef(summary(model_respondopinion_by_district_legislator))
-  pvaluetable <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
-  confi_table <- confint.default(model_respondopinion_by_district_legislator) %>%
-    rbind(matrix(rep("",4),nrow=2,ncol=2))
-  odds_ratio_table <- c(exp(coef(model_respondopinion_by_district_legislator)),"","")
-  #predict_value_mean <- MASS::polr.predicts(model_respondopinion_by_district_legislator, values="mean")
-  final_ctable <- cbind(ctable, "p value" = pvaluetable, confi_table, "OR"=odds_ratio_table)#, "CI" = 
+if ({ordered_logistic_to_analy_repre_response<-TRUE; ordered_logistic_to_analy_repre_response}) {
+  result_repre_response_on_all_bills <- lapply(overall_district_legislators_only_power_dfdata,function(dataset_for_analysis) {
+    #dataset_for_analysi <- overall_district_legislators_only_power_dfdata
+    model_respondopinion_by_district_legislator <- dataset_for_analysis %$%
+      MASS::polr(as.formula(respondopinion_by_district_legislator_formula), Hess=TRUE) %>%
+      MASS::stepAIC()
+    ctable <- coef(summary(model_respondopinion_by_district_legislator))
+    pvaluetable <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+    confi_table <- confint.default(model_respondopinion_by_district_legislator) %>%
+      rbind(matrix(rep(NA,4),nrow=2,ncol=2))
+    odds_ratio_table <- c(exp(coef(model_respondopinion_by_district_legislator)),NA,NA)
+    #predict_value_mean <- MASS::polr.predicts(model_respondopinion_by_district_legislator, values="mean")
+    final_ctable <- cbind(ctable, "p value" = pvaluetable, confi_table, "Odds Ratio"=odds_ratio_table)#, "CI" = 
+    return(final_ctable)
+  })
 }
 model_ses_to_particip <- overall_district_legislators_only_power_dfdata[[1]] %$%
    glm(myown_factoredparticip ~ myown_factoredses, family=gaussian)

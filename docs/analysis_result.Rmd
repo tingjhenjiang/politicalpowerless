@@ -12,49 +12,46 @@ output:
     toc_float:
       collapsed: false
       smooth_scroll: false
+  html_notebook: default
   word_document: default
   github_document: default
+bibliography: mylibrary.enl
+csl: apa.csl
 ---
 
 ```{r setup, include=FALSE}
-library(knitr)
-library(dplyr)
-library(kableExtra)
-library(stargazer)
-library(huxtable)
-knitr::opts_chunk$set(echo = TRUE)
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
-filespath<-switch(
-  paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model),
-  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
-  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/",
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/",
-  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\"
-)
-source(file = paste(filespath, "shared_functions.R", sep = ""))
-
-
+t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
+source(file = "../shared_functions.R")
+terms<-c(5,6,7,8,9)
 gc(verbose=TRUE)
+library(parallel)
+#library(knitr)
+#library(dplyr)
+#library(kableExtra)
+#library(stargazer)
+#library(huxtable)
+#knitr::opts_chunk$set(echo = TRUE)
 #https://cran.r-project.org/web/packages/kableExtra/vignettes/awesome_table_in_html.html
 #owd = setwd('docs')
 #knit('../analysis_result.Rmd')
 #setwd(owd)
 #ggstatsplot
+
+
 ```
 
 ```{r, echo=FALSE, include=FALSE}
 Sys.setlocale(category = "LC_ALL", locale = "cht")
+#[投影片](https://sway.office.com/JEKkN2WyodB2WAFb?ref=Link)
 ```
-[投影片](https://sway.office.com/JEKkN2WyodB2WAFb?ref=Link)
+
 
 # 研究背景
 
 ## 平等權關注經驗層次的弱勢群體取向
 
-在近幾年全世界的婚姻平權運動中，我們可以看到數個國家中，持反對同性戀婚姻的多數民意與支持同性戀婚姻的司法權立場相反，而這些國家的司法權仍反多數民意做出支持同性戀婚姻的裁判例子。為什麼司法權可以推翻具有民主正當性的國會通過的立法？這個所謂的「反多數決困境」在理論與實際上一直影響著司法運作，也成為憲法學者關心的焦點。對於這個問題，以美國為首發展出了實體價值取向與程序價值取向的兩種反多數決理論。其中程序價值取向的理論，主張由於在某些情形下民主程序會產生「失靈」的現象，為了維護民主制度司法權必須要介入導正，因此司法審查有其正當性。至於什麼情形下構成「失靈」？比較著名的理論主張包含：1.如果法律有限制民主發展與健全或限制政治競爭時（例如在任者為了限制競爭，通過自利型法案限制言論自由與選舉權），為了暢通政治變遷管道，司法權無須退讓；以及2.對於「分散又隔離的少數」（discrete and insular minorities）的偏見，使得通常能夠保障少數的立法程序被阻礙時，此時需要司法者特別審視{Ely, 1980 #9289}。
+在近幾年全世界的婚姻平權運動中，我們可以看到數個國家中，持反對同性戀婚姻的多數民意與支持同性戀婚姻的司法權立場相反，而這些國家的司法權仍反多數民意做出支持同性戀婚姻的裁判例子。為什麼司法權可以推翻具有民主正當性的國會通過的立法？這個所謂的「反多數決困境」在理論與實際上一直影響著司法運作，也成為憲法學者關心的焦點。對於這個問題，以美國為首發展出了實體價值取向與程序價值取向的兩種反多數決理論。其中程序價值取向的理論，主張由於在某些情形下民主程序會產生「失靈」的現象，為了維護民主制度司法權必須要介入導正，因此司法審查有其正當性。至於什麼情形下構成「失靈」？比較著名的理論主張包含：1.如果法律有限制民主發展與健全或限制政治競爭時（例如在任者為了限制競爭，通過自利型法案限制言論自由與選舉權），為了暢通政治變遷管道，司法權無須退讓；以及2.對於「分散又隔離的少數」（discrete and insular minorities）的偏見，使得通常能夠保障少數的立法程序被阻礙時，此時需要司法者特別審視{, 1938 #9016; Ely, 1980 #9289}  。
 
 本研究以程序取向反多數決理論的第二個關懷面向為重心，從「分散又隔離的少數」這個概念出發，融入、結合當代平等權領域發展中實質關心對象──「弱勢」^[平等權之所以會轉向並融入重視弱勢群體的「實質平等」觀念，最重要的發展起源莫過於針對美國過去歷史上種族隔離現象而生的seperate but equal判例予以推翻的Brown v. Board of Education案，透過注意到種族隔離對於黑人的心理傷害而使得平等原則的概念不再僅審視法律上的平等對待，而是去檢視結果、影響、地位等因素。]，並且再從「弱勢」這個構念細緻化至「政治上的無力者」此一法院實務判決曾指出並且在學理上也有學者主張的弱勢面向作為探討主軸（例如結構性不平等的政治體制，所產出的決策就會傾向維護現有的不平等狀態）{Young, 1990 #7979}，試圖將政治上的無力者這個構念進一步透過國會研究的視野進行細緻化操作。
 
@@ -62,17 +59,17 @@ Sys.setlocale(category = "LC_ALL", locale = "cht")
 
 事實上，在實際的司法裁判案例上就已經針對誰是政治上的無力者一點有過爭論與操作，但是操作過程以及觀察研究方法顯得粗糙而需要改進。我先從對於司法裁判上關於誰是政治上無力者的操作方式檢討作為引子。美國的Scalia大法官曾在Romer v. Evans一案中，主張由於財富是影響力的來源，在同性戀有高可支配所得下，他們的政治力量大於他們的人口比例，所以同性戀不是弱勢{, 1996 #12499@645-646}。無獨有偶，我國的[大法官釋字第748號解釋](https://www.judicial.gov.tw/constitutionalcourt/p03_01_1.asp?expno=748)（有關民法規定婚姻僅限同性婚姻是否違反平等權的問題爭議）中，以第8段到第9段的幾個同性婚姻法案在國會所面臨的困境與阻礙（例如祁家威先生屢次請願、訴訟被無視、同性婚姻法案一直卡關）等事實來認定同性戀屬於政治程序上的弱勢。
 
-上述論述中，先不提Scalia大法官的主張只是停留在假說的提出與主張而未進入經驗資料驗證的階段。這些論述在理論、概念操作與測量環節均有缺陷不足之處。例如測量環節的問題共有三點，第一是直接以研究處理（treatment，相當於實驗刺激、自變項，在Scalia大法官的主張是「財富」，在748號解釋中則為「人口結構」、「人數」、「刻板印象歧視」等因素）連結後測──即觀察同性戀者參與並動員起來透過社會運動爭取認同／在相關請願及法案審議都失敗的結果──得出實驗結論：同性戀是政治上的強勢者／「[同性戀]……因人口結構因素，為社會上孤立隔絕之少數，並因受刻板印象之影響，久為政治上之弱勢」（自變項與應變項間呈現顯著關連），就此而言缺乏前測對照以估計實驗組的研究處理前後組內差異。
+上述論述中，先不提Scalia大法官的主張只是停留在假說的提出與主張而未進入經驗資料驗證的階段。這些論述在理論、概念操作與測量環節均有缺陷不足之處。例如測量環節的問題共有三點，若以對照古典實驗來說，第一是直接以研究處理（treatment，相當於實驗刺激、自變項，在Scalia大法官的主張是「財富」，在748號解釋中則為「人口結構」、「人數」、「刻板印象歧視」等因素）連結後測──即觀察同性戀者參與並動員起來透過社會運動爭取認同／在相關請願及法案審議都失敗的結果──得出實驗結論：同性戀是政治上的強勢者（「[同性戀]……因人口結構因素，為社會上孤立隔絕之少數，並因受刻板印象之影響，久為政治上之弱勢」），提出自變項（群體的人口數）與應變項（回應群體的意見）間呈現顯著正向關連的假說，就此而言缺乏前測對照以估計實驗組的研究處理前後組內差異。
 
-第二個測量問題是缺乏利用控制組──也就是在實驗中因為隨機分派受試者接受處理，所以除了未接受處理外其他所有方面都和實驗組相同或類似的一群人，在此例中相當於人口數較大的群體──與實驗組的組間差異對照以瞭解真實處理效果為何。例如選樣偏誤（selection bias，以實驗組和控制組的前測結果差異定義）導致組間有差異時，將組間差異歸因於實驗刺激就有問題。綜合以上兩點使得平均處理效果（實驗組平均組內差異－控制組平均組內差異）無法被正確評估，因此大法官釋字第748號解釋有嚴重的內在效度缺陷（無法反應到真正想測量的概念）。更簡單地說，如果立法程序的阻礙不僅僅出現在同性婚姻法案中，其他群體的群體利益以及更一般性（無特殊利益）的法案也如此時，同性戀真的有比較弱嗎？這本質上其實是一個更貼近經驗層面的問題。
+第二個測量問題是缺乏利用控制組──也就是在實驗中因為隨機分派受試者接受處理，所以除了未接受處理外其他所有方面都和實驗組相同或類似的一群人，在此例中相當於人口數不同的群體（較大或較小）──與實驗組的組間差異對照以瞭解真實處理效果為何。例如選樣偏誤（selection bias，以實驗組和控制組的前測結果差異定義）導致組間有差異時，將組間差異歸因於實驗刺激就有問題。綜合以上兩點使得平均處理效果（實驗組平均組內差異－控制組平均組內差異）無法被正確評估，因此大法官釋字第748號解釋有嚴重的內在效度缺陷（無法反應到真正想測量的概念）。更簡單地說，如果立法程序的阻礙不僅僅出現在同性婚姻法案中，其他群體的群體利益以及更一般性（無特殊利益）的法案也如此時，同性戀真的有比較弱嗎？這本質上其實是一個更貼近經驗層面的問題。
 
 第三個測量問題是大法官雖然努力地在解釋理由書第7、8段找出幾個同性戀婚姻法案請願和審議失敗的案例（或觀察值），但是為數不多（計算行政與立法領域下的案例僅8個），不僅並非母體所有的案例（例如欠缺「所謂弱勢者」的成功案例），若將此8個案例視為樣本，數目過少，欠缺變異，也難以向外推論至母體，外在效度欠佳，實有問題。
 
 最後則是解釋中根本上的概念操作與理論問題。就概念操作而言，大法官以立法院議案的審議紀錄結果（政策結果）作為操作政治不平等與政治上無力者的構念出發點，不僅欠缺完整的概念化過程（說明其定義及依據）之外，「政治上無力者」這個構念是否還有其他層面？例如，有些議案、偏好甚至根本無法進入議程的現象，相對於同性戀議題頻頻得到關注成為社會矚目焦點且獲得同情與支持，前者就未被大法官納入解釋中討論成為觀察分析的對象。這部分就牽涉到經典的權力定義／面向問題，根據不同的權力面向與平等理論（如機會平等與結果平等），就會有不同的觀察指標。
 
-最後在理論上，人數少的群體，就必定遭到國會議員的忽視嗎？那麼要如何解釋同志運動在世界各地出現的部分勝利與斬獲？大法官這類基於「人頭數目才是硬實力」的論述，其基本假設是一人一票票票等值，所有選民都同等重要，且政策偏好會隨著群體身份而區別。但是這裡面忽略了多元民主理論乃至於利益團體的存在、Olson所提出的集體行動的困境（牽涉組織動員因素）{Olson, 1965 #12395}，以及政治實力／權力在人群之中分配並不等的現實（例如富人可能具備更多的資源可運用，從而具備政治權力而能說服議員）。從上述對大法官釋字第748號解釋的批判，都顯示出更進一步探討的需要。
+最後在理論上，人數少的群體，就必定遭到國會議員的忽視嗎？那麼要如何解釋同志運動在世界各地出現的部分勝利與斬獲？大法官這類基於「人頭數目才是硬實力」的論述，其基本假設是一人一票票票等值，所有選民都同等重要，且每個選民的政策偏好會跟隨著群體身份／群體利益，議員的行為會跟隨多數群體民意而決定，最後造成了政策自然傾向多數群體的情形。但是這裡面過於著重所謂的中位選民理論，忽略了其他可能的民主政治運作理論，例如政治實力／權力在人群之中分配並不等的現實（例如，選民的政治參與並非僅有投票而已，而富人可能具備更多的資源可運用，從而具備政治權力而能說服議員）、多元民主理論乃至於利益團體的存在、Olson所提出的集體行動的困境（牽涉組織動員因素）{Olson, 1965 #12395}，以及所謂的「群體民意」可能不存在的情形。從上述對大法官釋字第748號解釋的批判，都顯示出更進一步探討的需要。
 
-我根據權力的不同面向，從第一面向能在衝突中勝出的決策制訂權力{Dahl, 1957 #12587}至第二面向的議題設定權力{Bachrach, 1962 #12590;Bachrach, 1963 #12783;Bachrach, 1970 #12700}，提出幾個指標作為誰是政治上無力者的切入觀察角度：1.整體國會的政策決定（產出）回應誰的民意？2.國會議員的投票行為回應誰的民意？3.國會整體的政策議程回應誰的民意？4.誰透過政治參與表達更多的民意設定議題。並透過架構理論以探索探討可能的變因，平衡大法官的觀點，試圖將政治上的無力者的概念釐清。以下將會簡略就上述所提出的指標所涉及的領域簡單回顧。
+我根據權力的不同面向，從第一面向能在衝突中勝出的決策制訂權力{Dahl, 1957 #12587}至第二面向的議題設定權力{Bachrach, 1962 #12590; Bachrach, 1963 #12783; Bachrach, 1970 #12700}，提出幾個指標作為誰是政治上無力者的切入觀察角度：1.整體國會的政策決定（產出）回應誰的民意？2.國會議員的投票行為回應誰的民意？3.國會整體的政策議程回應誰的民意？4.誰透過政治參與表達更多的民意設定議題。並透過架構理論以探索探討可能的變因，平衡大法官的觀點，試圖將政治上的無力者的概念釐清。以下將會簡略就上述所提出的指標所涉及的領域簡單回顧。
 
 # 政治上無力者的概念與理論基礎回顧
 
@@ -80,19 +77,21 @@ Sys.setlocale(category = "LC_ALL", locale = "cht")
 
 在國會研究中，解釋立法委員的行為時，幾乎都圍繞著立法委員的行為都是為了連任（或者更廣義地說，為了使其政治生涯能夠維持）的公理而出發{Mayhew, 2006 #12913}。在這樣的前提下，大法官所提出的假說「立法者為了不得罪選民會傾向忽視少數群體的利益」或許言之成理。然而，這樣的前提預設並不完全能夠對應到現實世界中的各種條件。
 
-首先，Fenno{Fenno, 1973 #12910}就指出國會議員基本上有三個行為準則：尋求連任、在國會能夠有影響力及制訂好的公共政策。雖然尋求連任本身是幾乎可以說是最終的目的，其他行為準則「只是輔助」，但在尋求連任並不成為太大問題的前提下，國會議員本身也有動能尋求制訂好的公共政策。
+首先，Fenno{Fenno, 1973 #12910}就指出國會議員基本上有三個行為準則：尋求連任、在國會能夠有影響力以及制訂好的公共政策。雖然尋求連任本身是幾乎可以說是最終的目的，其他行為準則「只是輔助」，但在尋求連任並不成為太大問題的前提下，國會議員本身也有動能尋求制訂好的公共政策。
 
-在連任方面，國會議員為了連任，不一定傾向將選票極大化，倘若國會議員已經建立好舒適的個人選票（personal vote），無論是選區特性使然（例如我國的金門、苗栗等地；或者如地域主義性質極強的韓國，以全羅道為例：自由派與保守派得票率往往是百分之九十幾與個位數得票率的差別）、或者選民特性使然──例如，政策回應只是代表的其中一個面向{Eulau, 1989 #12909}，選民傾向以議員的服務回應或分配回應評估候選人{Griffin, 2010 #12873}，因此其重要性超越政策回應／象徵代表時──、或者競爭對手過弱，或者議員資源豐沛經營選區得當……等等，一旦議員跨過安全當選的閾值時，此時國會議員理論上也會有空間朝向另外的目標努力。
+在連任方面，國會議員為了連任，不一定傾向將選票極大化，倘若國會議員已經建立好舒適的個人選票（personal vote），無論是選區特性使然（例如我國的金門、苗栗等地；或者如地域主義性質極強的韓國，以全羅道為例：自由派與保守派得票率往往是百分之九十幾與個位數得票率的差別），或者選舉制度上不要求必須要極大化選票，例如我國2004年修憲前分區立委採用的複數選區制，或者競爭對手過弱，或者議員資源豐沛經營選區得當……等等，一旦議員跨過安全當選的閾值時，此時國會議員理論上也會有空間朝向另外的目標努力。
 
-此外，若議員產生方式並非透過選舉而是由政黨提名（如不分區名單），或者是決定議席方式中政黨選票（party vote）的成分與重要性大於個人選票時（例如選制上採複數選區單一投票不可讓渡制SNTV使得議員無須爭取選票極大化），或者選民的投票抉擇因素中政黨認同的強度可能蓋過政策認同時，議員的行為也可能轉向爭取個人在政黨的影響力{Carey, 1995 #12908}{Hirano, 2006 #12911}以及制訂好的公共政策，此時建立個人選票的重要性即不如想像中重要。
+接著，選票的獲得並不是只來自選民對於議員的政策回應而來。在探討何謂回應性的這個概念過程中，提出其中共有四個子概念，分別是政策回應、分配回應、the target is the great public issues that agitate the political process. Second, there is service responsiveness which involves the efforts of the representative to secure particularized benefits for individuals or groups in his constituency. Third, there is alloca- tion responsiveness which refers to the representative's efforts to obtain benefits for his constituency through pork-barrel exchanges in the appropri- ations process or through administrative interventions. Finally, there is what we shall call symbolic responsiveness which involves public gestures of a sort that create a sense of trust and support in the relationship between representative and represent。從而，政策回應只是代表的其中一個面向{Eulau, 1989 #12909}。或者選民特性使然──例如，選民傾向以議員的服務回應或分配回應評估候選人{Griffin, 2010 #12873}，因此其重要性超越政策回應／象徵代表時──
 
-其次，國會議員的行為準則雖然理論上（理想層次中）需要透過不斷回應民意，以期爭取選民的認同與支持以避免選民在下次投票中會受到選民的懲罰，但實際上選民與議員雙方間這種民意溝通交換與回應及問責的連線並不一定能夠完美連接。現實世界中的選民可能是完全不過問政治、無法參與也無意願參與政治的「非理想公民」，這也就是Berelson所稱的「民主的弔詭」（paradox of democracy）{Berelson, 1954 #12912}。Miller及Stokes的研究{Miller, 1963 #12740}就發現，國會議員會隨著議題的不同而有不同回應選民的程度，在選民較陌生，難以認知、理解、充分掌握資訊或者較無興趣而欠缺注意、沒有清楚立場的領域中（例如外交國防），國會議員較有充分自主的空間，因而相對於較與人民相關、民意較可能關注、敏感度或張力較強的社會福利與民權領域，國會議員回應民意的程度較低。此種情形下，若又無堅強的以群眾為基礎的利益團體代表選民反應民意與利益或提供資訊時，不僅議員無法感知民意，民意也無從監督從而透過選舉課責，「人頭就不是硬實力」，議員不是參考其他的影響力來源行事（例如政黨、行政機關、同黨議員、政黨國會領導人），就是依據自身的意志及自己對於政策的評估行事。
+此外，若議員產生方式並非透過選舉而是由政黨提名（如不分區名單），或者是決定議席方式中政黨選票（party vote）的成分與重要性大於個人選票時（例如選制上採複數選區單一投票不可讓渡制SNTV使得議員無須爭取選票極大化），或者選民的投票抉擇因素中政黨認同的強度可能蓋過政策認同時，議員的行為也可能轉向爭取個人在政黨的影響力{Carey, 1995 #12908; Hirano, 2006 #12911}以及制訂好的公共政策，此時建立個人選票的重要性即不如想像中重要。
+
+其次，國會議員的行為準則雖然理論上（理想層次中）需要透過不斷回應民意，以期爭取選民的認同與支持以避免選民在下次投票中會受到選民的懲罰，但實際上選民與議員雙方間這種民意溝通交換與回應及問責的連線並不一定能夠完美連接。現實世界中的選民可能是完全不過問政治、無法參與也無意願參與政治的「非理想公民」，這也就是Berelson所稱的「民主的弔詭」（paradox of democracy）{Berelson, 1954 #12912}。Miller及Stokes的研究{Miller, 1963 #12740}就發現，國會議員會隨著議題的不同而有不同回應選民的程度，在選民較陌生，難以認知、理解、充分掌握資訊或者較無興趣而欠缺注意、沒有清楚立場的領域中（例如外交國防），國會議員較有充分自主的空間，因而相對於較與人民相關、民意較可能關注、敏感度或張力較強的社會福利與民權領域，國會議員回應民意的程度較低。此種情形下，若又無堅強的以群眾為基礎的利益團體代表選民反應民意與利益或提供資訊時，不僅議員無法感知民意，民意也無從監督從而透過選舉課責，「人頭就不是硬實力」，議員不是參考其他的影響力來源行事（例如政黨、利益團體、行政機關、同黨議員、政黨國會領導人、媒體），就是依據自身的意志及自己對於政策的評估行事。
 
 回應有政治資源的人。
 
 ## 誰決定公共政策的制訂
 
-在憲法領域，關注民主失靈程序的傳統反多數決理論中，因其論述較著重「偏見」的角色，多從議員及其選民存有的偏見去推測「因為偏見而導致失靈的產生」從而證成違憲審查，在其理論與概念上政策決定的政治行動者僅有國會議員──政治菁英，而影響力的來源則僅有選民以及政治菁英自己。但是單是從議員基於連任考量必須時時回應民意這一點並不能完全解釋政策產出與政策回應。如同前述，選民可能根本上欠缺意識、並未形成意見或者無能也無力參與政治，此時民意的來源（政策的需求輸入端）就可能來自有資源有權力者以及組織良好的利益團體，議員可能根本無從得知選區的「多數民意」具體形貌為何。另外，基於選區的異質性，如果某一政策回應雖然可以博取選區多數選民的認同與利益，甚或是符合議員自己對公共政策的評估，卻會得罪另外一群人時，議員甚至有可能採取策略性回應，例如僅象徵性回應{Eulau, 1989 #12909}，也可能策略性設定議程，透過議程選擇而暫時將爭議壓在台面下，試圖壓抑尚未浮出、高漲的民意{Cox, 2005 #12863}。在此種情形下，不同政策主張的出現，也有可能是政黨、利益團體動員從而帶領民意的結果，也有可能根本就是議員（特別是在野黨）和利益團體結合或者是為了與競爭對手打對台而根本上有策略而刻意地設定議題而試圖帶領著民意走向{Brunner, 2013 #12838}並試圖創造政策流。此時政策決定的要角，自然是國會議員這些政治菁英，而政策的制訂自然也就可能傾向立法委員自身的利益與價值作為判斷基準，並非由選民做為政策輸入端。
+在憲法領域，關注民主失靈程序的傳統反多數決理論中，因其論述較著重「偏見」的角色，多從議員及其選民存有的偏見去推測「因為偏見而導致立法過程存在失靈」從而證成司法的違憲審查以矯正代議政治，在其理論與概念上政策決定的政治行動者側重在國會議員──政治菁英，而影響力的來源則僅有選民以及政治菁英自己。但是單是從議員基於連任考量必須時時回應民意這一點並不能完全解釋政策產出與政策回應。如同前述，選民可能根本上欠缺意識、並未形成意見或者無能也無力參與政治，此時民意的來源（政策的需求輸入端）就可能來自有資源有權力者以及組織良好的利益團體，議員可能根本無從得知選區的「多數民意」具體形貌為何。另外，基於選區的異質性，如果某一政策回應雖然可以博取選區多數選民的認同與利益，甚或是符合議員自己對公共政策的評估，卻會得罪另外一群人時，議員甚至有可能採取策略性回應，例如僅象徵性回應{Eulau, 1989 #12909}，也可能策略性設定議程，透過議程選擇而暫時將爭議壓在台面下，試圖壓抑尚未浮出、高漲的民意{Cox, 2005 #12863}。在此種情形下，不同政策主張的出現，也有可能是政黨、利益團體動員從而帶領民意的結果，也有可能根本就是議員（特別是在野黨）和利益團體結合或者是為了與競爭對手打對台而根本上有策略而刻意地設定議題而試圖帶領著民意走向{Brunner, 2013 #12838}並試圖創造政策流。此時政策決定的要角，自然是國會議員這些政治菁英，而政策的制訂自然也就可能傾向立法委員自身的利益與價值作為判斷基準，並非由選民做為政策輸入端。
 
 更經典的晚近研究是Gilens&Page{Gilens, 2014 #12679}利用大規模的政策議題檢驗經濟菁英、利益集團與一般公民誰統治／誰有權力（Who governs?）的問題。他們首先整理出關於「誰決定美國的公共政策走向」的四種傳統理論：多數選舉民主論（Majoritarian Electoral Democracy）、經濟菁英支配論（Economic-Elite Domination）、多數多元論（Majoritarian Pluralism）以及偏差多元論（Biased Pluralism）。多數選舉民主論主張政治人物都會向中位選民的政策偏好靠攏，因為這樣的政策偏好最能符合多數選民的偏好，例如Anthony Downs的*Economic Theory of Democracy*所主張，同時也因為符合最多數選民的偏好而有在規範上符合民主精神。經濟菁英支配論則主張實際上由擁有經濟資源者主導了美國的政策制訂，如C. Wright Mills的*The Power Elite*、G. William Domhoff的著作*Who Rules America?*中指出經濟菁英透過基金會、智庫、遊說、贊助候選人等機制塑造輿論的機制主導了公共政策的走向。多數多元主義論則將焦點著重在由不同的團體競逐公共政策的現象，包含黨派、利益團體、企業、產業部門等，如James Madison的聯邦論第10講（*Federalist Paper No. 10*）就曾經談到派系（factions）在政治上的作用。David Truman的*The Governmental Process*、Robert Dahl的*Who Governs?*、*Polyarchy*等也都詳細並討論了多元論。偏差多元論則是從多元論中未能關注Mancur Olson的「集體行動的困難」的論點出發，當每個個人的小利益難以透過組織集結起來，無法克服團體的組織與動員成本時，個人傾向搭便車而由他人負擔行動成本坐享漁翁之利，包含E.E. Schattschneider的*The Semisovereign People: A Realist's View of Democracy in America*認為美國的利益團體由組織化的特殊利益群體構成，偏向上層階級，群體成員也與經濟社會地位相關。Kay Lehman Schlozman, Sidney Verba, and Henry Brady等人{Schlozman, 2018 #12916;Schlozman, 2012 #12650;Verba, 1995 #12621}對於政治參與的研究也發現經濟社會地位較低者政治參與程度較低的現象，顯示多元競爭的現況並非對稱，反而其均衡點是往有豐沛經濟資源的一方偏的。
 
@@ -164,7 +163,7 @@ Sys.setlocale(category = "LC_ALL", locale = "cht")
 factor_ses_report_table<-data.frame(c(0.675,0.738,0.564,0.420,0.374),c(0.668,0.700,0.598,0.567,0.403),c(0.639,0.621,0.510,0.356,0.295),c(0.697,0.763,0.541,0.368,0.374))
 colnames(factor_ses_report_table)<-c("2004公民綜合社經地位因素負荷量","2010環境綜合社經地位因素負荷量","2010綜合綜合社經地位因素負荷量","2016公民綜合社經地位因素負荷量")
 rownames(factor_ses_report_table)<-c("教育程度","職業社經地位","個人收入","家庭收入","可解釋變異比例")
-kable(factor_ses_report_table, format = "html") %>% kable_styling(bootstrap_options = c("striped", "hover")) #%>% scroll_box(height="200px")
+kableExtra::kable(factor_ses_report_table, format = "html") %>% kableExtra::kable_styling(bootstrap_options = c("striped", "hover")) #%>% scroll_box(height="200px")
 ```
 * 議題領域：分為經濟、公民與政治權、社會福利、財政、內政、兩岸、環境、經濟社會文化權。
 * 同政策意向者佔全國／全選區整體意向比率：分別以全國（全調查樣本）／全選區（全調查樣本中同一選區的受訪對象）層級中與觀察對象持同方向政策意向者人數除以全部人數所得數值編碼。Likert五點或四點量表設計的問題中，將回答非常贊成與贊成某政策者編為同一類，非常反對／反對某政策者編為同一類。這個指標也就是要衡量觀察對象的政策意向連結整體層級的民意強度。
@@ -213,7 +212,7 @@ political_particip_variable_table<-as.data.frame(rowr::cbind.fill(
 ))
 colnames(political_particip_variable_table)<-c("2004公民","2010環境","2010綜合","2016公民")
 rownames(political_particip_variable_table)[14]<-("可解釋變異比例")
-kable(political_particip_variable_table, format = "html") %>% kable_styling(bootstrap_options = c("striped", "hover"))
+kableExtra::kable(political_particip_variable_table, format = "html") %>% kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 * 統獨傾向：依據問卷中的以下問題類別變項，使用以潛在類別模式（Latent class model）為原理的R語言套件poLCA{Linzer, 2011 #12918}，預測／估計受訪者潛在的統獨傾向，經檢視BIC值後發現設定三個潛在類別的模型適配度均最佳，分為「統一」、「中立」、「獨立」三類。此變項並非分析模型內的變項，而是用來與立法院的統獨議案及表決紀錄比較之用。2010環境並無統獨傾向問題所以並未建立變項、2016公民並不使用潛在類別模式估計，直接以題目回答結果編碼；括弧內為潛在類別模式估計外顯類別對潛在類別的機率（比率）：
 
@@ -229,9 +228,9 @@ colnames(indattitude_variable_table)<-c("2004公民","2010環境","2010綜合","
 #rownames(indattitude_variable_table)[4]<-("可解釋變異比例")
 latentclassmodelofattiind_xlsx<-paste0(dataset_file_directory,"latent_class_modeling.xlsx")
 #latentclassmodelofattiind_xlsx_df <- lapply(1:2,function(X) {return(read.xlsx(file, sheet = X))},file=latentclassmodelofattiind_xlsx)
-latentclassmodelofattiind_xlsx_df_1 <- openxlsx::read.xlsx(latentclassmodelofattiind_xlsx, sheet = 1)
-latentclassmodelofattiind_xlsx_df_2 <- openxlsx::read.xlsx(latentclassmodelofattiind_xlsx, sheet = 2)
-kable(indattitude_variable_table, format = "html") %>% kable_styling(bootstrap_options = c("striped", "hover"))
+#latentclassmodelofattiind_xlsx_df_1 <- openxlsx::read.xlsx(latentclassmodelofattiind_xlsx, sheet = 1)
+#latentclassmodelofattiind_xlsx_df_2 <- openxlsx::read.xlsx(latentclassmodelofattiind_xlsx, sheet = 2)
+#kableExtra::kable(indattitude_variable_table, format = "html") %>% kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 ```{r results='asis',echo=FALSE}
 #huxtable::as_huxtable(latentclassmodelofattiind_xlsx_df_1,add_colnames = TRUE) %>%
@@ -255,7 +254,7 @@ partyconstituency_variable_table<-as.data.frame(rowr::cbind.fill(
 ))
 colnames(partyconstituency_variable_table)<-c("2004公民","2010環境","2010綜合","2016公民")
 rownames(partyconstituency_variable_table)[7]<-("可解釋變異比例")
-kable(partyconstituency_variable_table, format = "html") %>% kable_styling(bootstrap_options = c("striped", "hover"))
+kableExtra::kable(partyconstituency_variable_table, format = "html") %>% kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
 ```
 
 合併民意資料與議案及立法委員議案表決紀錄資料後，建立應變項如下：
@@ -280,11 +279,6 @@ kable(partyconstituency_variable_table, format = "html") %>% kable_styling(boots
 
 關於「立法院通過的政策決定，回應誰的民意」以及「議程設定是否回應民意」部分，應變數為二元類別變項，因此使用logistic regression分析；關於「議員的表決是否回應選區選民民意」部分，由於應變項為0,1,2的次序變項，不同類別之間雖有次序關係但間隔可能不等距，迴歸分析使用ordinal logit models{Agresti, 2010 #12745}
 
-```{r include=FALSE}
-#library(dplyr)
-#library(stargazer)
-#library(ggplot2)
-```
 
 ## 除錯檢測
 
@@ -303,42 +297,43 @@ http://r-statistics.co/Model-Selection-in-R.html （also tutorial on stepwise）
 Heteroscedasticity: prediction必須要隨機分布，不能有pattern，否則導致模型失準； spot outliers
 
 # 研究結果與發現
+
+```{r echo=FALSE}
+model_indp_var <- c("myown_selfid", "myown_factoredses", "myown_factoredparticip","gap_sex", "gap_eduyr", "gap_ses", "gap_ethnicity", "gap_age", "days_diff_survey_bill","elec_dist_type","legislator_party","incumbent","pp_agendavoting","pp_lawamendment")
+model_dep_var <- c("respondopinion", "success_on_bill")
+power_analysis_general_formula_suffix <- paste0(model_indp_var,collapse="+")
+respondopinion_by_district_legislator_formula <- paste0("respondopinion ~ ",power_analysis_general_formula_suffix)
+pass_on_bill_formula <- paste0("pass_on_bill ~ ",power_analysis_general_formula_suffix)
+if ({ordered_logistic_to_analy_repre_response<-TRUE; ordered_logistic_to_analy_repre_response}) {
+  result_repre_response_on_all_bills <- custom_parallel_lapply(overall_district_legislators_only_power_dfdata,function(dataset_for_analysis) {
+    dataset_for_analysis <-  overall_district_legislators_only_power_dfdata[[4]] %>%
+      .[complete.cases(,.[c(model_indp_var,model_dep_var)]),]
+    model_respondopinion_by_district_legislator <- dataset_for_analysis %$%
+      MASS::polr(as.formula(respondopinion_by_district_legislator_formula), Hess=TRUE) %>%
+      MASS::stepAIC()
+    ctable <- coef(summary(model_respondopinion_by_district_legislator))
+    pvaluetable <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
+    confi_table <- confint.default(model_respondopinion_by_district_legislator) %>%
+      rbind(matrix(rep(NA,4),nrow=2,ncol=2))
+    odds_ratio_table <- c(exp(coef(model_respondopinion_by_district_legislator)),NA,NA)
+    #predict_value_mean <- MASS::polr.predicts(model_respondopinion_by_district_legislator, values="mean")
+    final_ctable <- cbind(ctable, "p value" = pvaluetable, confi_table, "Odds Ratio"=odds_ratio_table)#, "CI" = 
+    return(final_ctable)
+  }, exportlib=c("base","magrittr","dplyr","parallel","MASS"),
+  exportvar=c("overall_district_legislators_only_power_dfdata","respondopinion_by_district_legislator_formula"))
+}
+lapply(result_repre_response_on_all_bills, function(ctable) {
+  kableExtra::kable(ctable, format = "html") %>% kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
+  })
+
+#library(dplyr)
+#library(stargazer)
+#library(ggplot2)
+```
+
+
 # 討論與結論
-# 參考文獻
 
-一、中文部分
-
-* 何來美（著）（2017）。《台灣客家政治風雲錄》。臺北市：聯經。
-* 盛杏湲（2008）。〈政黨的國會領導與凝聚力——2000年政黨輪替前後的觀察〉。《臺灣民主季刊》，第5卷第4期，頁 1-46 
-* 黃秀端＆陳鴻鈞（2006）。〈國會中政黨席次大小對互動之影響——第三屆到第五屆的立法院記名表決探析〉。《人文及社會科學集刊》，第18卷第3期，頁 385-415 。 取自 https://www.rchss.sinica.edu.tw/app/ebook/journal/18-03-2006/cc1831.pdf
-* 黃毅志（2008）。〈如何精確測量職業地位？——「改良版臺灣地區新職業聲望與社經地位量表」之建構〉。《臺東大學教育學報》，第19卷第1期，頁 151-159 
-
-二、外文部分
-
-* Agresti, Alan. (2010). Analysis of Ordinal Categorical Data (2 ed.). Hoboken: John Wiley & Sons 
-* Bachrach, Peter＆Baratz, Morton S. (1970). Power and poverty: Theory and practice: Oxford University Press 
-* Bachrach, Peter＆Baratz, Morton S. (1962). Two Faces of Power. American Political Science Review, 56(4), 947-952. doi: 10.2307/1952796
-* Bachrach, Peter＆Baratz, Morton S. (1963). Decisions and Nondecisions: An Analytical Framework. American Political Science Review, 57(3), 632-642. doi: 10.2307/1952568
-* Berelson, Bernard. (1954). Voting. Chicago: University of Chicago Press 
-* Brunner, Martin. (2013). Parliaments and legislative activity motivations for bill introduction. Wiesbaden: Springer Fachmedien Wiesbaden 
-* Carey, John M.＆Shugart, Matthew Soberg. (1995). Incentives to cultivate a personal vote: A rank ordering of electoral formulas. Electoral Studies, 14(4), 417-439. doi: https://doi.org/10.1016/0261-3794(94)00035-2
-* Chalmers, R Philip (2012). mirt: A multidimensional item response theory package for the R environment. Journal of statistical software, 48(6), 1-29. 
-* Cox, Gary W.＆McCubbins, Mathew Daniel. (2005). Setting the agenda : responsible party government in the U.S. House of Representatives. Cambridge; New York: Cambridge University Press 
-* Dahl, Robert A. (1957). The Concept of Power. Behavioral Science, 2(3), 201-215. doi: 10.1002/bs.3830020303
-* Ely, John Hart. (1980). Democracy and Distrust: A Theory of Judicial Review. Cambridge: Harvard University Press 
-* Eulau, Heinz＆Karps, Paul D. (1989). The Puzzle of Representation: Specifying Components of Responsiveness, in H. Eulau＆J. C. Wahlke (Eds.), The Politics of representation continuities in theory and research (pp. 55-72). Ann Arbor, Michigan: U.M.I., Out-of-Print Books on Demand 
-* Fenno, Richard F. (1973). Congressmen in committees. Boston: Little, Brown 
-* Gilens, Martin＆Page, Benjamin I. (2014). Testing Theories of American Politics: Elites, Interest Groups, and Average Citizens. Perspectives on Politics, 12(03), 564-581. doi: 10.1017/S1537592714001595
-* Griffin, John D.＆Flavin, Patrick. (2010). How Citizens and Their Legislators Prioritize Spheres of Representation. Political Research Quarterly, 64(3), 520-533. doi: 10.1177/1065912910373552
-* Hirano, Shigeo. (2006). Electoral Institutions, Hometowns, and Favored Minorities: Evidence from Japanese Electoral Reforms. World Politics, 59(1), 51-82. doi: 10.1353/wp.2007.0017
-* Mayhew, David R. (2006). Congress : the electoral connection. New Haven, CT; London: Yale University Press 
-* Miller, Wakken E.＆Stokes, Donald E. (1963). Constituency Influence in Congress. American Political Science Review, 57(1), 45-56. doi: 10.2307/1952717
-* Olson, Mancar. (1965). The logic of collective action : public goods and the theory of groups. Cambridge, Mass.: Harvard University Press 
-* Schlozman, Kay Lehman、Brady, Henry E.＆Verba, Sidney. (2018). Unequal and unrepresented : political inequality and the people's voice in the new Gilded Age. Princeton: Princeton University Press 
-* Schlozman, Kay Lehman、Verba, Sidney＆Brady, Henry E. (2012). The Unheavenly Chorus Unequal Political Voice and the Broken Promise of American Democracy. Princeton; Oxford: Princeton University Press 
-* van Buuren, Stef＆Groothuis-Oudshoorn, Catharina Gerarda Maria. (2011). mice: Multivariate Imputation by Chained Equations in R. Journal of statistical software, 45(3), urn:issn:1548-7660. doi: 10.18637/jss.v045.i03
-* Verba, Sidney、Schlozman, Kay Lehman＆Brady, Henry E. (1995). Voice and equality : civic voluntarism in American politics. Cambridge, Mass.: Harvard University Press 
-* Young, Iris Marion. (1990). Justice and the Politics of Difference. Princeton, N.J.: Princeton University Press 
 
 
 standardized beta coefficient
@@ -577,3 +572,39 @@ getwd()
 ```{r, echo=FALSE}
 sessionInfo()
 ```
+
+# 參考文獻
+
+一、中文部分
+
+* 何來美（著）（2017）。《台灣客家政治風雲錄》。臺北市：聯經。
+* 盛杏湲（2008）。〈政黨的國會領導與凝聚力——2000年政黨輪替前後的觀察〉。《臺灣民主季刊》，第5卷第4期，頁 1-46 
+* 黃秀端＆陳鴻鈞（2006）。〈國會中政黨席次大小對互動之影響——第三屆到第五屆的立法院記名表決探析〉。《人文及社會科學集刊》，第18卷第3期，頁 385-415 。 取自 https://www.rchss.sinica.edu.tw/app/ebook/journal/18-03-2006/cc1831.pdf
+* 黃毅志（2008）。〈如何精確測量職業地位？——「改良版臺灣地區新職業聲望與社經地位量表」之建構〉。《臺東大學教育學報》，第19卷第1期，頁 151-159 
+
+二、外文部分
+
+* Agresti, Alan. (2010). Analysis of Ordinal Categorical Data (2 ed.). Hoboken: John Wiley & Sons 
+* Bachrach, Peter＆Baratz, Morton S. (1970). Power and poverty: Theory and practice: Oxford University Press 
+* Bachrach, Peter＆Baratz, Morton S. (1962). Two Faces of Power. American Political Science Review, 56(4), 947-952. doi: 10.2307/1952796
+* Bachrach, Peter＆Baratz, Morton S. (1963). Decisions and Nondecisions: An Analytical Framework. American Political Science Review, 57(3), 632-642. doi: 10.2307/1952568
+* Berelson, Bernard. (1954). Voting. Chicago: University of Chicago Press 
+* Brunner, Martin. (2013). Parliaments and legislative activity motivations for bill introduction. Wiesbaden: Springer Fachmedien Wiesbaden 
+* Carey, John M.＆Shugart, Matthew Soberg. (1995). Incentives to cultivate a personal vote: A rank ordering of electoral formulas. Electoral Studies, 14(4), 417-439. doi: https://doi.org/10.1016/0261-3794(94)00035-2
+* Chalmers, R Philip (2012). mirt: A multidimensional item response theory package for the R environment. Journal of statistical software, 48(6), 1-29. 
+* Cox, Gary W.＆McCubbins, Mathew Daniel. (2005). Setting the agenda : responsible party government in the U.S. House of Representatives. Cambridge; New York: Cambridge University Press 
+* Dahl, Robert A. (1957). The Concept of Power. Behavioral Science, 2(3), 201-215. doi: 10.1002/bs.3830020303
+* Ely, John Hart. (1980). Democracy and Distrust: A Theory of Judicial Review. Cambridge: Harvard University Press 
+* Eulau, Heinz＆Karps, Paul D. (1989). The Puzzle of Representation: Specifying Components of Responsiveness, in H. Eulau＆J. C. Wahlke (Eds.), The Politics of representation continuities in theory and research (pp. 55-72). Ann Arbor, Michigan: U.M.I., Out-of-Print Books on Demand 
+* Fenno, Richard F. (1973). Congressmen in committees. Boston: Little, Brown 
+* Gilens, Martin＆Page, Benjamin I. (2014). Testing Theories of American Politics: Elites, Interest Groups, and Average Citizens. Perspectives on Politics, 12(03), 564-581. doi: 10.1017/S1537592714001595
+* Griffin, John D.＆Flavin, Patrick. (2010). How Citizens and Their Legislators Prioritize Spheres of Representation. Political Research Quarterly, 64(3), 520-533. doi: 10.1177/1065912910373552
+* Hirano, Shigeo. (2006). Electoral Institutions, Hometowns, and Favored Minorities: Evidence from Japanese Electoral Reforms. World Politics, 59(1), 51-82. doi: 10.1353/wp.2007.0017
+* Mayhew, David R. (2006). Congress : the electoral connection. New Haven, CT; London: Yale University Press 
+* Miller, Wakken E.＆Stokes, Donald E. (1963). Constituency Influence in Congress. American Political Science Review, 57(1), 45-56. doi: 10.2307/1952717
+* Olson, Mancar. (1965). The logic of collective action : public goods and the theory of groups. Cambridge, Mass.: Harvard University Press 
+* Schlozman, Kay Lehman、Brady, Henry E.＆Verba, Sidney. (2018). Unequal and unrepresented : political inequality and the people's voice in the new Gilded Age. Princeton: Princeton University Press 
+* Schlozman, Kay Lehman、Verba, Sidney＆Brady, Henry E. (2012). The Unheavenly Chorus Unequal Political Voice and the Broken Promise of American Democracy. Princeton; Oxford: Princeton University Press 
+* van Buuren, Stef＆Groothuis-Oudshoorn, Catharina Gerarda Maria. (2011). mice: Multivariate Imputation by Chained Equations in R. Journal of statistical software, 45(3), urn:issn:1548-7660. doi: 10.18637/jss.v045.i03
+* Verba, Sidney、Schlozman, Kay Lehman＆Brady, Henry E. (1995). Voice and equality : civic voluntarism in American politics. Cambridge, Mass.: Harvard University Press 
+* Young, Iris Marion. (1990). Justice and the Politics of Difference. Princeton, N.J.: Princeton University Press 
