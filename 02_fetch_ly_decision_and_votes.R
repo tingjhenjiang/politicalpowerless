@@ -3,10 +3,10 @@ t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cp
 source(file = "shared_functions.R")
 no_rollcall<-c()
 
-load(paste0(filespath, "data", slash, "meetingdata.RData"))
+load(paste0(dataset_in_scriptsfile_directory, "meetingdata.RData"))
 urlarr<-as.character(meetingdata$url) %>% unique()
-error_vote_record_from_name <- read.xlsx(paste(filespath, "data", slash, "error_vote_record_from_name.xlsx", sep = ""), sheet = 1)
-error_leave_and_attend_legislators <- read.xlsx(paste(filespath, "data", slash, "leave_and_attend_legislators.xlsx", sep = ""), sheet = 1) %>%
+error_vote_record_from_name <- read.xlsx(paste(dataset_in_scriptsfile_directory, "error_vote_record_from_name.xlsx", sep = ""), sheet = 1)
+error_leave_and_attend_legislators <- read.xlsx(paste(dataset_in_scriptsfile_directory, "leave_and_attend_legislators.xlsx", sep = ""), sheet = 1) %>%
   mutate_cond(is.na(replace_with),replace_with="")
 
 myown_vote_record_df<-data.frame()
@@ -634,7 +634,7 @@ myown_vote_record_df<-do.call("rbind",custom_parallel_lapply(
 )) %>%
   filter(!is.na(legislator_name))
 
-save(myown_vote_record_df,file=paste0(filespath, "data", slash, "myown_vote_record_df.RData"))
+save(myown_vote_record_df,file=paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df.RData"))
 
 #myown_vote_record_df<-mapply(fetch_ly_decision_and_vote,X=seq.int(length(urlarr)),Y=urlarr)
 #myown_vote_record_df<-do.call("rbind", lapply(

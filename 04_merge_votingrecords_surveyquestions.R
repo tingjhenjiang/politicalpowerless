@@ -54,8 +54,8 @@ if ({incoporate_party_seats<-FALSE; incoporate_party_seats}) { #舊方法暫時�
 #as.character(unique(bills_billcontent$pp_related_q_1))
 
 #讀取投票紀錄資料-此處通常預處理好，直接load下面 mergedf_votes_bills_surveyanswer
-load(paste0(filespath, "data", slash, "myown_vote_record_df.RData"))
-load(paste0(filespath, "data", slash, "myown_vote_record_detailed_part_df.RData"))
+load(paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df.RData"))
+load(paste0(dataset_in_scriptsfile_directory, "myown_vote_record_detailed_part_df.RData"))
 duplicated_meeting_in_vote_record <- list(
   distinct(myown_vote_record_df,term,period,temp_meeting_no,meetingno) %>% arrange(term,period,temp_meeting_no,meetingno),
   distinct(myown_vote_record_detailed_part_df,term,period,temp_meeting_no,meetingno) %>% arrange(term,period,temp_meeting_no,meetingno)
@@ -78,7 +78,7 @@ myown_vote_record_df <- dplyr::anti_join(myown_vote_record_df, duplicated_meetin
   mutate_cond(term==9 & customgrepl(legislator_name,"高潞"),legislator_name="高潞．以用．巴魕剌Kawlo．Iyun．Pacidal") %>%
   mutate_cond(term==9 & customgrepl(legislator_name,"陳秀霞"),legislator_name="周陳秀霞") %>%
   select(-billcontent,-url)
-#save(myown_vote_record_df,file=paste0(filespath, "data", slash, "myown_vote_record_df_across2004.RData"))
+#save(myown_vote_record_df,file=paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df_across2004.RData"))
 
 #filter(myown_vote_record_df,term==9,customgrepl(legislator_name,"陳秀霞")) %>% select(legislator_name) %>% unique()
 
@@ -88,8 +88,8 @@ myown_vote_record_df <- dplyr::anti_join(myown_vote_record_df, duplicated_meetin
 
 
 ##算出同黨票數
-load(file=paste0(filespath, "data", slash, "myown_vote_record_df_across2004.RData"))
-load(file=paste0(filespath, "data", slash, "legislators_with_election.RData"))
+load(file=paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df_across2004.RData"))
+load(file=paste0(dataset_in_scriptsfile_directory, "legislators_with_election.RData"))
 
 myown_vote_bills_file <- paste0(dataset_file_directory, "votingdf_datafile_myown_englished.xlsx", sep="")
 bills_answer_to_bill <- openxlsx::read.xlsx(myown_vote_bills_file, sheet = 4)
@@ -189,5 +189,5 @@ mergedf_votes_bills_surveyanswer <- distinct(legislators_with_election,term,legi
 #  arrange(party,billid_myown,variable_on_q,respondopinion) %>%
 #  View()
 
-#save(mergedf_votes_bills_surveyanswer, file = paste0(filespath, "data", slash, "mergedf_votes_bills_surveyanswer.RData"))
+#save(mergedf_votes_bills_surveyanswer, file = paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"))
 

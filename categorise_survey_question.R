@@ -15,7 +15,7 @@ filespath<-switch(
 )
 source(file = paste(filespath, "shared_functions.R", sep = ""))
 origdata<-read_csv(
-  custompaste0(filespath,"surveyquestiontype.csv"),
+  custompaste0(dataset_file_directory, "surveyquestiontype.csv"),
   col_names=TRUE
 )
 
@@ -25,8 +25,8 @@ questions<-customgsub(origdata$QUESTION,"[A-Za-z0-9]", "") %>%
 
 #分詞
 cutter = worker(bylines = T,
-                stop_word=custompaste0(filespath,"stop_word.txt"),
-                user=custompaste0(filespath,"user.dict.utf8")
+                stop_word=custompaste0(dataset_file_directory, "stop_word.txt"),
+                user=custompaste0(dataset_file_directory, "user.dict.utf8")
                 )
 article_words = sapply(questions,function(x) cutter <= x) %>%
   sapply(custompaste0,collapse=" ")
@@ -68,14 +68,14 @@ analytics <- create_analytics(traincontainer, results)
 summary(analytics)
 create_ensembleSummary(analytics@document_summary)
 #儲存模型
-saveRDS(models,custompaste0(filespath,"survey_question_classification_model.rds"))
+saveRDS(models,custompaste0(dataset_file_directory, "survey_question_classification_model.rds"))
 #save(models,"D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\可用dataset(需要2004-2016)\\survey_question_classification_model.rds")
 
-models<-readRDS(custompaste0(filespath,"survey_question_classification_model.rds"))
+models<-readRDS(custompaste0(dataset_file_directory, "survey_question_classification_model.rds"))
 
 #預測
 predictdata<-read_csv(
-  custompaste0(filespath,"survey_predict_questions.csv"),
+  custompaste0(dataset_file_directory, "survey_predict_questions.csv"),
   col_names=TRUE
 ) %>%
   as.data.frame()

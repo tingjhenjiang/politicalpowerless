@@ -1,7 +1,7 @@
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
 source(file = "shared_functions.R")
-meetingurldata<-paste0(filespath, "data", slash, "meetingrecord.xlsx") %>%
+meetingurldata<-paste0(dataset_in_scriptsfile_directory, "meetingrecord.xlsx") %>%
   read.xlsx(sheet = 1) %>%
   filter(kind!="談話會")
 meetingurldata_urlrange<-4:13 #需要的欄位
@@ -30,9 +30,9 @@ fetchmeetingdata<-meetingurldata[,meetingurldata_urlrange] %>%
   list_of_vec_asmanyrows_to_df() %>%
   mutate_all(as.character)
 #check: utf8::utf8_valid(fetchmeetingdata$HTML5DATA[10])
-#save(fetchmeetingdata,file=paste0(filespath, "data", slash, "fetchmeetingdata.RData"))
-load(file=paste0(filespath, "data", slash, "fetchmeetingdata.RData"))
-#load(paste0(filespath, "vote_record", slash, "fetchmeetingdata.RData", sep = "")) #476 obs at 1233 now 481
+#save(fetchmeetingdata,file=paste0(dataset_in_scriptsfile_directory, "fetchmeetingdata.RData"))
+load(file=paste0(dataset_in_scriptsfile_directory, "fetchmeetingdata.RData"))
+#load(paste0(dataset_in_scriptsfile_directory, "fetchmeetingdata.RData", sep = "")) #476 obs at 1233 now 481
 
 
 #I think there are two variables here: the sequence of bytes and the declared encoding.
@@ -102,4 +102,4 @@ meetingdata<-bind_cols(meetingurldata,fetchmeetingdata) %>%
 #write_file(content, path=paste(dataset_file_directory, "rdata", slash,  "checkcontent.txt", sep = ""), append = FALSE)
 
 #出錯處 at 312 臨時會 第08屆 第04會期 第01次臨時會 第01次會議 or 313
-save(meetingdata, file = paste0(filespath, "data", slash, "meetingdata.RData", sep = "") )
+save(meetingdata, file = paste0(dataset_in_scriptsfile_directory, "meetingdata.RData", sep = "") )

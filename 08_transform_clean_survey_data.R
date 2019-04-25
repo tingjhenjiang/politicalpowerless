@@ -15,7 +15,7 @@ survey_codebook<-openxlsx::read.xlsx(paste0(dataset_file_directory,"all_survey_q
 
 
 # 第七部份：把問卷資料變形以便串連及行政區、選舉資料 ---------------------------------
-load(paste0(filespath,"data",slash,"survey_data_test.RData"))
+load(paste0(dataset_in_scriptsfile_directory, "survey_data_test.RData"))
 #library(reshape2)
 
 #survey_oldq_id<-list(
@@ -115,7 +115,7 @@ complete_survey_dataset <- mapply(function(X,Y) {
 #  View()
 #c(NA,"","以上皆非等待發明  不知道何種替代能源","用垃圾科技轉換能源",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,)
 
-#save(complete_survey_dataset,file=paste0(filespath, "data", slash, "complete_survey_dataset.RData"))
+#save(complete_survey_dataset,file=paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"))
 
 ##針對調查問卷資料處理變形，以便合併
 

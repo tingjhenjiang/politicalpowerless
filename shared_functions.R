@@ -15,6 +15,12 @@ sapply(lib,function (X) {
     require(X,character.only=TRUE)
   }
 })
+check_if_windows<-function () {
+  backgroundinfo<-sessionInfo()
+  running<-backgroundinfo$running
+  return(grepl("Windows", backgroundinfo$running))
+}
+slash<-ifelse(check_if_windows(),"\\","/")
 filespath<-switch(
   t_sessioninfo_running_with_cpu,
   "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
@@ -25,8 +31,21 @@ filespath<-switch(
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
-  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\vote_record\\",
-  "Windows10x64build17134Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\Downloads\\vote_record\\"
+  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="Y:\\Software\\scripts\\R\\vote_record\\",
+  "Windows10x64build17134Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="Y:\\Software\\scripts\\R\\vote_record\\"
+)
+dataset_in_scriptsfile_directory <- switch(
+  t_sessioninfo_running_with_cpu,
+  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
+  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=paste0(filespath, "data", slash),
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=paste0(filespath, "data", slash),
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
+  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
+  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\",
+  "Windows10x64build17134Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\"
 )
 
 if (nchar(Sys.getenv("SPARK_HOME")) < 1) {
@@ -264,12 +283,6 @@ mutate_last <- function(.data, ...) {
 #  mutate_last(qty.exit = qty, cf = 0, delta.watts = 13) %>%
 #  ungroup() %>%
 #  select(-is.exit)
-check_if_windows<-function () {
-  backgroundinfo<-sessionInfo()
-  running<-backgroundinfo$running
-  return(customgrepl(backgroundinfo$running,"Windows"))
-}
-slash<-ifelse(check_if_windows(),"\\","/")
 path_to_survey_imputation_and_measurement_file<-paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx")
 
 gcreset<-function() {
@@ -314,7 +327,7 @@ custom_parallel_lapply<-switch(
     result<-mclapply(X=X, FUN=FUN, ..., mc.cores=mc.cores,mc.preschedule=FALSE )
     return(result)
   },
-  "FALSE" = function ( X=list(), FUN, ..., exportlib=c("base"), exportvar=c(), outfile="" ) {
+  "FALSE" = function ( X=list(), FUN, ..., exportlib=c("base","magrittr","parallel"), exportvar=c(), outfile="" ) {
     argumentstopass<-list(...)
     tryCatch({stopCluster(cl)},
              # 遇到 warning 時的自訂處理函數
@@ -426,4 +439,4 @@ list_allcombn_of_model <- function(vars,prefix="1~") {
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"
 #research_odbc_ch <- odbcConnect(research_odbc, believeNRows = FALSE, rows_at_time = 1, DBMSencoding="UTF-8")
-#df<-sqlQuery(research_ch,"SELECT * from bill")
+#df<-sqlQuery(research_ch,"SELECT * from bill")SELECT * from bill")

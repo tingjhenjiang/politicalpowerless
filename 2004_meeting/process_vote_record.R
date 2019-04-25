@@ -248,7 +248,7 @@ for (i in 1:length(filename)) {#length(filename) 1:length(filename)
 myown_vote_record_detailed_part_df<-filter(myown_vote_record_detailed_part_df,!is.na(legislator_name)) %>%
   mutate_all(as.character) %>%
   mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer)
-#save(myown_vote_record_detailed_part_df,file=paste0(filespath, "data", slash,  "myown_vote_record_detailed_part_df.RData"))
+#save(myown_vote_record_detailed_part_df,file=paste0(dataset_in_scriptsfile_directory,  "myown_vote_record_detailed_part_df.RData"))
 load(file=paste0(dataset_file_directory, "rdata", slash,  "myown_vote_record_df.RData"))
 #distinct(myown_vote_record_detailed_part_df,billcontent,url,date,term,period,meetingno,temp_meeting_no,billn,billresult) %>%
 #  write.xlsx(paste0(dataset_file_directory,"rdata",slash,"myown_vote_record_detailed_part_df_2.xlsx"))

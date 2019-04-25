@@ -8,7 +8,7 @@ gc(verbose=TRUE)
 
 # 第五部份：IRT latent variables 環境設定 -------------------------------------------
 #reset
-#load(paste0(filespath,"data",slash,"all_survey_combined.RData"))
+#load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined.RData"))
 #load imputed survey
 load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_7_Ubuntu18.04.2LTSdf.RData"))
 
@@ -95,7 +95,7 @@ library(mirt)
 #2016citizen-fit2-z1: b4 h2a h2b h2c h2d h2e h2f h2g h2h h3a h3b h3c h4
 #2010overall-fit2: v79a v79b v79c v79d 
 #2010env-fit1: v34 v35a v35b v35c ( v33f v75 v76 v77-為了環保而刻意不買某些產品,常不常參與社區的環保工作,常不常反應社區中容易造成天災危險的情況,常不常反應社區中造成環境污染的情況)
-#load(paste0(filespath,"data",slash,"all_survey_combined.RData"))
+#load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined.RData"))
 #load imputed survey
 
 need_particip_var<-list(
@@ -261,4 +261,4 @@ if ({usinggpcm <- FALSE;usinggpcm}) {
   ltm::GoF.gpcm(X.gpcm)
 }
 #margins(fit1)
-#save(survey_data_test, file=paste0(filespath,"data",slash,"miced_survey_7_Ubuntu18.04.2LTSdf_with_mirt.RData"))
+#save(survey_data_test, file=paste0(dataset_in_scriptsfile_directory, "miced_survey_7_Ubuntu18.04.2LTSdf_with_mirt.RData"))

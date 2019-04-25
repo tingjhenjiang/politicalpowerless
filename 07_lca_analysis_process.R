@@ -8,7 +8,7 @@ gc(verbose=TRUE)
 
 
 # 第六部份：LCA latent variables 潛在類別模式資料清理  ================================= 
-load(paste0(filespath,"data",slash,"miced_survey_7_Ubuntu18.04.2LTSdf_with_mirt.RData"))
+load(paste0(dataset_in_scriptsfile_directory, "miced_survey_7_Ubuntu18.04.2LTSdf_with_mirt.RData"))
 
 library(poLCA)
 library(parallel)
@@ -438,5 +438,5 @@ survey_data_test[[3]]$myown_indp_atti <- LCAmodel_2010overall$predclass %>%
 survey_data_test[[4]]$myown_indp_atti<-survey_data_test[[4]]$h10r
 
 
-#save(survey_data_test,file=paste0(filespath,"data",slash,"survey_data_test.RData"))
+#save(survey_data_test,file=paste0(dataset_in_scriptsfile_directory, "survey_data_test.RData"))
 

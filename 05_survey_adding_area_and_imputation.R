@@ -102,8 +102,8 @@ survey_data <- mapply(function(X,Y) {
 #  reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
 #    dplyr::filter(!is.na(term))
 #})  %>%
-#save(survey_data,file=paste0(filespath,"data",slash,"all_survey_combined.RData"))
-#save(survey_data,file=paste0(filespath,"data",slash,"all_survey_combined_NAuntransformed.RData"))
+#save(survey_data,file=paste0(dataset_in_scriptsfile_directory, "all_survey_combined.RData"))
+#save(survey_data,file=paste0(dataset_in_scriptsfile_directory, "all_survey_combined_NAuntransformed.RData"))
 
 
 if ({labeladjusmentagain <- FALSE; labeladjusmentagain}) {
@@ -178,8 +178,8 @@ if ({writingfeather<-FALSE;writingfeather}) {
 #  mutate_if(is.factor,funs(droplevels))
 #},X=survey_data,Y=survey_restricted_data)
 
-load(paste0(filespath,"data",slash,"all_survey_combined.RData"))
-#load(paste0(filespath,"data",slash,"all_survey_combined_NAuntransformed.RData"))
+load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined.RData"))
+#load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined_NAuntransformed.RData"))
 
 
 # 第四部份：清理資料：填補遺漏值 -------------------------------------------

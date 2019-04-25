@@ -158,9 +158,37 @@ legislators_ethicity_df <- paste0(dataset_file_directory, "legislators_ethicity_
   },lst = .) %>%
   plyr::rbind.fill()
 
+#資料更正：是否現任
+#for (checkterm in terms) {
+#  previousterm <- checkterm-1
+#  legislators_check_incumbent <- openxlsx::read.xlsx(paste0(dataset_file_directory, "legislators.xlsx"), sheet = 1) %>%
+#    filter(term==previousterm) %>%
+#    getElement("name")
+#  legislators_correct_csv <- read_csv(file = paste0(dataset_file_directory, "cec_vote_dataset", slash, "term", checkterm, slash, "partylist", slash, "elrepm.csv")) %>%
+#    mutate_cond(名字 %in% get("legislators_check_incumbent"),現任="Y") %>%
+#    mutate_cond(!名字 %in% get("legislators_check_incumbent"),現任="N")
+#  if (checkterm==5) {
+#    legislators_correct_csv %<>% select(-13)
+#  }
+#  write_csv(legislators_correct_csv, path=paste0(dataset_file_directory, "cec_vote_dataset", slash, "term", checkterm, slash, "partylist", slash, "elrepm_new.csv"), na = "")
+#}
+
 #立委資料與選區資料合併
 #legislators <- read_csv(file = paste0(dataset_file_directory, "legislators.csv"))
-legislators_with_election <- openxlsx::read.xlsx(paste0(dataset_file_directory, "legislators.xlsx"), sheet = 1) %>%
+legislators_with_election <- openxlsx::read.xlsx(paste0(dataset_file_directory, "legislators.xlsx"), sheet = 1, detectDates = TRUE) %>%
+  mutate_cond(is.na(leaveDate) & term==2, leaveDate=as.Date(c("1996/1/31"))) %>% 
+  mutate_cond(is.na(leaveDate) & term==3, leaveDate=as.Date(c("1999/1/31"))) %>% 
+  mutate_cond(is.na(leaveDate) & term==4, leaveDate=as.Date(c("2002/1/31"))) %>% 
+  mutate_cond(is.na(leaveDate) & term==5, leaveDate=as.Date(c("2005/1/31"))) %>% 
+  mutate_cond(is.na(leaveDate) & term==6, leaveDate=as.Date(c("2008/1/31"))) %>% 
+  mutate_cond(is.na(leaveDate) & term==7, leaveDate=as.Date(c("2012/1/31"))) %>% 
+  mutate_cond(is.na(leaveDate) & term==8, leaveDate=as.Date(c("2016/1/31"))) %>% 
+  mutate_cond(is.na(leaveDate) & term==9, leaveDate=as.Date(c("2016/6/1"))) %>%  #調查開始日當作年資起算日
+  mutate(servingdayslong_in_this_term=difftime(leaveDate, onboardDate, units = c("days"))) %>% 
+  mutate_at("servingdayslong_in_this_term", as.integer) %>% 
+  group_by(name) %>%    #把先前屆期總和服務時間計算出來 
+  mutate(seniority=cumsum(servingdayslong_in_this_term)-servingdayslong_in_this_term) %>%
+  ungroup() %>%
   filter(term %in% terms) %>% #c("05", "06", "07", "09")
   mutate_at(c("term"), .funs = list(term = ~customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>% #funs(customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))
   mutate_at(c("term"), as.character) %>%
@@ -174,11 +202,11 @@ legislators_with_election <- openxlsx::read.xlsx(paste0(dataset_file_directory, 
   mutate_at(c("term"), as.numeric) %>%
   mutate_at(c("legislator_sex","legislator_party","partyGroup","areaName","leaveFlag","incumbent","wonelection","election_party","elec_dist_type"), as.factor) %>%
   select(-ename,-onboardDate,-picUrl,-leaveFlag,-leaveDate,-leaveReason,-ballotid,-committee,-birthday,-birthplace,-plranking)#inner_join目的是要排除沒有當選也沒有遞補進來的立法委員
-#save(elections_df,file=paste0(filespath,"data",slash,"elections_df.RData"))
-#save(legislators_with_election, file=paste0(filespath,"data",slash,"legislators_with_election.RData"))
+#save(elections_df,file=paste0(dataset_in_scriptsfile_directory, "elections_df.RData"))
+#save(legislators_with_election, file=paste0(dataset_in_scriptsfile_directory, "legislators_with_election.RData"))
 #test result: filter(legislators_needed,is.na(zip)) %>% View()
 
-load(paste0(filespath,"data",slash,"legislators_with_election.RData"))
+load(paste0(dataset_in_scriptsfile_directory, "legislators_with_election.RData"))
 legislators_additional_attr <- legislators_with_election %>% #[!is.na(legislators_with_election$wonelection),]
   #distinct(term, legislator_name, legislator_sex, legislator_party, partyGroup, areaName,
   #         committee, degree, experience, birthday,
@@ -331,7 +359,7 @@ legislators_additional_attr <- legislators_with_election %>% #[!is.na(legislator
   mutate_cond(!is.na(legislator_ses), legislator_ses=(legislator_ses-55)*3) %>%
   select(term,legislator_name,legislator_eduyr,legislator_occp,legislator_ses,legislator_ethnicity) %>%
   mutate_at(c("legislator_occp"),as.factor)
-save(legislators_additional_attr,file=paste0(filespath,"data",slash,"legislators_additional_attr.RData"))
+save(legislators_additional_attr,file=paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"))
 #陳東榮 no degree
 #孫國華 僑選
 #write.xlsx(legislators_additional_attr,file=paste0(dataset_file_directory,"legislator_additional_attributes.xlsx"))

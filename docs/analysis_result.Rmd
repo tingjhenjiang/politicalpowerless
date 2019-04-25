@@ -5,6 +5,7 @@ author:
   affiliation: 國立臺灣大學法律學系碩士班
 date: '`r paste("First created on Jan 15, 2019, 09:00. Last updated on", Sys.time())`'
 output:
+  html_notebook: default
   html_document:
     keep_md: yes
     toc: true
@@ -12,10 +13,9 @@ output:
     toc_float:
       collapsed: false
       smooth_scroll: false
-  html_notebook: default
   word_document: default
   github_document: default
-bibliography: mylibrary.enl
+bibliography: mylibrary.ris
 csl: apa.csl
 ---
 
@@ -51,7 +51,7 @@ Sys.setlocale(category = "LC_ALL", locale = "cht")
 
 ## 平等權關注經驗層次的弱勢群體取向
 
-在近幾年全世界的婚姻平權運動中，我們可以看到數個國家中，持反對同性戀婚姻的多數民意與支持同性戀婚姻的司法權立場相反，而這些國家的司法權仍反多數民意做出支持同性戀婚姻的裁判例子。為什麼司法權可以推翻具有民主正當性的國會通過的立法？這個所謂的「反多數決困境」在理論與實際上一直影響著司法運作，也成為憲法學者關心的焦點。對於這個問題，以美國為首發展出了實體價值取向與程序價值取向的兩種反多數決理論。其中程序價值取向的理論，主張由於在某些情形下民主程序會產生「失靈」的現象，為了維護民主制度司法權必須要介入導正，因此司法審查有其正當性。至於什麼情形下構成「失靈」？比較著名的理論主張包含：1.如果法律有限制民主發展與健全或限制政治競爭時（例如在任者為了限制競爭，通過自利型法案限制言論自由與選舉權），為了暢通政治變遷管道，司法權無須退讓；以及2.對於「分散又隔離的少數」（discrete and insular minorities）的偏見，使得通常能夠保障少數的立法程序被阻礙時，此時需要司法者特別審視{, 1938 #9016; Ely, 1980 #9289}  。
+在近幾年全世界的婚姻平權運動中，我們可以看到數個國家中，持反對同性戀婚姻的多數民意與支持同性戀婚姻的司法權立場相反，而這些國家的司法權仍反多數民意做出支持同性戀婚姻的裁判例子。為什麼司法權可以推翻具有民主正當性的國會通過的立法？這個所謂的「反多數決困境」在理論與實際上一直影響著司法運作，也成為憲法學者關心的焦點。對於這個問題，以美國為首發展出了實體價值取向與程序價值取向的兩種反多數決理論。其中程序價值取向的理論，主張由於在某些情形下民主程序會產生「失靈」的現象，為了維護民主制度司法權必須要介入導正，因此司法審查有其正當性。至於什麼情形下構成「失靈」？比較著名的理論主張包含：1.如果法律有限制民主發展與健全或限制政治競爭時（例如在任者為了限制競爭，通過自利型法案限制言論自由與選舉權），為了暢通政治變遷管道，司法權無須退讓；以及2.對於「分散又隔離的少數」（discrete and insular minorities）的偏見，使得通常能夠保障少數的立法程序被阻礙時，此時需要司法者特別審視{, 1938 #9016; Ely, 1980 #9289}  [@ref9289] [@Ely_1980] [@Ely1980]。
 
 本研究以程序取向反多數決理論的第二個關懷面向為重心，從「分散又隔離的少數」這個概念出發，融入、結合當代平等權領域發展中實質關心對象──「弱勢」^[平等權之所以會轉向並融入重視弱勢群體的「實質平等」觀念，最重要的發展起源莫過於針對美國過去歷史上種族隔離現象而生的seperate but equal判例予以推翻的Brown v. Board of Education案，透過注意到種族隔離對於黑人的心理傷害而使得平等原則的概念不再僅審視法律上的平等對待，而是去檢視結果、影響、地位等因素。]，並且再從「弱勢」這個構念細緻化至「政治上的無力者」此一法院實務判決曾指出並且在學理上也有學者主張的弱勢面向作為探討主軸（例如結構性不平等的政治體制，所產出的決策就會傾向維護現有的不平等狀態）{Young, 1990 #7979}，試圖將政治上的無力者這個構念進一步透過國會研究的視野進行細緻化操作。
 
@@ -306,11 +306,16 @@ respondopinion_by_district_legislator_formula <- paste0("respondopinion ~ ",powe
 pass_on_bill_formula <- paste0("pass_on_bill ~ ",power_analysis_general_formula_suffix)
 if ({ordered_logistic_to_analy_repre_response<-TRUE; ordered_logistic_to_analy_repre_response}) {
   result_repre_response_on_all_bills <- custom_parallel_lapply(overall_district_legislators_only_power_dfdata,function(dataset_for_analysis) {
-    dataset_for_analysis <-  overall_district_legislators_only_power_dfdata[[4]] %>%
-      .[complete.cases(,.[c(model_indp_var,model_dep_var)]),]
-    model_respondopinion_by_district_legislator <- dataset_for_analysis %$%
+    #dataset_for_analysis <- overall_district_legislators_only_power_dfdata[[4]] #complete.cases(overall_district_legislators_only_power_dfdata[[4]][,c(model_indp_var,model_dep_var)])#  %>%
+      #.[,]
+    models_respondopinion_by_district_legislator <- dataset_for_analysis %$%
       MASS::polr(as.formula(respondopinion_by_district_legislator_formula), Hess=TRUE) %>%
       MASS::stepAIC()
+  }, exportlib=c("base","magrittr","dplyr","parallel","MASS"),
+  exportvar=c("overall_district_legislators_only_power_dfdata","respondopinion_by_district_legislator_formula"))
+}
+    model_tables <- custom_parallel_lapply(models_respondopinion_by_district_legislator,function(model_respondopinion_by_district_legislator) {
+      
     ctable <- coef(summary(model_respondopinion_by_district_legislator))
     pvaluetable <- pnorm(abs(ctable[, "t value"]), lower.tail = FALSE) * 2
     confi_table <- confint.default(model_respondopinion_by_district_legislator) %>%
@@ -319,10 +324,8 @@ if ({ordered_logistic_to_analy_repre_response<-TRUE; ordered_logistic_to_analy_r
     #predict_value_mean <- MASS::polr.predicts(model_respondopinion_by_district_legislator, values="mean")
     final_ctable <- cbind(ctable, "p value" = pvaluetable, confi_table, "Odds Ratio"=odds_ratio_table)#, "CI" = 
     return(final_ctable)
-  }, exportlib=c("base","magrittr","dplyr","parallel","MASS"),
-  exportvar=c("overall_district_legislators_only_power_dfdata","respondopinion_by_district_legislator_formula"))
-}
-lapply(result_repre_response_on_all_bills, function(ctable) {
+    })
+lapply(result_repre_response_on_all_bills_table, function(ctable) {
   kableExtra::kable(ctable, format = "html") %>% kableExtra::kable_styling(bootstrap_options = c("striped", "hover"))
   })
 
@@ -607,4 +610,21 @@ sessionInfo()
 * Schlozman, Kay Lehman、Verba, Sidney＆Brady, Henry E. (2012). The Unheavenly Chorus Unequal Political Voice and the Broken Promise of American Democracy. Princeton; Oxford: Princeton University Press 
 * van Buuren, Stef＆Groothuis-Oudshoorn, Catharina Gerarda Maria. (2011). mice: Multivariate Imputation by Chained Equations in R. Journal of statistical software, 45(3), urn:issn:1548-7660. doi: 10.18637/jss.v045.i03
 * Verba, Sidney、Schlozman, Kay Lehman＆Brady, Henry E. (1995). Voice and equality : civic voluntarism in American politics. Cambridge, Mass.: Harvard University Press 
-* Young, Iris Marion. (1990). Justice and the Politics of Difference. Princeton, N.J.: Princeton University Press 
+* Young, Iris Marion. (1990). Justice and the Politics of Difference. Princeton, N.J.: Princeton University Press ??保護環境更重要的事","v26d 請問您同不同意以下說法?除非大家都一起為環境盡力,否則您一個人做沒有用","v79 對您來說,您覺得日常生活中的環保行為容不容易做到?"),#2010env
+  c("v67f 請問您贊不贊成公眾的事不好辦,所以最好不要插手的說法?"),#2010overall
+  c("d16c 您覺得您對於國家重要的政治議題,都有相當的瞭解","d16d 您認為大多數人都比您更瞭解政治與政府"),#2016citizen
+  fill = ""
+))
+colnames(political_extefficacy_variable_table)<-c("2004公民","2010環境","2010綜合","2016公民")
+colnames(political_intefficacy_variable_table)<-c("2004公民","2010環境","2010綜合","2016公民")
+#kable(political_extefficacy_variable_table, format = "html") %>% kable_styling(bootstrap_options = c("striped", "hover")) %>% add_header_above(c("外在效能感" = 4))# %>% scroll_box(height="200px")
+#kable(political_intefficacy_variable_table, format = "html") %>% kable_styling(bootstrap_options = c("striped", "hover")) %>% add_header_above(c("內在效能感" = 4))
+```
+* ~~相對剝奪感：以受訪者對對現狀的評價為依據，主要題目為還沒編。「您覺得政府現行的環境保護政策符不符合公平正義的原則?」~~
+* ~~政治興趣：d15 請問您個人對政治有沒有興趣?（2016公民）~~
+* 非競選期間政治參與：依據原本問卷設計中的下述次序變項，以應用試題反應理論（item response theory）的 graded response model 計算測量出一個潛在連續型態的潛在變數，測量過程使用R語言的mirt套件{Chalmers, 2012 #12917}，括弧內為因素負荷量：
+```{r political_particip_variable_table, echo=FALSE}
+political_particip_variable_table<-as.data.frame(rowr::cbind.fill(
+  c("v28 您有沒有做過請願(簽名)連署(0.815)","v29 您有沒有因為政治,倫理道德,或是環保的理由拒絕購買或是特別去購買某些產品(0.623)","v30 您有沒有參加示威遊行(0.840)","v31 您有沒有參加政治集會或造勢活動(0.777)","v32 您有沒有找過政治人物或公務人員表達您的看法(0.785)","v33 您有沒有捐錢給某個社會或政治活動,或者幫他們募款(0.562)","v34 您有沒有透過媒體去表達您的看法(0.810)","v35 您有沒有參加網路上的政治論壇或討論群組(0.725)","v36 請問您有沒有加入和參與政黨(0.394)","v37 請問您有沒有加入和參與工會,工商同業公會,職業同業公會(0.240)","v38 請問您有沒有加入和參與宗教團體或教會(0.396)","v39 請問您有沒有加入和參與運動,休閒或文化團體(0.512)","v40 請問您有沒有加入和參與其他自願性社團(0.537)","0.415"),
+  c("v34 請問您是環保團體的成員嗎?(0.712)","v35a 在過去五年間,請問您有沒有做過以下的事情:連署一份有關環保議題的請願書(0.699)","v35b 在過去五年間,請問您有沒有做過以下的事情:捐款給環保團體(0.704)","v35c 在過去五年間,請問您有沒有做過以下的事情:參加有關環保議題的抗議行動或遊行(0.603)","","","","","","","","","","0.464"),
+  c("v79a 在過去的一年,您有沒有向政府官員,民意代表或政黨反映意見提出要求?(0.743)","v79b 在過去的一年,您有沒有向大眾?
