@@ -289,6 +289,7 @@ summary(selectedMod)
 summary(model)
 car::vif(model)
 car::vif(selectedMod)
+mctest
 ## view a summary of the model
 
 ## 分段
@@ -444,19 +445,19 @@ print(paste('Accuracy',1-misClasificError))
 
 
 #可以看到沒有繼續當的立委沒串到
-distinct(legislators_with_election, term, name) %>%
+distinct(legislators_with_elections, term, name) %>%
   filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞"))
 distinct(mergedf_votes_bills_surveyanswer, term, name) %>%
   filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞"))
 
 
-setdiff(distinct(legislators_with_election, term, name), distinct(mergedf_votes_bills_surveyanswer)) %>%
+setdiff(distinct(legislators_with_elections, term, name), distinct(mergedf_votes_bills_surveyanswer)) %>%
   filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞")) #%>%
 #%>% View()
-setdiff(distinct(mergedf_votes_bills_surveyanswer, term, name), distinct(legislators_with_election, term, name)) %>%
+setdiff(distinct(mergedf_votes_bills_surveyanswer, term, name), distinct(legislators_with_elections, term, name)) %>%
   filter(customgrepl(name, "廖國棟|簡東明|鄭天財|秀霞|高潞")) #%>%
 #%>% View()
-distinct(legislators_with_election, term, name) %>% View()
+distinct(legislators_with_elections, term, name) %>% View()
 #廖國棟,簡東明,鄭天財,陳秀霞,高潞‧以用‧巴魕剌Kawlo．Iyun．Pacidal
 #簡東明Uliw．Qaljupayare,#廖國棟Sufin．Siluko,#鄭天財Sra．Kacaw,#周陳秀霞,#高潞．以用．巴魕剌Kawlo．Iyun．Pacidal
 filter(mergedf_votes_bills_surveyanswer, customgrepl(name, "高潞")) %>%

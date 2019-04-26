@@ -89,7 +89,7 @@ myown_vote_record_df <- dplyr::anti_join(myown_vote_record_df, duplicated_meetin
 
 ##算出同黨票數
 load(file=paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df_across2004.RData"))
-load(file=paste0(dataset_in_scriptsfile_directory, "legislators_with_election.RData"))
+load(file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"))
 
 myown_vote_bills_file <- paste0(dataset_file_directory, "votingdf_datafile_myown_englished.xlsx", sep="")
 bills_answer_to_bill <- openxlsx::read.xlsx(myown_vote_bills_file, sheet = 4)
@@ -97,7 +97,7 @@ bills_billcontent <- openxlsx::read.xlsx(myown_vote_bills_file, sheet = 1) %>%
   mutate_at("billcontent", as.character) %>%
   select(-starts_with("pp_related_q_")) #因為第四個表格問卷對政策實現與否表已經有了variable_on_q所以此處略過
 
-mergedf_votes_bills_surveyanswer <- distinct(legislators_with_election,term,legislator_name,legislator_party) %>%
+mergedf_votes_bills_surveyanswer <- distinct(legislators_with_elections,term,legislator_name,legislator_party) %>%
   #mutate(party=legislator_party) %>%
   mutate_at("term", as.numeric) %>%
   left_join(myown_vote_record_df, ., by=c("term","legislator_name")) %>%

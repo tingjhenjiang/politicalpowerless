@@ -103,6 +103,7 @@ elections_df <- custom_parallel_lapply(terms, function(term) {
   .[, c("term", "號次", "名字", "性別", "出生日期", "年齡", "出生地", "學歷", "現任", "當選註記", "政黨名稱", "選舉區名稱", "縣市名稱", "鄉鎮市區名稱", "村里名稱", "排名", "elec_dist_type")] %>%
   rename(ballotid = 號次, name = 名字, sex = 性別, birthday = 出生日期, age = 年齡, birthplace = 出生地, education = 學歷, incumbent = 現任, wonelection = 當選註記, party = 政黨名稱, electionarea = 選舉區名稱, admincity = 縣市名稱, admindistrict = 鄉鎮市區名稱, adminvillage = 村里名稱, plranking = 排名) %>%
   mutate_at(c("sex"), dplyr::recode_factor, `2`="女", `1`="男") %>%
+  mutate_cond(elec_dist_type %in% supplement_election_termseven,elec_dist_type="district") %>%
   mutate_at(c("term"), .funs = list(term = ~customgsub(term, "0(\\d)+", "\\1", perl = TRUE)) ) %>% #funs(customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))
   mutate_at(c("term"), as.character) #%>%
 #left_join(all_admin_dist_with_zip)
@@ -175,7 +176,7 @@ legislators_ethicity_df <- paste0(dataset_file_directory, "legislators_ethicity_
 
 #立委資料與選區資料合併
 #legislators <- read_csv(file = paste0(dataset_file_directory, "legislators.csv"))
-legislators_with_election <- openxlsx::read.xlsx(paste0(dataset_file_directory, "legislators.xlsx"), sheet = 1, detectDates = TRUE) %>%
+legislators_with_elections <- openxlsx::read.xlsx(paste0(dataset_file_directory, "legislators.xlsx"), sheet = 1, detectDates = TRUE) %>%
   mutate_cond(is.na(leaveDate) & term==2, leaveDate=as.Date(c("1996/1/31"))) %>% 
   mutate_cond(is.na(leaveDate) & term==3, leaveDate=as.Date(c("1999/1/31"))) %>% 
   mutate_cond(is.na(leaveDate) & term==4, leaveDate=as.Date(c("2002/1/31"))) %>% 
@@ -203,11 +204,11 @@ legislators_with_election <- openxlsx::read.xlsx(paste0(dataset_file_directory, 
   mutate_at(c("legislator_sex","legislator_party","partyGroup","areaName","leaveFlag","incumbent","wonelection","election_party","elec_dist_type"), as.factor) %>%
   select(-ename,-onboardDate,-picUrl,-leaveFlag,-leaveDate,-leaveReason,-ballotid,-committee,-birthday,-birthplace,-plranking)#inner_join目的是要排除沒有當選也沒有遞補進來的立法委員
 #save(elections_df,file=paste0(dataset_in_scriptsfile_directory, "elections_df.RData"))
-#save(legislators_with_election, file=paste0(dataset_in_scriptsfile_directory, "legislators_with_election.RData"))
+#save(legislators_with_elections, file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"))
 #test result: filter(legislators_needed,is.na(zip)) %>% View()
 
-load(paste0(dataset_in_scriptsfile_directory, "legislators_with_election.RData"))
-legislators_additional_attr <- legislators_with_election %>% #[!is.na(legislators_with_election$wonelection),]
+load(paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
+legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislators_with_elections$wonelection),]
   #distinct(term, legislator_name, legislator_sex, legislator_party, partyGroup, areaName,
   #         committee, degree, experience, birthday,
   #         legislator_age, birthplace, education, incumbent, wonelection,
