@@ -17,9 +17,11 @@ replace_troublesome_names<-function(replacedf) {
     mutate_cond(customgrepl(legislator_name,"陳　瑩"),legislator_name="陳瑩") %>%
     mutate_cond(customgrepl(legislator_name,"余　天"),legislator_name="余天") %>%
     mutate_cond(customgrepl(legislator_name,"陳　杰"),legislator_name="陳杰") %>%
-    mutate_cond(term==9 & customgrepl(legislator_name,"簡東明"),legislator_name="簡東明Uliw．Qaljupayare") %>%
-    mutate_cond(term==9 & customgrepl(legislator_name,"廖國棟"),legislator_name="廖國棟Sufin．Siluko") %>%
-    mutate_cond(term==9 & customgrepl(legislator_name,"鄭天財"),legislator_name="鄭天財Sra．Kacaw") %>%
+    mutate_cond(customgrepl(legislator_name,".?Kolas"),legislator_name="谷辣斯．尤達卡Kolas．Yotaka") %>%
+    mutate_cond(customgrepl(legislator_name,"金素梅"),legislator_name="高金素梅") %>%
+    mutate_cond(term %in% c(8,9) & customgrepl(legislator_name,"鄭天財"),legislator_name="鄭天財Sra．Kacaw") %>%
+    mutate_cond(term %in% c(8,9) & customgrepl(legislator_name,"簡東明"),legislator_name="簡東明Uliw．Qaljupayare") %>%
+    mutate_cond(term %in% c(9) & customgrepl(legislator_name,"廖國棟"),legislator_name="廖國棟Sufin．Siluko") %>%
     mutate_cond(term==9 & customgrepl(legislator_name,"高潞"),legislator_name="高潞．以用．巴魕剌Kawlo．Iyun．Pacidal") %>%
     mutate_cond(term==9 & customgrepl(legislator_name,"陳秀霞"),legislator_name="周陳秀霞")
   return(replacedf)
@@ -40,16 +42,27 @@ anti_join_with_nrow_zero<-function(X,Y,by=c()) {
 #  write_csv(path="leave_and_attend_legislators.csv")
 #第九會期從377開始 //problem:108
 
-fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
+fetch_ly_decision_and_vote <- function(onemeetingdata, urlarr, ...) { #length(urlarr)
 #for (url in urlarr) { 
   #url<-urlarr[urln]
   #url<-Y
-  urln<-which(meetingdata$url==url)
+  #urln<-58 #Kolas出現問題的地方
+  if ({debug_func_mode<-FALSE; debug_func_mode}) {
+    onemeetingdata<-meetingdata[249,] %>% #20:114 term9
+      {
+        namesofdf<-names(.)
+        set_rownames(as.data.frame(t(.)), namesofdf)
+      } %>%
+      .[,1]
+  }
+  #meetingdata_each_meeting<-t_meetingdata[,1]
+  names_of_items<-names(onemeetingdata)
+  onemeetingdata %<>% lapply(as.character) %>%
+    set_names(names_of_items)
+  urln<-which(urlarr==onemeetingdata$url)
   #| urln==478
   # | url=="https://lci.ly.gov.tw/LyLCEW/html/agendarec1/03/09/04/01/01/LCEWC03_09040101.htm"
-  if (!is.null(url) &
-      (is.na(url))
-      ) {
+  if (gtools::invalid(onemeetingdata$url)) {
     return(data.frame())
     #next()
   }
@@ -58,16 +71,16 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
   #customgsub(test, "(.+?[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1}[(（]{0,1}\\s{0,1}([—○一二三四五六七八九十\\d]{0,})\\s{0,1}[)）]{0,1}至{1}[(（]{0,1}([—○一二三四五六七八九十\\d]{0,})[)）]{0,1}[〕】）]{0,}[；。]{0,1}).+?", "\\2:\\3;", perl = TRUE)
   myown_vote_record_df<-data.frame()
   leave_and_attend_legislators<-data.frame()
-  term<-meetingdata$term[urln]
-  period<-meetingdata$period[urln]
-  meetingno<-meetingdata$meetingno[urln]
-  temp_meeting_no<-meetingdata$temp_meeting_no[urln]
-  date<-as.character(meetingdata$date[urln]) %>% trimws()
-  if (is.na(temp_meeting_no) | as.character(temp_meeting_no)=="NA") {
+  term<-onemeetingdata$term
+  period<-onemeetingdata$period
+  meetingno<-onemeetingdata$meetingno
+  temp_meeting_no<-onemeetingdata$temp_meeting_no
+  date<-trimws(onemeetingdata$date)
+  if (gtools::invalid(temp_meeting_no) | as.character(temp_meeting_no)=="NA") {
     temp_meeting_no<-0
   }
   #content<-read_file(url)
-  content<-meetingdata$content[urln]
+  content<-trimws(onemeetingdata$content)
   
   #直接跳過不妨礙（又因為直接跳過省去篩選麻煩
   if (term==6 & period==4 & meetingno==17) {
@@ -167,13 +180,12 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
   #xpath<-"//p[(contains(.,'次會議議事錄'))]"
   #meetingname<-xml_find_all(doc, xpath) %>%
   #  xml_text() %>% getElement(1)
-  meetingname<-meetingdata$termmeetingtime[meetingdata$url==url] %>%
-    as.character()
+  meetingname<-onemeetingdata$termmeetingtime
   #xpath<-"//p[(contains(.,'時　　間'))]"
   #meetingtimeanddata<-xml_find_all(doc, xpath) %>%
   #  xml_text() %>% getElement(1)
   #xpath<-"//p[(contains(.,'請假委員　'))]"
-  message("urln=",urln," | 1", meetingname, url)
+  message("urln=",urln,"| 1 | ", meetingname, onemeetingdata$url)
   
   xpath<-"//p"
   paragraph_list<-xml_find_all(doc, xpath) %>%
@@ -184,7 +196,8 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
     customgsub("(Siluko){1} {0,1}　{1} {0,1}","Siluko　　") %>%
     customgsub("(Kacaw){1} {0,1}　{1} {0,1}","Kacaw　　") %>%
     customgsub("(Yotaka){1} {0,1}　{1} {0,1}","Yotaka　　") %>%
-    customgsub("(Pacidal|Pacida){1} {0,1}　{1} {0,1}","Pacidal　　")
+    customgsub("(Pacidal|Pacida){1} {0,1}　{1} {0,1}","Pacidal　　") %>%
+    customgsub("(Kolas){1}\\r\\n(Yotaka){1}([\u4e00-\u9fa5A-aZ-z]+)", "\\1 \\2　　\\3")
   replace_leave_and_attend_legislator_pattern<-filter(error_leave_and_attend_legislators,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no))
   if (nrow(replace_leave_and_attend_legislator_pattern)>0) {
     check_leave_and_attend_legislator_chr_paragraph <- stri_replace_all_fixed(
@@ -212,13 +225,13 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
         "period"=period,
         "temp_meeting_no"=temp_meeting_no,
         "meetingno"=meetingno,
-        "url"=url,
+        "url"=onemeetingdata$url,
         "urln"=urln,
         "date"=date
       ) %>%
         replace_troublesome_names() %>%
-        dplyr::mutate_at(c("legislator_name","term","period","meetingno","temp_meeting_no","url","urln","date"),as.character) %>%
-        mutate_at(c("term","period","meetingno","temp_meeting_no","urln"),as.integer)
+        dplyr::mutate_at(c("legislator_name","term","period","meetingno","temp_meeting_no","url","date"),as.character) %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no"),as.integer)
     })
   
   attendlegislator<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"出席委員",value=TRUE) %>%
@@ -226,7 +239,7 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
     unlist() %>%
     strsplit('　　') %>%
     unlist() %>%
-    customgrep("[\u4e00-\u9fa5]",value=TRUE) %>%
+    customgrep("[\u4e00-\u9fa5a-zA-Z]",value=TRUE) %>%
     stri_replace_all_fixed("　","") %>%
     trimws()
   attendlegislator<-data.frame(
@@ -235,12 +248,12 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
     "period"=period,
     "temp_meeting_no"=temp_meeting_no,
     "meetingno"=meetingno,
-    "url"=url,
+    "url"=onemeetingdata$url,
     "urln"=urln,
     "date"=date
   ) %>%
-    mutate_at(c("term","period","meetingno","temp_meeting_no","urln"),as.character) %>%
-    mutate_at(c("term","period","meetingno","temp_meeting_no","urln"),as.integer) %>%
+    mutate_at(c("legislator_name","term","period","meetingno","temp_meeting_no"),as.character) %>%
+    mutate_at(c("term","period","meetingno","temp_meeting_no"),as.integer) %>%
     replace_troublesome_names()
   
   leave_and_attend_legislators<-bind_rows(leave_and_attend_legislators,leavelegislator,attendlegislator)
@@ -261,7 +274,7 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
     #)
   }
   
-  message("urln=",urln," | 2 RegularExpression 處理前面的投票表決議案詳細說明 ", meetingname, url)
+  message("urln=",urln," | 2 RegularExpression 處理前面的投票表決議案詳細說明 ", meetingname, onemeetingdata$url)
   #xpath<-"//p[(contains(.,'記名表決')) and (contains(.,'表決結果名單附後') or contains(.,'表決結果名單附件') or contains(.,'表決結果附後') or contains(.,'表決結果名單及時程表附後'))   ]"
   #bill_list<-xml_find_all(doc, xpath) %>%
   #xml_text() %>%
@@ -369,7 +382,7 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
     )
   }
   
-  message("urln=",urln," | 3 處理記名表決區域 ", meetingname, url)
+  message("urln=",urln," | 3 處理記名表決區域 ", meetingname, onemeetingdata$url)
   roll_call_list_block_sp<-customgrep(paragraph_list,'各項記名表決結果名單|本次會議記名表決結果名單|本次會議表決結果名單|本次會議各項記名表決名單')
   if (length(roll_call_list_block_sp)<1) {##沒有表決名單的區域
     no_rollcall<-c(no_rollcall,url)
@@ -454,7 +467,7 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
     modify_wrong_record_target<-filter(error_vote_record_from_name,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no),billn==UQ(billn))
     nrow_modify_wrong_record_target<-nrow(modify_wrong_record_target)
     if (nrow_modify_wrong_record_target>0) {
-      message("urln=",urln," | 4 除錯：原議事錄投票區塊第",billn,"案有文字結構錯誤處 modify ",nrow_modify_wrong_record_target," times. ", meetingname, url)
+      message("urln=",urln," | 4 除錯：原議事錄投票區塊第",billn,"案有文字結構錯誤處 modify ",nrow_modify_wrong_record_target," times. ", meetingname, onemeetingdata$url)
       paragraph_list[scan_area]<-stri_replace_all_fixed(paragraph_list[scan_area],modify_wrong_record_target$legislator_name,modify_wrong_record_target$correct_legislator_name, vectorize_all=FALSE)
     }
     paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],"(Kolas Yotaka).+?([\u4e00-\u9fa5]{3})","\\1　　\\2")
@@ -465,7 +478,7 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
       exact_giveup_voter<-c()
     } else {
       giveup_voter_area<-seq(from=giveup_voter_area_start,to=giveup_voter_area_end)
-      message("urln=",urln," | 5 有棄權者 ", meetingname, url)
+      message("urln=",urln," | 5 有棄權者 ", meetingname, onemeetingdata$url)
       exact_giveup_voter<-paragraph_list[giveup_voter_area] %>%
         strsplit('　　') %>% unlist() %>% trimws() %>%
         customgsub("[\r\n]+","") %>%
@@ -473,7 +486,7 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
         stri_replace_all_fixed("　","") %>%
         trimws()
     }
-    message("urln=",urln," | 6 抓取同意者及反對者（第", billn, "案）", meetingname, url)
+    message("urln=",urln," | 6 抓取同意者及反對者（第", billn, "案）", meetingname, onemeetingdata$url)
     exact_agree_voter<-paragraph_list[agree_voter_area] %>%
       strsplit('　　') %>% unlist() %>% trimws() %>%
       customgsub("[\r\n]+","") %>%
@@ -495,42 +508,42 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
     #)
     billresult<-ifelse(length(exact_agree_voter)>length(exact_dissent_voter),"Passed","NotPassed")
     exact_giveup_voter_df<-if (length(exact_giveup_voter)==0) {
-        data.frame()
-      } else {
-        data.frame("votedecision"="棄權",
-              "legislator_name"=exact_giveup_voter,
-              "term"=term,
-              "period"=period,
-              "meetingno"=meetingno,
-              "temp_meeting_no"=temp_meeting_no,
-              "billn"=billn,
-              "billcontent"=bill_list[billn],
-              "billresult"=billresult,
-              "url"=url,
-              "urln"=urln,
-              "date"=date
-        ) %>%
-          mutate_all(as.character) %>%
-          mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
-          mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
-          replace_troublesome_names()
-      }
+      data.frame()
+    } else {
+      data.frame("votedecision"="棄權",
+                "legislator_name"=exact_giveup_voter,
+                "term"=term,
+                "period"=period,
+                "meetingno"=meetingno,
+                "temp_meeting_no"=temp_meeting_no,
+                "billn"=billn,
+                "billcontent"=bill_list[billn],
+                "billresult"=billresult,
+                "url"=onemeetingdata$url,
+                "urln"=urln,
+                "date"=date
+      ) %>%
+        mutate_all(as.character) %>%
+        mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),funs(as.integer)) %>%
+        mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
+        replace_troublesome_names()
+    }
     
     exact_agree_voter_df<-if (length(exact_agree_voter)==0) {
       data.frame()
     } else {
       data.frame("votedecision"="贊成",
-            "legislator_name"=exact_agree_voter,
-            "term"=term,
-            "period"=period,
-            "meetingno"=meetingno,
-            "temp_meeting_no"=temp_meeting_no,
-            "billn"=billn,
-            "billcontent"=bill_list[billn],
-            "billresult"=billresult,
-            "url"=url,
-            "urln"=urln,
-            "date"=date
+                "legislator_name"=exact_agree_voter,
+                "term"=term,
+                "period"=period,
+                "meetingno"=meetingno,
+                "temp_meeting_no"=temp_meeting_no,
+                "billn"=billn,
+                "billcontent"=bill_list[billn],
+                "billresult"=billresult,
+                "url"=onemeetingdata$url,
+                "urln"=urln,
+                "date"=date
       )  %>%
         mutate_all(as.character) %>%
         mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
@@ -541,22 +554,22 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
       data.frame()
     } else {
       data.frame("votedecision"="反對",
-            "legislator_name"=exact_dissent_voter,
-            "term"=term,
-            "period"=period,
-            "meetingno"=meetingno,
-            "temp_meeting_no"=temp_meeting_no,
-            "billn"=billn,
-            "billcontent"=bill_list[billn],
-            "billresult"=billresult,
-            "url"=url,
-            "urln"=urln,
-            "date"=date
-      ) %>%
-        mutate_all(as.character) %>%
-        mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
-        mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
-        replace_troublesome_names()
+                "legislator_name"=exact_dissent_voter,
+                "term"=term,
+                "period"=period,
+                "meetingno"=meetingno,
+                "temp_meeting_no"=temp_meeting_no,
+                "billn"=billn,
+                "billcontent"=bill_list[billn],
+                "billresult"=billresult,
+                "url"=onemeetingdata$url,
+                "urln"=urln,
+                "date"=date
+    ) %>%
+      mutate_all(as.character) %>%
+      mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
+      mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
+      replace_troublesome_names()
     }
     
     #exact_agree_voter<-paragraph_list[from] %>%
@@ -621,20 +634,43 @@ fetch_ly_decision_and_vote <- function(url,meetingdata,...) { #length(urlarr)
 }
 
 library(parallel)
-
-myown_vote_record_df<-do.call("rbind",custom_parallel_lapply(
-  urlarr,
-  FUN=fetch_ly_decision_and_vote,
-  exportvar=c("urlarr","fetch_ly_decision_and_vote","meetingdata"),
-  exportlib=c("base",lib),
-  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
-  meetingdata=meetingdata,
-  mc.set.seed = TRUE,
-  mc.cores=parallel::detectCores()
-)) %>%
+#fetch_ly_decision_and_vote<-function(onemeetingdata,...) {
+#  names_of_items<-names(onemeetingdata)
+#  onemeetingdata %<>% lapply(as.character) %>%
+#    set_names(names_of_items)
+#  colnames(onemeetingdata)
+#}
+myown_vote_record_df <- meetingdata %>% #20:114 term9 58,
+  {
+    namesofdf<-names(.)
+    set_rownames(as.data.frame(t(.)), namesofdf)
+  } %>%
+  custom_parallel_lapply(
+    FUN=fetch_ly_decision_and_vote,
+    exportvar=c("slash","filespath","no_rollcall","insert.at","count_value_times_in_vector","custompaste0","customgsub","customgrep","customgrepl","mutate_cond","error_leave_and_attend_legislators","error_vote_record_from_name","replace_troublesome_names","anti_join_with_nrow_zero"),
+    exportlib=c("base",lib),
+    urlarr=urlarr,
+    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
+    mc.set.seed = TRUE,
+    mc.cores=parallel::detectCores()
+  ) %>%
+  plyr::rbind.fill() %>%
   filter(!is.na(legislator_name))
 
 save(myown_vote_record_df,file=paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df.RData"))
+
+#myown_vote_record_df<-do.call("rbind",custom_parallel_lapply(
+#  urlarr[20:114],
+#  FUN=fetch_ly_decision_and_vote,
+#  exportvar=c("slash","filespath","no_rollcall","insert.at","count_value_times_in_vector","meetingdata","custompaste0","customgsub","customgrep","customgrepl","mutate_cond","error_leave_and_attend_legislators","error_vote_record_from_name","replace_troublesome_names","anti_join_with_nrow_zero"),
+#  exportlib=c("base",lib),
+#  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
+#  meetingdata=meetingdata,
+#  mc.set.seed = TRUE,
+#  mc.cores=parallel::detectCores()
+#)) %>%
+#  filter(!is.na(legislator_name))
+
 
 #myown_vote_record_df<-mapply(fetch_ly_decision_and_vote,X=seq.int(length(urlarr)),Y=urlarr)
 #myown_vote_record_df<-do.call("rbind", lapply(

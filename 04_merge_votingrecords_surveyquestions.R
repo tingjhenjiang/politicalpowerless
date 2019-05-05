@@ -54,14 +54,15 @@ if ({incoporate_party_seats<-FALSE; incoporate_party_seats}) { #舊方法暫時�
 #as.character(unique(bills_billcontent$pp_related_q_1))
 
 #讀取投票紀錄資料-此處通常預處理好，直接load下面 mergedf_votes_bills_surveyanswer
-load(paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df.RData"))
-load(paste0(dataset_in_scriptsfile_directory, "myown_vote_record_detailed_part_df.RData"))
-duplicated_meeting_in_vote_record <- list(
-  distinct(myown_vote_record_df,term,period,temp_meeting_no,meetingno) %>% arrange(term,period,temp_meeting_no,meetingno),
+load(paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df.RData"), verbose=TRUE)
+load(paste0(dataset_in_scriptsfile_directory, "myown_vote_record_detailed_part_df.RData"), verbose=TRUE)
+myown_vote_record_df <- list( 
+  distinct(myown_vote_record_df,term,period,temp_meeting_no,meetingno) %>% arrange(term,period,temp_meeting_no,meetingno), 
   distinct(myown_vote_record_detailed_part_df,term,period,temp_meeting_no,meetingno) %>% arrange(term,period,temp_meeting_no,meetingno)
-)
-duplicated_meeting_in_vote_record <- dplyr::inner_join(duplicated_meeting_in_vote_record[[1]],duplicated_meeting_in_vote_record[[2]])
-myown_vote_record_df <- dplyr::anti_join(myown_vote_record_df, duplicated_meeting_in_vote_record) %>%
+  ) %>%
+  { dplyr::inner_join(getElement(., 1), getElement(., 2)) } %>%
+  dplyr::anti_join(myown_vote_record_df, .) %>%
+  #above are 把重複的會議刪除
   bind_rows(myown_vote_record_detailed_part_df) %>%
   dplyr::arrange(term, period, temp_meeting_no, meetingno, billn) %>%
   mutate_cond(votedecision %in% c("棄權","未投票","未出席"), votedecision="棄權/未投票/未出席") %>% 
@@ -77,37 +78,50 @@ myown_vote_record_df <- dplyr::anti_join(myown_vote_record_df, duplicated_meetin
   mutate_cond(term==9 & customgrepl(legislator_name,"鄭天財"),legislator_name="鄭天財Sra．Kacaw") %>%
   mutate_cond(term==9 & customgrepl(legislator_name,"高潞"),legislator_name="高潞．以用．巴魕剌Kawlo．Iyun．Pacidal") %>%
   mutate_cond(term==9 & customgrepl(legislator_name,"陳秀霞"),legislator_name="周陳秀霞") %>%
-  select(-billcontent,-url)
+  dplyr::select(-billcontent,-url)
 #save(myown_vote_record_df,file=paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df_across2004.RData"))
 
-#filter(myown_vote_record_df,term==9,customgrepl(legislator_name,"陳秀霞")) %>% select(legislator_name) %>% unique()
-
-#mutate_at("legislator_name", funs(recode(opinionstrength)),
-#  "n" = 1, "nn" = 2, "m" = 1, "mm" = 2, "b" = 0
-#) #%>%
-
-
 ##算出同黨票數
-load(file=paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df_across2004.RData"))
-load(file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"))
+load(file=paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df_across2004.RData"), verbose=TRUE)
+load(file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
 
 myown_vote_bills_file <- paste0(dataset_file_directory, "votingdf_datafile_myown_englished.xlsx", sep="")
 bills_answer_to_bill <- openxlsx::read.xlsx(myown_vote_bills_file, sheet = 4)
 bills_billcontent <- openxlsx::read.xlsx(myown_vote_bills_file, sheet = 1) %>%
   mutate_at("billcontent", as.character) %>%
-  select(-starts_with("pp_related_q_")) #因為第四個表格問卷對政策實現與否表已經有了variable_on_q所以此處略過
+  dplyr::select(-starts_with("pp_related_q_")) #因為第四個表格問卷對政策實現與否表已經有了variable_on_q所以此處略過
 
 mergedf_votes_bills_surveyanswer <- distinct(legislators_with_elections,term,legislator_name,legislator_party) %>%
-  #mutate(party=legislator_party) %>%
   mutate_at("term", as.numeric) %>%
   left_join(myown_vote_record_df, ., by=c("term","legislator_name")) %>%
   distinct(votedecision,legislator_name,billid_myown,legislator_party) %>%
-  filter(!is.na(legislator_party)) %>%
-  #above are myown_vote_record_df_with_party
   left_join(filter(myown_vote_record_df, term %in% terms), .) %>%
+  filter(!is.na(legislator_party)) %>% 
+  #above are myown_vote_record_df_with_party
+
+#以下發現有人沒有黨籍，因為研究設計只涵蓋問卷後二年，所以二年之後的立法委員沒有串到資料，例如第八屆補選的
+#distinct(myown_vote_record_df, legislator_name, term) %>% View()
+#distinct(elections_df, term, name, party) %>% 
+#  filter(customgrepl(name,"鄭天財|簡東明|Kolas")) %>% View()
+#distinct(myown_vote_record_df, legislator_name, term) %>%
+#  filter(customgrepl(legislator_name,"鄭天財|簡東明|Kolas")) %>% View()
+#distinct(legislators_with_elections, term, legislator_name, legislator_party) %>%
+#  filter(customgrepl(legislator_name,"鄭天財|簡東明|Kolas")) %>% View()
+#distinct(mergedf_votes_bills_surveyanswer, term, legislator_name, legislator_party) %>%
+#  filter(customgrepl(legislator_name,"鄭天財|簡東明|Kolas")) %>% View()
+#distinct(mergedf_votes_bills_surveyanswer, term, legislator_name, legislator_party) %>% filter(is.na(legislator_party)) %>% View()
+
+  left_join(., { #此處設計一個政黨壓力指標並串連加入
+    #mergedf_votes_bills_surveyanswer %>%
+    group_by(., votedecision, billid_myown, legislator_party) %>%
+      summarise(samepartysamepositioncounts=n()) %>%
+      arrange(billid_myown, legislator_party, desc(samepartysamepositioncounts), votedecision) %>%
+      group_by(billid_myown, legislator_party) %>%
+      summarise(party_pressure=(max(samepartysamepositioncounts)-sum(samepartysamepositioncounts)+max(samepartysamepositioncounts))/sum(samepartysamepositioncounts)) 
+  }) %>%
   #left_join(partyseats) %>%
   right_join(bills_billcontent, by = c("billid_myown","term","period","meetingno","temp_meeting_no","billn","billresult","date")) %>% ##,"url"
-  right_join(bills_answer_to_bill, by = c("billid_myown")) %>%  ##問題在這邊
+  right_join(bills_answer_to_bill, by = c("billid_myown")) %>% 
   #篩選出研究範圍
   inner_join(distinct(survey_time_range_df,yrmonth)) %>%
   left_join(survey_time_range_df) %>%
@@ -117,29 +131,11 @@ mergedf_votes_bills_surveyanswer <- distinct(legislators_with_elections,term,leg
     substr(date,8,9)
   ),"%Y %m %d")) %>%
   mutate(opinionstrength=dplyr::recode(opinionfromconstituent, `n`=1, `nn`=2, `m`=1, `mm`=2, `b`=0)) %>%
-  #mutate(opinionstrength=opinionfrombill) %>%
-  #mutate_at("opinionstrength",.funs=(recode(opinionfromconstituent)),
-  #          "n"=1,"nn"=2,"m"=1,"mm"=2,"b"=0
-  #) %>%#.funs = list(legislator_name = ~customgsub(legislator_name, "　", ""))
   mutate(opiniondirectionfromconstituent=dplyr::recode(opinionfromconstituent, `n`="n", `nn`="n", `nnn`="n", `m`="m", `mm`="m", `mmm`="m", `b`="b")) %>%
-  #mutate("opiniondirectionfromconstituent"=opinionfromconstituent) %>%
-  #mutate_at("opiniondirectionfromconstituent",funs(recode(opiniondirectionfromconstituent)),
-  #          "n"="n","nn"="n","nnn"="n","m"="m","mm"="m","mmm"="m","b"="b"
-  #) %>%
   mutate(opiniondirectionfrombill=dplyr::recode(opinionfrombill,`n`="n",`nn`="n",`m`="m",`mm`="m",`b`="b")) %>%
-  #mutate("opiniondirectionfrombill"=opinionfrombill) %>%
-  #mutate_at("opiniondirectionfrombill",funs(recode(opiniondirectionfrombill)),
-  #          "n"="n","nn"="n","m"="m","mm"="m","b"="b"
-  #) %>%
   mutate(opiniondirectionfromlegislator=NA,respondopinion=NA,success_on_bill=NA) %>%
-  #mutate(respondopinion=paste0(votedecision,opiniondirectionfrombill)) %>%
-  #mutate(respondopinion) %>%
-  #mutate_cond(votedecision=="贊成" & opiniondirectionfromconstituent==opiniondirectionfrombill, respondopinion=2) %>%
-  #mutate_cond(votedecision=="贊成" & opiniondirectionfromconstituent!=opiniondirectionfrombill, respondopinion=0) %>%
-  #mutate_cond( (opiniondirectionfromconstituent==opiniondirectionfrombill), success_on_bill=ifelse(billresult=="Passed",1,0) ) %>%
   mutate_cond( (opiniondirectionfromconstituent==opiniondirectionfrombill) & (billresult=="Passed"), success_on_bill=1 ) %>%
   mutate_cond( (opiniondirectionfromconstituent==opiniondirectionfrombill) & (billresult=="NotPassed"), success_on_bill=0 ) %>%
-  #mutate_cond( (opiniondirectionfromconstituent!=opiniondirectionfrombill & opiniondirectionfromconstituent != "x" & opiniondirectionfromconstituent != "b"), success_on_bill=ifelse(billresult=="Passed",0,1) ) %>%
   mutate_cond( (opiniondirectionfromconstituent!=opiniondirectionfrombill & opiniondirectionfromconstituent != "x" & opiniondirectionfromconstituent != "b") & (billresult=="Passed"), success_on_bill=0 ) %>%
   mutate_cond( (opiniondirectionfromconstituent!=opiniondirectionfrombill & opiniondirectionfromconstituent != "x" & opiniondirectionfromconstituent != "b") & (billresult=="NotPassed"), success_on_bill=1 ) %>%
   mutate_cond(votedecision=="贊成", opiniondirectionfromlegislator=opiniondirectionfrombill) %>%
@@ -152,22 +148,16 @@ mergedf_votes_bills_surveyanswer <- distinct(legislators_with_elections,term,leg
                                                                         "bygov"="NOTbygov","byent"="NOTbyent","bynpo"="NOTbynpo","byrelg"="NOTbyrelg","byfamily"="NOTbyfamily",
                                                                         "NOTbygov"="bygov","NOTbyent"="byent","NOTbynpo"="bynpo","NOTbyrelg"="byrelg","NOTbyfamily"="byfamily"
   )) %>%
-  #==opiniondirectionfrombill & !(opiniondirectionfrombill %in% c('b','x')), respondopinion=2
   # 反對核電怎麼編碼？
   mutate_cond(opiniondirectionfromconstituent!=opiniondirectionfromlegislator, respondopinion=0) %>%
   mutate_cond(opiniondirectionfromconstituent==opiniondirectionfromlegislator, respondopinion=2) %>%
   mutate_cond(votedecision=="棄權/未投票/未出席", respondopinion=1, opiniondirectionfromlegislator='ig/gu') %>% #ignore/giveup
-  #mutate_cond(votedecision=="棄權", respondopinion=1, opiniondirectionfromlegislator='giveup', respondopinion=2) %>%
-  mutate_cond(opiniondirectionfromconstituent=='x' | opiniondirectionfromconstituent=='b' | opiniondirectionfrombill=='x', respondopinion=NA, success_on_bill=1) %>%
-  #mutate_at("respondopinion",funs(recode(respondopinion)),
-  #          "反對n"=2,"反對nn"=2,"贊成m"=2,"贊成mm"=2,
-  #          "棄權n"=1,"棄權nn"=1,"棄權m"=1,"棄權mm"=1,
-  #          "贊成n"=0,"贊成nn"=0,"反對m"=0,"反對mm"=0
-  #) %>% 
-  select(-date,-urln,-pp_committee,-votecontent,-pp_enactment,-pp_enforcement,-pp_res_bynew,-pp_res_bycompete,-pp_res_notjudged,-pp_ignored,-billconflict,-pol_score,-eco_score,-SURVEYQUESTIONID) %>%
+  mutate_cond(opiniondirectionfromconstituent=='x' | opiniondirectionfromconstituent=='b' | opiniondirectionfrombill=='x', respondopinion=NA, success_on_bill=NA) %>%
+  dplyr::select(-date,-urln,-pp_committee,-votecontent,-pp_enactment,-pp_enforcement,-pp_res_bynew,-pp_res_bycompete,-pp_res_notjudged,-pp_ignored,-billconflict,-pol_score,-eco_score,-SURVEYQUESTIONID) %>%
   mutate(ansv_and_label=paste0("[",SURVEYANSWERVALUE,"] ",LABEL)) %>%
   mutate_at(c("SURVEY","billresult","legislator_party","pp_agendavoting","pp_propose_advanceforagenda","value_on_q_variable","variable_on_q","pp_lawamendment","issue_field1","issue_field2","respondopinion","success_on_bill","ansv_and_label"), as.factor) %>%
-  select(-url.x,-url.y,-pp_keyword.x,-pp_keyword.y,-billcontent.x,-billcontent.y, -SURVEYANSWERVALUE, -LABEL, -QUESTION)
+  dplyr::select(-url.x,-url.y,-pp_keyword.x,-pp_keyword.y,-billcontent.x,-billcontent.y, -SURVEYANSWERVALUE, -LABEL, -QUESTION) %>%
+  arrange(term, period, temp_meeting_no, meetingno, billn)
 
 
 #%>%

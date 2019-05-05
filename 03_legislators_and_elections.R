@@ -5,13 +5,14 @@ source(file = "shared_functions.R")
 #選舉資料
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
 supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2009hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
+#supplement_election_termeight<-c('supp2013taichung2') 研究不需要
 terms<-c(5,6,7,8,9)
 
 
 # 第一部份：立委及選區資料 -------------------------------------------
 library(parallel)
 #for (term in terms) {
-elections_df <- custom_parallel_lapply(terms, function(term) {
+elections_df <- custom_parallel_lapply(terms, function(term, ...) {
   elections_df <- elections_df_onekind <-data.frame()
   message("term=",term)
   term_character<-paste0("0",term)
@@ -98,7 +99,9 @@ elections_df <- custom_parallel_lapply(terms, function(term) {
   return(elections_df)
   #check: filter(elections_df,is.na(選舉區名稱)) %>% View()
   #check: distinct(legislators_needed,areaName,選舉區名稱) %>% View()
-}) %>%
+},
+exportvar=c("supplement_election_termseven","dataset_file_directory","terms","slash","filespath","overall_elec_dist_types","custompaste0","customgsub","customgrep","customgrepl","mutate_cond","error_leave_and_attend_legislators","error_vote_record_from_name","replace_troublesome_names","anti_join_with_nrow_zero"),
+exportlib=c("base",lib)) %>%
   plyr::rbind.fill() %>%
   .[, c("term", "號次", "名字", "性別", "出生日期", "年齡", "出生地", "學歷", "現任", "當選註記", "政黨名稱", "選舉區名稱", "縣市名稱", "鄉鎮市區名稱", "村里名稱", "排名", "elec_dist_type")] %>%
   rename(ballotid = 號次, name = 名字, sex = 性別, birthday = 出生日期, age = 年齡, birthplace = 出生地, education = 學歷, incumbent = 現任, wonelection = 當選註記, party = 政黨名稱, electionarea = 選舉區名稱, admincity = 縣市名稱, admindistrict = 鄉鎮市區名稱, adminvillage = 村里名稱, plranking = 排名) %>%
@@ -122,7 +125,7 @@ all_admin_dist_with_zip <- distinct(elections_df, term, admincity, admindistrict
       mutate_at(c("admindistrict"), .funs = list(admindistrict = ~customgsub(admindistrict, "區", ""))) %>% ##鄉鎮市區名稱還沒有統一 #funs(customgsub(admindistrict, "區", ""))
       mutate_at("term",as.character)
     }) %>%
-  select(term, admincity, fullcountyname, zip, zip3rocyear) %>%
+  dplyr::select(term, admincity, fullcountyname, zip, zip3rocyear) %>%
   rename(admindistrict = fullcountyname)
 #all_admin_dist <- distinct(elections_df, term, admincity, admindistrict) %>%
 #  filter(!is.na(admincity))
@@ -177,6 +180,12 @@ legislators_ethicity_df <- paste0(dataset_file_directory, "legislators_ethicity_
 #立委資料與選區資料合併
 #legislators <- read_csv(file = paste0(dataset_file_directory, "legislators.csv"))
 legislators_with_elections <- openxlsx::read.xlsx(paste0(dataset_file_directory, "legislators.xlsx"), sheet = 1, detectDates = TRUE) %>%
+  mutate(term=as.integer(term)) %>%  #mutate_at(c("term"), .funs = list(term = ~customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>% 
+  mutate(onboardDate=as.Date(onboardDate)) %>%
+  mutate(leaveDate=as.Date(leaveDate)) %>%
+  mutate_cond(customgrepl(name,"簡東明") & term %in% c(8,9), name="簡東明Uliw．Qaljupayare") %>%
+  mutate_cond(customgrepl(name,"Kolas"), name="谷辣斯．尤達卡Kolas．Yotaka") %>%
+  mutate_cond(customgrepl(name,"王雪峯"), name="王雪峰") %>%
   mutate_cond(is.na(leaveDate) & term==2, leaveDate=as.Date(c("1996/1/31"))) %>% 
   mutate_cond(is.na(leaveDate) & term==3, leaveDate=as.Date(c("1999/1/31"))) %>% 
   mutate_cond(is.na(leaveDate) & term==4, leaveDate=as.Date(c("2002/1/31"))) %>% 
@@ -191,8 +200,8 @@ legislators_with_elections <- openxlsx::read.xlsx(paste0(dataset_file_directory,
   mutate(seniority=cumsum(servingdayslong_in_this_term)-servingdayslong_in_this_term) %>%
   ungroup() %>%
   filter(term %in% terms) %>% #c("05", "06", "07", "09")
-  mutate_at(c("term"), .funs = list(term = ~customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>% #funs(customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))
   mutate_at(c("term"), as.character) %>%
+  #傅崐萁消失 發現錯誤：distinct(elections_df, term, name, party, electionarea) %>% View()
   inner_join(elections_df, by = c("name", "term", "sex"))  %>%
   rename(legislator_sex=sex,
          legislator_party=party.x,
@@ -202,7 +211,7 @@ legislators_with_elections <- openxlsx::read.xlsx(paste0(dataset_file_directory,
   ) %>%
   mutate_at(c("term"), as.numeric) %>%
   mutate_at(c("legislator_sex","legislator_party","partyGroup","areaName","leaveFlag","incumbent","wonelection","election_party","elec_dist_type"), as.factor) %>%
-  select(-ename,-onboardDate,-picUrl,-leaveFlag,-leaveDate,-leaveReason,-ballotid,-committee,-birthday,-birthplace,-plranking)#inner_join目的是要排除沒有當選也沒有遞補進來的立法委員
+  dplyr::select(-ename,-onboardDate,-picUrl,-leaveFlag,-leaveDate,-leaveReason,-ballotid,-committee,-birthday,-birthplace,-plranking)#inner_join目的是要排除沒有當選也沒有遞補進來的立法委員
 #save(elections_df,file=paste0(dataset_in_scriptsfile_directory, "elections_df.RData"))
 #save(legislators_with_elections, file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"))
 #test result: filter(legislators_needed,is.na(zip)) %>% View()
@@ -236,7 +245,7 @@ legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislato
   mutate_cond(customgrepl(legislator_name,"程振隆"), education=paste0(education,"美國加州人文大學碩士 http://www.csea.org.tw/index/index.php?index=../03/01")) %>%
   mutate_cond(customgrepl(legislator_name,"謝鈞惠"), education=paste0(education,"美國舊金山大學公共行政研究所結業 83年台南縣省議員選舉公報")) %>%
   mutate_cond(customgrepl(legislator_name,"陳唐山|黃昭輝|徐欣瑩"), experience=paste0(experience,"學術科研機構研究員")) %>%
-  mutate_cond(customgrepl(legislator_name,"王廷升|張顯耀|費鴻泰|林郁方|孫國華|李全教|陳碧涵"), experience=paste0(experience,"副教授 助理教授"), education="博士") %>%
+  mutate_cond(customgrepl(legislator_name,"王廷升|張顯耀|費鴻泰|林郁方|孫國華|李全教|陳碧涵|詹滿容"), experience=paste0(experience,"副教授 助理教授"), education="博士") %>%
   mutate_cond(customgrepl(education,"國小|小學"), legislator_eduyr=6) %>%
   mutate_cond(customgrepl(education,"國中"), legislator_eduyr=9) %>%
   mutate_cond(customgrepl(education,"中學|高中|高職|高工畢|高商畢|高級職業學校畢"), legislator_eduyr=12) %>%
@@ -275,13 +284,14 @@ legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislato
               legislator_eduyr=19) %>%
   mutate_cond(customgrepl(legislator_name,"李全教|李顯榮"),
               legislator_eduyr=23) %>%
-  mutate_cond(customgrepl(legislator_name,"李鎮楠|李雅景|李明憲|王雪峰|王幸男|江玲君|吳清池|邱鏡淳|邱議瑩|林益世|林淑芬|余政道|呂學樟|翁重鈞|郭玟成|陳明文|陳杰|陳啟昱|陳瑩|馬文君|康世儒|黃昭順|楊瓊瓔|蔡煌瑯|鄭汝芬|鄭金玲|鄭麗文|劉銓忠|潘孟安|潘維剛|盧嘉辰|蕭景田|羅明才|王定宇|何欣純|蘇震清|吳思瑤|吳琪銘|呂孫綾|李俊俋|李彥秀|李應元|周陳秀霞|林俊憲|林為洲|林德福|段宜康|徐榛蔚|陳超明|張宏陸|黃秀芳|許淑華|鄭麗君|蕭美琴|蘇治芬|蘇嘉全|王昱婷|朱星羽|何智輝|李和順|杜文卿|沈智慧|邱垂貞|邱創進|卓榮泰|卓伯源|周雅淑|周慧瑛|林文郎|林育生|柯淑敏|唐碧娥|徐志明|郭俊銘|陳宗義|陳志彬|陳茂男|陳金德|陳健治|陳進丁|陳景峻|陳朝龍|陳麗惠|張秀珍|張蔡美|張學舜|章仁香|許舒博|彭添富|曾華德|廖本煙|蔡啟芳|蔡鈴蘭|鄭余鎮|鄭美蘭|鄭朝明|鄭貴蓮|劉文雄|劉松藩|劉俊雄|劉政鴻|盧博基|賴勁麟|藍美津|謝明源|謝章捷|尹伶瑛|朱俊曉|林耘生|林國慶|陳東榮|陳朝容|陳憲中|曹來旺|葉芳雄|楊宗哲|蔡錦隆|顏文章|林國正|張嘉郡|楊應雄"),
+  mutate_cond(customgrepl(legislator_name,"李鎮楠|李雅景|李明憲|王雪峰|王幸男|江玲君|江連福|吳清池|邱創良|邱鏡淳|邱議瑩|林益世|林淑芬|余政道|呂學樟|翁重鈞|郭玟成|陳明文|陳杰|陳啟昱|陳瑩|馬文君|康世儒|黃昭順|楊瓊瓔|蔡煌瑯|鄭汝芬|鄭金玲|鄭麗文|劉銓忠|潘孟安|潘維剛|盧嘉辰|蕭景田|羅明才|王定宇|何欣純|蘇震清|吳思瑤|吳琪銘|呂孫綾|李俊俋|李彥秀|李應元|周陳秀霞|林俊憲|林為洲|林德福|段宜康|徐榛蔚|陳超明|張宏陸|黃秀芳|許淑華|鄭麗君|蕭美琴|蘇治芬|蘇嘉全|王昱婷|朱星羽|何智輝|李和順|杜文卿|沈智慧|邱垂貞|邱創進|卓榮泰|卓伯源|周雅淑|周慧瑛|林文郎|林育生|柯淑敏|唐碧娥|徐志明|郭俊銘|陳宗義|陳志彬|陳茂男|陳金德|陳健治|陳進丁|陳景峻|陳朝龍|陳麗惠|張秀珍|張蔡美|張學舜|章仁香|許舒博|彭添富|曾華德|廖本煙|蔡啟芳|蔡鈴蘭|鄭余鎮|鄭美蘭|鄭朝明|鄭貴蓮|劉文雄|劉松藩|劉俊雄|劉政鴻|盧博基|賴勁麟|藍美津|謝明源|謝章捷|尹伶瑛|朱俊曉|林耘生|林國慶|陳東榮|陳朝容|陳憲中|曹來旺|葉芳雄|楊宗哲|蔡錦隆|顏文章|林國正|林奕華|張嘉郡|楊應雄"),
               experience=paste0(experience,"職業民意代表")) %>%
   mutate_cond(customgrepl(legislator_name,"余天|高金素梅"), experience=paste0(experience,"藝人")) %>%
   mutate_cond(customgrepl(legislator_name,"林滄敏"), experience=paste0(experience,"商店售貨")) %>%
   mutate_cond(customgrepl(legislator_name,"柯建銘|涂醒哲|沈富雄|林進興|洪奇昌|陳其邁|侯水盛"), experience=paste0(experience,"醫師")) %>%
   mutate_cond(customgrepl(legislator_name,"孫大千"), experience=paste0(experience,"化工研究員")) %>%
-  mutate_cond(customgrepl(legislator_name,"吳成典|黃劍輝"), experience=paste0(experience,"總經理")) %>%
+  mutate_cond(customgrepl(legislator_name,"吳成典|黃劍輝|童惠珍"), experience=paste0(experience,"總經理")) %>%
+  mutate_cond(customgrepl(legislator_name,"簡東明"), experience=paste0(experience,"國小教師")) %>%
   mutate_cond(customgrepl(legislator_name,"徐少萍|林正二|林春德|許榮淑|楊仁福"), experience=paste0(experience,"國中教師")) %>%
   mutate_cond(customgrepl(legislator_name,"劉盛良|謝鈞惠|顏錦福"), experience=paste0(experience,"高中教師")) %>%
   mutate_cond(customgrepl(legislator_name,"陳宗仁"), experience=paste0(experience,"商專教師")) %>%
@@ -291,7 +301,7 @@ legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislato
   mutate_cond(customgrepl(legislator_name,"李昆澤"), experience=paste0(experience,"電器維修工")) %>%
   mutate_cond(customgrepl(legislator_name,"林炳坤|郭素春|張花冠|王金平|許毓仁|林國華|陳建銘|湯火聖|何敏豪"),
               experience=paste0(experience,"總經理 創業主管")) %>%
-  mutate_cond(customgrepl(legislator_name,"徐耀昌|張慶忠|薛凌|顏清標|余宛如|呂玉玲|林南生|陳宏昌|梁牧養|許登宮|程振隆|楊文欣|蔡豪|鍾金江|羅世雄|黃良華|葉津鈴|詹凱臣"),
+  mutate_cond(customgrepl(legislator_name,"徐耀昌|張慶忠|薛凌|顏清標|余宛如|呂玉玲|林南生|陳宏昌|梁牧養|許登宮|程振隆|楊文欣|蔡豪|鍾金江|羅世雄|黃良華|葉津鈴|詹凱臣|陳飛龍"),
               experience=paste0(experience,"董事長")) %>%
   mutate_cond(customgrepl(legislator_name,"李俊毅|黃偉哲|鍾紹和|洪宗熠|蔡適應|鄭運鵬|鍾佳濱|顏寬恒|蔡其昌|李文忠|趙永清|羅文嘉"),
               experience=paste0(experience,"國會助理")) %>%
@@ -329,6 +339,8 @@ legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislato
   mutate_cond(customgrepl(legislator_name,"張麗善|莊和子"), experience=paste0(experience,"護理師")) %>%
   mutate_cond(customgrepl(legislator_name,"陳亭妃|陳學聖|張廖萬堅|趙天麟|李永萍|王世勛"),
               experience=paste0(experience,"記者")) %>%
+  mutate_cond(customgrepl(legislator_name,"瓦歷斯．貝林"),
+              experience=paste0(experience,"宗教專業人員")) %>%
   mutate_cond(customgrepl(legislator_name,"田秋堇|陳節如|黃淑英|王育敏|王榮璋|吳玉琴|李麗芬|林麗蟬|陳曼麗|高潞|鍾孔炤"),
               experience=paste0(experience,"NGO理事長 NGO執行長 NGO秘書長 工會理事長")) %>%
   mutate_cond(customgrepl(experience,"漁民|討海人"), legislator_occp=620, legislator_ses=65.9) %>%
@@ -358,7 +370,7 @@ legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislato
   mutate_cond(customgrepl(experience,"旅長|軍總司令|國防管理學院院長"), legislator_occp="012", legislator_ses=81.4) %>%
   mutate_cond(customgrepl(experience,"NGO理事長|NGO執行長|NGO秘書長|產業總工會理事長|主管級公務員|職業民意代表") | customgrepl(legislator_name,"劉建國"), legislator_occp=140, legislator_ses=81.4) %>%
   mutate_cond(!is.na(legislator_ses), legislator_ses=(legislator_ses-55)*3) %>%
-  select(term,legislator_name,legislator_eduyr,legislator_occp,legislator_ses,legislator_ethnicity) %>%
+  dplyr::select(term,legislator_name,legislator_eduyr,legislator_occp,legislator_ses,legislator_ethnicity) %>%
   mutate_at(c("legislator_occp"),as.factor)
 save(legislators_additional_attr,file=paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"))
 #陳東榮 no degree

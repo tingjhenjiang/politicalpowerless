@@ -10,7 +10,7 @@ gc(verbose=TRUE)
 #reset
 #load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined.RData"))
 #load imputed survey
-load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_7_Ubuntu18.04.2LTSdf.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_8_Windows10x64build17134df.RData"))
 
 # 第五-1部份：IRT latent variables 將職業社經地位、家庭收入、教育程度萃取成為階級  =================================
 
@@ -20,6 +20,9 @@ survey_data_test <- lapply(survey_data_test,function(X) {
   #  intersect(names(X))
   need_ses_var_assigned<-c("myown_eduyr","myown_ses","myown_income","myown_family_income")
   message("need ses var is ",X$SURVEY[1],need_ses_var_assigned)
+  for (checkvar in need_ses_var_assigned) {
+    message("nrows of ", checkvar, " are ", sum(is.na(X$checkvar)) )
+    }
   efa.results<-factanal(
     as.formula(paste0("~",need_ses_var_assigned,collapse = "+")),
     data=X[,need_ses_var_assigned],
@@ -27,7 +30,7 @@ survey_data_test <- lapply(survey_data_test,function(X) {
     rotation="promax",
     scores=c("regression")
   )
-  X$myown_factoredses<-efa.results$scores
+  X$myown_factoredses<-efa.results$scores[,1]
   return(X)
 })
 
@@ -261,4 +264,4 @@ if ({usinggpcm <- FALSE;usinggpcm}) {
   ltm::GoF.gpcm(X.gpcm)
 }
 #margins(fit1)
-#save(survey_data_test, file=paste0(dataset_in_scriptsfile_directory, "miced_survey_7_Ubuntu18.04.2LTSdf_with_mirt.RData"))
+#save(survey_data_test, file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_8_Ubuntu18.04.2LTSdf_with_mirt.RData"))

@@ -24,6 +24,7 @@ gc(verbose=TRUE)
 # 第八部份：問卷資料串連立委資料、選舉資料 ---------------------------------
 
 library(parallel)
+rulingparty <- list("2004citizen"=c("民主進步黨"),"2010env"=c("中國國民黨"),"2010overall"=c("中國國民黨"),"2016citizen"=c("民主進步黨"))
 #load(paste0(filespath,"data",slash,"elections_df_test.RData"))
 
 #直接讀取分析立法通過的資料集
@@ -63,7 +64,7 @@ legislators_with_elections %<>% select(-degree,-experience,-education,-wonelecti
 #) %>%
 #  sapply(nrow)
 #有多個村里會重複所以join時會膨脹
-overall_district_legislators_only_power_dfdata <- lapply(survey_data_title, function(needsurvey,...) {
+overall_district_legislators_only_power_dfdata <- custom_parallel_lapply(survey_data_title, function(needsurvey,...) {
   filter(complete_survey_dataset, SURVEY==needsurvey) %>% #135654
     left_join(term_to_survey) %>% #135654
     left_join(legislators_with_elections) %>% #135654
@@ -81,8 +82,39 @@ overall_district_legislators_only_power_dfdata <- lapply(survey_data_title, func
     inner_join(survey_time_range_df) %>% #231990  %>% nrow()
     mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days"))
   }, exportlib=c("base","magrittr","dplyr","parallel"),
-  exportvar=c("complete_survey_dataset","custom_parallel_lapply","mergedf_votes_bills_surveyanswer","legislators_with_election","legislators_additional_attr","term_to_survey","survey_time_range_df","mutate_cond"))
-  #mutate_at("SURVEYANSWERVALUE", as.character)
+  exportvar=c("complete_survey_dataset","custom_parallel_lapply","mergedf_votes_bills_surveyanswer","legislators_with_elections","legislators_additional_attr","term_to_survey","survey_time_range_df","mutate_cond"))
+
+#設定對照政黨
+for (i in 1:length(rulingparty)) {
+  party<-rulingparty[[i]]
+  overall_district_legislators_only_power_dfdata[[i]]$legislator_party %<>% relevel(ref=party)
+}
+
+
+overall_partylist_legislators_only_power_dfdata <- lapply(survey_data_title, function(needsurvey,...) {
+  filter(complete_survey_dataset, SURVEY==needsurvey) %>% #135654
+    left_join(term_to_survey) %>% #135654
+    left_join({
+      filter(legislators_with_elections,elec_dist_type=="partylist") %>%
+        select(-admincity,-admindistrict,-adminvillage)
+      }) %>% #135654
+    left_join(legislators_additional_attr) %>%
+    mutate(gap_eduyr=NA,gap_ses=NA,gap_sex=NA,gap_ethnicity=NA,gap_age=NA) %>%
+    mutate_cond(myown_selfid==legislator_ethnicity, gap_ethnicity=0) %>%
+    mutate_cond(myown_selfid!=legislator_ethnicity, gap_ethnicity=1) %>%
+    mutate_cond(!is.na(myown_age), gap_age=abs(myown_age-legislator_age)) %>%
+    mutate_cond(!is.na(myown_eduyr), gap_eduyr=abs(myown_eduyr-legislator_eduyr)) %>%
+    mutate_cond(!is.na(myown_ses), gap_ses=abs(myown_ses-legislator_ses)) %>%
+    mutate_cond((myown_sex=="[1] 男" & legislator_sex=="男") | (myown_sex=="[2] 女" & legislator_sex=="女"), gap_sex=0) %>%
+    mutate_cond((myown_sex=="[2] 女" & legislator_sex=="男") | (myown_sex=="[1] 男" & legislator_sex=="女"), gap_sex=1) %>%
+    mutate_at(c("gap_sex","gap_ethnicity"), as.factor) %>% #135654
+    left_join({
+      inner_join(mergedf_votes_bills_surveyanswer,survey_time_range_df)
+    }) %>% #  %>% nrow()
+    mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days"))
+}, exportlib=c("base","magrittr","dplyr","parallel"),
+exportvar=c("complete_survey_dataset","custom_parallel_lapply","mergedf_votes_bills_surveyanswer","legislators_with_election","legislators_additional_attr","term_to_survey","survey_time_range_df","mutate_cond"))
+
 lapply(survey_data_title[2], function(SURVEY) {SURVEY})
 #只有針對議案的決定，而非有無代理
 testdf <- mutate_at(complete_survey_dataset,"term", as.numeric) %>%

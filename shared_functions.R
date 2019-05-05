@@ -29,8 +29,8 @@ filespath <- ifelse(check_if_windows(),
                            ) %>%
                   stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]}
 dataset_file_directory <- ifelse(check_if_windows(),
-                            paste0(driverletter_prefixes, ":\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\rdata\\",sep="", collapse=","),
-                            paste0("/mnt/", tolower(driverletter_prefixes), "/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/rdata/",sep="", collapse=",")
+                            paste0(driverletter_prefixes, ":\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",sep="", collapse=","),
+                            paste0("/mnt/", tolower(driverletter_prefixes), "/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",sep="", collapse=",")
                             ) %>%
                     stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]}
 
@@ -332,58 +332,62 @@ t_sessioninfo_running_platformcore<-customgsub(sessionInfo()$running," ","") %>%
   customgsub("Ubuntu16.04.4LTS|Ubuntu16.04.5LTS|Ubuntu18.04.1LTS","Linux") %>%
   customgsub("Windows7x64build7601ServicePack1|Windows10x64build17763|Windows8x64build9200","Windows")
 
-custom_parallel_lapply<-switch(
-  as.character(grepl("Ubuntu",sessionInfo()$running)),
-  "TRUE"=function (X=list(), FUN, ..., mc.cores=parallel::detectCores() ) {
-    result<-mclapply(X=X, FUN=FUN, ..., mc.cores=mc.cores,mc.preschedule=FALSE )
-    return(result)
-  },
-  "FALSE" = function ( X=list(), FUN, ..., exportlib=c("base","magrittr","parallel"), exportvar=c(), outfile="" ) {
-    argumentstopass<-list(...)
-    tryCatch({stopCluster(cl)},
-             # 遇到 warning 時的自訂處理函數
-             warning = function(msg) {
-               message("tryCatch Original warning message while stopCluster:")
-               message(paste0(msg,"\n"))
-             },
-             # 遇到 error 時的自訂處理函數
-             error = function(msg) {
-               message("tryCatch Original error message while stopCluster:")
-               message(paste0(msg,"\n"))
-             }
-    )
-    library(MASS)
-    message("<===== at custom_parallel_lapply exportlib is ", exportlib, " and exportvar is ", exportvar, " and outfile is ", outfile, "=====>")
-    cl <- makeCluster(parallel::detectCores(),outfile=outfile)
-    sapply(exportlib,function(needlib,cl) {
-      message("cluster calling ", needlib, " at ", substr(as.character(cl),6,13) )
-      clusterCall(cl=cl, library, needlib, character.only=TRUE)
-    },cl=cl)
-    clustersessioninfopkgs<-clusterCall(cl=cl, sessionInfo) %>%
-      sapply(function(X) {
-        return(dplyr::union(X$basePkgs,names(X$otherPkgs)) %>% paste0(collapse=" "))
-      })
-    message("overall libraries called are ",
-            clustersessioninfopkgs,
-            " at ", substr(as.character(cl),6,13) )
-    if (length(exportvar)>0) {
-      message("cluster exporting: ", paste0(exportvar, collapse=" "), " at ", substr(as.character(cl),6,13) )
-      clusterExport(cl, varlist=c("exportlib",exportvar,"exportvar","outfile"), envir=environment())#
+custom_parallel_lapply<-function(X=list(), FUN=FUN, ..., method="socks", exportlib=c("base","magrittr","parallel"), exportvar=c(), outfile="", verbose=TRUE, mc.cores=parallel::detectCores()  ) {
+  result<-switch(method,
+    #as.character(grepl("Ubuntu",sessionInfo()$running)),
+    "fork"=#function (X=list(), FUN, ..., mc.cores=parallel::detectCores() ) {
+      mclapply(X=X, FUN=FUN, ..., mc.cores=mc.cores,mc.preschedule=FALSE )
+    #  return(result)
+    #}
+    ,
+    "socks" = {#function ( X=list(), FUN, ... ) {
+      argumentstopass<-list(...)
+      tryCatch({stopCluster(cl)},
+        # 遇到 warning 時的自訂處理函數
+        warning = function(msg) {
+          message("tryCatch Original warning message while stopCluster:")
+          message(paste0(msg,"\n"))
+        },
+        # 遇到 error 時的自訂處理函數
+        error = function(msg) {
+          message("tryCatch Original error message while stopCluster:")
+          message(paste0(msg,"\n"))
+        }
+      )
+      #library(MASS)
+      if (verbose) {
+        message("<===== at custom_parallel_lapply exportlib is ", exportlib, " and exportvar is ", exportvar, " and outfile is ", outfile, "=====>")
+      }
+      cl <- makeCluster(parallel::detectCores(),outfile=outfile)
+      sapply(exportlib,function(needlib,cl) {
+        if (verbose) {message("cluster calling ", needlib, " at ", substr(as.character(cl),6,13) )}
+        clusterCall(cl=cl, library, needlib, character.only=TRUE)
+      },cl=cl)
+      clustersessioninfopkgs<-clusterCall(cl=cl, sessionInfo) %>%
+        sapply(function(X) {
+          return(dplyr::union(X$basePkgs,names(X$otherPkgs)) %>% paste0(collapse=" "))
+        })
+      if (verbose) {message("overall libraries called are ", clustersessioninfopkgs, " at ",substr(as.character(cl),6,13) )    }
+      if (length(exportvar)>0) {
+        if (verbose) {message("cluster exporting: ", paste0(exportvar, collapse=" "), " at ", substr(as.character(cl),6,13) )}
+        clusterExport(cl, varlist=c("exportlib",exportvar,"exportvar","outfile"), envir=environment())#
+      }
+      if (length(argumentstopass)>0) {
+        #lapply(argumentstopass,function(needvar,cl) {
+        #  clusterExport(cl, needvar, envir=environment())
+        #},cl=cl)#
+      }
+      returndata<-parLapply(
+        cl,
+        X=X,
+        fun=FUN,
+        ...)
+      stopCluster(cl)
+      #return(returndata)
+      returndata
     }
-    if (length(argumentstopass)>0) {
-      #lapply(argumentstopass,function(needvar,cl) {
-      #  clusterExport(cl, needvar, envir=environment())
-      #},cl=cl)#
-    }
-    returndata<-parLapply(
-      cl,
-      X=X,
-      fun=FUN,
-      ...)
-    stopCluster(cl)
-    return(returndata)
-  }
-)
+  )
+}
 
 vhead<- function(X) {
   View(head(X))
@@ -445,6 +449,28 @@ list_allcombn_of_model <- function(vars,prefix="1~") {
   return(Formulas)
   #gregmisc::combinations
   #MuMIn::dredge
+}
+
+preserve_warning_tryCatch <- function(expr)
+{
+  W <- NULL
+  w.handler <- function(w){ # warning handler
+    W <<- w
+    invokeRestart("muffleWarning")
+  }
+  list(value = withCallingHandlers(tryCatch(expr, error = function(e) e),
+                                   warning = w.handler),
+       warning = W)
+}
+
+custom_parallel_expr<-function(expr, name, mc.set.seed = TRUE, silent = FALSE,
+                  mc.affinity = NULL, mc.interactive = FALSE,
+                  detached = FALSE,
+                  wait = TRUE, timeout = 0, intermediate = FALSE) {
+  do_job<-parallel::mcparallel(expr, name, mc.set.seed, silent,
+                     mc.affinity, mc.interactive,
+                     detached)
+  return(parallel::mccollect(do_job, wait, timeout, intermediate))
 }
 
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"

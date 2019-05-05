@@ -102,8 +102,8 @@ survey_data <- mapply(function(X,Y) {
 #  reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
 #    dplyr::filter(!is.na(term))
 #})  %>%
+
 #save(survey_data,file=paste0(dataset_in_scriptsfile_directory, "all_survey_combined.RData"))
-#save(survey_data,file=paste0(dataset_in_scriptsfile_directory, "all_survey_combined_NAuntransformed.RData"))
 
 
 if ({labeladjusmentagain <- FALSE; labeladjusmentagain}) {
@@ -117,38 +117,42 @@ if ({labeladjusmentagain <- FALSE; labeladjusmentagain}) {
   save(survey_data_labels,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
 }
 #survey_data_labels已經預處理過，直接load即可
-load(paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
+#load(paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
 
 
-if ({writingfeather<-FALSE;writingfeather}) {
-  forwritingfeather<-mapply(function(X,Y,A,B) {
-    #testing purpose
-    #df<-as.data.frame(survey_data[[1]])
-    #dfcoltypes<-sapply(Y,class)
-    #to_dummy_cols<-names(which(dfcoltypes=="factor"))
-    #to_dummy_cols_global <<- to_dummy_cols
-    #print(to_dummy_cols)
-    #for (to_dummy_col in to_dummy_cols) {
-    #  print(to_dummy_col)
-    #df<-dummies::dummy.data.frame(data=df,names=to_dummy_cols,sep="_")
-    #}
-    #View(df[68,])
-    #grep("v28",names(df))
-    #df<-dummies::dummy.data.frame(data=Y,names=to_dummy_cols,sep="_")#%>%
-    #dplyr::filter(variable_on_term=="term1") #2004的問卷橫跨立法院多會期，為了節省運算資源所以只保留一期
-    path<-paste0(ntuspace_file_directory,"shared",slash,"dataset",slash,"rdata",slash,"all_survey_combined",X,".feather")
-    #tomutatecol<-setdiff(names(Y),"myown_age")
-    #df %<>% mutate_at(tomutatecol,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ))
-    message("-----writing ",path,"--------------------")
-    Y<-droplevels(Y)
-    needvars<-c("id", union(A,B)  ) %>%
-      intersect(names(Y))
-    needcols <<- needvars
-    feather::write_feather(Y[,needvars], path=path)
-  },X=1:4,Y=survey_data,A=imputingcalculatebasiscolumn,B=imputedvaluecolumn)
-  #A=imputingcalculatebasiscolumn,B=imputedvaluecolumn
-  #A=1:4,B=1:4
-  #feather::write_feather(survey_data, path=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.feather"))
+if (exists("writingfeather")) {
+  if (writingfeather==TRUE) {
+    forwritingfeather<-mapply(function(X,Y,A,B) {
+      #testing purpose
+      #df<-as.data.frame(survey_data[[1]])
+      #dfcoltypes<-sapply(Y,class)
+      #to_dummy_cols<-names(which(dfcoltypes=="factor"))
+      #to_dummy_cols_global <<- to_dummy_cols
+      #print(to_dummy_cols)
+      #for (to_dummy_col in to_dummy_cols) {
+      #  print(to_dummy_col)
+      #df<-dummies::dummy.data.frame(data=df,names=to_dummy_cols,sep="_")
+      #}
+      #View(df[68,])
+      #grep("v28",names(df))
+      #df<-dummies::dummy.data.frame(data=Y,names=to_dummy_cols,sep="_")#%>%
+      #dplyr::filter(variable_on_term=="term1") #2004的問卷橫跨立法院多會期，為了節省運算資源所以只保留一期
+      path<-paste0(ntuspace_file_directory,"shared",slash,"dataset",slash,"rdata",slash,"all_survey_combined",X,".feather")
+      #tomutatecol<-setdiff(names(Y),"myown_age")
+      #df %<>% mutate_at(tomutatecol,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ))
+      message("-----writing ",path,"--------------------")
+      Y<-droplevels(Y)
+      needvars<-c("id", union(A,B)  ) %>%
+        intersect(names(Y))
+      needcols <<- needvars
+      feather::write_feather(Y[,needvars], path=path)
+    },X=1:4,Y=survey_data,A=imputingcalculatebasiscolumn,B=imputedvaluecolumn)
+    write(x=jsonlite::toJSON(imputingcalculatebasiscolumn), file=paste0(ntuspace_file_directory,"shared",slash,"dataset",slash,"rdata",slash,"imputingcalculatebasiscolumn.json"))
+    write(x=jsonlite::toJSON(imputedvaluecolumn), file=paste0(ntuspace_file_directory,"shared",slash,"dataset",slash,"rdata",slash,"imputedvaluecolumn.json"))
+    #A=imputingcalculatebasiscolumn,B=imputedvaluecolumn
+    #A=1:4,B=1:4
+    #feather::write_feather(survey_data, path=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.feather"))
+  }
 }
 
 
@@ -179,7 +183,6 @@ if ({writingfeather<-FALSE;writingfeather}) {
 #},X=survey_data,Y=survey_restricted_data)
 
 load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined.RData"))
-#load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined_NAuntransformed.RData"))
 
 
 # 第四部份：清理資料：填補遺漏值 -------------------------------------------
@@ -190,13 +193,13 @@ library(VIM)
 library(parallel)
 #job_status暫時先刪掉，因為不同問卷概念與選項不一樣難以合併
 imputingcalculatebasiscolumn<-lapply(survey_data_title,function(X,df) {
-  filter(df,SURVEY==X,IMPUTATION %in% c("basis","both")) %>%
-    select(ID) %>% unlist() %>% union(c("admincity")) %>% unname()
+  dplyr::filter(df,SURVEY==X,IMPUTATION %in% c("basis","both")) %>%
+    dplyr::select(ID) %>% unlist() %>% union(c("admincity")) %>% unname()
 },df=survey_imputation_and_measurement) %>%
   setNames(survey_data_title)
 imputedvaluecolumn<-lapply(survey_data_title,function(X,df) {
-  filter(df,SURVEY==X,IMPUTATION %in% c("both")) %>%
-    select(ID) %>% unlist() %>% unname()
+  dplyr::filter(df,SURVEY==X,IMPUTATION %in% c("both")) %>%
+    dplyr::select(ID) %>% unlist() %>% unname()
 },df=survey_imputation_and_measurement) %>%
   setNames(survey_data_title)
 
@@ -254,10 +257,12 @@ survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- li
 survey_data_test <- custom_parallel_lapply(
   X=survey_data,
   FUN=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,...) {
-    #missingvaluecolumn_assigned<-missingvaluecolumn
-    #imputingcalculatebasiscolumn_assigned<-imputingcalculatebasiscolumn
-    #X<-survey_data[[i]] %>%
-    # droplevels()
+    if (exists("debug_for_miceimputation")) {
+      if (debug_for_miceimputation==TRUE) {
+        i<-3
+        X<-survey_data[[i]]
+      }
+    }
     X<-droplevels(X)
     imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
       intersect(names(X))
@@ -275,13 +280,9 @@ survey_data_test <- custom_parallel_lapply(
     foundationvar %<>% setdiff(outlist)
     print(paste0(c("foundationvar are ",foundationvar), collapse=" "))
     unusefulcolumns <- setdiff(names(X),foundationvar)
-    #proceeding_na_var<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned) %>%
-    #  setdiff(c("myown_age"))
-    #predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn)
-    predictor_matrix<-mice::quickpred(X[,foundationvar], mincor=0.2)
+    #predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
+    predictor_matrix<-mice::quickpred(X[,foundationvar], mincor=0.1, include=c('myown_eduyr','myown_sex','myown_age','myown_ethnicity'))
     #return(predictor_matrix)
-    #X %<>% dplyr::mutate_at(proceeding_na_var,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
-    #  mutate_if(is.factor,funs(factor))
     #sol: https://stackoverflow.com/questions/13495041/random-forests-in-r-empty-classes-in-y-and-argument-legth-0
     #sol: https://stackoverflow.com/questions/24239595/error-using-random-forest-mice-package-during-imputation
     #The frequency distribution of the missing cases per variable can be obtained as:
@@ -309,7 +310,7 @@ survey_data_test <- custom_parallel_lapply(
   },
   imputedvaluecolumn=imputedvaluecolumn,
   imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
-  exportvar=c("survey_data","imputedvaluecolumn","imputingcalculatebasiscolumn"),
+  exportvar=c("imputedvaluecolumn","imputingcalculatebasiscolumn"),
   exportlib=c("base",lib,"mice","randomForest"), #,"MissMech","fastDummies"
   outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
   mc.set.seed = TRUE,
@@ -320,7 +321,7 @@ survey_data_test <- custom_parallel_lapply(
 #survey_data_test[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
 #}
 #conditional random field
-save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_7_",t_sessioninfo_running,"df.RData"))
+save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_8_",t_sessioninfo_running,"df.RData"))
 load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_7_",t_sessioninfo_running,"df.RData"))
 
 #write.xlsx(as.data.frame(furtherusefulpredictor),file="furtherusefulpredictor.xlsx")

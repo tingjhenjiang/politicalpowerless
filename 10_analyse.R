@@ -290,6 +290,7 @@ summary(model)
 car::vif(model)
 car::vif(selectedMod)
 mctest
+vif{faraway}, vif{HH}, vif{car}, VIF{fmsb}, vif{VIF}
 ## view a summary of the model
 
 ## 分段

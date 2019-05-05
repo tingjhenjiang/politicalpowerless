@@ -8,15 +8,16 @@ gc(verbose=TRUE)
 
 
 # 第六部份：LCA latent variables 潛在類別模式資料清理  ================================= 
-load(paste0(dataset_in_scriptsfile_directory, "miced_survey_7_Ubuntu18.04.2LTSdf_with_mirt.RData"))
+load(paste0(dataset_file_directory,"rdata",slash, "miced_survey_8_Ubuntu18.04.2LTSdf_with_mirt.RData"), verbose=TRUE)
 
 library(poLCA)
 library(parallel)
+library(LCAvarsel)
 
 lcaneed_independence_attitude<-list(
-  "2004citizen"=c("v95","v96","v97"),#公投選項共變
+  "2004citizen"=c("v95r","v96","v97"),#公投選項共變
   "2010env"=c(),#沒有統獨
-  "2010overall"=c("v90","v91","v92"),
+  "2010overall"=c("v90r","v91","v92"),
   "2016citizen"=c("h10r")#2016只有一題統獨傾向"
 )
 lcaneed_party_constituency<-list(
@@ -49,8 +50,10 @@ lcaneed_other_cov<-list(
 #load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_eth_iden_othercovWindows8x64build9200.RData"))
 #LCAmodel_with_indp
 
-custom_generate_LCA_model<-function(X, n_latentclasses=c(3:5), nrep=30, maxiter=1000, firstlcaneed, secondlcaneed=c(), ..., exportlib=c("base"), exportvar=c(), outfile="") {#,thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(), exportlib=c("base"), exportvar=c(), outfile=""
-  #X此時就是一個問卷的dataset
+#自動變數選擇https://cran.r-project.org/web/packages/LCAvarsel/LCAvarsel.pdf
+
+custom_generate_LCA_model<-function(X, n_latentclasses=3, nrep=30, maxiter=1000, modelformula=NA, firstlcaneed=c(), secondlcaneed=c(), ..., exportlib=c("base"), exportvar=c(), outfile="") {#,thirdlcaneed=c(),fourthlcaneed=c(),fifthlcaneed=c(), exportlib=c("base"), exportvar=c(), outfile=""
+  #X此時就形同是一個問卷的dataset
   #lcaneed_independence_attitude
   #lcaneed_party_constituency
   #lcaneed_ethnicity
@@ -58,60 +61,98 @@ custom_generate_LCA_model<-function(X, n_latentclasses=c(3:5), nrep=30, maxiter=
   #lcaneed_other_cov
   #message("<===== at custom_generate_LCA_model exportlib is ", exportlib, " and exportvar is ", exportvar, " and outfile is ", outfile, "=====>")
   otherlcaneed<-unlist(list(...)) #testing: otherlcaneed<-NULL
-  needsurveyi<-X$SURVEY[1]
+  #needsurveyi<-X$SURVEY[1]
   cov_parameter_in_formula<-dplyr::union_all(
-    magrittr::extract2(secondlcaneed,needsurveyi),
-    magrittr::extract2(otherlcaneed,needsurveyi)
+    #magrittr::extract2(secondlcaneed,needsurveyi),
+    #magrittr::extract2(otherlcaneed,needsurveyi)
+    secondlcaneed,otherlcaneed
   )
-  if (needsurveyi %in% names(n_latentclasses)) {
-    #n_latentclasses <- magrittr::extract2(n_latentclasses,needsurveyi)
-    n_latentclasses <- getElement(n_latentclasses,needsurveyi)
-  }
-  if (identical(cov_parameter_in_formula,logical())) {
+  #if (needsurveyi %in% names(n_latentclasses)) {
+  #  #n_latentclasses <- magrittr::extract2(n_latentclasses,needsurveyi)
+  #  n_latentclasses <- getElement(n_latentclasses,needsurveyi)
+  #}
+  if (identical(cov_parameter_in_formula,logical()) | gtools::invalid(cov_parameter_in_formula) ) {
     cov_parameter_in_formula<-"1"
   }
-  modelformula<-paste0(
-    "cbind(",
-    paste(magrittr::extract2(firstlcaneed,needsurveyi),collapse=","),
-    ") ~ ",
-    paste0(cov_parameter_in_formula,collapse="+"),
-    collapse=""
-  )
-  poLCAresult<-switch(
-    as.character(length(magrittr::extract2(firstlcaneed,needsurveyi))),
-    "0"=NULL,
-    "1"=X[,magrittr::extract2(firstlcaneed,needsurveyi)],
-    {
-      custom_parallel_lapply(X=n_latentclasses,FUN=function(poXi,s_survey_data,modelformula,nrep,maxiter,...)
-      {
-        library(poLCA) #for fixing stange situation that Windows does not fork well
-        #### lapply(2:7,function(poXi,s_survey_data) {
-        lcamodelbuildtresult <-if (gtools::invalid(poXi) || (is.integer(poXi) && poXi<=0)) {
-          list("model"=NULL)
-        } else {
+  #if (all(sapply(list(modelformula, firstlcaneed), gtools::invalid) )) {
+  #  return(NULL)
+  #}
+  #if (!gtools::invalid(modelformula) & !gtools::invalid(firstlcaneed)) {
+  #  return(NULL)
+  #}
+  workingmodelformula<-switch(as.character(modelformula),
+    "NA"=paste0(
+      "cbind(",
+      paste(firstlcaneed,collapse=","),
+      #paste(magrittr::extract2(firstlcaneed,needsurveyi),collapse=","),
+      ") ~ ",
+      paste0(cov_parameter_in_formula,collapse="+"),
+      collapse=""
+    ),
+    modelformula)
+  formulated_workingmodelformula <- as.formula(workingmodelformula)
+  #library(poLCA) #for fixing stange situation that Windows does not fork well
+  tmppoLCAresult<-#switch(
+    #as.character(length(firstlcaneed)),
+    #"0"=NULL,
+    #"1"=NULL, #X[,magrittr::extract2(firstlcaneed,needsurveyi)],
+    #{
+      #custom_parallel_lapply(X=n_latentclasses,FUN=function(poXi,s_survey_data,modelformula,nrep,maxiter,...)
+      #{
+      #### lapply(2:7,function(poXi,s_survey_data) {
+      switch(as.character(gtools::invalid(n_latentclasses) | (is.integer(n_latentclasses) && n_latentclasses<=0) ),
+        "TRUE"=list("result"=NULL),
+        "FALSE"=preserve_warning_tryCatch({
           poLCA(
-            data = s_survey_data,
-            formula = as.formula(modelformula),
-            nclass = poXi,
+            data = X,
+            formula = formulated_workingmodelformula,
+            nclass = n_latentclasses,#poXi,
             nrep = nrep,
             maxiter = maxiter
-            #graphs = TRUE,
-          )
-        }
-        lcamodelbuildtresult$nclass <- poXi
-        lcamodelbuildtresult$modelformula <- modelformula
-        return(lcamodelbuildtresult)
-        #poXi
-      },s_survey_data = X,
-      modelformula = modelformula,
-      nrep = nrep,
-      maxiter = maxiter,
-      exportvar = exportvar,
-      exportlib = exportlib,
-      outfile = outfile
+          )})#,
+          ## 遇到 warning 時的自訂處理函數
+          #warning = function(msg) {
+          #  errmessage <- paste0("tryCatch Original warning message while ",modelformula," and ",n_latentclasses," and msg is", msg, "\n")
+          #  message(errmessage)
+          #  return(list("content"=errmessage))
+          #},
+          ## 遇到 error 時的自訂處理函數
+          #error = function(msg) {
+          #  errmessage <- paste0("tryCatch Original error message while ",modelformula," and ",n_latentclasses," and msg is", msg, "\n")
+          #  message(errmessage)
+          #  return(list("content"=errmessage))
+          #})
       )
-    }
-  ) #end of switch
+      #ret_lcamodelbuildtresult <- list()
+      #if (gtools::invalid(lcamodelbuildtresult$content)) {
+      #}
+      #return(lcamodelbuildtresult)
+      #ret_lcamodelbuildtresult
+      #poXi
+    #},s_survey_data = X,
+    #modelformula = modelformula,
+    #nrep = nrep,
+    #maxiter = maxiter,
+    #exportvar = exportvar,
+    #exportlib = exportlib,
+    #outfile = outfile
+    #)
+    #}
+  #poLCAresult$result <- lcamodelbuildtresult$result
+  if (class(tmppoLCAresult[[1]])=="poLCA") {
+    poLCAresult <- tmppoLCAresult[[1]]
+    poLCAresult$content <- paste0(as.character(tmppoLCAresult[[2]]), collapse="|") 
+  } else {
+    poLCAresult <- list("result"=NULL)
+    poLCAresult$content <- paste0(tmppoLCAresult[[1]],as.character(tmppoLCAresult[[2]]), collapse="|") 
+  }
+  poLCAresult$nclass <- n_latentclasses#poXi
+  poLCAresult$modelformula <- workingmodelformula
+  #poLCAresult$formulated_modelformula <- formulated_workingmodelformula
+  #poLCAresult$inputformula <- modelformula
+  poLCAresult$nrep <- nrep
+  poLCAresult$maxiter <- maxiter
+  #) #end of switch
   return(poLCAresult)
 }
 
@@ -141,6 +182,133 @@ LCAresult_to_sheet <- function(LCAstr) {
 ###    secondlcaneed=lcaneed_party_constituency
 ###  )
 ###}
+
+
+
+
+
+#fresh restart from here
+library(future) 
+switch(as.character(customgrepl(t_sessioninfo_running, "Windows")),
+       "TRUE"=plan(multisession),
+       "FALSE"=plan(multicore)
+)
+library(future.apply)
+t_survey_data_test<-survey_data_test
+list_of_degree_of_freedom<-list()
+load(file=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.RData"),verbose=TRUE)
+#switch back
+#plan(sequential)
+
+#generate list to filter out those degree of freedom<0
+#list_of_degree_of_freedom <- lapply(t_survey_data_test, function(a_single_survey_dataset,...) {
+for (a_single_survey_dataset in t_survey_data_test) {
+  #a_single_survey_dataset<-t_survey_data_test[[1]]
+  needsurvey <- a_single_survey_dataset$SURVEY[1]
+  if (length(lcaneed_independence_attitude[[needsurvey]]) %in% c(0,1)) {
+    list_of_degree_of_freedom[[needsurvey]] <- data.frame()
+    next
+  }
+  cov_vars <- c(lcaneed_party_constituency[[needsurvey]],lcaneed_ethnicity[[needsurvey]],lcaneed_identity[[needsurvey]],lcaneed_other_cov[[needsurvey]]) %>%
+    unique()
+  cov_vars_combns <- unlist(
+      lapply(1:length(cov_vars),
+        function(i)combn(1:length(cov_vars),i,simplify=FALSE)
+    )
+    ,recursive=FALSE) %>%
+    lapply(FUN=function(X,var) extract(var,X), var=cov_vars)
+  #LCAmodel_with_indp_covparty_testfor_resid_df
+  #list_of_degree_of_freedom[[needsurvey]] <- data.frame()
+  everystep_n <- 20
+  cov_vars_combns_splited_parts <- split(cov_vars_combns, ceiling(seq_along(cov_vars_combns)/everystep_n))
+  count_iter = 1
+  for (cov_vars_combns_splited_part in cov_vars_combns_splited_parts) {
+    message("now it's in ",count_iter)
+    count_iter <- count_iter+1
+    #cov_vars_combns_splited_part <- cov_vars_combns_splited_parts[[1]]
+    cov_vars_combns_splited_part_check_str <- lapply(cov_vars_combns_splited_part, function(cov_vars_combn) {
+      modelformula_prefix <- paste0(lcaneed_independence_attitude[[needsurvey]], collapse=",", sep="") %>%
+        paste0("cbind(", ., ") ~ ")#"cbind(v90,v91,v92) ~"
+      modelformula_suffix <- paste0(cov_vars_combn, collapse="+")
+      modelformula_for_debug <- paste0(modelformula_prefix, modelformula_suffix, collapse="")
+      return(modelformula_for_debug)
+    }) %>%
+      unlist()
+    modelformula_df_for_debug <- lapply(cov_vars_combns_splited_part_check_str, function(modelformula) {
+      cbind("modelformula"=modelformula,"nclass"=3:5) %>% as.data.frame() %>% return()
+      }) %>% plyr::rbind.fill() %>% mutate(nclass=as_factor_to_integer(nclass))
+    #valid_lca_formula_meeting_needs <- filter(list_of_degree_of_freedom[[needsurvey]], is.na(content))
+    #list_of_degree_of_freedom[[needsurvey]] %<>% dplyr::anti_join(valid_lca_formula_meeting_needs)
+    qualified_lca_model <- dplyr::left_join(modelformula_df_for_debug, list_of_degree_of_freedom[[needsurvey]]) %>%
+      filter(is.na(content) & is.na(nrep) & !is.na(modelformula))
+    if (nrow(qualified_lca_model)<=0) {next}
+    list_of_degree_of_freedom[[needsurvey]] %<>% dplyr::anti_join(qualified_lca_model, by=c("modelformula", "nclass"))
+    #check_already_in_dflistfor_degf <- sapply(cov_vars_combns_splited_part_check_str,is_in,list_of_degree_of_freedom[[needsurvey]]$modelformula) %>%
+    #  all()
+    #, compare_lca_completed_df=data.frame()
+    #if (isTRUE(check_already_in_dflistfor_degf)) {next}
+    message("number of qualified models: ", nrow(qualified_lca_model))
+    models_range <- seq(from=1, to=nrow(qualified_lca_model))#
+    temp_df_list_of_degree_of_freedom <- future_mapply(
+      function(modelformula, n_latentclasses, nrep, maxiter, X, ...) {
+        tryCatch({custom_generate_LCA_model(
+            X=X,
+            modelformula=modelformula,
+            n_latentclasses=n_latentclasses,
+            nrep=nrep,
+            maxiter=maxiter
+          )},error=function(e) {
+            cat("Failed on modelformula = ", modelformula, "\n nclass = ", n_latentclasses, sep="") ## browser()
+            stop(e)
+          }
+        )}
+       #function(fut_modelformula, fut_n_latentclasses, fut_nrep, fut_maxiter,...) {
+      #for (cov_vars_combn in cov_vars_combns) {
+      #message("modelformula is ", modelformula_for_debug)
+      #browser()
+      #function (testLCAvar,...) {
+      #  return(testLCAvar)
+      #}
+      #LCAresultmodel<-custom_generate_LCA_model(
+      #  X = a_single_survey_dataset,
+      #  n_latentclasses = fut_n_latentclasses,
+      #  modelformula = fut_modelformula,
+      #  #exportvar = c("custom_parallel_lapply","custom_generate_LCA_model"), #,"a_single_survey_dataset"
+      #  #exportlib = c("base","poLCA","parallel","gtools"),
+      #  #outfile = paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
+      #  nrep = fut_nrep,
+      #  maxiter = fut_maxiter#,
+      #  #firstlcaneed = lcaneed_independence_attitude[[needsurvey]],
+      #  #secondlcaneed = cov_vars_combn
+      #  )
+      #return(LCAresultmodel)
+      #  ,a_single_survey_dataset=a_single_survey_dataset
+    #}
+    ,modelformula=qualified_lca_model$modelformula[models_range], n_latentclasses=qualified_lca_model$nclass[models_range], nrep=rep(35,length(models_range)), maxiter=rep(1150,length(models_range)), SIMPLIFY=FALSE, MoreArgs = list(X=a_single_survey_dataset,custom_generate_LCA_model=custom_generate_LCA_model)#exportvar = c("custom_parallel_lapply","a_single_survey_dataset","custom_generate_LCA_model","lcaneed_independence_attitude","needsurvey","dataset_file_directory","slash","t_sessioninfo_running_with_cpu","modelformula_prefix"),  exportlib = c("base","poLCA","parallel","gtools","magrittr"),  outfile = paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt")
+    ) %>% #end of future_mapply processing LCA
+      lapply(function(LCAresultmodel) {
+        LCAdfresult <- cbind("modelformula"=LCAresultmodel$modelformula, "nclass"=LCAresultmodel$nclass,
+                             "resid.df"=LCAresultmodel$resid.df, "content"=LCAresultmodel$content,
+                             "llik"=LCAresultmodel$llik, "aic"=LCAresultmodel$aic,
+                             "bic"=LCAresultmodel$bic, "Gsq"=LCAresultmodel$Gsq,
+                             "Chisq"=LCAresultmodel$Chisq, "Nobs"=LCAresultmodel$Nobs,
+                             "nrep"=LCAresultmodel$nrep, "maxiter"=LCAresultmodel$maxiter
+                             ) %>%  as.data.frame()
+        return(LCAdfresult)
+      }) %>%
+      plyr::rbind.fill() %>%
+      mutate(nclass=as_factor_to_integer(nclass))
+    list_of_degree_of_freedom[[needsurvey]] %<>% dplyr::bind_rows(temp_df_list_of_degree_of_freedom)
+    save(list_of_degree_of_freedom,file=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.RData"))
+  }
+  #return(cov_vars_combns)
+}#,lcaneed_independence_attitude=lcaneed_independence_attitude,
+#lcaneed_party_constituency=lcaneed_party_constituency,
+#lcaneed_ethnicity=lcaneed_ethnicity,
+#lcaneed_identity=lcaneed_identity,
+#lcaneed_other_cov=lcaneed_other_cov)
+
+
 
 
 load(file=paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covparty_combn_list_contains_2010overall.RData"))
@@ -384,8 +552,8 @@ save(LCAmodel_with_partyconstituency_nocov,file=paste0(dataset_file_directory,"r
 # 第六-3部份：潛在類別分析：將分析結果整併入dataset --------------------------------------------------
 
 #load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covpartyUbuntu18.04.1LTS_do_not_delete.RData"))
-load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_2004citizen_final.RData"))
-load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_2010overall_final.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_2004citizen_final.RData"), verbose=TRUE)
+load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_2010overall_final.RData"), verbose=TRUE)
 
 if({LCA_recoding_by_restarting_modeling<-FALSE;LCA_recoding_by_restarting_modeling}) {
   new_LCAmodel_with_indp_covparty_2004citizen_3_classes<-poLCA::poLCA(
