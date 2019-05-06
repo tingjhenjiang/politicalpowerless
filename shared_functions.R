@@ -473,6 +473,14 @@ custom_parallel_expr<-function(expr, name, mc.set.seed = TRUE, silent = FALSE,
   return(parallel::mccollect(do_job, wait, timeout, intermediate))
 }
 
+reset_multi_p <- function(t_sessioninfo_running = gsub("[>=()]","",gsub(" ","",sessionInfo()$running)) ) {
+  plan(sequential)
+  switch(as.character(customgrepl(t_sessioninfo_running, "Windows")),
+         "TRUE"=plan(multisession),
+         "FALSE"=plan(multicore)
+  )
+}
+
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"
 #research_odbc_ch <- odbcConnect(research_odbc, believeNRows = FALSE, rows_at_time = 1, DBMSencoding="UTF-8")

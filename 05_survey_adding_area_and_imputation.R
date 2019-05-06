@@ -15,7 +15,7 @@ survey_imputation_and_measurement<-openxlsx::read.xlsx(path_to_survey_imputation
 
 library(haven)
 library(labelled)
-load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"), verbose=TRUE)
 
 ##以下部分因為已有既存資料檔，讀取後略過不執行#
 #找出所有行政區對選區資料，並且找出同一鄉鎮市區有不同選區的部分
@@ -254,8 +254,8 @@ survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- li
 #Package ‘MissMech’
 #To test whether the missing data mechanism, in a set of incompletely ob-served data, is one of missing completely at random (MCAR).For detailed description see Jamshidian, M. Jalal, S., and Jansen, C. (2014). ``Miss-Mech: An R Package for Testing Homoscedasticity, Multivariate Normality, and Missing Com-pletely at Random (MCAR),'' Journal of Statistical Software,  56(6), 1-31. URL http://www.jstatsoft.org/v56/i06/.
 
-survey_data_test <- custom_parallel_lapply(
-  X=survey_data,
+survey_data_test <- lapply( #custom_parallel_lapply
+  X=survey_data[1],
   FUN=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,...) {
     if (exists("debug_for_miceimputation")) {
       if (debug_for_miceimputation==TRUE) {
@@ -263,13 +263,14 @@ survey_data_test <- custom_parallel_lapply(
         X<-survey_data[[i]]
       }
     }
+    #library(mice)
     X<-droplevels(X)
     imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
       intersect(names(X))
     imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
       intersect(names(X))
     foundationvar<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
-    ini <- mice(X[,foundationvar], maxit = 0)
+    ini <- mice::mice(X[,foundationvar], maxit = 0)
     sapply(c("----------------", X$SURVEY[1], "----------------"),print)
     print(table(ini$nmis))
     outlist4 <- as.character(ini$loggedEvents[, "out"])
@@ -277,9 +278,9 @@ survey_data_test <- custom_parallel_lapply(
     fx2 <- flux(X[,foundationvar])
     outlist2<-row.names(fx2)[fx2$outflux < 0.45]
     outlist <- unique(c(outlist2, outlist4))
-    foundationvar %<>% setdiff(outlist)
+    foundationvar %<>% dplyr::setdiff(outlist)
     print(paste0(c("foundationvar are ",foundationvar), collapse=" "))
-    unusefulcolumns <- setdiff(names(X),foundationvar)
+    unusefulcolumns <- dplyr::setdiff(names(X),foundationvar)
     #predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
     predictor_matrix<-mice::quickpred(X[,foundationvar], mincor=0.1, include=c('myown_eduyr','myown_sex','myown_age','myown_ethnicity'))
     #return(predictor_matrix)
@@ -293,11 +294,16 @@ survey_data_test <- custom_parallel_lapply(
     #analysisdfonmissingvalue<-X[,imputedvaluecolumn_assigned]
     #missingvaluepattern[[i]]<-mice::md.pattern(analysisdfonmissingvalue,plot=FALSE)
     #visdat::vis_miss(analysisdfonmissingvalue)
-    miceMod <- mice::mice(
-      X[,foundationvar],
+    mice_parallel_imp_type <- switch(as.character(grepl("Windows", sessionInfo()$running)), "TRUE"="PSOCK", "FALSE"="FORK")
+    #also check: micemd::mice.par
+    data_to_mice_imp <- X[,foundationvar]
+    miceMod <- micemd::mice.par( #mice::mice #mice::parlmice
+      data_to_mice_imp,
       predictorMatrix = predictor_matrix,
       m=5,
-      method="rf"
+      method="rf"#,
+      #n.core=parallel::detectCores()#,
+      #cl.type=mice_parallel_imp_type
     )  # perform mice imputation, based on random forests.
     #linear imputation might have error message: system is computationally singular: reciprocal condition number
     #https://stats.stackexchange.com/questions/214267/why-do-i-get-an-error-when-trying-to-impute-missing-data-using-pmm-in-mice-packa
@@ -310,8 +316,8 @@ survey_data_test <- custom_parallel_lapply(
   },
   imputedvaluecolumn=imputedvaluecolumn,
   imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
-  exportvar=c("imputedvaluecolumn","imputingcalculatebasiscolumn"),
-  exportlib=c("base",lib,"mice","randomForest"), #,"MissMech","fastDummies"
+  exportvar=c("imputedvaluecolumn","parlMICE","imputingcalculatebasiscolumn"),
+  exportlib=c("dplyr","base","magrittr","parallel","mice","randomForest"), #,"MissMech","fastDummies"
   outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
@@ -321,6 +327,7 @@ survey_data_test <- custom_parallel_lapply(
 #survey_data_test[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
 #}
 #conditional random field
+temp_survey_data_test<-survey_data_test[[1]]
 save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_8_",t_sessioninfo_running,"df.RData"))
 load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_7_",t_sessioninfo_running,"df.RData"))
 
