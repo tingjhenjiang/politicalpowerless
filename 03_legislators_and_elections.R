@@ -5,21 +5,41 @@ source(file = "shared_functions.R")
 #選舉資料
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
 supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2009hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
+supplement_election_termsix<-c('supp2006chiayi')
 #supplement_election_termeight<-c('supp2013taichung2') 研究不需要
 terms<-c(5,6,7,8,9)
 
 
+if ({process_for_supp2006chiayi<-TRUE; process_for_supp2006chiayi}) {
+  path_prefix_of_supp2006chiayi <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",6,slash,"supp2006chiayi",slash)
+  supp2006chiayi_dataset_file <- "term6_supp2006chiayi_process_for_raw.xlsx" %>%
+    paste0(path_prefix_of_supp2006chiayi, .)
+  tabs <- c("elprof","elpaty","electks","elcand","elbase")
+  for (loop_over_sheet_i in 1:length(tabs)) {
+    supp2006chiayi_temp_df <- openxlsx::read.xlsx(xlsxFile = supp2006chiayi_dataset_file, sheet = loop_over_sheet_i) %>%
+      dplyr::select(-contains("CHI_NAME")) %>%
+      dplyr::mutate_all(as.character) %>%
+      readr::write_csv(path=paste0(path_prefix_of_supp2006chiayi, tabs[loop_over_sheet_i], ".csv"))
+  }
+}
+
+
 # 第一部份：立委及選區資料 -------------------------------------------
 library(parallel)
+library(future)
+library(future.apply)
+reset_multi_p()
 #for (term in terms) {
-elections_df <- custom_parallel_lapply(terms, function(term, ...) {
-  elections_df <- elections_df_onekind <-data.frame()
+elections_df <- future.apply::future_lapply(terms, function(term, ...) {
+  elections_df <- elections_df_onekind <- data.frame()
   message("term=",term)
   term_character<-paste0("0",term)
+  elec_types<-overall_elec_dist_types
   if (term==7) {
     elec_types<-c(overall_elec_dist_types,supplement_election_termseven)
-  } else {
-    elec_types<-overall_elec_dist_types
+  }
+  if (term==6) {
+    elec_types<-c(overall_elec_dist_types,supplement_election_termsix)
   }
   for (elec_dist_type in elec_types) {
     message("")
@@ -54,13 +74,13 @@ elections_df <- custom_parallel_lapply(terms, function(term, ...) {
     election_real_elec_dist<- filter(elections_df_dist,customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
       select("省市別","縣市別","選區別","名稱") %>%
       rename("選舉區名稱"="名稱")
-    election_admin_county<-filter(elections_df_dist,鄉鎮市區!="000",村里別!="0000",!customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
+    election_admin_county<-filter(elections_df_dist,鄉鎮市區!="000" & 鄉鎮市區!=0 ,村里別!="0000" & 村里別!=0,!customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
       rename("村里名稱"="名稱")
     #省市別  縣市別  選區別  鄉鎮市區  村里別  村里名稱
-    election_admin_dist<-filter(elections_df_dist,鄉鎮市區!="000",村里別=="0000",!customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
+    election_admin_dist<-filter(elections_df_dist,鄉鎮市區!="000",村里別=="0000" | 村里別==0,!customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
       rename("鄉鎮市區名稱"="名稱") %>%
       select("省市別","縣市別","選區別","鄉鎮市區","鄉鎮市區名稱")
-    election_admin_city<-filter(elections_df_dist,鄉鎮市區=="000",選區別=="00",!customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
+    election_admin_city<-filter(elections_df_dist,鄉鎮市區=="000" | 鄉鎮市區==0,選區別=="00" | 選區別==0, !customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
       rename("縣市名稱"="名稱") %>%
       select("省市別","縣市別","縣市名稱")
     election_admin_to_elecdist<-left_join(election_real_elec_dist,election_admin_city) %>% #left_join(election_admin_county,election_admin_dist) %>%
@@ -100,9 +120,9 @@ elections_df <- custom_parallel_lapply(terms, function(term, ...) {
   #check: filter(elections_df,is.na(選舉區名稱)) %>% View()
   #check: distinct(legislators_needed,areaName,選舉區名稱) %>% View()
 },
-exportvar=c("supplement_election_termseven","dataset_file_directory","terms","slash","filespath","overall_elec_dist_types","custompaste0","customgsub","customgrep","customgrepl","mutate_cond","error_leave_and_attend_legislators","error_vote_record_from_name","replace_troublesome_names","anti_join_with_nrow_zero"),
+exportvar=c("supplement_election_termseven","supplement_election_termsix","dataset_file_directory","terms","slash","filespath","overall_elec_dist_types","custompaste0","customgsub","customgrep","customgrepl","mutate_cond"), #,"error_leave_and_attend_legislators","error_vote_record_from_name","replace_troublesome_names","anti_join_with_nrow_zero"
 exportlib=c("base",lib)) %>%
-  plyr::rbind.fill() %>%
+  dplyr::bind_rows() %>%
   .[, c("term", "號次", "名字", "性別", "出生日期", "年齡", "出生地", "學歷", "現任", "當選註記", "政黨名稱", "選舉區名稱", "縣市名稱", "鄉鎮市區名稱", "村里名稱", "排名", "elec_dist_type")] %>%
   rename(ballotid = 號次, name = 名字, sex = 性別, birthday = 出生日期, age = 年齡, birthplace = 出生地, education = 學歷, incumbent = 現任, wonelection = 當選註記, party = 政黨名稱, electionarea = 選舉區名稱, admincity = 縣市名稱, admindistrict = 鄉鎮市區名稱, adminvillage = 村里名稱, plranking = 排名) %>%
   mutate_at(c("sex"), dplyr::recode_factor, `2`="女", `1`="男") %>%
@@ -160,7 +180,7 @@ legislators_ethicity_df <- paste0(dataset_file_directory, "legislators_ethicity_
   lapply(names(.), function(X,lst=list()) {
     data.frame("legislator_name"=lst[[X]], "legislator_ethnicity"=X)
   },lst = .) %>%
-  plyr::rbind.fill()
+  dplyr::bind_rows()
 
 #資料更正：是否現任
 #for (checkterm in terms) {

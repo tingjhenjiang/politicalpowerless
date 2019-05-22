@@ -8,6 +8,7 @@ chooseCRANmirror(ind=which(grepl("http://cran.csie.ntu.edu.tw/",getCRANmirrors()
 #}
 #lib<-c("stringi","stringr","XML","xml2","rvest","htmltidy","curl","RCurl","gdata","readr","DBI","lazyeval","dplyr","rmarkdown","rticles","knitr","data.table","ggplot2","scales","reshape2","janitor","stargazer","xtable","apa","tesseract","pdftools","tiff","schoolmath","jsonlite","foreign","MASS","class","caret","tm","kernlab","jiebaR","RTextTools","tmcn","text2vec","RODBC","xlsx")
 lib<-c("stringi","XML","xml2","readr","plyr","dplyr","magrittr","openxlsx")
+#install.packages("xml2", dependencies=TRUE, INSTALL_opts = c('--no-lock'))
 #,"Rcmdr"
 sapply(lib,function (X) {
   if(!require(X,character.only=TRUE)) {

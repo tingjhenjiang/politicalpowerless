@@ -647,6 +647,7 @@ myown_vote_record_df <- meetingdata %>% #20:114 term9 58,
   } %>%
   custom_parallel_lapply(
     FUN=fetch_ly_decision_and_vote,
+    method="fork",
     exportvar=c("slash","filespath","no_rollcall","insert.at","count_value_times_in_vector","custompaste0","customgsub","customgrep","customgrepl","mutate_cond","error_leave_and_attend_legislators","error_vote_record_from_name","replace_troublesome_names","anti_join_with_nrow_zero"),
     exportlib=c("base",lib),
     urlarr=urlarr,

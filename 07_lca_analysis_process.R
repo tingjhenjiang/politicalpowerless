@@ -7,6 +7,8 @@ gc(verbose=TRUE)
 
 
 
+t_sessioninfo_running_with_cpu_locale<-sessionInfo()$locale %>% stringi::stri_split(regex=";") %>% unlist() %>% getElement(1) %>% stringi::stri_split(regex="=") %>% unlist() %>% getElement(2) %>%
+  paste0(t_sessioninfo_running_with_cpu, .) %>% gsub(pattern=" ",replacement = "", x=.)
 # 第六部份：LCA latent variables 潛在類別模式資料清理  ================================= 
 load(paste0(dataset_file_directory,"rdata",slash, "miced_survey_8_Ubuntu18.04.2LTSdf_with_mirt.RData"), verbose=TRUE)
 
@@ -148,6 +150,7 @@ custom_generate_LCA_model<-function(X, n_latentclasses=3, nrep=30, maxiter=1000,
   }
   poLCAresult$nclass <- n_latentclasses#poXi
   poLCAresult$modelformula <- workingmodelformula
+  poLCAresult$residdf <- poLCAresult$resid.df
   #poLCAresult$formulated_modelformula <- formulated_workingmodelformula
   #poLCAresult$inputformula <- modelformula
   poLCAresult$nrep <- nrep
@@ -184,8 +187,96 @@ LCAresult_to_sheet <- function(LCAstr) {
 ###}
 
 
+repeatloadsavedestfile <- function(loadsavemode="load",destfile=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.RData"), savedestobject=list_of_degree_of_freedom, breakafterntimes=10) {
+  testloadprocess<-expression(load(file=destfile, envir = globalenv(), verbose=TRUE))
+  testsaveprocess<-expression({
+    assign("list_of_degree_of_freedom", savedestobject, .GlobalEnv)
+    save(list_of_degree_of_freedom, file=destfile)
+  })
+  loadsaveexpr <- switch(loadsavemode,
+    "load"=list(testloadprocess),
+    "save"=list(testsaveprocess),
+    "loadandsave"=list(testloadprocess,testsaveprocess)
+  )
+  message("destfile is ", destfile)
+  loop_times <- 1
+  repeat{
+    message("now it is repeating #", loop_times, " to ", loadsavemode)
+    testprocess<-tryCatch(
+      {lapply(loadsaveexpr, eval, envir = environment() )},
+      error=function(e) {
+        message(e)
+        return("failedonprocessing")
+      })
+    if ((loadsavemode=="save" & gtools::invalid(testprocess[[1]])) | breakafterntimes==loop_times) { # | testprocess!="failedonprocessing"
+      message("done repeating ", loadsavemode)
+      break
+    }
+    if (loadsavemode=="load") {
+      if (testprocess[[1]]!="failedonprocessing" | breakafterntimes==loop_times) {
+        assign("list_of_degree_of_freedom", list_of_degree_of_freedom, envir=globalenv())
+        message("done repeating ", loadsavemode)
+        break
+      }
+    }
+    if (loadsavemode=="loadandsave") {
+      if (length(testprocess)==2) {
+        if (gtools::invalid(testprocess[[2]]) | breakafterntimes==loop_times) {
+          message("done repeating ", loadsavemode)
+          break
+        }
+      }
+    }
+    loop_times <- loop_times+1
+  }
+}
+#repeatloadsavedestfile()
+#repeatloadsavedestfile(loadsavemode="save")
 
-
+repeat_connectdb_readtable_close <- function(dbname, tablename, dbtype=RSQLite::SQLite(), ..., breakafterntimes=10) {
+  #, setting_synchronous = "off"
+  loop_times <- 1
+  othervar <- unlist(list(...))
+  othervar_names <- names(list(...))
+  #return(othervar_names)
+  #if_id_pw_host <- all(sapply(c(username,password,host),gtools::invalid)) #TRUE代表完全沒設定
+  repeat {
+    testprocess<-tryCatch({
+      con <- DBI::dbConnect(drv = dbtype, dbname = dbname, ...)
+      #con <- switch(as.character(if_id_pw_host),
+      #              "TRUE"=DBI::dbConnect(drv = dbtype, dbname = dbname),
+      #              "FALSE"=DBI::dbConnect(drv = dbtype, dbname = dbname, username=username, password=password, host=host),
+      #              )
+      tableresult <- DBI::dbReadTable(con, name=tablename)
+      DBI::dbDisconnect(con)
+      tableresult
+    },
+    error=function(e) {
+      message(e,"\n"," dbname=",dbname,"; tablename=",tablename)
+      DBI::dbDisconnect(con)
+      return("failedonprocessing")
+    })
+    DBI::dbDisconnect(con)
+    if (class(testprocess)=="data.frame" | breakafterntimes==loop_times) {
+      #DBI::dbDisconnect(con)
+      return(testprocess)
+      break
+    }
+    loop_times <- loop_times+1
+    #DBI::dbDisconnect(con)
+  }
+  #DBI::dbDisconnect(con)
+}
+#ref http://adv-r.had.co.nz/Functions.html
+#ref http://adv-r.had.co.nz/Computing-on-the-language.html#capturing-dots
+#sqlite_dbname <- paste0(dataset_in_scriptsfile_directory, "list_of_degree_of_freedom.sqlite")
+#list_of_degree_of_freedom_2004citizen_sqlite <- repeat_connectdb_readtable_close(dbtype=RSQLite::SQLite(), dbname=tmp_dest_sqlite_file, tablename="list_of_degree_of_freedom_2004citizen", synchronous=NULL, breakafterntimes=1)
+#con <- DBI::dbConnect(drv=RSQLite::SQLite(), dbname=tmp_dest_sqlite_file, tablename="list_of_degree_of_freedom_2004citizen", synchronous=NULL)
+#tableresult <- DBI::dbReadTable(con, name="list_of_degree_of_freedom_2004citizen")
+#repeat_connectdb_readtable_close(sqlite_dbname, dbtype=RSQLite::SQLite(), "list_of_degree_of_freedom", tablename="list_of_degree_of_freedom_2004citizen")
+#library(RMySQL)
+#testret<-repeat_connectdb_readtable_close(dbtype=RMySQL::MySQL(), dbname="thesis", tablename="list_of_degree_of_freedom_2004citizen", host="127.0.0.1", username = "root", password = "123321")
+#con <- DBI::dbConnect(RMySQL::MySQL(), dbname = "thesis", username="root", password="123321", host="127.0.0.1")
 
 #fresh restart from here
 library(future)
@@ -195,46 +286,63 @@ t_survey_data_test<-survey_data_test
 list_of_degree_of_freedom<-list()
 #load(file=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.RData"),verbose=TRUE)
 #load(file=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom_2010overall.RData"))
+#repeatloadsavedestfile(destfile=testdestfile)
+#save(list_of_degree_of_freedom, file=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.test.RData"))
+#testdestfile=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.test.RData")
 
-#switch back
-#plan(sequential)
-
+# 迴圈開始處 --------------------------------
+reset_multi_p()
 #基本上可以用兩次大迴圈跑，最外層大迴圈第一次可以generate list to filter out those whose degree of freedom<0，第二次則從resid.df>=0的模型開始處理
 #list_of_degree_of_freedom <- lapply(t_survey_data_test, function(a_single_survey_dataset,...) {
 for (index_of_testing_resid_df in c(1:2)) {
   general_nrep <- switch(as.character(index_of_testing_resid_df), "1"=1, "2"=35)
   general_maxiter <- switch(as.character(index_of_testing_resid_df), "1"=1, "2"=1200)
-  general_everystep_n <- switch(as.character(index_of_testing_resid_df), "1"=100, "2"=20)
+  general_everystep_n <- switch(as.character(index_of_testing_resid_df), "1"=900, "2"=20)
+  #for win7 eng
+  #t_sessioninfo_running_with_cpu_locale<-"Windows7x64build7601ServicePack1Intel(R)Xeon(R)CPUE5-2650v3@2.30GHzEnglish"
+  general_start_iters_name <- c(
+    "Windows10x64build17134Intel(R)Xeon(R)CPUE5-2650v3@2.30GHzChinese(Traditional)_Taiwan.950",
+    "Windows10x64build17134Intel(R)Xeon(R)CPUE5-2650v3@2.30GHzEnglish_UnitedStates.1252",
+    "Ubuntu18.04.2LTSIntel(R)Core(TM)i5-4210UCPU@1.70GHzzh_TW.UTF-8"
+    #"Windows7x64build7601ServicePack1Intel(R)Xeon(R)CPUE5-2650v3@2.30GHzEnglish",
+    #"Windows7x64build7601ServicePack1Intel(R)Xeon(R)CPUE5-2650v3@2.30GHzChinese(Traditional)_Taiwan.950",
+    #"Windows7x64build7601ServicePack1Intel(R)Xeon(R)CPUE5-2660v4@2.00GHzChinese(Traditional)_Taiwan.950",
+    #"Windows7x64build7601ServicePack1Intel(R)Xeon(R)CPUE5-2650v3@2.30GHzEnglish",
+    #"Ubuntu18.04.2LTSIntel(R)Core(TM)i5-7400CPU@3.00GHzzh_TW.UTF-8"
+  )
+  general_start_iters <- seq(from=1, to=length(general_start_iters_name)) %>% as.list() %>%
+    magrittr::set_names(general_start_iters_name)
+  general_start_iter <- general_start_iters[[t_sessioninfo_running_with_cpu_locale]]
+  general_setting_n_computers <- length(general_start_iters)
+  tmp_dest_loadandsave_file <- paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.RData")
+  sqlite_dbname <- paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.sqlite")
+  dbtype <- RSQLite::SQLite()
   for (a_single_survey_dataset in t_survey_data_test) {
     #a_single_survey_dataset<-t_survey_data_test[[1]]
     needsurvey <- a_single_survey_dataset$SURVEY[1]
+    db_table_name <- paste0("list_of_degree_of_freedom", "_", needsurvey)
     if (needsurvey=="2004citizen" & index_of_testing_resid_df==1) {next}
     if (index_of_testing_resid_df==2) {
-      load(file=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.RData"),verbose=TRUE)
+      #repeatloadsavedestfile(destfile=tmp_dest_loadandsave_file)
+      #list_of_degree_of_freedom_of_a_survey <- repeat_connectdb_readtable_close(dbname = sqlite_dbname, tablename=db_table_name)
     } else {
-      tmp_backup_empty_list_of_degree_of_freedom <- sapply(t_survey_data_test, function(X) X$SURVEY[1], USE.NAMES = FALSE) %>%         { set_names( lapply(., function(X) return(data.frame())) , .)   }
-      list_of_degree_of_freedom<-tryCatch(
-        {
-          load(file=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.RData"),verbose=TRUE)
-          list_of_degree_of_freedom
-        },
-        warning = function(msg,toreturn=tmp_backup_empty_list_of_degree_of_freedom) {
-          message("tryCatch Original warning message while load list of degree of freedom:")
-          message(paste0(msg,"\n"))
-          return(toreturn)
-        },error = function(msg,toreturn=tmp_backup_empty_list_of_degree_of_freedom) {
-          message("tryCatch Original error message while load list of degree of freedom:")
-          message(paste0(msg,"\n"))
-          return(toreturn)
-        }
-      )
+      #tmp_backup_empty_list_of_degree_of_freedom <- sapply(t_survey_data_test, function(X) X$SURVEY[1], USE.NAMES = FALSE) %>%
+      #  { set_names( lapply(., function(X) return(data.frame())) , .)   }
+      #if (!file.exists(tmp_dest_loadandsave_file)) {
+      #  list_of_degree_of_freedom<-tmp_backup_empty_list_of_degree_of_freedom
+      #} else {
+      #  repeatloadsavedestfile(destfile=tmp_dest_loadandsave_file)
+      #}
+      #list_of_degree_of_freedom_of_a_survey <- repeat_connectdb_readtable_close(dbname = sqlite_dbname, tablename=db_table_name)
     }
-    #if (needsurvey=="2004citizen") {next}
-    if (nrow(list_of_degree_of_freedom[[needsurvey]])==0 | gtools::invalid(list_of_degree_of_freedom[[needsurvey]]) ) {
-      list_of_degree_of_freedom[[needsurvey]]<-data.frame()
-    }
+    #if (nrow(list_of_degree_of_freedom[[needsurvey]])==0 | gtools::invalid(list_of_degree_of_freedom[[needsurvey]]) ) {
+    #if (nrow(list_of_degree_of_freedom_of_a_survey)==0 | gtools::invalid(list_of_degree_of_freedom_of_a_survey) ) {
+      #list_of_degree_of_freedom[[needsurvey]]<-data.frame()
+      #list_of_degree_of_freedom_of_a_survey <- data.frame()
+    #}
     if (length(lcaneed_independence_attitude[[needsurvey]]) %in% c(0,1)) {
-      list_of_degree_of_freedom[[needsurvey]] <- data.frame()
+      #list_of_degree_of_freedom[[needsurvey]] <- data.frame()
+      #list_of_degree_of_freedom_of_a_survey <- data.frame()
       next
     }
     cov_vars <- c(lcaneed_party_constituency[[needsurvey]],lcaneed_ethnicity[[needsurvey]],lcaneed_identity[[needsurvey]],lcaneed_other_cov[[needsurvey]]) %>%
@@ -258,46 +366,50 @@ for (index_of_testing_resid_df in c(1:2)) {
         mutate(modelformula=as.character(modelformula), nclass=as.integer(as.character(nclass)) ) %>%
         return()
     }) %>% dplyr::bind_rows()
-    #LCAmodel_with_indp_covparty_testfor_resid_df
-    #list_of_degree_of_freedom[[needsurvey]] <- data.frame()
-    maxobservs<-max(Filter(function(X) !gtools::invalid(X),list_of_degree_of_freedom[[needsurvey]]$Nobs))
-    if (nrow(list_of_degree_of_freedom[[needsurvey]])>0) {
-      qualified_lca_model <- dplyr::left_join(modelformula_df_for_debug, list_of_degree_of_freedom[[needsurvey]])
-      qualified_lca_model <- switch(as.character(index_of_testing_resid_df),
-        "1"={
-          filter(qualified_lca_model, gtools::invalid(resid.df))
-        },
-        "2"={
-          filter(qualified_lca_model, nrep<general_nrep & resid.df>=0 & Nobs==maxobservs) %>%
-            arrange(resid.df, modelformula)
-        }
-      )
-    } else {
-      qualified_lca_model <- modelformula_df_for_debug
-    }
-    split_factor <- rep(seq_len(ceiling(nrow(qualified_lca_model) / general_everystep_n)), each = general_everystep_n, length.out = nrow(qualified_lca_model))
-    splitted_qualified_lca_models <- split(qualified_lca_model, split_factor)
-    count_iter = 1
-    for (splitted_qualified_lca_model in splitted_qualified_lca_models) {
-      message("now it's in table number ",count_iter, " and total are ", length(splitted_qualified_lca_models))
-      count_iter <- count_iter+1
-      #cov_vars_combns_splited_part <- cov_vars_combns_splited_parts[[1]]
-      #valid_lca_formula_meeting_needs <- filter(list_of_degree_of_freedom[[needsurvey]], is.na(content))
-      #list_of_degree_of_freedom[[needsurvey]] %<>% dplyr::anti_join(valid_lca_formula_meeting_needs)
-         #用來決定哪些模型還需要繼續處理計算LCA的條件
-      if (nrow(splitted_qualified_lca_model)<=0) {next}
-      if (index_of_testing_resid_df==2) {
-        list_of_degree_of_freedom[[needsurvey]] %<>% dplyr::anti_join(splitted_qualified_lca_model, by=c("modelformula", "nclass"))
+    ## start to handling database recursively --------------------------------
+    repeat {
+      list_of_degree_of_freedom_of_a_survey <- repeat_connectdb_readtable_close(dbname = sqlite_dbname, tablename=db_table_name)
+      if (identical(list_of_degree_of_freedom_of_a_survey,"failedonprocessing")) {
+        stop()
       }
-      #check_already_in_dflistfor_degf <- sapply(cov_vars_combns_splited_part_check_str,is_in,list_of_degree_of_freedom[[needsurvey]]$modelformula) %>%
-      #  all()
-      #, compare_lca_completed_df=data.frame()
-      #if (isTRUE(check_already_in_dflistfor_degf)) {next}
-      message("number of qualified models to process: ", nrow(splitted_qualified_lca_model))
-      models_range <- seq(from=1, to=nrow(splitted_qualified_lca_model))#
-      temp_df_list_of_degree_of_freedom <- future_mapply(
-        function(modelformula, n_latentclasses, nrep, maxiter, X, ...) {
-          tryCatch({custom_generate_LCA_model(
+      if (nrow(modelformula_df_for_debug)<=nrow(list_of_degree_of_freedom_of_a_survey)) {
+        break
+      }
+      #maxobservs<-max(Filter(function(X) !gtools::invalid(X),list_of_degree_of_freedom[[needsurvey]]$Nobs))
+      maxobservs<-max(Filter(function(X) !gtools::invalid(X),list_of_degree_of_freedom_of_a_survey$Nobs))
+      #if (nrow(list_of_degree_of_freedom[[needsurvey]])>0) {
+      if (nrow(list_of_degree_of_freedom_of_a_survey)>0) {
+        #qualified_lca_model <- dplyr::left_join(modelformula_df_for_debug, list_of_degree_of_freedom[[needsurvey]])
+        qualified_lca_model <- dplyr::left_join(modelformula_df_for_debug, list_of_degree_of_freedom_of_a_survey)
+        qualified_lca_model <- switch(as.character(index_of_testing_resid_df),
+                                      "1"={
+                                        filter(qualified_lca_model, gtools::invalid(residdf) | is.na(residdf))
+                                      },
+                                      "2"={
+                                        filter(qualified_lca_model, nrep<general_nrep & residdf>=0 & Nobs==maxobservs)
+                                      }
+        )
+      } else {
+        qualified_lca_model <- modelformula_df_for_debug
+      }
+      if (nrow(qualified_lca_model)<=0) {next}
+      split_factor <- rep(seq_len(ceiling(nrow(qualified_lca_model) / general_everystep_n)), each = general_everystep_n, length.out = nrow(qualified_lca_model))
+      splitted_qualified_lca_models <- split(qualified_lca_model, split_factor)
+      count_iter = 1
+      need_splitted_qualified_lca_models <- seq.int(from=general_start_iter, to=length(splitted_qualified_lca_models), by=general_setting_n_computers)
+      #for (splitted_qualified_lca_model in splitted_qualified_lca_models[need_splitted_qualified_lca_models]) {
+      splitted_qualified_lca_model <- splitted_qualified_lca_models[need_splitted_qualified_lca_models][[1]]
+      if (nrow(splitted_qualified_lca_model)>0) {
+        message("now it's in table number ", count_iter, " and total are ", length(splitted_qualified_lca_models[need_splitted_qualified_lca_models]))
+        message("models are ", splitted_qualified_lca_model$modelformula, " and nclass are ", splitted_qualified_lca_model$nclass)
+        count_iter <- count_iter+1
+        #用來決定哪些模型還需要繼續處理計算LCA的條件
+        if (nrow(splitted_qualified_lca_model)<=0) {next}
+        message("number of qualified models to process: ", nrow(splitted_qualified_lca_model))
+        models_range <- seq(from=1, to=nrow(splitted_qualified_lca_model))#
+        temp_df_list_of_degree_of_freedom <- future_mapply(
+          function(modelformula, n_latentclasses, nrep, maxiter, X, ...) {
+            tryCatch({custom_generate_LCA_model(
               X=X,
               modelformula=modelformula,
               n_latentclasses=n_latentclasses,
@@ -307,27 +419,106 @@ for (index_of_testing_resid_df in c(1:2)) {
               cat("Failed on modelformula = ", modelformula, "\n nclass = ", n_latentclasses, sep="") ## browser()
               stop(e)
             }
-          )}
-        ,modelformula=splitted_qualified_lca_model$modelformula[models_range], n_latentclasses=splitted_qualified_lca_model$nclass[models_range], nrep=rep(general_nrep,length(models_range)), maxiter=rep(general_maxiter,length(models_range)), SIMPLIFY=FALSE, MoreArgs = list(X=a_single_survey_dataset,custom_generate_LCA_model=custom_generate_LCA_model)
-      ) %>% #end of future_mapply processing LCA #exportvar = c("custom_parallel_lapply","a_single_survey_dataset","custom_generate_LCA_model","lcaneed_independence_attitude","needsurvey","dataset_file_directory","slash","t_sessioninfo_running_with_cpu","modelformula_prefix"),  exportlib = c("base","poLCA","parallel","gtools","magrittr"),  outfile = paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt")
-        lapply(function(LCAresultmodel) {
-          LCAdfresult <- cbind("modelformula"=LCAresultmodel$modelformula, "nclass"=LCAresultmodel$nclass,
-                               "resid.df"=LCAresultmodel$resid.df, "content"=LCAresultmodel$content,
-                               "llik"=LCAresultmodel$llik, "aic"=LCAresultmodel$aic,
-                               "bic"=LCAresultmodel$bic, "Gsq"=LCAresultmodel$Gsq,
-                               "Chisq"=LCAresultmodel$Chisq, "Nobs"=LCAresultmodel$Nobs,
-                               "nrep"=LCAresultmodel$nrep, "maxiter"=LCAresultmodel$maxiter
-                               ) %>%  as.data.frame()
-          return(LCAdfresult)
-        }) %>%
-        dplyr::bind_rows() %>%
-        mutate(nclass=as.integer(as.character(nclass)), Nobs=as.integer(as.character(Nobs)), bic=as.double(as.character(bic)), resid.df=as.integer(as.character(resid.df)), nrep=as.integer(as.character(nrep)), maxiter=as.integer(as.character(maxiter)), aic=as.double(as.character(aic)), Gsq=as.double(as.character(Gsq)), Chisq=as.double(as.character(Chisq)), llik=as.double(as.character(llik)) )
-      #load(file=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.RData"),verbose=TRUE)
-      list_of_degree_of_freedom[[needsurvey]] %<>% dplyr::bind_rows(temp_df_list_of_degree_of_freedom)
-      save(list_of_degree_of_freedom,file=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.RData"))
-      #save(list_of_degree_of_freedom,file=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.RData"))
-    }
-    #return(cov_vars_combns)
+            )}
+          ,modelformula=splitted_qualified_lca_model$modelformula[models_range], n_latentclasses=splitted_qualified_lca_model$nclass[models_range], nrep=rep(general_nrep,length(models_range)), maxiter=rep(general_maxiter,length(models_range)), SIMPLIFY=FALSE, MoreArgs = list(X=a_single_survey_dataset,custom_generate_LCA_model=custom_generate_LCA_model)
+        ) %>% #end of future_mapply processing LCA #exportvar = c("custom_parallel_lapply","a_single_survey_dataset","custom_generate_LCA_model","lcaneed_independence_attitude","needsurvey","dataset_file_directory","slash","t_sessioninfo_running_with_cpu","modelformula_prefix"),  exportlib = c("base","poLCA","parallel","gtools","magrittr"),  outfile = paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt")
+          lapply(function(LCAresultmodel) {
+            LCAdfresult <- cbind(
+              "modelformula"=LCAresultmodel$modelformula,
+              "nclass"=LCAresultmodel$nclass,
+              "residdf"=LCAresultmodel$residdf,
+              "content"=LCAresultmodel$content,
+              "llik"=LCAresultmodel$llik,
+              "aic"=LCAresultmodel$aic,
+              "bic"=LCAresultmodel$bic,
+              "Gsq"=LCAresultmodel$Gsq,
+              "Chisq"=LCAresultmodel$Chisq,
+              "Nobs"=LCAresultmodel$Nobs,
+              "nrep"=LCAresultmodel$nrep,
+              "maxiter"=LCAresultmodel$maxiter
+            ) %>%  as.data.frame() %>%
+              mutate(
+                "modelformula"=as.character(modelformula),
+                "nclass"=as.integer(as.character(nclass)),
+                "residdf"=as.integer(as.character(residdf)),
+                "content"=as.character(content),
+                "llik"=as.double(as.character(llik)),
+                "aic"=as.double(as.character(aic)),
+                "bic"=as.double(as.character(bic)),
+                "Gsq"=as.double(as.character(Gsq)),
+                "Chisq"=as.double(as.character(Chisq)),
+                "Nobs"=as.integer(as.character(Nobs)),
+                "nrep"=as.integer(as.character(nrep)),
+                "maxiter"=as.integer(as.character(maxiter))
+              )
+            return(LCAdfresult)
+          }) %>%
+          dplyr::bind_rows() %>%
+          mutate(nclass=as.integer(as.character(nclass)), Nobs=as.integer(as.character(Nobs)), bic=as.double(as.character(bic)), residdf=as.integer(as.character(residdf)), nrep=as.integer(as.character(nrep)), maxiter=as.integer(as.character(maxiter)), aic=as.double(as.character(aic)), Gsq=as.double(as.character(Gsq)), Chisq=as.double(as.character(Chisq)), llik=as.double(as.character(llik)) )
+        #if (file.exists(tmp_dest_loadandsave_file)) {
+        repeat {
+          #multi process hint: pragma journal_mode=wal;
+          #https://blog.csdn.net/wql2rainbow/article/details/73650056
+          #https://grokbase.com/t/perl/dbi-users/10cpmpbmsf/sqlite-concurrency-issue
+          test_load_save_list_of_deg_freedom<-tryCatch({
+            #repeatloadsavedestfile(destfile=tmp_dest_loadandsave_file)
+            #list_of_degree_of_freedom[[needsurvey]] <- switch(as.character(nrow(list_of_degree_of_freedom[[needsurvey]])),
+            #                                                    "0"=data.frame(),
+            #                                                    dplyr::anti_join(list_of_degree_of_freedom[[needsurvey]],splitted_qualified_lca_model, by=c("modelformula", "nclass"))
+            #                                                    )
+            #list_of_degree_of_freedom[[needsurvey]] <- switch(as.character(nrow(list_of_degree_of_freedom[[needsurvey]])),
+            #                                                    "0"=temp_df_list_of_degree_of_freedom,
+            #                                                    dplyr::bind_rows(list_of_degree_of_freedom[[needsurvey]],temp_df_list_of_degree_of_freedom)
+            #)
+            #repeatloadsavedestfile(loadsavemode="save", destfile=tmp_dest_loadandsave_file, breakafterntimes=1)
+            list_of_degree_of_freedom_already_in_db <- repeat_connectdb_readtable_close(dbname = sqlite_dbname, tablename=db_table_name)
+            #to_be_updated_rows_list_of_degree_of_freedom_in_db <- dplyr::anti_join(list_of_degree_of_freedom_already_in_db, temp_df_list_of_degree_of_freedom) %>% #把重複的刪掉
+            #  dplyr::semi_join(list_of_degree_of_freedom_already_in_db, ., by=c("modelformula", "nclass"))
+            to_be_updated_rows_list_of_degree_of_freedom_in_db_for_bindquery <- dplyr::select(list_of_degree_of_freedom_already_in_db, modelformula, nclass) %>%
+              dplyr::semi_join(temp_df_list_of_degree_of_freedom, by=c("modelformula", "nclass")) %>%
+              dplyr::left_join(temp_df_list_of_degree_of_freedom, by=c("modelformula", "nclass")) %>%
+              dplyr::anti_join(list_of_degree_of_freedom_already_in_db) %>% 
+              dplyr::mutate("cond_modelformula"=modelformula, "cond_nclass"=nclass)
+            to_be_inserted_rows_list_of_degree_of_freedom <- dplyr::select_at(to_be_updated_rows_list_of_degree_of_freedom_in_db_for_bindquery, vars(-starts_with("cond_")) ) %>%
+              dplyr::anti_join(temp_df_list_of_degree_of_freedom, .)
+            if (nrow(to_be_updated_rows_list_of_degree_of_freedom_in_db_for_bindquery)>0) {
+              con <- DBI::dbConnect(RSQLite::SQLite(), dbname = sqlite_dbname)
+              #paste0('update ',db_table_name, ' set "modelformula"=?, "nclass"=?, "resid.df"=?, "content"=?, "llik"=?, "aic"=?, "bic"=?, "Gsq"=?, "Chisq"=?, "Nobs"=?, "nrep"=?, "maxiter"=? WHERE "modelformula"=? AND "nclass"=?')
+              #updatesql <- DBI::dbSendQuery(con, paste0('update ',db_table_name, ' set modelformula=:modelformula, nclass=:nclass, resid.df=:resid.df, content=:content, llik=:llik, aic=:aic, bic=:bic, Gsq=:Gsq, Chisq=:Chisq, Nobs=:Nobs, nrep=:nrep, maxiter=:maxiter WHERE modelformula=:cond_modelformula AND nclass=:cond_nclass'))
+              updatesql <- DBI::dbSendQuery(con, paste0('update ',db_table_name, ' set "modelformula"=$modelformula, "nclass"=$nclass, "residdf"=$residdf, "content"=$content, "llik"=$llik, "aic"=$aic, "bic"=$bic, "Gsq"=$Gsq, "Chisq"=$Chisq, "Nobs"=$Nobs, "nrep"=$nrep, "maxiter"=$maxiter WHERE "modelformula"=$cond_modelformula AND "nclass"=$cond_nclass'))
+              #updatesql <- DBI::dbSendQuery(con, paste0('update ',db_table_name, ' set "modelformula"=?, "nclass"=?, "resid.df"=?, "content"=?, "llik"=?, "aic"=?, "bic"=?, "Gsq"=?, "Chisq"=?, "Nobs"=?, "nrep"=?, "maxiter"=? WHERE "modelformula"=? AND "nclass"=?'))
+              DBI::dbBind(updatesql, to_be_updated_rows_list_of_degree_of_freedom_in_db_for_bindquery)  # send the updated data
+              DBI::dbClearResult(updatesql)  # release the prepared statement
+            }
+            #sqlwriteresult<-switch(as.character(nrow(list_of_degree_of_freedom[[needsurvey]])),
+            #  "1"=DBI::dbWriteTable(con, db_table_name, to_be_inserted_rows_list_of_degree_of_freedom, append=TRUE),
+            #  "2"=DBI::dbWriteTable(con, db_table_name, to_be_inserted_rows_list_of_degree_of_freedom, append=TRUE)
+            #)
+            if (nrow(to_be_inserted_rows_list_of_degree_of_freedom)>0) {
+              con <- DBI::dbConnect(RSQLite::SQLite(), dbname = sqlite_dbname)
+              DBI::dbWriteTable(con, db_table_name, to_be_inserted_rows_list_of_degree_of_freedom, append=TRUE)
+              DBI::dbDisconnect(con)
+            }
+            DBI::dbDisconnect(con)
+          },
+          error=function(e) {
+            DBI::dbDisconnect(con)
+            message(e)
+            return("failedonprocessing")
+          }
+          )
+          DBI::dbDisconnect(con)
+          if (gtools::invalid(test_load_save_list_of_deg_freedom)) {
+            DBI::dbDisconnect(con)
+            break
+          } else if (test_load_save_list_of_deg_freedom!="failedonprocessing" | isTRUE(test_load_save_list_of_deg_freedom)) {
+            DBI::dbDisconnect(con)
+            break
+          }
+        }
+        #}
+      }
+    } #end of repeat until same nrow in total check and in database
   }
 }#,lcaneed_independence_attitude=lcaneed_independence_attitude,
 #lcaneed_party_constituency=lcaneed_party_constituency,
@@ -336,42 +527,53 @@ for (index_of_testing_resid_df in c(1:2)) {
 #lcaneed_other_cov=lcaneed_other_cov)
 
 #lcaneed_independence_attitude,lcaneed_party_constituency,lcaneed_ethnicity,lcaneed_identity,lcaneed_other_cov
+# 迴圈結束處 --------------------------------
 
-needsurvey<-"2010overall"
-cov_parameter_in_formula<-mapply(function(party,ethnicity,identity,other) {
-  return(union_all(party,ethnicity,identity,other))
-},party=lcaneed_party_constituency,
-ethnicity=lcaneed_ethnicity,
-identity=lcaneed_identity,
-other=lcaneed_other_cov, SIMPLIFY = FALSE)
+library(RSQLite)
+library(DBI)
+con <- DBI::dbConnect(RSQLite::SQLite(), dbname = sqlite_dbname)
+DBI::dbWriteTable(con, "list_of_degree_of_freedom", list_of_degree_of_freedom[[1]])
+DBI::dbDisconnect(con)
+dbReadTable(con, "list_of_degree_of_freedom")
+DBI::dbWriteTable(con, "mtcars", mtcars)
 
-workingmodelformula<-paste0(
-    "cbind(",
-    paste(lcaneed_independence_attitude[[needsurvey]],collapse=","),
-    ") ~ ",
-    paste0(cov_parameter_in_formula[[needsurvey]],collapse="+"),
-    collapse=""
-  )
-survey_data_test %<>% set_names(names(cov_parameter_in_formula))
-needY<-survey_data_test[[needsurvey]][,lcaneed_independence_attitude[[needsurvey]]]
-needX<-survey_data_test[[needsurvey]][,cov_parameter_in_formula[[needsurvey]]]
-result<-LCAvarsel(Y=needY,
-          G = 3:5,
-          X = needX,
-          search = c("forward"),
-          independence = FALSE,
-          swap = FALSE,
-          bicDiff = 0,
-          start = NULL,
-          checkG = TRUE,
-          parallel = TRUE,
-          verbose = TRUE)#interactive()
+if ({testing_on_LCAvarsel<-FALSE; testing_on_LCAvarsel}) {
+  
+  needsurvey<-"2010overall"
+  cov_parameter_in_formula<-mapply(function(party,ethnicity,identity,other) {
+    return(union_all(party,ethnicity,identity,other))
+  },party=lcaneed_party_constituency,
+  ethnicity=lcaneed_ethnicity,
+  identity=lcaneed_identity,
+  other=lcaneed_other_cov, SIMPLIFY = FALSE)
+  
+  workingmodelformula<-paste0(
+      "cbind(",
+      paste(lcaneed_independence_attitude[[needsurvey]],collapse=","),
+      ") ~ ",
+      paste0(cov_parameter_in_formula[[needsurvey]],collapse="+"),
+      collapse=""
+    )
+  survey_data_test %<>% set_names(names(cov_parameter_in_formula))
+  needY<-survey_data_test[[needsurvey]][,lcaneed_independence_attitude[[needsurvey]]]
+  needX<-survey_data_test[[needsurvey]][,cov_parameter_in_formula[[needsurvey]]]
+  result<-LCAvarsel(Y=needY,
+            G = 3:5,
+            X = needX,
+            search = c("forward"),
+            independence = FALSE,
+            swap = FALSE,
+            bicDiff = 0,
+            start = NULL,
+            checkG = TRUE,
+            parallel = TRUE,
+            verbose = TRUE)#interactive()
+  
+  #ctrlLCA = controlLCA(),
+  #ctrlReg = controlReg(),
+  #ctrlGA = controlGA(),
 
-#ctrlLCA = controlLCA(),
-#ctrlReg = controlReg(),
-#ctrlGA = controlGA(),
-
-
+}
 
 if ({usingold_lca_search_method<-FALSE; usingold_lca_search_method}) {
   
@@ -422,7 +624,7 @@ if ({usingold_lca_search_method<-FALSE; usingold_lca_search_method}) {
             "n_predclass"=length(model$predclass),
             "bic"=model$bic,
             "aic"=model$aic,
-            "residf"=model$resid.df,
+            "residf"=model$residdf,
             "chisq"=model$Chisq,
             "Gsq"=model$Gsq,
             "llik"=model$llik
@@ -488,10 +690,10 @@ if ({usingold_lca_search_method<-FALSE; usingold_lca_search_method}) {
         return_classes <- switch(class(X),
           "list"={
             class_assigned<-sapply(X,function(Z) {Z$nclass})
-            wheredfbiggerthanzero<-which(sapply(X,getElement,"resid.df")>0)
+            wheredfbiggerthanzero<-which(sapply(X,getElement,"residdf")>0)
             class_assigned[wheredfbiggerthanzero]
           },
-          "poLCA"=if(X$resid.df>0) X$nclass else NULL,
+          "poLCA"=if(X$residdf>0) X$nclass else NULL,
           NULL
         )
         return(return_classes)
@@ -615,9 +817,48 @@ save(LCAmodel_with_partyconstituency_nocov,file=paste0(dataset_file_directory,"r
 
 # 第六-3部份：潛在類別分析：將分析結果整併入dataset --------------------------------------------------
 
+library(parallel)
+library(future)
+library(future.apply)
+reset_multi_p()
 #load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_with_indp_covpartyUbuntu18.04.1LTS_do_not_delete.RData"))
-load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_2004citizen_final.RData"), verbose=TRUE)
-load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_2010overall_final.RData"), verbose=TRUE)
+#load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_2004citizen_final.RData"), verbose=TRUE)
+#load(paste0(dataset_file_directory,"rdata",slash,"LCAmodel_2010overall_final.RData"), verbose=TRUE)
+
+orig_dest_load_file <- paste0(dataset_file_directory,"rdata",slash,"PRECIOUS_DO_NOT_DELETE_list_of_degree_of_freedom_for_LCA_on_indp_atti.RData")
+tmp_dest_loadandsave_file <- paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.RData")
+tmp_dest_sqlite_file <- paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom_backup.sqlite")
+repeatloadsavedestfile(destfile=orig_dest_load_file)
+list_of_degree_of_freedom_2004citizen_sqlite <- repeat_connectdb_readtable_close(dbname=tmp_dest_sqlite_file, tablename="list_of_degree_of_freedom_2004citizen", synchronous=NULL)
+list_of_degree_of_freedom_2010overall_sqlite <- repeat_connectdb_readtable_close(dbname=tmp_dest_sqlite_file, tablename="list_of_degree_of_freedom_2010overall", synchronous=NULL)
+list_of_degree_of_freedom[["2004citizen"]] %<>% dplyr::select(modelformula, nclass, content, llik, aic, bic, Gsq, Chisq, Nobs, nrep, maxiter) %>%
+  dplyr::left_join(dplyr::select(list_of_degree_of_freedom_2004citizen_sqlite, modelformula, nclass, residdf))
+list_of_degree_of_freedom[["2010overall"]] %<>% dplyr::select(modelformula, nclass, content, llik, aic, bic, Gsq, Chisq, Nobs, nrep, maxiter) %>%
+  dplyr::left_join(dplyr::select(list_of_degree_of_freedom_2010overall_sqlite, modelformula, nclass, residdf))
+
+reset_multi_p()
+needLCAmodels <- mapply(function(singlesurvey_degree_of_freedom, survey_data) {
+  needrank <- 1:20
+  elementreptimes <- length(needrank)
+  #DBI::dbDisconnect(con)
+  if (nrow(singlesurvey_degree_of_freedom)>0) {
+    modelformulas<-filter(singlesurvey_degree_of_freedom, residdf>=0) %>% arrange(bic) %>% getElement("modelformula") %>% extract(needrank)
+    nclasses<-filter(singlesurvey_degree_of_freedom, residdf>=0) %>% arrange(bic) %>% getElement("nclass") %>% extract(needrank)
+    needmodels<-future_mapply(custom_generate_LCA_model, n_latentclasses=nclasses, modelformula=modelformulas, MoreArgs=list(X=survey_data, nrep=50, maxiter=2300), SIMPLIFY = FALSE )
+    return(needmodels)
+  } else {
+    return(NULL)
+  }
+}, singlesurvey_degree_of_freedom=list_of_degree_of_freedom, survey_data=survey_data_test)
+
+sapply(needLCAmodels[[1]], function(X) {message(X$modelformula, X$nclass, ",bic=", X$bic)})
+save(needLCAmodels,file=paste0(dataset_file_directory,"rdata",slash,"needLCAmodels.RData"))
+load(file=paste0(dataset_file_directory,"rdata",slash,"needLCAmodels.RData"))
+path_to_temp_xlsx_for_lca_result <- here::here("LCAModel.xlsx")
+cat("\014")
+stdout<-capture.output(needLCAmodels[[1]][[1]])
+openxlsx::write.xlsx(LCAresult_to_sheet(stdout), file=path_to_temp_xlsx_for_lca_result)
+
 
 if({LCA_recoding_by_restarting_modeling<-FALSE;LCA_recoding_by_restarting_modeling}) {
   new_LCAmodel_with_indp_covparty_2004citizen_3_classes<-poLCA::poLCA(
@@ -663,12 +904,27 @@ if({LCA_recoding_by_restarting_modeling<-FALSE;LCA_recoding_by_restarting_modeli
   )
 }
 
+LCAmodel_2004citizen<-needLCAmodels[[1]][[1]]
+LCAmodel_2010overall<-needLCAmodels[[3]][[1]]
 survey_data_test[[1]]$myown_indp_atti <- LCAmodel_2004citizen$predclass %>%
-  dplyr::recode_factor(`1`="[1] 統一", `2`="[2] 中立", `3`="[3] 獨立", .ordered = TRUE)
+  dplyr::recode_factor(`1`="[1] 統一", `3`="[2] 中立", `2`="[3] 獨立", .ordered = TRUE)
 survey_data_test[[3]]$myown_indp_atti <- LCAmodel_2010overall$predclass %>%
-  dplyr::recode_factor(`3`="[1] 統一", `2`="[2] 中立", `1`="[3] 獨立", .ordered = TRUE)
+  dplyr::recode_factor(`1`="[1] 統一", `2`="[2] 中立", `3`="[3] 獨立", .ordered = TRUE)
 survey_data_test[[4]]$myown_indp_atti<-survey_data_test[[4]]$h10r
 
-
+if ({record_myown_religion<-FALSE; record_myown_religion}) {
+  survey_data_test[[3]]$myown_religion %<>% dplyr::recode_factor(
+    `1`="[1] 佛教",
+    `2`="[2] 道教",
+    `3`="[3] 民間信仰",
+    `4`="[4] 一貫道",
+    `5`="[5] 回教(伊斯蘭教)",
+    `6`="[6] 天主教",
+    `7`="[7] 基督教",
+    `8`="[8] 沒有宗教信仰",
+    `9`="[9] 其他,請說明",
+    .ordered = FALSE)
+}
 #save(survey_data_test,file=paste0(dataset_in_scriptsfile_directory, "survey_data_test.RData"))
+
 

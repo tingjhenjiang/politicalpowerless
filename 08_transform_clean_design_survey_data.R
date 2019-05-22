@@ -9,6 +9,8 @@ gc(verbose=TRUE)
 survey_imputation_and_measurement<-openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1)
 survey_codebook<-openxlsx::read.xlsx(paste0(dataset_file_directory,"all_survey_questions_englished.xlsx"),sheet = 4)
 
+
+# 問卷使用說明 --------------------------------
 if (FALSE) {
   readme="
 SURVEY PACKAGE要用
@@ -356,17 +358,12 @@ complete_survey_dataset <- mapply(function(X,Y) {
     lapply(., select_and_fill_nonexistcol, common_var)
   } %>%
   plyr::rbind.fill() %>%
+  #dplyr::bind_rows() %>%
   dplyr::rename(ansv_and_label=SURVEYANSWERVALUE) %>%
   dplyr::mutate("value_on_q_variable"=paste0(SURVEY,"@",SURVEYQUESTIONID)) %>%
   dplyr::select(-zip,-village,-wave,-qtype,-myown_industry,-myown_job,-villagefullname,-myown_family_income_ingroup, -SURVEYQUESTIONID) %>%
-  dplyr::select(-term1,-term2,-year,-year_m,-sm,-myown_int_pol_efficacy,-myown_ext_pol_efficacy,-myown_constituency_party_vote)#,-sd
+  dplyr::select(-term1,-term2,-year,-year_m,-sm)#,-sd,-myown_int_pol_efficacy,-myown_ext_pol_efficacy,-myown_constituency_party_vote
 
-#check srvyr
-#checklavaan.survey package
-stratified_design_2016citizen <- survey::svydesign(data=survey_data_test[[4]], id=~admindistrict+adminvillage, weights= ~myown_wr, strata=~r_stratum2014, nest=TRUE, fpc=NULL)
-stratified_design_2016citizen <- filter(complete_survey_dataset,SURVEY=="2016citizen") %$%
-  survey::svydesign(id=~admindistrict+adminvillage, weights= ~myown_wr, strata=~r_stratum2014, nest=TRUE, fpc=NULL)
-summary(stratified_design_2016citizen)
 
 #View(filter(complete_survey_dataset[[1]],SURVEYQUESTIONID=='myown_indp_atti'))
 #dplyr::recode(survey_data_test[[1]]$v61,!!!getElement(getElement(prepare_for_label_adj_df,"2004citizen"),"v61"))
