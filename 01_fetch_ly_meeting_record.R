@@ -8,6 +8,8 @@ meetingurldata_urlrange<-4:13 #需要的欄位
 meetingdata_range<-19:28
 big5headpattern<-'text/html; charset=big5'
 utf8headpattern<-'text/html; charset=utf-8'
+parallel_method<-ifelse(check_if_windows(),"socks","fork")
+#parallel_method<-"socks"
 
 library(parallel)
 fetchmeetingdata<-meetingurldata[,meetingurldata_urlrange] %>%
@@ -21,6 +23,7 @@ fetchmeetingdata<-meetingurldata[,meetingurldata_urlrange] %>%
     names(returnX)<-paste(names(X),"DATA",sep="")
     return(returnX)
   },
+  method=parallel_method,
   exportvar=c("meetingurldata","meetingurldata_urlrange","custom_read_file","customgrepl","custom_detect_and_transform_utf8"),
   exportlib=c("base",lib),
   outfile=paste0(dataset_file_directory, "rdata", slash, "parallel_handling_process-", t_sessioninfo_running_with_cpu, ".txt"),
@@ -89,6 +92,7 @@ meetingdata<-bind_cols(meetingurldata,fetchmeetingdata) %>%
     #colnames(meetingdata_df)<-names(needcvec)
     return(needcvec)
   } ,
+  method=parallel_method,
   exportvar=c("meetingurldata","meetingurldata_urlrange","custom_read_file","fetchmeetingdata"),
   exportlib=c("base",lib),
   meetingdata_range=meetingdata_range,

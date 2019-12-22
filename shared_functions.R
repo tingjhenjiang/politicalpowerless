@@ -1,13 +1,14 @@
 #setwd("E:/Software/scripts/R")
 #setwd("/mnt/e/Software/scripts/R")
 #Sys.setlocale(category = "LC_ALL", locale = "zh_TW.UTF-8")
-chooseCRANmirror(ind=which(grepl("http://cran.csie.ntu.edu.tw/",getCRANmirrors()$URL)))
+chooseCRANmirror(ind=which(grepl("cran.csie.ntu.edu.tw",getCRANmirrors()$URL)))
 #reposurl<-getCRANmirrors()$URL
 #for (i in reposurl) {
 #  install.packages('feather', repo=i)
 #}
+#Sys.setenv(R_INSTALL_STAGED = FALSE)
 #lib<-c("stringi","stringr","XML","xml2","rvest","htmltidy","curl","RCurl","gdata","readr","DBI","lazyeval","dplyr","rmarkdown","rticles","knitr","data.table","ggplot2","scales","reshape2","janitor","stargazer","xtable","apa","tesseract","pdftools","tiff","schoolmath","jsonlite","foreign","MASS","class","caret","tm","kernlab","jiebaR","RTextTools","tmcn","text2vec","RODBC","xlsx")
-lib<-c("stringi","XML","xml2","readr","plyr","dplyr","magrittr","openxlsx")
+lib<-c("stringi","XML","xml2","readr","plyr","dplyr","magrittr","openxlsx","data.table","dtplyr")
 #install.packages("xml2", dependencies=TRUE, INSTALL_opts = c('--no-lock'))
 #,"Rcmdr"
 sapply(lib,function (X) {
@@ -31,10 +32,13 @@ filespath <- ifelse(check_if_windows(),
                   stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]}
 dataset_file_directory <- ifelse(check_if_windows(),
                             paste0(driverletter_prefixes, ":\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",sep="", collapse=","),
-                            paste0("/mnt/", tolower(driverletter_prefixes), "/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",sep="", collapse=",")
+                            paste0(c(
+                              paste0("/mnt/", tolower(driverletter_prefixes), "/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",sep=""),
+                              paste0("/mnt/", tolower(driverletter_prefixes), "/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",sep="")
+                            ),collapse=",")
                             ) %>%
-                    stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]}
-
+                          stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]} #
+dataset_file_directory_rdata <- paste0(dataset_file_directory,"rdata",slash)
 #filespath<-switch(
 #  t_sessioninfo_running_with_cpu,
 #  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
@@ -50,12 +54,15 @@ dataset_file_directory <- ifelse(check_if_windows(),
 #)
 dataset_in_scriptsfile_directory <- switch(
   t_sessioninfo_running_with_cpu,
+  "Ubuntu18.04.3LTSIntel(R) Core(TM) i7-9750H CPU @ 2.60GHz"=paste0(filespath, "data", slash),
+  "Windows8x64build9200Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz"=paste0(filespath, "data", slash),
   "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
   "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=paste0(filespath, "data", slash),
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=paste0(filespath, "data", slash),
+  "Ubuntu18.04.3LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=paste0(filespath, "data", slash),
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\",
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\",
   "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\",
@@ -78,6 +85,7 @@ if (nchar(Sys.getenv("SPARK_HOME")) < 1) {
   Sys.setenv(SPARK_HOME = "/usr/local/spark")
 }
 survey_data_title<-c("2004citizen","2010env","2010overall","2016citizen") %>% sort()
+imputation_sample_i_s <- seq(1,5)
 Sys.setenv(JAVA_HOME = "/usr/lib/jvm/java-8-oracle")
 if (FALSE && t_sessioninfo_running_with_cpu=="Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz" && FALSE) {
   sparkpackage<-"sparklyr"
@@ -121,6 +129,19 @@ ntuspace_file_directory <- switch(
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/d/NTUSpace/",
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/g/NTUSpace/"
 )
+customloadsurveys <- function(X, path_prefix=dataset_file_directory_rdata) {
+  path<-paste0(path_prefix, X, '_', survey_data_title,".feather")
+  ret_list <- lapply(path, feather::read_feather)
+  return(ret_list)
+}
+customsavesurveys <- function(X_list, prefix, path_prefix=dataset_file_directory_rdata) {
+  path<-paste0(path_prefix, prefix, '_', survey_data_title,".feather")
+  ret_list <- mapply(function(X,Y) {
+    feather::write_feather(X,Y)
+    message(Y)
+  }, X=X_list, Y=path)
+  return(ret_list)
+}
 
 custompaste0<-function(str,connect=c(),reverse=FALSE,sep="",collapse="") {
   if (reverse) {
@@ -475,10 +496,11 @@ custom_parallel_expr<-function(expr, name, mc.set.seed = TRUE, silent = FALSE,
 }
 
 reset_multi_p <- function(t_sessioninfo_running = gsub("[>=()]","",gsub(" ","",sessionInfo()$running)) ) {
-  plan(sequential)
+  future::plan(sequential)
   switch(as.character(customgrepl(t_sessioninfo_running, "Windows")),
-         "TRUE"=plan(multisession),
-         "FALSE"=plan(multicore)
+         "TRUE"=future::plan(multisession),
+         "FALSE"=future::plan(multicore) 
+         #"FALSE"=plan(multisession)
   )
 }
 

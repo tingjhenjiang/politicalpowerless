@@ -4,35 +4,37 @@ t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cp
 source(file = "shared_functions.R")
 gc(verbose=TRUE)
 
-
+imputation_sample_i_s <- imputation_sample_i_s
 
 # 第五部份：IRT latent variables 環境設定 -------------------------------------------
 #reset
 #load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined.RData"))
 #load imputed survey
-load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_8_Windows10x64build17134df.RData"))
+load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_Ubuntu18.04.3LTSdf.RData"))
 
 # 第五-1部份：IRT latent variables 將職業社經地位、家庭收入、教育程度萃取成為階級  =================================
 
 
-survey_data_test <- lapply(survey_data_test,function(X) {
+survey_data_imputed <- lapply(survey_data_imputed,function(X,imps) {
   #need_ses_var_assigned %<>% extract2(X$SURVEY[1]) %>%
   #  intersect(names(X))
   need_ses_var_assigned<-c("myown_eduyr","myown_ses","myown_income","myown_family_income")
   message("need ses var is ",X$SURVEY[1],need_ses_var_assigned)
   for (checkvar in need_ses_var_assigned) {
-    message("nrows of ", checkvar, " are ", sum(is.na(X$checkvar)) )
-    }
-  efa.results<-factanal(
-    as.formula(paste0("~",need_ses_var_assigned,collapse = "+")),
-    data=X[,need_ses_var_assigned],
-    factors=1,
-    rotation="promax",
-    scores=c("regression")
-  )
-  X$myown_factoredses<-efa.results$scores[,1]
+    message("nrows of empty ", checkvar, " are ", sum(is.na(X$checkvar)) )
+  }
+  for (impn in imps) {
+    efa.results<-factanal(
+      as.formula(paste0("~",need_ses_var_assigned,collapse = "+")),
+      data=X[X$.imp==impn,need_ses_var_assigned],
+      factors=1,
+      rotation="promax",
+      scores=c("regression")
+    )
+    X$myown_factoredses[X$.imp==impn]<-efa.results$scores[,1]
+  }
   return(X)
-})
+}, imps=imputation_sample_i_s)
 
 #install.packages("psy")
 #library(psy)
@@ -44,46 +46,112 @@ library(eRm)
 library(mirt)
 
 
-if ({analysingefficacy <- FALSE;analysingefficacy}) {
-  need_efficacy_var<-list(
-    "2004citizen"=c("v47","v48","v52","v49","v50","v51"),
-    "2010env"=c("v61","v70a","v78","v21a","v21b","v26a","v26b","v26c","v26d","v79"),
-    "2010overall"=c("v67d","v67h","v67i","v67f"),
-    "2016citizen"=c("d16a","d16b","d16c","d16d")
-  )
-  need_efficacy_recode_var<-list(#效能感越高要重編碼為數字越大
-    "onetofour"=list(
-      "2004citizen"=c("v52","v51"),
-      "2010env"=c("v61","v78"),
-      "2010overall"=c(),
-      "2016citizen"=c()
-    ),
-    "onetofive"=list(#效能感越高要重編碼為數字越大
-      "2004citizen"=c("v49","v50"),
-      "2010env"=c("v26b","v79"),
-      "2010overall"=c(),
-      "2016citizen"=c("d16b","d16c")
-    ),
-    "onetosix"=list(#效能感越高要重編碼為數字越大
-      "2004citizen"=c(),
-      "2010env"=c(),
-      "2010overall"=c("v67d","v67h","v67i"),
-      "2016citizen"=c()
+if ({analysingefficacy <- TRUE;analysingefficacy}) {
+  need_efficacy_recode_var_detail_surveyid <- list(
+    "2004citizen@v47"=c(1,2,3,4,5),
+    "2004citizen@v48"=c(1,2,3,4,5),
+    "2004citizen@v49"=c(5,4,3,2,1),
+    "2004citizen@v50"=c(1,2,3,4,5),
+    "2004citizen@v51"=c(4,3,2,1),
+    "2004citizen@v52"=c(4,3,2,1),
+    "2010env@v21a"=c(1,2,3,4,5),
+    "2010env@v21b"=c(1,2,3,4,5),
+    "2010env@v70a"=c(1,2,3,4,5),
+    "2010env@v70c"=c(5,4,3,2,1),
+    "2010env@v70d"=c(5,4,3,2,1),
+    "2010env@v70e"=c(1,2,3,4,5),
+    "2010env@v78"=c(4,3,2,1),
+    "2010env@v79"=c(4,3,2,1),
+    "2010env@v26a"=c(1,2,3,4,5),
+    "2010env@v26d"=c(1,2,3,4,5),
+    "2010env@v26f"=c(1,2,3,4,5),
+    "2010overall@v67d"=c(6,5,4,3,2,1),
+    "2010overall@v67e"=c(6,5,4,3,2,1),
+    "2010overall@v67f"=c(1,2,3,4,5,6),
+    "2010overall@v67g"=c(1,2,3,4,5,6),
+    "2010overall@v67h"=c(6,5,4,3,2,1),
+    "2010overall@v67i"=c(6,5,4,3,2,1),
+    "2016citizen@d16a"=c(1,2,3,4,5),
+    "2016citizen@d16b"=c(5,4,3,2,1),
+    "2016citizen@d16c"=c(5,4,3,2,1),
+    "2016citizen@d16d"=c(1,2,3,4,5)
     )
-  )
-  survey_data_test <- lapply(survey_data_test,function(X,need_efficacy_var_assigned,need_efficacy_recode_var_assigned) {
-    recode_list<-list(
-      list("1"=4,"2"=3,"3"=2,"4"=1),
-      list("1"=5,"2"=4,"4"=2,"5"=1),
-      list("1"=6,"2"=5,"3"=4,"4"=3,"5"=1,"6"=1)
-    )
-    for (alteri in 1:3) {
-      need_efficacy_recode_var <- extract2(need_efficacy_recode_var_assigned[[alteri]],X$SURVEY[1]) %>%
-        intersect(names(X))
-      X %<>% mutate_at(need_efficacy_recode_var, dplyr::recode, !!!recode_list[[alteri]])
+  survey_data_imputed <- lapply(survey_data_imputed,function(X,need_efficacy_recode_var_detail_surveyid,imps) {
+    needlist <- rlist::list.match(need_efficacy_recode_var_detail_surveyid, X$SURVEY[1])
+    needvars <- names(needlist) %>%
+      sapply(customgsub,paste0(X$SURVEY[1],"@"),"") %>%
+      unname()
+    needlist %<>% setNames(needvars)
+    irt_target_d <- X[,c(".imp",needvars)]
+    for (needvar in needvars) {
+      #needvar<-"v49"
+      #ori: [2] 同意 [4] 不同意 [4] 不同意 [2] 同意 [4] 不同意 [1] 非常同意
+      #should be: 422425
+      #needvar<-"v47"
+      #ori: [4] 不同意 [4] 不同意 [2] 同意 [2] 同意 [3] 既不同意也不反對 [2] 同意
+      #should be: 442232
+      irt_target_d[,needvar] %<>% factor(.,levels(.)[extract2(needlist,needvar)]) %>%
+        seq(from=1,to=length(extract2(needlist,needvar)))[.]
     }
+    for (imp in imps) {
+      estimatemodel<-mirt::mirt(
+        data=irt_target_d[irt_target_d$.imp==imp,needvars],
+        model=1,
+        itemtype = "graded",
+        technical = list("NCYCLES"=40000))
+      poliefficacy<-mirt::fscores(estimatemodel,method="EAP") %>%
+        as.data.frame() %>%
+        set_colnames(c("myown_factoredefficacy"))
+      X[irt_target_d$.imp==imp,c("myown_factoredefficacy")]<-poliefficacy$myown_factoredefficacy#bind_cols(X,poliefficacy)
+      
+    }
+    #need_efficacy_var<-list(
+    #  "2004citizen"=c("v47","v48","v49","v50","v51","v52"),
+    #  "2010env"=c("v70a","v70c","v70d","v70e","v78","v21a","v21b","v26a","v26d","v26f","v78","v79"), #"v61",
+    #  "2010overall"=c("v67d","v67h","v67i","v67f"),
+    #  "2016citizen"=c("d16a","d16b","d16c","d16d")
+    #)
+    #need_efficacy_recode_var<-list(#效能感越高要重編碼為數字越大
+    #  "onetofour"=list(
+    #    "2004citizen"=c("v52","v51"),
+    #    "2010env"=c("v61","v78"),
+    #    "2010overall"=c(),
+    #    "2016citizen"=c()
+    #  ),
+    #  "onetofive"=list(#效能感越高要重編碼為數字越大
+    #    "2004citizen"=c("v49","v50"),
+    #    "2010env"=c("v26b","v79"),
+    #    "2010overall"=c(),
+    #    "2016citizen"=c("d16b","d16c")
+    #  ),
+    #  "onetosix"=list(#效能感越高要重編碼為數字越大
+    #    "2004citizen"=c(),
+    #    "2010env"=c(),
+    #    "2010overall"=c("v67d","v67h","v67i"),
+    #    "2016citizen"=c()
+    #  )
+    #)
+    #recode_list<-list(
+    #  list("1"=4,"2"=3,"3"=2,"4"=1),
+    #  list("1"=5,"2"=4,"4"=2,"5"=1),
+    #  list("1"=6,"2"=5,"3"=4,"4"=3,"5"=1,"6"=1)
+    #)
+    #for (alteri in 1:3) {
+    #  need_efficacy_recode_var <- extract2(need_efficacy_recode_var_assigned[[alteri]],X$SURVEY[1]) %>%
+    #    intersect(names(X))
+    #  X %<>% mutate_at(need_efficacy_recode_var, dplyr::recode, !!!recode_list[[alteri]])
+    #}
+    #irt_target_d <- X[,needvars] %>%
+    #  dplyr::mutate_all(.funs=function(f) {
+    #    #return(as.numeric(levels(f))[f])
+    #    (seq(from=1,to=length(f)))[f] %>% return()
+    #  })
     return(X)
-  },need_efficacy_var_assigned=need_efficacy_var,need_efficacy_recode_var_assigned=need_efficacy_recode_var)
+  },
+  need_efficacy_recode_var_detail_surveyid=need_efficacy_recode_var_detail_surveyid,
+  #need_efficacy_var_assigned=need_efficacy_var,
+  #need_efficacy_recode_var_assigned=need_efficacy_recode_var,
+  imps=imputation_sample_i_s)
 }
 # 第五-3部份：IRT latent variables  latent variables 政治參與；用item respond抓出隱藏變數「政治參與程度」 =================================
 # https://www.researchgate.net/post/How_to_conduct_item_analysis_with_a_likert_scale_questionaire
@@ -107,7 +175,7 @@ need_particip_var<-list(
   "2010overall"=c("v79a","v79b","v79c","v79d"),
   "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c")#h4 投票
 )
-survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigned) {
+survey_data_imputed <- lapply(survey_data_imputed,function(X,need_particip_var_assigned) {
   #X<-lapply(X,function(X,need_particip_var_assigned) {
   #for testng prupose
   #X<-dummyremoved_imputed_survey_data[[1]][[1]]
@@ -137,29 +205,32 @@ survey_data_test <- lapply(survey_data_test,function(X,need_particip_var_assigne
 # 第五-3-1部份：parametric IRT non-Rasch models - GRM Model ####################
 # mirt::mirt by 'graded'
 # ltm:grm
-survey_data_test <- lapply(survey_data_test, function(X,need_particip_var_assigned) {
+survey_data_imputed <- lapply(survey_data_imputed, function(X,need_particip_var_assigned,imps) {
   #X<-survey_data_test[[4]]
   #need_particip_var_assigned<-need_particip_var
   needparticip_surveyi<-X$SURVEY[1]
   need_detailed_particip_var<-extract2(need_particip_var_assigned,needparticip_surveyi)
-  irt_target_d<-X[,need_detailed_particip_var] %>%
-    dplyr::mutate_all(.funs=function(f) {
+  irt_target_d<-X[,c(".imp",need_detailed_particip_var)] %>%
+    dplyr::mutate_at(.vars=need_detailed_particip_var, .funs=function(f) {
       #return(as.numeric(levels(f))[f])
       (seq(from=1,to=length(f)))[f] %>% return()
     })
-  estimatemodel<-mirt::mirt(
-    data=irt_target_d,
-    model=1,
-    itemtype = "graded",
-    technical = list("NCYCLES"=40000))
-  poliparticipt<-mirt::fscores(estimatemodel,method="EAP") %>%
-    as.data.frame()
-  names(poliparticipt)<-c("myown_factoredparticip")
-  X<-bind_cols(X,poliparticipt)
+  for (imp in imps) {
+    estimatemodel<-mirt::mirt(
+      data=irt_target_d[irt_target_d$.imp==imp,need_detailed_particip_var],
+      model=1,
+      itemtype = "graded",
+      technical = list("NCYCLES"=40000))
+    poliparticipt<-mirt::fscores(estimatemodel,method="EAP") %>%
+      as.data.frame() %>%
+      set_colnames(c("myown_factoredparticip"))
+    X[X$.imp==imp,c("myown_factoredparticip")]<-poliparticipt$myown_factoredparticip #bind_cols(X,poliparticipt)
+  }
   #X<-estimatemodel
   #View(X[,c(need_detailed_particip_var,"myown_factoredparticip")])
   return(X)
-},need_particip_var_assigned=need_particip_var)
+},need_particip_var_assigned=need_particip_var,
+imps=imputation_sample_i_s)
 
 
 if ({using_ltm_package <- FALSE;using_ltm_package}) {
@@ -264,4 +335,6 @@ if ({usinggpcm <- FALSE;usinggpcm}) {
   ltm::GoF.gpcm(X.gpcm)
 }
 #margins(fit1)
-#save(survey_data_test, file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_8_Ubuntu18.04.2LTSdf_with_mirt.RData"))
+
+
+save(survey_data_imputed, file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_Ubuntu18.04.3LTSdf_with_mirt.RData"))

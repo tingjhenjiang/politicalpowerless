@@ -4,186 +4,8 @@ t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cp
 source(file = "shared_functions.R")
 gc(verbose=TRUE)
 
+load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined_after_settingNA.RData"))
 survey_imputation_and_measurement<-openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1)
-
-
-
-
-
-
-# 第三部份：把問卷檔加上行政區、選區屬性  -------------------------------------------
-
-library(haven)
-library(labelled)
-load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"), verbose=TRUE)
-
-##以下部分因為已有既存資料檔，讀取後略過不執行#
-#找出所有行政區對選區資料，並且找出同一鄉鎮市區有不同選區的部分
-#admin_dist_to_elect_dist <- distinct(elections_df, term, admincity, electionarea, admindistrict, adminvillage) %>%
-#  filter(!is.na(admincity))# %>%
-##  left_join(all_admin_dist_with_zip)
-#duplicated_area <- distinct(admin_dist_to_elect_dist,term,electionarea,admincity,admindistrict) %>% #,zip,zip3rocyear
-#  extract(duplicated(.[, c("term", "admincity", "admindistrict")]),)
-#把某些共用同一個郵遞區號的行政區合併
-#unique_dist_for_elect_dist <- anti_join(admin_dist_to_elect_dist, duplicated_area[, c("term", "admincity", "admindistrict")]) %>%
-#  group_by(term, electionarea, admincity) %>% #, zip, zip3rocyear
-#  summarise(admindistrict = paste0(admindistrict, collapse = "、"))
-#以下註解部分為找出多選區的樣本
-#duplicated_area[duplicated_area$term == 6, c("zip")] %>%
-#  intersect(survey_data[[4]]$zip) %>%
-#  unique() %>% 
-#  sort()
-#save(admin_dist_to_elect_dist,duplicated_area,unique_dist_for_elect_dist,file=paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
-#以上部分因為已有既存資料檔，讀取後略過不執行#
-
-#重要！2010環境的資料因為補選選區有改變，所以在一些鄉鎮市區村里會重複出現多筆紀錄，要先處理一下join的選舉資料
-#duplicated_area_just_one_electionarea <- group_by(duplicated_area, term, admincity, admindistrict, zip, zip3rocyear) %>%
-#  summarise(electionarea = paste0(electionarea, collapse = "、"))
-minus_electionarea <- as.data.frame(list(
-  "term" = 7, 
-  "electionarea" = "桃園縣第06選區", 
-  "admincity" = "桃園縣", 
-  "admindistrict" = "中壢市", 
-  zip = 320, 
-  zip3rocyear = 99))
-survey_data<-paste0(survey_data_title,".sav") %>%
-  sapply(function (X,...) paste0(...,X), dataset_file_directory, "merger_survey_dataset",slash) %>%
-  lapply(haven::read_sav) %>%
-  lapply(mutate_cond,SURVEY=="2010overall" & sm==91, sm=7) %>% #處理訪問時間不一致
-  lapply(mutate_cond,SURVEY=="2010overall" & sd==91, sd=15) %>% #處理訪問時間不一致
-  lapply(dplyr::mutate,stdsurveydate=as.Date(paste(year,sm,sd),"%Y %m %d")) %>%
-  lapply(function(X,survey_imp_measure) {
-    labelledcolumns<-purrr::map_lgl(X,haven::is.labelled) %>% which(isTRUE(.)) %>% names()
-    spsssavsurvey<-X$SURVEY[1]
-    message(spsssavsurvey)
-    need_survey_measure_scale<-dplyr::filter(survey_imp_measure,SURVEY==spsssavsurvey,MEASUREMENT=="scale",ID %in% names(X)) %>%
-      dplyr::select(ID) %>% unlist() %>% as.character() %>% intersect(labelledcolumns)
-    need_survey_measure_ordinal<-filter(survey_imp_measure,SURVEY==spsssavsurvey,MEASUREMENT=="ordinal",ID %in% names(X)) %>%
-      dplyr::select(ID) %>% unlist() %>% as.character() %>% intersect(labelledcolumns)
-    need_survey_measure_categorical<-setdiff(names(X),need_survey_measure_scale) %>%
-      setdiff(need_survey_measure_ordinal) %>% intersect(labelledcolumns)
-    X %<>% dplyr::mutate_at(need_survey_measure_scale, as.numeric) %>%
-      dplyr::mutate_at(need_survey_measure_ordinal,haven::as_factor,levels='both',ordered=TRUE) %>%
-      dplyr::mutate_at(need_survey_measure_categorical,haven::as_factor,levels='both',only_labelled = TRUE)
-    return(X)
-  },survey_imp_measure=survey_imputation_and_measurement)
-
-#設定遺漏值
-missing_value_labels<-lapply(survey_data,function(X) {
-  missingvaluepattern<-paste0("\\[",c(92:99,992:999,9992:9999),"\\]",collapse="|")
-  labelsofdf<-sapply(X,levels) %>% unlist() %>% unique() %>%
-    customgrep(pattern=missingvaluepattern,value=TRUE) %>%
-    {extract(.,which(!customgrepl(.,pattern="(不固定|人或以上|到處跑|業|機構|學術|國外|從不聽|新雲林|竹塹|台北勞工|新農|草嶺|濁水溪|蘭潭|飛揚|11個或更多)",perl=TRUE)))}
-  #(拒答|遺漏值|忘記|不適用|不知道|跳答|無法選擇|忘記了|拒答）|不知道）|缺漏|不記得)
-  return(labelsofdf)
-})
-survey_data <- mapply(function(X,Y) {
-  newdf <- lapply(X, function(dfcolumnvectors,replaced_keys) {
-    if (is.factor(dfcolumnvectors)) {
-      replace_key_value_pairs<-rep(NA,times=length(replaced_keys))
-      names(replace_key_value_pairs)<-replaced_keys
-      dfcolumnvectors<-plyr::revalue(dfcolumnvectors, replace_key_value_pairs)
-    }
-    return(dfcolumnvectors)
-  },replaced_keys=Y) %>%
-    as.data.frame() %>%
-    mutate_if(is.factor,droplevels)
-  newdf
-  #to_replace_column<-setdiff(colnames(X),c("myown_age","myown_occp","myown_ses"))
-  #  dplyr::mutate_at(X,to_replace_column,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999,99996:99999),NA ) )  )
-},X=survey_data,Y=missing_value_labels) %>%
-  {.[order(names(.))]} %>%
-  lapply(dplyr::left_join,{
-    read.xlsx(paste0(dataset_file_directory, "basic_social_survey_restricted_data.xlsx"), sheet = 1)
-  }) %>%
-  lapply(dplyr::mutate_at,c("myown_job","admincity","admindistrict"),.funs=as.factor)#%>%
-#lapply(function (X) { #較早的串連方式，區分會期
-#  othervar<-setdiff(names(X),c("term1","term2"))
-#  reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
-#    dplyr::filter(!is.na(term))
-#})  %>%
-
-#save(survey_data,file=paste0(dataset_in_scriptsfile_directory, "all_survey_combined.RData"))
-
-
-if ({labeladjusmentagain <- FALSE; labeladjusmentagain}) {
-  survey_data_labels <- lapply(survey_data,function(X) {
-    sapply(X,FUN=attr,which="levels") %>%
-      #sapply(X,FUN=function(X) {
-      #  as.numeric(levels(X))[X]
-      #  }) %>%
-      return()
-  })
-  save(survey_data_labels,file=paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
-}
-#survey_data_labels已經預處理過，直接load即可
-#load(paste0(dataset_file_directory,"rdata",slash,"survey_data_labels.RData"))
-
-
-if (exists("writingfeather")) {
-  if (writingfeather==TRUE) {
-    forwritingfeather<-mapply(function(X,Y,A,B) {
-      #testing purpose
-      #df<-as.data.frame(survey_data[[1]])
-      #dfcoltypes<-sapply(Y,class)
-      #to_dummy_cols<-names(which(dfcoltypes=="factor"))
-      #to_dummy_cols_global <<- to_dummy_cols
-      #print(to_dummy_cols)
-      #for (to_dummy_col in to_dummy_cols) {
-      #  print(to_dummy_col)
-      #df<-dummies::dummy.data.frame(data=df,names=to_dummy_cols,sep="_")
-      #}
-      #View(df[68,])
-      #grep("v28",names(df))
-      #df<-dummies::dummy.data.frame(data=Y,names=to_dummy_cols,sep="_")#%>%
-      #dplyr::filter(variable_on_term=="term1") #2004的問卷橫跨立法院多會期，為了節省運算資源所以只保留一期
-      path<-paste0(ntuspace_file_directory,"shared",slash,"dataset",slash,"rdata",slash,"all_survey_combined",X,".feather")
-      #tomutatecol<-setdiff(names(Y),"myown_age")
-      #df %<>% mutate_at(tomutatecol,dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ))
-      message("-----writing ",path,"--------------------")
-      Y<-droplevels(Y)
-      needvars<-c("id", union(A,B)  ) %>%
-        intersect(names(Y))
-      needcols <<- needvars
-      feather::write_feather(Y[,needvars], path=path)
-    },X=1:4,Y=survey_data,A=imputingcalculatebasiscolumn,B=imputedvaluecolumn)
-    write(x=jsonlite::toJSON(imputingcalculatebasiscolumn), file=paste0(ntuspace_file_directory,"shared",slash,"dataset",slash,"rdata",slash,"imputingcalculatebasiscolumn.json"))
-    write(x=jsonlite::toJSON(imputedvaluecolumn), file=paste0(ntuspace_file_directory,"shared",slash,"dataset",slash,"rdata",slash,"imputedvaluecolumn.json"))
-    #A=imputingcalculatebasiscolumn,B=imputedvaluecolumn
-    #A=1:4,B=1:4
-    #feather::write_feather(survey_data, path=paste0(dataset_file_directory,"rdata",slash,"all_survey_combined.feather"))
-  }
-}
-
-
-
-#shaped: 299 295 571
-#先依據是否有多數選區存在於單一鄉鎮市區拆開，先串有同一鄉鎮市區內有多選區的，再串同一鄉鎮市區內只有一選區的，然後分別join之後再合併
-#mapply(function(X,Y) {
-##X=survey_data[[1]]; Y=survey_restricted_data[[1]]; Z<-survey_data_labels[[1]] #for testing purpose
-#stopifnot(X$SURVEY[1]==Y$SURVEY[1])
-#Y %<>% mutate_at(c("village","zip","admincity","admindistrict","adminvillage"), as.factor)
-#in_complicated_district<-filter(X, id %in% Y$id) %>%
-#  #mutate_at(c("zip","id"), as.character) %>%
-#  left_join(Y,by=c("SURVEY","id")) %>% #不用zip join 因為會有label, factor的問題
-#  #mutate_at("term", as.character) %>%
-#  left_join(admin_dist_to_elect_dist,by=c("admincity","admindistrict","adminvillage")) %>% #by=c("term","admincity","admindistrict","adminvillage"
-#  rename(restricted_zip=zip.y) %>%
-#  rename(zip=zip.x)
-##findduplicatedrowsindf(in_complicated_district,c("id")) %>% View()
-#in_simple_district <- filter(X, !(id %in% Y$id)) %>%
-#  mutate_at(c("zip"), as.integer) %>%
-#  left_join(unique_dist_for_elect_dist)#串連選區和行政區資料
-##mutate_at("term", as.character) %>%
-#bind_rows(in_simple_district, in_complicated_district) %>%
-#  arrange(id) %>%
-#  mutate_at(c("zip","id","myown_sex","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_int_pol_efficacy","myown_ext_pol_efficacy"), as.factor) %>%
-#  mutate_at(setdiff(names(.),c("myown_age")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) ) %>%
-#  mutate_if(is.factor,funs(droplevels))
-#},X=survey_data,Y=survey_restricted_data)
-
-load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined.RData"))
-
 
 # 第四部份：清理資料：填補遺漏值 -------------------------------------------
 
@@ -230,12 +52,12 @@ generate_predictor_matrix<-function(df,calculationbasisvar=c(),imputedOnlyVars=c
 
 
 if ({VIMtestplot<-FALSE;VIMtestplot}) {
-  survey_data_test<-survey_data
-  #survey_data_test <- lapply(survey_data,function(X) {
+  survey_data_imputed<-survey_data
+  #survey_data_imputed <- lapply(survey_data,function(X) {
   #  dplyr::mutate_at(X,setdiff(colnames(X),c("myown_age","myown_occp","myown_ses")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) )  )
   #  #設定遺漏值
   #})
-  survey_data_test <- lapply(survey_data_test,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
+  survey_data_imputed <- lapply(survey_data_imputed,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
     X<-droplevels(X)
     imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
       intersect(names(X))
@@ -250,13 +72,28 @@ if ({VIMtestplot<-FALSE;VIMtestplot}) {
   },imputedvaluecolumn=imputedvaluecolumn,imputingcalculatebasiscolumn=imputingcalculatebasiscolumn)
 }
 
-survey_data_test <- na_count <- missingvaluepattern <- imputed_survey_data <- list()
+survey_data_imputed <- na_count <- missingvaluepattern <- imputed_survey_data <- list()
 #Package ‘MissMech’
 #To test whether the missing data mechanism, in a set of incompletely ob-served data, is one of missing completely at random (MCAR).For detailed description see Jamshidian, M. Jalal, S., and Jansen, C. (2014). ``Miss-Mech: An R Package for Testing Homoscedasticity, Multivariate Normality, and Missing Com-pletely at Random (MCAR),'' Journal of Statistical Software,  56(6), 1-31. URL http://www.jstatsoft.org/v56/i06/.
 
-survey_data_test <- lapply( #custom_parallel_lapply
-  X=survey_data[1],
-  FUN=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,...) {
+propMissing <- lapply(survey_data, function(X) {
+  missing.indicator <- data.frame(is.na(X))
+  propMissing <- apply(missing.indicator,2,mean)
+  #create dummy missing value indicators
+  names(missing.indicator)[propMissing>0] <- paste(names(X)[propMissing>0],"NA",sep="")
+  #convert dummy missing indicators from logical to numeric variables 
+  for (var in 1:ncol(missing.indicator)) {
+    missing.indicator[,var] <- as.numeric(missing.indicator[,var])
+  }
+  #merge covariate names with missing indicator names
+  X %<>% cbind(missing.indicator[,propMissing>0])
+  #show percentage missing
+  print(round(propMissing,3))
+})
+
+survey_data_imputed <- lapply( #custom_parallel_lapply
+  X=survey_data,
+  FUN=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,imputation_sample_i_s,...) {
     if (exists("debug_for_miceimputation")) {
       if (debug_for_miceimputation==TRUE) {
         i<-3
@@ -265,6 +102,18 @@ survey_data_test <- lapply( #custom_parallel_lapply
     }
     #library(mice)
     X<-droplevels(X)
+    
+    missing.indicator <- data.frame(is.na(X))
+    propMissing <- apply(missing.indicator,2,mean)
+    #create dummy missing value indicators
+    names(missing.indicator)[propMissing>0] <- paste(names(X)[propMissing>0],"NA",sep="")
+    #convert dummy missing indicators from logical to numeric variables 
+    for (var in 1:ncol(missing.indicator)) {
+      missing.indicator[,var] <- as.numeric(missing.indicator[,var])
+    }
+    #merge covariate names with missing indicator names
+    X %<>% cbind(missing.indicator[,propMissing>0])
+    
     imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
       intersect(names(X))
     imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
@@ -287,56 +136,66 @@ survey_data_test <- lapply( #custom_parallel_lapply
     #sol: https://stackoverflow.com/questions/13495041/random-forests-in-r-empty-classes-in-y-and-argument-legth-0
     #sol: https://stackoverflow.com/questions/24239595/error-using-random-forest-mice-package-during-imputation
     #The frequency distribution of the missing cases per variable can be obtained as:
-    #survey_data_test[[i]] <- mice::mice(X, maxit = 0)
-    #table(survey_data_test[[i]]$nmis)
+    #survey_data_imputed[[i]] <- mice::mice(X, maxit = 0)
+    #table(survey_data_imputed[[i]]$nmis)
     #colSums(is.na(X))
     #na_count[[i]] <- sapply(X, function(y) sum(length(which(is.na(y)))))
     #analysisdfonmissingvalue<-X[,imputedvaluecolumn_assigned]
     #missingvaluepattern[[i]]<-mice::md.pattern(analysisdfonmissingvalue,plot=FALSE)
     #visdat::vis_miss(analysisdfonmissingvalue)
+    
+    
     mice_parallel_imp_type <- switch(as.character(grepl("Windows", sessionInfo()$running)), "TRUE"="PSOCK", "FALSE"="FORK")
     #also check: micemd::mice.par
     data_to_mice_imp <- X[,foundationvar]
     miceMod <- micemd::mice.par( #mice::mice #mice::parlmice
       data_to_mice_imp,
       predictorMatrix = predictor_matrix,
-      m=5,
-      method="rf"#,
+      visitSequence="monotone",
+      m=imputation_sample_i_s,#1,#
+      method="rf",
+      #maxit=1,
+      nnodes=parallel::detectCores()#,
       #n.core=parallel::detectCores()#,
       #cl.type=mice_parallel_imp_type
     )  # perform mice imputation, based on random forests.
     #linear imputation might have error message: system is computationally singular: reciprocal condition number
     #https://stats.stackexchange.com/questions/214267/why-do-i-get-an-error-when-trying-to-impute-missing-data-using-pmm-in-mice-packa
     #print(imputingcalculatebasiscolumn_assigned)
-    imputed_survey_data<- mice::complete(miceMod)  # generate the completed data.
-    complete_imputed_survey_data<-bind_cols(X[,unusefulcolumns],imputed_survey_data)
-    complete_imputed_survey_data<-complete_imputed_survey_data[,names(X)]
+    imputed_survey_data <- mice::complete(miceMod, action="long")  # generate the completed data.
+    imputed_survey_data$id <- X$id
+    complete_imputed_survey_data <- left_join(imputed_survey_data, X[,unusefulcolumns], by=c("id"))
+    #complete_imputed_survey_data <- complete_imputed_survey_data[,names(X)]
     complete_imputed_survey_data
     return(complete_imputed_survey_data)
   },
   imputedvaluecolumn=imputedvaluecolumn,
   imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
+  imputation_sample_i_s=imputation_sample_i_s,
   exportvar=c("imputedvaluecolumn","parlMICE","imputingcalculatebasiscolumn"),
-  exportlib=c("dplyr","base","magrittr","parallel","mice","randomForest"), #,"MissMech","fastDummies"
+  exportlib=c("dplyr","base","magrittr","parallel","mice","micemd","randomForest"), #,"MissMech","fastDummies"
   outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
 )
-#survey_data_test[[3]]<-t_survey_data_test[[1]]
+save(survey_data_imputed,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"))
+
+# 讀取已經填補完成的dataset -------------------------------------------
+
+load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"), verbose=TRUE)
+
+#survey_data_imputed[[3]]<-t_survey_data_imputed[[1]]
 #kNN imputation
-#survey_data_test[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
+#survey_data_imputed[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
 #}
 #conditional random field
-temp_survey_data_test<-survey_data_test[[1]]
-save(survey_data_test,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_8_",t_sessioninfo_running,"df.RData"))
-load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_7_",t_sessioninfo_running,"df.RData"))
 
 #write.xlsx(as.data.frame(furtherusefulpredictor),file="furtherusefulpredictor.xlsx")
-lapply(survey_data_test,View)
+lapply(survey_data_imputed,View)
 View(survey_data$`2010env.sav`[1:20,union(imputedvaluecolumn$`2010env`,imputingcalculatebasiscolumn$`2010env`)])
 
 #checking imputed df
-lapply(survey_data_test,function(X,need_particip_var,need_ses_var_assigned,imputedvaluecolumn) {
+lapply(survey_data_imputed,function(X,need_particip_var,need_ses_var_assigned,imputedvaluecolumn) {
   survey<-X$SURVEY[1]
   checkdf<-extract(X,dplyr::intersect(names(X),unique(c(
     getElement(need_particip_var,survey),
@@ -387,8 +246,8 @@ if ({oldimputationmethod<-FALSE; oldimputationmethod}) { #此部分屬於舊code
   #Himsc填補遺漏值 filling in missing value
   library(Hmisc)
   
-  survey_data_test <- custom_parallel_lapply(
-    data=t_survey_data_test,
+  survey_data_imputed <- custom_parallel_lapply(
+    data=t_survey_data_imputed,
     f=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
       X <- droplevels(X)
       imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
@@ -416,7 +275,7 @@ if ({oldimputationmethod<-FALSE; oldimputationmethod}) { #此部分屬於舊code
   
   #檢查亂報投票意向
   
-  survey_data_test <- lapply(survey_data,function(X,need_ses_var_assigned) {
+  survey_data_imputed <- lapply(survey_data,function(X,need_ses_var_assigned) {
     need_ses_var_assigned %<>% extract2(X$SURVEY[1]) %>%
       intersect(names(X))
     X %<>% mutate_at(missingvaluecolumn_assigned,funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) ) )
