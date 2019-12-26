@@ -10,7 +10,7 @@ gc(verbose=TRUE)
 
 t_sessioninfo_running_with_cpu_locale<-sessionInfo()$locale %>% stringi::stri_split(regex=";") %>% unlist() %>% getElement(1) %>% stringi::stri_split(regex="=") %>% unlist() %>% getElement(2) %>%
   paste0(t_sessioninfo_running_with_cpu, .) %>% gsub(pattern=" ",replacement = "", x=.)
-# 第六部份：LCA latent variables 潛在類別模式資料清理  ================================= 
+# 第八部份：LCA latent variables 潛在類別模式資料清理  ================================= 
 load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_Ubuntu18.04.3LTSdf_with_mirt.RData"), verbose=TRUE)
 imps <- 1:5
 
@@ -285,8 +285,6 @@ repeat_connectdb_readtable_close <- function(drv, dbname, ..., tablename, breaka
 library(future)
 reset_multi_p()
 library(future.apply)
-t_survey_data_test<-survey_data_imputed
-list_of_degree_of_freedom<-list()
 #load(file=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.RData"),verbose=TRUE)
 #load(file=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom_2010overall.RData"))
 #repeatloadsavedestfile(destfile=testdestfile)
@@ -313,8 +311,11 @@ dbconnect_info <- list(
 con <- do.call(DBI::dbConnect, dbconnect_info)
 DBI::dbDisconnect(con)
 
-# 迴圈開始處 --------------------------------
 reset_multi_p()
+# 迴圈開始處 --------------------------------
+#check at http://localhost/scripts/phpscripts/list_of_degree_of_freedom_counts.php
+t_survey_data_test<-survey_data_imputed
+list_of_degree_of_freedom<-list()
 #基本上可以用兩次大迴圈跑，最外層大迴圈第一次可以generate list to filter out those whose degree of freedom<0，第二次則從resid.df>=0的模型開始處理
 #list_of_degree_of_freedom <- lapply(t_survey_data_test, function(a_single_survey_dataset,...) {
 for (index_of_testing_resid_df in c(1:2)) {
@@ -325,12 +326,10 @@ for (index_of_testing_resid_df in c(1:2)) {
   #t_sessioninfo_running_with_cpu_locale<-"Windows7x64build7601ServicePack1Intel(R)Xeon(R)CPUE5-2650v3@2.30GHzEnglish"
   general_start_iters_name <- c(
     "Windows8x64build9200Intel(R)Xeon(R)CPUE5-2650v3@2.30GHzChinese(Traditional)_Taiwan.950",
+    "Windows7x64build7601ServicePack1Intel(R)Xeon(R)CPUE5-2650v3@2.30GHzChinese(Traditional)_Taiwan.950",
     t_sessioninfo_running_with_cpu_locale,
-    "Windows8x64build9200Intel(R)Core(TM)i7-9750HCPU@2.60GHzChinese(Traditional)_Taiwan.950"
-    #"Ubuntu18.04.3LTSIntel(R)Core(TM)i7-9750HCPU@2.60GHzzh_TW.UTF-8"
-    #"Ubuntu18.04.2LTSIntel(R)Core(TM)i5-4210UCPU@1.70GHzzh_TW.UTF-8"
-    #"Windows7x64build7601ServicePack1Intel(R)Xeon(R)CPUE5-2650v3@2.30GHzEnglish",
-    #"Windows7x64build7601ServicePack1Intel(R)Xeon(R)CPUE5-2650v3@2.30GHzChinese(Traditional)_Taiwan.950",
+    "Ubuntu18.04.2LTSIntel(R)Core(TM)i5-4210UCPU@1.70GHzzh_TW.UTF-8",
+    "Windows7x64build7601ServicePack1Intel(R)Xeon(R)CPUE5-2650v3@2.30GHzEnglish"
     #"Windows7x64build7601ServicePack1Intel(R)Xeon(R)CPUE5-2660v4@2.00GHzChinese(Traditional)_Taiwan.950",
     #"Windows7x64build7601ServicePack1Intel(R)Xeon(R)CPUE5-2650v3@2.30GHzEnglish",
     #"Ubuntu18.04.2LTSIntel(R)Core(TM)i5-7400CPU@3.00GHzzh_TW.UTF-8"
@@ -389,12 +388,11 @@ for (index_of_testing_resid_df in c(1:2)) {
       return(modelformula_for_debug)
     }) %>%
       unlist()
-    modelformula_df_for_debug <- future_lapply(cov_vars_combns_check_str, function(modelformula,imps) {
-      cbind("modelformula"=modelformula,"nclass"=3:5) %>% cbind(., .imp=rep(imps, each=nrow(.))) %>% as.data.frame() %>%
-        mutate(modelformula=as.character(modelformula), nclass=as.integer(as.character(nclass)  ) ) %>%
-        mutate(.imp=as.integer(as.character(.imp)) ) %>%
-        return()
-    }, imps=imps) %>% dplyr::bind_rows()
+    modelformula_df_for_debug <- data.frame("modelformula"=cov_vars_combns_check_str) %>%
+      cbind(., nclass = rep(3:5, each = nrow(.))) %>%
+      cbind(., .imp = rep(imps, each = nrow(.))) %>%
+      mutate(modelformula=as.character(modelformula), nclass=as.integer(as.character(nclass)  ) ) %>%
+      mutate(.imp=as.integer(as.character(.imp)) )
     
     if (index_of_testing_resid_df==1) {
       tryCatch({
@@ -423,17 +421,32 @@ for (index_of_testing_resid_df in c(1:2)) {
       }
       #maxobservs<-max(Filter(function(X) !gtools::invalid(X),list_of_degree_of_freedom[[needsurvey]]$Nobs))
       maxobservs<-max(Filter(function(X) !gtools::invalid(X),list_of_degree_of_freedom_of_a_survey$Nobs))
-      #if (nrow(list_of_degree_of_freedom[[needsurvey]])>0) {
       if (nrow(list_of_degree_of_freedom_of_a_survey)>0) {
-        #qualified_lca_model <- dplyr::left_join(modelformula_df_for_debug, list_of_degree_of_freedom[[needsurvey]])
+        if (t_sessioninfo_running_with_cpu_locale=="Windows8x64build9200Intel(R)Core(TM)i7-9750HCPU@2.60GHzChinese(Traditional)_Taiwan.950") {
+          #先從資料庫裡面找出已經至少分析過一次但還沒有完整分析的偷懶範本，忽略不同imp差異而填上degrees of freedom後寫入資料庫
+          lazyjoin_list_of_degree_of_freedom_of_a_survey<-subset(list_of_degree_of_freedom_of_a_survey, select=-c(.imp)) %>%
+            filter(nrep<2) %>%
+            .[!duplicated(.[c("modelformula","nclass")]),] %>%
+            cbind(., .imp = rep(imps, each = nrow(.))) %>%
+            dplyr::anti_join(list_of_degree_of_freedom_of_a_survey,by=c("modelformula","nclass",".imp"))
+          if (nrow(lazyjoin_list_of_degree_of_freedom_of_a_survey)>0) {
+            con <- do.call(DBI::dbConnect, dbconnect_info)
+            DBI::dbWriteTable(con, db_table_name, lazyjoin_list_of_degree_of_freedom_of_a_survey, append=TRUE)
+            DBI::dbDisconnect(con)
+            list_of_degree_of_freedom_of_a_survey %<>% dplyr::anti_join(lazyjoin_list_of_degree_of_freedom_of_a_survey, by=c("modelformula","nclass",".imp")) %>%
+              dplyr::bind_rows(lazyjoin_list_of_degree_of_freedom_of_a_survey)
+          }
+        }
+        
+        #找出有曾經poLCA分析建檔過的資料並且串到目標分析對象
         qualified_lca_model <- dplyr::left_join(modelformula_df_for_debug, list_of_degree_of_freedom_of_a_survey, by=c("modelformula","nclass",".imp"))
         qualified_lca_model <- switch(as.character(index_of_testing_resid_df),
                                       "1"={
                                         filter(qualified_lca_model, gtools::invalid(residdf) | is.na(residdf))
-                                      },
+                                      }, #從目標分析對象找出連一次pcLCA分析都沒有過的
                                       "2"={
                                         filter(qualified_lca_model, nrep<general_nrep & residdf>=0 & Nobs==maxobservs)
-                                      }
+                                      } #從目標分析對象找出還沒有完整pcLCA分析過的
         )
       } else {
         qualified_lca_model <- modelformula_df_for_debug
@@ -443,7 +456,7 @@ for (index_of_testing_resid_df in c(1:2)) {
       splitted_qualified_lca_models <- split(qualified_lca_model, split_factor)
       count_iter = 1
       need_splitted_qualified_lca_models <- seq.int(from=general_start_iter, to=length(splitted_qualified_lca_models), by=general_setting_n_computers)
-      #for (splitted_qualified_lca_model in splitted_qualified_lca_models[need_splitted_qualified_lca_models]) {
+      #每次都只處理序列的第一個目標
       splitted_qualified_lca_model <- splitted_qualified_lca_models[need_splitted_qualified_lca_models][[1]]
       if (nrow(splitted_qualified_lca_model)>0) {
         message("now it's in table number ", count_iter, " and total number of tables are ", length(splitted_qualified_lca_models[need_splitted_qualified_lca_models]))
@@ -503,24 +516,14 @@ for (index_of_testing_resid_df in c(1:2)) {
             }) %>%
             dplyr::bind_rows() %>%
             mutate(nclass=as.integer(as.character(nclass)), Nobs=as.integer(as.character(Nobs)), bic=as.double(as.character(bic)), residdf=as.integer(as.character(residdf)), nrep=as.integer(as.character(nrep)), maxiter=as.integer(as.character(maxiter)), aic=as.double(as.character(aic)), Gsq=as.double(as.character(Gsq)), Chisq=as.double(as.character(Chisq)), llik=as.double(as.character(llik)), .imp=imp )
-          #if (file.exists(tmp_dest_loadandsave_file)) {
           repeat {
             #multi process hint: pragma journal_mode=wal;
             #https://blog.csdn.net/wql2rainbow/article/details/73650056
             #https://grokbase.com/t/perl/dbi-users/10cpmpbmsf/sqlite-concurrency-issue
             test_load_save_list_of_deg_freedom<-tryCatch({
-              #repeatloadsavedestfile(destfile=tmp_dest_loadandsave_file)
-              #list_of_degree_of_freedom[[needsurvey]] <- switch(as.character(nrow(list_of_degree_of_freedom[[needsurvey]])),
-              #                                                    "0"=data.frame(),
-              #                                                    dplyr::anti_join(list_of_degree_of_freedom[[needsurvey]],splitted_qualified_lca_model, by=c("modelformula", "nclass"))
-              #                                                    )
-              #list_of_degree_of_freedom[[needsurvey]] <- switch(as.character(nrow(list_of_degree_of_freedom[[needsurvey]])),
-              #                                                    "0"=temp_df_list_of_degree_of_freedom,
-              #                                                    dplyr::bind_rows(list_of_degree_of_freedom[[needsurvey]],temp_df_list_of_degree_of_freedom)
-              #)
-              #repeatloadsavedestfile(loadsavemode="save", destfile=tmp_dest_loadandsave_file, breakafterntimes=1)
-              list_of_degree_of_freedom_already_in_db <- c(list(tablename=db_table_name), dbconnect_info) %>%
-                do.call(repeat_connectdb_readtable_close, .) #repeat_connectdb_readtable_close(dbname = sqlite_dbname, tablename=db_table_name)
+              list_of_degree_of_freedom_already_in_db<-list_of_degree_of_freedom_of_a_survey
+              #list_of_degree_of_freedom_already_in_db <- c(list(tablename=db_table_name), dbconnect_info) %>%
+              #  do.call(repeat_connectdb_readtable_close, .) #repeat_connectdb_readtable_close(dbname = sqlite_dbname, tablename=db_table_name)
               #to_be_updated_rows_list_of_degree_of_freedom_in_db <- dplyr::anti_join(list_of_degree_of_freedom_already_in_db, temp_df_list_of_degree_of_freedom) %>% #把重複的刪掉
               #  dplyr::semi_join(list_of_degree_of_freedom_already_in_db, ., by=c("modelformula", "nclass"))
               to_be_updated_rows_list_of_degree_of_freedom_in_db_for_bindquery <- dplyr::select(list_of_degree_of_freedom_already_in_db, modelformula, nclass, .imp) %>%
@@ -528,8 +531,7 @@ for (index_of_testing_resid_df in c(1:2)) {
                 dplyr::semi_join(temp_df_list_of_degree_of_freedom, by=c("modelformula", "nclass", ".imp")) %>%
                 dplyr::left_join(temp_df_list_of_degree_of_freedom, by=c("modelformula", "nclass", ".imp")) %>%
                 dplyr::anti_join(list_of_degree_of_freedom_already_in_db) %>%
-                dplyr::select(-.imp, everything())
-                #dplyr::mutate("cond_modelformula"=modelformula, "cond_nclass"=nclass)
+                dplyr::select(-.imp, everything()) #調換順序把.imp移到最後一個column
               to_be_inserted_rows_list_of_degree_of_freedom <- dplyr::select_at(to_be_updated_rows_list_of_degree_of_freedom_in_db_for_bindquery, vars(-starts_with("cond_")) ) %>%
                 dplyr::anti_join(temp_df_list_of_degree_of_freedom, .)
               if (nrow(to_be_updated_rows_list_of_degree_of_freedom_in_db_for_bindquery)>0) {
@@ -540,10 +542,11 @@ for (index_of_testing_resid_df in c(1:2)) {
                 #updatesql <- DBI::dbSendQuery(con, paste0('update ',db_table_name, ' set "modelformula"=?, "nclass"=?, "resid.df"=?, "content"=?, "llik"=?, "aic"=?, "bic"=?, "Gsq"=?, "Chisq"=?, "Nobs"=?, "nrep"=?, "maxiter"=? WHERE "modelformula"=? AND "nclass"=?'))
                 #DBI::dbBind(updatesql, to_be_updated_rows_list_of_degree_of_freedom_in_db_for_bindquery)  # send the updated data
                 updatesql <- DBI::dbSendQuery(con, paste0('UPDATE `',db_table_name, '` SET `modelformula`=?, `nclass`=?, `residdf`=?, `content`=?, `llik`=?, `aic`=?, `bic`=?, `Gsq`=?, `Chisq`=?, `Nobs`=?, `nrep`=?, `maxiter`=? WHERE `.imp`=? AND `modelformula`=? AND `nclass`=?'))
-                
                 to_be_updated_rows_list_of_degree_of_freedom_in_db_for_bindquery %>% mutate("cond_modelformula"=modelformula, "cond_nclass"=nclass) %>% as.list() %>% unname() %>%
                   DBI::dbBind(updatesql, .)
                 DBI::dbClearResult(updatesql)  # release the prepared statement
+                list_of_degree_of_freedom_of_a_survey %<>% dplyr::anti_join(to_be_updated_rows_list_of_degree_of_freedom_in_db_for_bindquery, by=c("modelformula", "nclass", ".imp") ) %>%
+                  dplyr::bind_rows(to_be_updated_rows_list_of_degree_of_freedom_in_db_for_bindquery)
               }
               #sqlwriteresult<-switch(as.character(nrow(list_of_degree_of_freedom[[needsurvey]])),
               #  "1"=DBI::dbWriteTable(con, db_table_name, to_be_inserted_rows_list_of_degree_of_freedom, append=TRUE),
@@ -551,8 +554,17 @@ for (index_of_testing_resid_df in c(1:2)) {
               #)
               if (nrow(to_be_inserted_rows_list_of_degree_of_freedom)>0) {
                 con <- do.call(DBI::dbConnect, dbconnect_info)
-                DBI::dbWriteTable(con, db_table_name, to_be_inserted_rows_list_of_degree_of_freedom, append=TRUE)
+                replacesql <- DBI::dbSendQuery(con, paste0(
+                  'REPLACE INTO `',db_table_name,'` ',
+                  '(`modelformula`,`nclass`,`residdf`,`content`,`llik`,`aic`,`bic`,`Gsq`,`Chisq`,`Nobs`,`nrep`,`maxiter`,`.imp`) VALUES (',
+                  '?,?,?,?,?,?,?,?,?,?,?,?,?',
+                  ')'))
+                to_be_inserted_rows_list_of_degree_of_freedom %>% as.list() %>% unname() %>% DBI::dbBind(replacesql, .)
+                DBI::dbClearResult(replacesql)  # release the prepared statement
+                #DBI::dbWriteTable(con, db_table_name, to_be_inserted_rows_list_of_degree_of_freedom, append=TRUE)
                 DBI::dbDisconnect(con)
+                list_of_degree_of_freedom_of_a_survey %<>% dplyr::anti_join(to_be_inserted_rows_list_of_degree_of_freedom, by=c("modelformula", "nclass", ".imp") ) %>%
+                  dplyr::bind_rows(to_be_inserted_rows_list_of_degree_of_freedom)
               }
               DBI::dbDisconnect(con)
             },
