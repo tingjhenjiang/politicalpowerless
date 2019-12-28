@@ -1,0 +1,83 @@
+---
+title: "各個問卷中的個人屬性分配情形"
+author:
+- name: 江廷振
+  affiliation: 國立臺灣大學法律學系碩士班
+date: '`r paste("First created on Dec 27, 2019, 09:00. Last updated on", Sys.time())`'
+output:
+  html_document:
+    keep_md: yes
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: false
+      smooth_scroll: false
+  html_notebook: default
+  word_document: default
+  github_document: default
+csl: apa.csl
+biblio-style: apalike
+link-citations: yes
+---
+
+
+
+```{r, echo=FALSE, include=FALSE}
+t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
+t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
+source(file = "../shared_functions.R")
+library(survey)
+library(ggplot2)
+```
+
+
+
+```{r}
+load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_Ubuntu18.04.3LTSdf_with_mirt.RData"), verbose=TRUE)
+imps <- imputation_sample_i_s
+display_vars<-c('myown_sex','myown_age','myown_selfid','myown_marriage','myown_eduyr','myown_occp','myown_ses','myown_income','myown_family_income','myown_areakind','myown_factoredses','myown_factoredefficacy','myown_factoredparticip')
+arguments_df<-data.frame("surveyidx"=names(survey_data_imputed),"survey"=stri_replace_all_fixed(names(survey_data_imputed), pattern=".sav", replacement="")) %>% dplyr::left_join(data.frame("survey"=c("2004citizen","2010env","2010overall","2016citizen"), "weight"=c("myown_wr","myown_wr","myown_wr","myown_wr")))
+
+```
+
+```{r}
+for (var in display_vars) {
+  for (i in 1:length(survey_data_imputed)) {
+    surveyindex<-names(survey_data_imputed)[[i]]
+    survey<-survey_data_imputed[[i]]$SURVEY[1]
+    surveydf<-survey_data_imputed[[i]]
+    surveyweight<-filter(arguments_df, survey==UQ(survey)) %>% extract2("weight") %>% as.character() %>% extract2(surveydf,.)
+    sumweight<-sum(surveyweight)
+    adj_df_svy <- surveydf %>%
+      svydesign(ids = ~1, data = ., weights = surveyweight)
+    singleclass<-class(extract2(surveydf, var))
+    print(paste0("following is: survey is ",survey," and class of ",var, " is ", singleclass, sep=""))
+    if (singleclass=="factor") {
+      fvar<-var
+      print(prop.table(table(extract2(surveydf, fvar))))
+      needformula<-as.formula(paste0("~",fvar,sep=""))
+      (tpsvytable<-needformula %>%
+        svytable(design = adj_df_svy))
+      prop.table(tpsvytable) %>%
+        print()
+      plot(tpsvytable)
+      print(ggplot(surveydf, mapping = aes(x = extract2(surveydf, fvar), weight = surveyweight/sumweight)) + geom_bar() + labs(x = paste0("ggplot",fvar) ))
+      #dens1<-svysmooth(needformula, adj_df_svy)
+      #plot(dens1)
+      #prop.table() %>%
+      #  print()
+    } else if (singleclass=="numeric") {
+      nvar<-var
+      needformula<-as.formula(paste0(nvar,"~1",sep=""))
+      svyboxplot(needformula,adj_df_svy,xlab=nvar)
+      print(ggplot(surveydf, mapping = aes(x = extract2(surveydf, nvar), weight = surveyweight/sumweight)) + geom_density(bw = 0.6) + labs(x = paste0("ggplot",nvar)))
+    }
+  }
+   
+}
+
+#fullmod <- svyglm(employment~a2+a3+a4+a5_2+a6+a17*a6, family=quasibinomial, design=hsrc_employment_df_svy)kl
+```
+
+
+

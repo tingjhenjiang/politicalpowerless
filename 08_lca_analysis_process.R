@@ -12,7 +12,7 @@ t_sessioninfo_running_with_cpu_locale<-sessionInfo()$locale %>% stringi::stri_sp
   paste0(t_sessioninfo_running_with_cpu, .) %>% gsub(pattern=" ",replacement = "", x=.)
 # 第八部份：LCA latent variables 潛在類別模式資料清理  ================================= 
 load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_Ubuntu18.04.3LTSdf_with_mirt.RData"), verbose=TRUE)
-imps <- 1:5
+imps <- imputation_sample_i_s
 
 
 library(poLCA)
@@ -292,7 +292,11 @@ library(future.apply)
 #testdestfile=paste0(dataset_file_directory,"rdata",slash,"list_of_degree_of_freedom.test.RData")
 # 測試連線 --------------------------------
 dbtype <- RMariaDB::MariaDB() #RSQLite::SQLite()
-dbhost <- "localhost"#"192.168.10.202" #"140.112.7.192" #"192.168.16.1" localhost
+dbhost <- ifelse(
+  t_sessioninfo_running_with_cpu_locale=="Ubuntu18.04.3LTSIntel(R)Core(TM)i7-9750HCPU@2.60GHzzh_TW.UTF-8",
+  "172.28.224.1",
+  "localhost"
+  )#"192.168.10.202" #"140.112.7.192" #"192.168.16.1" localhost
 dbname <- "thesis"
 dbusername <- "root"
 dbpassword <- rstudioapi::askForPassword("input password")

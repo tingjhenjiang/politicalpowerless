@@ -16,28 +16,99 @@ t_sessioninfo_running_with_cpu_locale<-sessionInfo()$locale %>% stringi::stri_sp
 #https://www.jamleecute.com/hierarchical-clustering-%E9%9A%8E%E5%B1%A4%E5%BC%8F%E5%88%86%E7%BE%A4/
 
 load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_Ubuntu18.04.3LTSdf_with_mirt.RData"), verbose=TRUE)
-imps<-1:5
+imps<-imputation_sample_i_s
 
 clustering_var <- list(
-  "2004citizen"=c("myown_sex","myown_age","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_marriage","myown_eduyr","myown_working_status","myown_occp","myown_ses","myown_income","myown_family_income","myown_areakind","myown_factoredses"),
-  "2010env"=c("myown_sex","myown_age","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_marriage","myown_eduyr","myown_working_status","myown_occp","myown_ses","myown_income","myown_family_income","myown_areakind","myown_factoredses"),
-  "2010overall"=c("myown_sex","myown_age","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_marriage","myown_eduyr","myown_working_status","myown_occp","myown_ses","myown_income","myown_family_income","myown_areakind","myown_factoredses"),
-  "2016citizen"=c("myown_sex","myown_age","myown_dad_ethgroup","myown_mom_ethgroup","myown_selfid","myown_marriage","myown_eduyr","myown_working_status","myown_occp","myown_ses","myown_income","myown_family_income","myown_areakind","myown_factoredses")
+  "2004citizen"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses"),
+  "2010env"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses"),
+  "2010overall"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses"),
+  "2016citizen"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses")
 )
-
+#"myown_dad_ethgroup","myown_mom_ethgroup","myown_working_status","myown_occp","myown_ses","myown_income","myown_family_income",
 library(future)
 library(future.apply)
 reset_multi_p()
 arguments_df<-data.frame("surveyidx"=names(survey_data_imputed),"survey"=stri_replace_all_fixed(names(survey_data_imputed), pattern=".sav", replacement="")) %>%
   cbind(., imp = rep(imps, each = nrow(.))) %>%
-  cbind(., nclus = rep(2:10, each = nrow(.))) %>%
-  cbind(., ndim = rep(1:9, each = nrow(.))) %>%
+  cbind(., nclus = rep(2:6, each = nrow(.))) %>%
+  cbind(., ndim = rep(1:5, each = nrow(.))) %>%
   cbind(., alpha = rep(c(0.25,0.5,0.75), each = nrow(.))) %>%
   cbind(., method = rep(c("mixedRKM","mixedFKM"), each = nrow(.))) %>%
   cbind(., rotation = rep(c("none","varimax","promax"), each = nrow(.))) %>%
   cbind(., criterion = rep(c("asw","ch","crit"), each = nrow(.))) %>%
   cbind(., dst = rep(c("low","full"), each = nrow(.))) %>%
   filter(nclus>ndim)
+
+# Loading previous results --------------------------------
+target_clustrd_save_name<-"clustrd_small_results.RData"
+tmpdetect_best_results<-list()
+for (name_i in c("colab_","colab_tj_","colab_worldhero_","colab_taiwanhao_","")) {
+  clustrd_result_filename<-paste0(dataset_in_scriptsfile_directory,name_i,target_clustrd_save_name)
+  if (file.exists(clustrd_result_filename)) {
+    load(file=clustrd_result_filename,verbose=TRUE)
+    tmpdetect_best_results <- c(tmpdetect_best_results, detect_best_results)
+  }
+}
+all_processed_results<-names(tmpdetect_best_results)
+target_clustrd_save_name<-paste0("",target_clustrd_save_name, sep='')
+load(file=target_clustrd_save_name,verbose=TRUE)
+# Choosing the number of clusters and dimensions --------------------------------
+need_arguments_df <- distinct(arguments_df, surveyidx, survey, alpha, method, rotation, criterion, dst) %>%
+  mutate(name=paste(survey, alpha, method, rotation, criterion, dst, sep="_"))
+
+idx<-1
+while (idx<=nrow(need_arguments_df)) {
+  singlerow_need_arguments_df<-extract(need_arguments_df,idx,) %>%
+    mutate_at(.var=c("method","rotation","criterion","dst"), .funs = as.character)
+  name_for_detect_best_result<-singlerow_need_arguments_df$name
+  idx<-idx+1
+  if (name_for_detect_best_result %in% all_processed_results) {next}
+  message("idx is ", idx, " and argument is ", name_for_detect_best_result)
+  detect_best_result<-select(singlerow_need_arguments_df, -surveyidx, -survey, -name) %>%
+    as.list() %>%
+    rlist::list.append(nclusrange=2:8, ndimrange=1:6, data={ #ndimrange=1:8
+      survey_data_imputed[[singlerow_need_arguments_df$surveyidx]] %>%
+        filter(.imp==1) %>%
+        select(!!!clustering_var[[singlerow_need_arguments_df$survey]])
+    }) %>%
+    tryCatch(
+      {return(do.call(clustrd::tuneclus, .))},
+      error=function(e) {message(e)},
+      finally = message("complete for ", singlerow_need_arguments_df$name)
+    )
+  detect_best_results[[name_for_detect_best_result]]<-detect_best_result
+  save(detect_best_results, file=paste0(target_clustrd_save_name))
+}
+
+# Assessing Cluster Stability --------------------------------
+#load(file=paste0(dataset_in_scriptsfile_directory,"clustrd_results.RData"))
+#load(file=paste0(dataset_in_scriptsfile_directory,"small_clustrd_results.RData"))
+clustering_result_compare_table<-future_mapply(function(title,listelement) {
+  df1<-data.frame("title"=c(title))
+  df2<-stri_split_fixed(title, "_",simplify = TRUE) %>%
+    as.data.frame() %>%
+    set_colnames(c("survey","alpha","method","rotation","criterion","dst"))
+  df3<-listelement[c("nclusbest","ndimbest", "crit", "critbest")] %>%
+    as.data.frame()
+  df4<-listelement$clusobjbest[c("scale","center","nstart")] %>% #"criterion",
+    as.data.frame()
+  df5<-data.frame("criterion_in_obj"=as.character(listelement$clusobjbest$criterion))
+  cbind(df1,df2,df3,df4,df5)
+},title=names(tmpdetect_best_results), listelement=tmpdetect_best_results,SIMPLIFY = FALSE) %>%
+  dplyr::bind_rows() %>%
+  dplyr::arrange(survey, desc(critbest), crit, desc(criterion_in_obj))
+View(clustering_result_compare_table)
+
+#The ASW index, which ranges from −1 to 1, reflects the compactness of the clusters and indicates whether a cluster structure is well separated or not.
+#The CH index is the ratio of between-cluster variance to within-cluster variance, corrected according to the number of clusters, and takes values between 0 and infinity.
+#In general, the higher the ASW and CH values, the better the cluster separation.
+
+
+for (i in 1:length(detect_best_results)) {
+  message(names(detect_best_results)[[i]])
+  print(detect_best_results[[i]])
+}
+# old methods --------------------------------
 multiplier<-0
 increment<-12
 outcluspcamix<-list()
@@ -65,50 +136,6 @@ while (multiplier<=nrow(arguments_df)) {
     save(outcluspcamix, multiplier, file=paste0(dataset_in_scriptsfile_directory,"clustrd_results.RData"))
   }
   multiplier<-multiplier+increment
-}
-
-# Choosing the number of clusters and dimensions --------------------------------
-tmpdetect_best_results<-list()
-for (name_i in c("colab_","colab_tj_","colab_worldhero_","colab_taiwanhao_","")) {
-  clustrd_result_filename<-paste0(dataset_in_scriptsfile_directory,name_i,"clustrd_results.RData")
-  if (file.exists(clustrd_result_filename)) {
-    load(file=clustrd_result_filename,verbose=TRUE)
-    tmpdetect_best_results <- c(tmpdetect_best_results, detect_best_results)
-  }
-}
-detect_best_results<-tmpdetect_best_results
-remove(tmpdetect_best_results)
-need_arguments_df <- distinct(arguments_df, surveyidx, survey, alpha, method, rotation, criterion, dst) %>%
-  mutate(name=paste(survey, alpha, method, rotation, criterion, dst, sep="_"))
-
-idx<-1
-while (idx<=nrow(need_arguments_df)) {
-  singlerow_need_arguments_df<-extract(need_arguments_df,idx,) %>%
-    mutate_at(.var=c("method","rotation","criterion","dst"), .funs = as.character)
-  name_for_detect_best_result<-singlerow_need_arguments_df$name
-  idx<-idx+1
-  if (name_for_detect_best_result %in% names(detect_best_results)) {next}
-  message("idx is ", idx, " and argument is ", name_for_detect_best_result)
-  detect_best_result<-select(singlerow_need_arguments_df, -surveyidx, -survey, -name) %>%
-    as.list() %>%
-    rlist::list.append(nclusrange=2:9, ndimrange=1:8, data={
-      survey_data_imputed[[singlerow_need_arguments_df$surveyidx]] %>%
-        filter(.imp==1) %>%
-        select(!!!clustering_var[[singlerow_need_arguments_df$survey]])
-    }) %>%
-    tryCatch(
-      {return(do.call(clustrd::tuneclus, .))},
-      error=function(e) {message(e)},
-      finally = message("complete for ", singlerow_need_arguments_df$name)
-    )
-  detect_best_results[[name_for_detect_best_result]]<-detect_best_result
-  save(detect_best_results, file=paste0(dataset_in_scriptsfile_directory,"clustrd_results.RData"))
-}
-
-# Assessing Cluster Stability --------------------------------
-load(file=paste0(dataset_in_scriptsfile_directory,"clustrd_results.RData"))
-for (i in c(7)) {
-  detect_best_results[[i]]
 }
 
 

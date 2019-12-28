@@ -121,8 +121,10 @@ survey_data_imputed <- lapply( #custom_parallel_lapply
     foundationvar<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
     ini <- mice::mice(X[,foundationvar], maxit = 0)
     sapply(c("----------------", X$SURVEY[1], "----------------"),print)
+    message("table ini nmis")
     print(table(ini$nmis))
     outlist4 <- as.character(ini$loggedEvents[, "out"])
+    message("ini logged events")
     print(ini$loggedEvents, 2)
     fx2 <- flux(X[,foundationvar])
     outlist2<-row.names(fx2)[fx2$outflux < 0.45]
@@ -131,7 +133,7 @@ survey_data_imputed <- lapply( #custom_parallel_lapply
     print(paste0(c("foundationvar are ",foundationvar), collapse=" "))
     unusefulcolumns <- dplyr::setdiff(names(X),foundationvar)
     #predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
-    predictor_matrix<-mice::quickpred(X[,foundationvar], mincor=0.1, include=c('myown_eduyr','myown_sex','myown_age','myown_ethnicity'))
+    predictor_matrix<-mice::quickpred(X[,foundationvar], mincor=0.1, include=c('myown_eduyr','myown_sex','myown_age','myown_selfid'))
     #return(predictor_matrix)
     #sol: https://stackoverflow.com/questions/13495041/random-forests-in-r-empty-classes-in-y-and-argument-legth-0
     #sol: https://stackoverflow.com/questions/24239595/error-using-random-forest-mice-package-during-imputation
@@ -171,13 +173,17 @@ survey_data_imputed <- lapply( #custom_parallel_lapply
   },
   imputedvaluecolumn=imputedvaluecolumn,
   imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
-  imputation_sample_i_s=imputation_sample_i_s,
+  imputation_sample_i_s=length(imputation_sample_i_s),
   exportvar=c("imputedvaluecolumn","parlMICE","imputingcalculatebasiscolumn"),
   exportlib=c("dplyr","base","magrittr","parallel","mice","micemd","randomForest"), #,"MissMech","fastDummies"
   outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
 )
+survey_data_imputed_tp_correct_error<-survey_data_imputed
+load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"), verbose=TRUE)
+survey_data_imputed[["2010env.sav"]]<-survey_data_imputed_tp_correct_error[["2010env.sav"]]
+
 save(survey_data_imputed,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"))
 
 # 讀取已經填補完成的dataset -------------------------------------------

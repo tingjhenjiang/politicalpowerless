@@ -31,7 +31,7 @@ filespath <- ifelse(check_if_windows(),
                            ) %>%
                   stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]}
 dataset_file_directory <- ifelse(check_if_windows(),
-                            paste0(driverletter_prefixes, ":\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",sep="", collapse=","),
+                            paste0(driverletter_prefixes, ":\\Users\\dowba\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",sep="", collapse=","),
                             paste0(c(
                               paste0("/mnt/", tolower(driverletter_prefixes), "/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",sep=""),
                               paste0("/mnt/", tolower(driverletter_prefixes), "/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",sep="")
