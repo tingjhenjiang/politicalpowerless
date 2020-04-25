@@ -1,6 +1,8 @@
+if (!("benchmarkme" %in% rownames(installed.packages()))) install.packages("benchmarkme")
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
-source(file = "shared_functions.R")
+t_sessioninfo_running_with_cpu_locale<-gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2]))
+source(file = "shared_functions.R", encoding="UTF-8")
 meetingurldata<-paste0(dataset_in_scriptsfile_directory, "meetingrecord.xlsx") %>%
   read.xlsx(sheet = 1) %>%
   filter(kind!="談話會")

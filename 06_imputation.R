@@ -1,10 +1,12 @@
 # 第Ｏ部份：環境設定 --------------------------------
+if (!("benchmarkme" %in% rownames(installed.packages()))) install.packages("benchmarkme")
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
-source(file = "shared_functions.R")
+t_sessioninfo_running_with_cpu_locale<-gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2]))
+source(file = "shared_functions.R", encoding="UTF-8")
 gc(verbose=TRUE)
 
-load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined_after_settingNA.RData"))
+load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined_after_settingNA.RData"), verbose=TRUE)
 survey_imputation_and_measurement<-openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1)
 
 # 第四部份：清理資料：填補遺漏值 -------------------------------------------
@@ -156,7 +158,7 @@ survey_data_imputed <- lapply( #custom_parallel_lapply
       visitSequence="monotone",
       m=imputation_sample_i_s,#1,#
       method="rf",
-      #maxit=1,
+      maxit=5,
       nnodes=parallel::detectCores()#,
       #n.core=parallel::detectCores()#,
       #cl.type=mice_parallel_imp_type
@@ -180,10 +182,6 @@ survey_data_imputed <- lapply( #custom_parallel_lapply
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
 )
-survey_data_imputed_tp_correct_error<-survey_data_imputed
-load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"), verbose=TRUE)
-survey_data_imputed[["2010env.sav"]]<-survey_data_imputed_tp_correct_error[["2010env.sav"]]
-
 save(survey_data_imputed,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"))
 
 # 讀取已經填補完成的dataset -------------------------------------------

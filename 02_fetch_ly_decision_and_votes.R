@@ -1,9 +1,12 @@
+if (!("benchmarkme" %in% rownames(installed.packages()))) install.packages("benchmarkme")
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
-source(file = "shared_functions.R")
+t_sessioninfo_running_with_cpu_locale<-gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2]))
+source(file = "shared_functions.R", encoding="UTF-8")
 no_rollcall<-c()
 
-load(paste0(dataset_in_scriptsfile_directory, "meetingdata.RData"))
+load(paste0(dataset_in_scriptsfile_directory, "meetingdata.RData"), verbose=TRUE)
+load(file=paste0(dataset_in_scriptsfile_directory, "elections_df.RData"), verbose=TRUE)
 urlarr<-as.character(meetingdata$url) %>% unique()
 error_vote_record_from_name <- read.xlsx(paste(dataset_in_scriptsfile_directory, "error_vote_record_from_name.xlsx", sep = ""), sheet = 1)
 error_leave_and_attend_legislators <- read.xlsx(paste(dataset_in_scriptsfile_directory, "leave_and_attend_legislators.xlsx", sep = ""), sheet = 1) %>%
@@ -34,6 +37,19 @@ anti_join_with_nrow_zero<-function(X,Y,by=c()) {
   }
 }
 
+rest_work_on_attendlegislator<-function (X,title='出席委員') {
+  X<-strsplit(X, paste0(title,'　')) %>%
+    unlist() %>%
+    strsplit('　　') %>%
+    unlist() %>%
+    #strsplit(' ') %>%
+    #unlist() %>%
+    customgrep("[\u4e00-\u9fa5a-zA-Z]",value=TRUE) %>%
+    stri_replace_all_fixed("　","") %>%
+    trimws %>%
+    .[!(. %in% c("主","席","列","院","長","記","錄","院長","副院 長","秘 書 長","院 長","副 院 長",""," ",character(0)))]
+  return(X)
+}
 #mutate(leave_and_attend_legislators,chichrcount=stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}") ) %>% View()
 #filter(leave_and_attend_legislators,stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}")>3 ) %>%
 #  filter(!is.element(legislator_name, c("高金素梅","周陳秀霞","張廖萬堅","陳賴素美","鄭天財Sra．Kacaw","簡東明Uliw．Qaljupayare","廖國棟Sufin．Siluko","鄭天財Sra．Kacaw","高潞．以用．巴魕剌Kawlo．Iyun．Pacidal","Kolas Yotaka")) | 
@@ -42,13 +58,13 @@ anti_join_with_nrow_zero<-function(X,Y,by=c()) {
 #  write_csv(path="leave_and_attend_legislators.csv")
 #第九會期從377開始 //problem:108
 
-fetch_ly_decision_and_vote <- function(onemeetingdata, urlarr, ...) { #length(urlarr)
+fetch_ly_decision_and_vote <- function(onemeetingdata, urlarr, ...) { #length(urlarr) #, dataset_file_directory=dataset_file_directory, ret_std_legislators_data=ret_std_legislators_data, elections_df=elections_df
 #for (url in urlarr) { 
   #url<-urlarr[urln]
   #url<-Y
   #urln<-58 #Kolas出現問題的地方
   if ({debug_func_mode<-FALSE; debug_func_mode}) {
-    onemeetingdata<-meetingdata[249,] %>% #20:114 term9
+    onemeetingdata<-dplyr::filter(meetingdata, term==6, period==3, meetingno==8) %>% #20:114 term9 #meetingdata[249,]
       {
         namesofdf<-names(.)
         set_rownames(as.data.frame(t(.)), namesofdf)
@@ -114,7 +130,6 @@ fetch_ly_decision_and_vote <- function(onemeetingdata, urlarr, ...) { #length(ur
   #paragraph_list[roll_call_list_block_sp:paragraph_list_length]<-customgsub(paragraph_list[roll_call_list_block_sp:paragraph_list_length],"高金素梅　","高金素梅　　")
   content<-customgsub(content,"高金素梅　","高金素梅　　") %>%
     customgsub("Kolas Yotaka　　　　　","Kolas Yotaka　　") %>%
-    customgsub("許舒博（尚未報到）","許舒博") %>%
     customgsub("傅.萁","傅崐萁") %>%
     customgsub("瓦歷斯.貝林","瓦歷斯．貝林") %>%
     customgsub("王雪.","王雪峰") %>%
@@ -124,9 +139,12 @@ fetch_ly_decision_and_vote <- function(onemeetingdata, urlarr, ...) { #length(ur
     customgsub("廖國棟Sufin．Siluko　","廖國棟Sufin．Siluko　　") %>%
     customgsub("鄭天財Sra Kacaw　　　","鄭天財Sra Kacaw　　") %>%
     customgsub("簡東明Uliw．Qaljupayare　　　　","簡東明Uliw．Qaljupayare　　") %>%
+    customgsub("(高潞‧以用‧巴魕剌Kawlo．Iyun．Pacidal)(\\s| |　)+","\\1　　") %>%
     customgsub("高潞‧以用‧巴魕剌Kawlo．Iyun．Pacidal　","高潞‧以用‧巴魕剌Kawlo．Iyun．Pacidal　　") %>%
     customgsub(" ","")
-  
+
+
+    
   ##立法院第6屆第6會期第16次會議議事錄
   if (term==6 & period==6 & meetingno==16) {
     content<-customgsub(content,
@@ -197,8 +215,14 @@ fetch_ly_decision_and_vote <- function(onemeetingdata, urlarr, ...) { #length(ur
     customgsub("(Kacaw){1} {0,1}　{1} {0,1}","Kacaw　　") %>%
     customgsub("(Yotaka){1} {0,1}　{1} {0,1}","Yotaka　　") %>%
     customgsub("(Pacidal|Pacida){1} {0,1}　{1} {0,1}","Pacidal　　") %>%
-    customgsub("(Kolas){1}\\r\\n(Yotaka){1}([\u4e00-\u9fa5A-aZ-z]+)", "\\1 \\2　　\\3")
-  replace_leave_and_attend_legislator_pattern<-filter(error_leave_and_attend_legislators,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no))
+    customgsub("(Pacidal)( |　)+","\\1　　") %>%
+    customgsub("(Kolas){1}\\r\\n(Yotaka){1}([\u4e00-\u9fa5A-aZ-z]+)", "\\1 \\2　　\\3") %>%
+    customgsub("許舒博（尚未報到）","許舒博") %>%
+    customgsub("徐國勇（9月30日）","徐國勇") %>%
+    customgsub("邱泰源（10月4日）","邱泰源") %>%
+    customgsub("Kolas Yotaka周陳秀霞","Kolas Yotaka　　周陳秀霞")
+  #顏清標投票紀錄很怪，雖然待整個會期，但並沒有完整的投票紀錄，很多缺席
+  replace_leave_and_attend_legislator_pattern<-dplyr::filter(error_leave_and_attend_legislators,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no))
   if (nrow(replace_leave_and_attend_legislator_pattern)>0) {
     check_leave_and_attend_legislator_chr_paragraph <- stri_replace_all_fixed(
       check_leave_and_attend_legislator_chr_paragraph,
@@ -212,13 +236,7 @@ fetch_ly_decision_and_vote <- function(onemeetingdata, urlarr, ...) { #length(ur
       data.frame()
     } else {
       tmpleavelegislator<-leavelegislator %>%
-        strsplit('請假委員　') %>%
-        unlist() %>%
-        strsplit('　　') %>%
-        unlist() %>%
-        customgrep("[\u4e00-\u9fa5A-aZ-z]",value=TRUE) %>%
-        stri_replace_all_fixed("　","") %>%
-        trimws()
+        rest_work_on_attendlegislator(title='請假委員')
       data.frame(
         "legislator_name"=tmpleavelegislator,
         "term"=term,
@@ -227,21 +245,28 @@ fetch_ly_decision_and_vote <- function(onemeetingdata, urlarr, ...) { #length(ur
         "meetingno"=meetingno,
         "url"=onemeetingdata$url,
         "urln"=urln,
-        "date"=date
+        "date"=date,
+        stringsAsFactors=FALSE
       ) %>%
         replace_troublesome_names() %>%
         dplyr::mutate_at(c("legislator_name","term","period","meetingno","temp_meeting_no","url","date"),as.character) %>%
         mutate_at(c("term","period","meetingno","temp_meeting_no"),as.integer)
     })
-  
-  attendlegislator<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"出席委員",value=TRUE) %>%
-    strsplit('出席委員　') %>%
-    unlist() %>%
-    strsplit('　　') %>%
-    unlist() %>%
-    customgrep("[\u4e00-\u9fa5a-zA-Z]",value=TRUE) %>%
-    stri_replace_all_fixed("　","") %>%
-    trimws()
+
+  #20200311 這邊檢查到有時候會有斷行的情形導致有出席卻沒列入
+  #correct_std_legislators_list<-paste0(dataset_file_directory, "legislators.xlsx") %>%
+  #  ret_std_legislators_data(legislatorsxlsxpath=., terms=term, elections_df=elections_df) %>%
+  #  magrittr::use_series(legislator_name) %>%
+  #  unique()
+  attendlegislator_one<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"出席委員",value=TRUE) %>%
+    rest_work_on_attendlegislator(title='出席委員') %>%
+    unique()
+  attendlegislator_two<-customgrepl(check_leave_and_attend_legislator_chr_paragraph,"(議事錄|中華民國|星期|議場|委員出席|請假|缺席|院長|上午|下午|列席|秘書長|主席|行政院|議事處|分）|審計|編審|預算|部長|報告|質詢)", perl=TRUE) %>%
+    sapply(isFALSE) %>%
+    magrittr::extract(check_leave_and_attend_legislator_chr_paragraph, .) %>%
+    rest_work_on_attendlegislator(title='出席委員') %>%
+    unique()
+  attendlegislator<-dplyr::union(attendlegislator_one,attendlegislator_two)
   attendlegislator<-data.frame(
     "legislator_name"=attendlegislator,
     "term"=term,
@@ -250,11 +275,46 @@ fetch_ly_decision_and_vote <- function(onemeetingdata, urlarr, ...) { #length(ur
     "meetingno"=meetingno,
     "url"=onemeetingdata$url,
     "urln"=urln,
-    "date"=date
+    "date"=date,
+    stringsAsFactors=FALSE
   ) %>%
     mutate_at(c("legislator_name","term","period","meetingno","temp_meeting_no"),as.character) %>%
     mutate_at(c("term","period","meetingno","temp_meeting_no"),as.integer) %>%
     replace_troublesome_names()
+  if (length(attendlegislator_one)!=length(attendlegislator_two)) {
+    diff_between_attendlegislator<-dplyr::union(attendlegislator_two, attendlegislator_one) %>%
+      dplyr::setdiff(attendlegislator_one)
+    if (!identical(diff_between_attendlegislator, character(0)) & length(diff_between_attendlegislator)>0) {
+      #curl::new_handle(verbose = TRUE) %>%
+      #  curl::handle_setopt(copypostfields = {
+      #    paste0("term=", term,
+      #           "&period=", period,
+      #           "&meetingno=", meetingno,
+      #           "&temp_meeting_no=", temp_meeting_no,
+      #           "&attlistone=", length(attendlegislator_one),
+      #           "&attlisttwo=", length(attendlegislator_two),
+      #           "&attlist=", nrow(attendlegislator),
+      #           "&leavelegis=", nrow(leavelegislator),
+      #           "&diff=", paste0(diff_between_attendlegislator, collapse=",")
+      #    )
+      #  }) %>%
+      #  curl::curl_fetch_memory(url="http://192.168.10.200/scripts/check_vote_records.php", handle=.)
+      #curl::handle_setopt(h, customrequest = "PUT")
+      #curl::handle_setform(h,
+      list(
+        term = as.character(term), 
+        period = as.character(period),
+        meetingno= as.character(meetingno),
+        temp_meeting_no = as.character(temp_meeting_no),
+        attlistone = as.character(length(attendlegislator_one)),
+        attlisttwo = as.character(length(attendlegislator_two)),
+        attlist = as.character(nrow(attendlegislator)),
+        leavelegis = as.character(nrow(leavelegislator)),
+        diff = paste0(diff_between_attendlegislator, collapse=",")
+        ) %>%
+        httr::GET("http://192.168.10.200/scripts/check_vote_records.php", query=.)
+    }
+  }
   
   leave_and_attend_legislators<-bind_rows(leave_and_attend_legislators,leavelegislator,attendlegislator)
   #message(leavelegislator,"\n\r",attendegislator,"\n\r")
@@ -281,7 +341,7 @@ fetch_ly_decision_and_vote <- function(onemeetingdata, urlarr, ...) { #length(ur
   
   #把附後(21)、(22)這種形式的紀錄改為附後(21)至(22)
   paragraph_list %<>% customgsub("(附後)(\\(\\d+\\))、(\\(\\d+\\))","\\1\\2至\\3",perl=TRUE)#、(\(\d+\))
-  paragraph_list[65]
+  #paragraph_list[65]
   #開始處理【經記名表決結果，均予以通過，表決結果附後(2)至(5)】這種形式的紀錄
   for (bill_list_exec_check_i in 1:2) {
     bill_list_target<-customgrep(paragraph_list,'記名表決',value=TRUE) %>%
@@ -609,7 +669,7 @@ fetch_ly_decision_and_vote <- function(onemeetingdata, urlarr, ...) { #length(ur
         mutate_all(as.character) %>%
         mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),as.integer) %>%
         right_join(leavelegislator) %>%
-        mutate("votedecision"="未出席") %>%
+        mutate("votedecision"="請假") %>%
         anti_join_with_nrow_zero(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
         anti_join_with_nrow_zero(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
         anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
@@ -633,6 +693,8 @@ fetch_ly_decision_and_vote <- function(onemeetingdata, urlarr, ...) { #length(ur
   return(myown_vote_record_df)
 }
 
+
+#----- 開始執行 -----
 library(parallel)
 #fetch_ly_decision_and_vote<-function(onemeetingdata,...) {
 #  names_of_items<-names(onemeetingdata)
@@ -641,6 +703,7 @@ library(parallel)
 #  colnames(onemeetingdata)
 #}
 myown_vote_record_df <- meetingdata %>% #20:114 term9 58,
+  #dplyr::filter(term==8, period==1, meetingno==6) %>%
   {
     namesofdf<-names(.)
     set_rownames(as.data.frame(t(.)), namesofdf)
@@ -648,15 +711,27 @@ myown_vote_record_df <- meetingdata %>% #20:114 term9 58,
   custom_parallel_lapply(
     FUN=fetch_ly_decision_and_vote,
     method="fork",
-    exportvar=c("slash","filespath","no_rollcall","insert.at","count_value_times_in_vector","custompaste0","customgsub","customgrep","customgrepl","mutate_cond","error_leave_and_attend_legislators","error_vote_record_from_name","replace_troublesome_names","anti_join_with_nrow_zero"),
+    exportvar=c("slash","filespath","no_rollcall","insert.at","count_value_times_in_vector","custompaste0","customgsub","customgrep","customgrepl","mutate_cond","error_leave_and_attend_legislators","error_vote_record_from_name","replace_troublesome_names","anti_join_with_nrow_zero","rest_work_on_attendlegislator"),
     exportlib=c("base",lib),
     urlarr=urlarr,
+    #ret_std_legislators_data=ret_std_legislators_data,
+    #dataset_file_directory=dataset_file_directory,
+    #elections_df=elections_df,
     outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
     mc.set.seed = TRUE,
-    mc.cores=parallel::detectCores()
+    mc.cores=parallel::detectCores() #1 #
   ) %>%
   plyr::rbind.fill() %>%
-  filter(!is.na(legislator_name))
+  dplyr::filter(!is.na(legislator_name)) %>%
+  mutate_cond(term==9 & customgrepl(legislator_name,"簡東明"),legislator_name="簡東明Uliw．Qaljupayare") %>%
+  mutate_cond(term==9 & customgrepl(legislator_name,"廖國棟"),legislator_name="廖國棟Sufin．Siluko") %>%
+  mutate_cond(term==9 & customgrepl(legislator_name,"鄭天財"),legislator_name="鄭天財Sra．Kacaw") %>%
+  mutate_cond(term==9 & customgrepl(legislator_name,"高潞"),legislator_name="高潞．以用．巴魕剌Kawlo．Iyun．Pacidal") %>%
+  mutate_cond(term==9 & customgrepl(legislator_name,"陳秀霞"),legislator_name="周陳秀霞") %>%
+  dplyr::semi_join({
+    ret_std_legislators_data(legislatorsxlsxpath = paste0(dataset_file_directory, "legislators.xlsx"), terms=5:9, elections_df=elections_df) %>%
+      dplyr::distinct(term, legislator_name)
+  })
 
 save(myown_vote_record_df,file=paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df.RData"))
 

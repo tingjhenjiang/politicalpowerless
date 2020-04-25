@@ -1,7 +1,9 @@
 # 第Ｏ部份：環境設定 --------------------------------
+if (!("benchmarkme" %in% rownames(installed.packages()))) install.packages("benchmarkme")
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
-source(file = "shared_functions.R")
+t_sessioninfo_running_with_cpu_locale<-gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2]))
+source(file = "shared_functions.R", encoding="UTF-8")
 #選舉資料
 #overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
 #supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2010hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')

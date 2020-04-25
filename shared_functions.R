@@ -8,15 +8,19 @@ chooseCRANmirror(ind=which(grepl("cran.csie.ntu.edu.tw",getCRANmirrors()$URL)))
 #}
 #Sys.setenv(R_INSTALL_STAGED = FALSE)
 #lib<-c("stringi","stringr","XML","xml2","rvest","htmltidy","curl","RCurl","gdata","readr","DBI","lazyeval","dplyr","rmarkdown","rticles","knitr","data.table","ggplot2","scales","reshape2","janitor","stargazer","xtable","apa","tesseract","pdftools","tiff","schoolmath","jsonlite","foreign","MASS","class","caret","tm","kernlab","jiebaR","RTextTools","tmcn","text2vec","RODBC","xlsx")
-lib<-c("stringi","XML","xml2","readr","plyr","dplyr","magrittr","openxlsx","data.table","dtplyr")
+
+lib<-c("stringi","XML","xml2","readr","plyr","dplyr","magrittr","openxlsx","data.table","dtplyr","rvest")
 #install.packages("xml2", dependencies=TRUE, INSTALL_opts = c('--no-lock'))
 #,"Rcmdr"
-sapply(lib,function (X) {
-  if(!require(X,character.only=TRUE)) {
-    install.packages(X)
-    require(X,character.only=TRUE)
-  }
-})
+load_lib_or_install<-function (libs) {
+  sapply(libs,function (X) {
+    if(!require(X,character.only=TRUE)) {
+      install.packages(X)
+      require(X,character.only=TRUE)
+    }
+  })
+}
+load_lib_or_install(lib)
 check_if_windows<-function () {
   backgroundinfo<-sessionInfo()
   running<-backgroundinfo$running
@@ -30,14 +34,15 @@ filespath <- ifelse(check_if_windows(),
                            "/home/j/rscripts/vote_record/"
                            ) %>%
                   stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]}
-dataset_file_directory <- ifelse(check_if_windows(),
-                            paste0(driverletter_prefixes, ":\\Users\\dowba\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",sep="", collapse=","),
-                            paste0(c(
-                              paste0("/mnt/", tolower(driverletter_prefixes), "/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",sep=""),
-                              paste0("/mnt/", tolower(driverletter_prefixes), "/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",sep="")
-                            ),collapse=",")
-                            ) %>%
-                          stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]} #
+dataset_file_directory <- ifelse(
+  check_if_windows(),
+  paste0(driverletter_prefixes, ":\\Users\\dowba\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",sep="", collapse=","),
+  paste0(c(
+    paste0("/mnt/", tolower(driverletter_prefixes), "/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",sep=""),
+    paste0("/mnt/", tolower(driverletter_prefixes), "/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",sep="")
+    ),collapse=",")
+  ) %>%
+  stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]} #
 dataset_file_directory_rdata <- paste0(dataset_file_directory,"rdata",slash)
 #filespath<-switch(
 #  t_sessioninfo_running_with_cpu,
@@ -52,10 +57,13 @@ dataset_file_directory_rdata <- paste0(dataset_file_directory,"rdata",slash)
 #  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"=paste0(correct_driveletter,":\\Software\\scripts\\R\\vote_record\\"),
 #  "Windows10x64build17134Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"=paste0(correct_driveletter,":\\Software\\scripts\\R\\vote_record\\")
 #)
+
+
 dataset_in_scriptsfile_directory <- switch(
   t_sessioninfo_running_with_cpu,
   "Ubuntu18.04.3LTSIntel(R) Core(TM) i7-9750H CPU @ 2.60GHz"=paste0(filespath, "data", slash),
   "Windows8x64build9200Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz"=paste0(filespath, "data", slash),
+  "Windows10x64build19041Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz"=paste0(filespath, "data", slash),
   "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
   "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
@@ -86,6 +94,27 @@ if (nchar(Sys.getenv("SPARK_HOME")) < 1) {
 }
 survey_data_title<-c("2004citizen","2010env","2010overall","2016citizen") %>% sort()
 imputation_sample_i_s <- seq(1,5)
+myremoteip <- tryCatch({read_html('https://www.myip.com/') %>%
+      html_nodes(xpath = "//span[@id='ip']//text()") %>%
+      html_text()},error=function (e) {
+        read_html('https://www.whatismyip.com.tw/') %>%
+          html_nodes(xpath = "//body/b/span//text()") %>%
+          html_text()
+      })
+mysqldbhost <- if (t_sessioninfo_running_with_cpu_locale=="Ubuntu18.04.3LTSIntel(R)Core(TM)i7-9750HCPU@2.60GHzzh_TW.UTF-8") {
+  "tjhome.crabdance.com" #gsub("nameserver ","", x=system("cat /etc/resolv.conf", intern=TRUE)[4])
+} else if (t_sessioninfo_running_with_cpu_locale=="Ubuntu18.04.3LTSIntel(R)Core(TM)i5-7400CPU@3.00GHzzh_TW.UTF-8") {
+  "192.168.10.200"
+} else if (myremoteip=="140.112.7.192") {
+  "tjhome.crabdance.com"
+} else if (t_sessioninfo_running_with_cpu_locale=='Windows8x64build9200Intel(R)Core(TM)i7-9750HCPU@2.60GHzChinese(Traditional)_Taiwan.950') {
+  "localhost"
+} else {
+  "tjhome.crabdance.com"
+}
+#localhostip_for_wsl<-gsub("nameserver ","", x=system("cat /etc/resolv.conf", intern=TRUE)[4])
+#"192.168.10.202" #"140.112.7.192" #"192.168.16.1" localhost
+
 Sys.setenv(JAVA_HOME = "/usr/lib/jvm/java-8-oracle")
 if (FALSE && t_sessioninfo_running_with_cpu=="Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz" && FALSE) {
   sparkpackage<-"sparklyr"
@@ -117,7 +146,6 @@ if (FALSE && t_sessioninfo_running_with_cpu=="Ubuntu18.04.2LTSIntel(R) Core(TM) 
     }
   )
 }
-
 ntuspace_file_directory <- switch(
   t_sessioninfo_running_with_cpu,
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\NTUSpace\\",
@@ -129,6 +157,40 @@ ntuspace_file_directory <- switch(
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/d/NTUSpace/",
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/g/NTUSpace/"
 )
+ggplotapatheme=ggplot2::theme_bw()+
+  ggplot2::theme(panel.grid.major = ggplot2::element_blank(),
+        panel.grid.minor = ggplot2::element_blank(),
+        panel.background = ggplot2::element_blank(),
+        panel.border = ggplot2::element_blank(),
+        text=ggplot2::element_text(family='Arial'),
+        legend.title=ggplot2::element_blank(),
+        legend.position=c(.7,.8),
+        axis.line.x = ggplot2::element_line(color='black'),
+        axis.line.y = ggplot2::element_line(color='black'))
+ggplotscreeplot <- function(data, dimensionvar, eigenvaluevar) {
+  dimensions <- magrittr::extract2(data, dimensionvar)
+  breakv <- seq.int(from=min(dimensions), to=max(dimensions))
+  #
+  if (TRUE) {
+    p = ggplot2::ggplot(data, ggplot2::aes(x=.data[[dimensionvar]], y=.data[[eigenvaluevar]])) + #, shape=type
+      #Add lines connecting data points
+      ggplot2::geom_line()+
+      #Add the data points.
+      ggplot2::geom_point(size=4)+
+      #Label the y-axis 'Eigenvalue'
+      ggplot2::scale_y_continuous(name='Eigenvalue')+
+      #Label the x-axis 'Factor Number', and ensure that it ranges from 1-max # of factors, increasing by one with each 'tick' mark.
+      ggplot2::scale_x_continuous(name='Factor Number', breaks=breakv )+
+      #Manually specify the different shapes to use for actual and simulated data, in this case, white and black circles.
+      ggplot2::scale_shape_manual(values=c(16,1)) +
+      #Add vertical line indicating parallel analysis suggested max # of factors to retain
+      #geom_vline(xintercept = parallel$nfact, linetype = 'dashed')+
+      #Apply our apa-formatting theme
+      ggplotapatheme
+    #Call the plot. Looks pretty!
+    print(p)
+  }
+}
 customloadsurveys <- function(X, path_prefix=dataset_file_directory_rdata) {
   path<-paste0(path_prefix, X, '_', survey_data_title,".feather")
   ret_list <- lapply(path, feather::read_feather)
@@ -142,7 +204,6 @@ customsavesurveys <- function(X_list, prefix, path_prefix=dataset_file_directory
   }, X=X_list, Y=path)
   return(ret_list)
 }
-
 custompaste0<-function(str,connect=c(),reverse=FALSE,sep="",collapse="") {
   if (reverse) {
     str<-c(connect,str)
@@ -208,8 +269,8 @@ customcurluntilnoerror<-function(url,fetchencoding="BIG-5",curl=curl) {
 }
 custom_strsplit<-function(str, pattern, returnnum=1) {
   resultlist<-strsplit(as.character(str),pattern)
-  target<-sapply(resultlist,`[[`,returnnum)
-  return(target)
+  target<-unlist(extract(resultlist,returnnum))
+  return(resultlist)
 }
 customgrep<-function(x,pattern,ignore.case=FALSE,perl=FALSE,value=FALSE,fixed=FALSE,useBytes=FALSE,invert=FALSE) {
   return(grep(pattern,x,ignore.case,perl,value,fixed,useBytes,invert))
@@ -226,6 +287,16 @@ customreadfile<-function(targetfile,encoding="UTF-8") {
     sapply(custompaste0)
   return(result)
 }
+custom_shift_sqrt<-function(x) {
+  minx<-min(x)
+  if (minx<0) {
+    x<-x-minx
+  }
+  y<-sqrt(x)
+  midpoint<-mean(y)
+  y<-y-midpoint
+  return(y)
+}
 custominsertRow <- function(newrow, existingDF, r=nrow(existingDF)) {
   existingDF[seq(r+1,nrow(existingDF)+1),] <- existingDF[seq(r,nrow(existingDF)),]
   existingDF[r,] <- newrow
@@ -234,6 +305,82 @@ custominsertRow <- function(newrow, existingDF, r=nrow(existingDF)) {
 custommessage<-function(v,existingDF=data.frame()) {
   message(v)
   message("-----------\n")
+}
+custom_plot<-function(df, fvar, weightvar="", usingsurveypkg=FALSE, fillcolor="", ...) {
+  n_bins<-350
+  singleclass<-class(extract2(df, fvar))
+  randomcolors<-ggsci::pal_npg("nrc", alpha = 0.7)(10)
+  randomcolors<-c(randomcolors,"lightblue","lightgreen")#,"lightred"
+  if (fillcolor=="") fillcolor<-sample(randomcolors,1)
+  if (weightvar!="") {
+    if (class(weightvar)!="character") {
+      ggplotweight<-weightvar
+    } else {
+      df_weight<-extract2(df,weightvar)
+      sum_df_weight<-sum(df_weight)
+      samplerepresents<-df_weight*sum_df_weight
+      ggplotweight<-df_weight/sum_df_weight
+    }
+  }
+  #https://cran.r-project.org/web/packages/srvyr/index.html
+  #https://rpubs.com/mcchadreque/survey10
+  if (weightvar!="" & usingsurveypkg==TRUE) {
+    svdesi<-survey::svydesign(ids = ~1, data = df, weights = df_weight)
+    switch(singleclass,
+           "numeric"=survey::svyhist(as.formula(paste0("~",fvar)), svdesi, breaks=n_bins, col=fillcolor),
+           "factor"={
+             library(survey)
+             a<- survey::svymean(as.formula(paste0("~",fvar)), svdesi)
+             barplot(a, col=fillcolor)
+           })
+  } else {
+    #mappingopt<-list(x=fvar, alpha=0.5)
+    #if (weightvar!="") mappingopt<-rlist::list.append(mappingopt, weight = ggplotweight)
+    mapping <-aes(
+      x=.data[[fvar]],
+      weight={
+        if (weightvar=="") {
+          1
+        } else {
+          ggplotweight #.data[[weightvar]]
+        }
+      })
+    ggplotinit<-ggplot(df)
+    statlayeropt<-list(mapping=mapping,
+                       fill = fillcolor,
+                       bins=n_bins,
+                       alpha=0.5)
+    statlayer<-do.call(switch(singleclass,
+                              "numeric"=stat_bin,
+                              "integer"=stat_bin,
+                              "factor"=stat_count),
+                       statlayeropt)
+    if (FALSE) {
+      geom_func<-switch(singleclass,
+                        "numeric"=geom_histogram(mapping=mapping, stat="bin"), #, fill="lightblue"
+                        "factor"=geom_bar(mapping=mapping, stat="identity")#fill="white", 
+      )
+    }
+    ggplotlab<-labs(x = paste0("ggplot ",fvar))
+    ggp_using_color<-scale_colour_brewer()#scale_color_brewer(palette="Pastel2")
+    ggp_scale<-switch(singleclass,
+           "numeric"=scale_fill_distiller(palette = "Pastel2"),#scale_fill_continuous(type = "gradient"),
+           "factor"=scale_fill_brewer(palette = "Pastel2")
+    )
+    ggplotinit+statlayer+ggplotlab#+geom_func+scale_colour_brewer()+ggp_scale
+  }
+}
+custom_notdfplot<-function(srcvector, weight=NULL, usingsurveypkg=FALSE, fillcolor="", ...) {
+  df<-data.frame(
+    "targetvector"=srcvector
+  )
+  if (!identical(weight,NULL)) {
+    df<-cbind(df, "targetvectorweight"=weight)
+    weight<-"targetvectorweight"
+  } else {
+    weight<-""
+  }
+  return(custom_plot(df, fvar="targetvector", weightvar=weight, usingsurveypkg=usingsurveypkg, fillcolor=fillcolor, ...))
 }
 count_value_times_in_vector<-function(arr,checkv,completematch=FALSE) {
   length_one<-grepl(checkv,arr)
@@ -353,6 +500,26 @@ t_sessioninfo_running_platformcore<-customgsub(sessionInfo()$running," ","") %>%
   customgsub("[>=()]","") %>%
   customgsub("Ubuntu16.04.4LTS|Ubuntu16.04.5LTS|Ubuntu18.04.1LTS","Linux") %>%
   customgsub("Windows7x64build7601ServicePack1|Windows10x64build17763|Windows8x64build9200","Windows")
+
+custom_df_replaceinto_db<-function(dbconnect_info, db_table_name, with_df, columns=c()) {
+  if (length(columns)==0) {
+    columns<-names(with_df)
+  }
+  qmarks<-rep('?', times=length(columns)) %>%
+    paste0(collapse=',')
+  con <- do.call(DBI::dbConnect, dbconnect_info)
+  replacesql <- paste0('`',columns,'`') %>%
+    paste0(collapse=',') %>%
+    paste0(
+    'REPLACE INTO `',db_table_name,'` ',
+    '(', ., ') VALUES (',
+    qmarks,
+    ')') %>%
+    DBI::dbSendQuery(con, .)
+  with_df %>% as.list() %>% unname() %>% DBI::dbBind(replacesql, .)
+  DBI::dbClearResult(replacesql)  # release the prepared statement
+  DBI::dbDisconnect(con)
+}
 
 custom_parallel_lapply<-function(X=list(), FUN=FUN, ..., method="socks", exportlib=c("base","magrittr","parallel"), exportvar=c(), outfile="", verbose=TRUE, mc.cores=parallel::detectCores()  ) {
   result<-switch(method,
@@ -502,6 +669,92 @@ reset_multi_p <- function(t_sessioninfo_running = gsub("[>=()]","",gsub(" ","",s
          "FALSE"=future::plan(multicore) 
          #"FALSE"=plan(multisession)
   )
+}
+
+
+generate_weight_repeated_data<-function(single_survey_df, weight_reptimes_n_integer=0.5, surveyweightvar="myown_wr", needvars="") {
+  #message(survey)
+  min_myownwr<-min(extract2(single_survey_df, surveyweightvar))
+  min_repeat_times<-1/min_myownwr #要讓最權重最小的觀察值出現一次的重複row倍數
+  min_rep_weighted_myownwr<-extract2(single_survey_df, surveyweightvar)*min_repeat_times #所有觀察值的重複倍數
+  #因為要讓最權重最小的觀察值出現一次的重複row倍數 套用在其他觀察值上 會出現小數，所以現在要計算重複row倍數的最小公倍數
+  n_digits<-max(sapply(min_rep_weighted_myownwr,function (x) nchar(sub('^0+','',sub('\\.','',x)))))
+  #n_digits<-9 #大於9似乎會有問題
+  repeat { #為了防止求最小公倍數時出現問題所以往下求整數
+    #message("n_digits is now ", n_digits)
+    continue_to_minus<-FALSE
+    ten_multiplier<-10^n_digits 
+    tryCatch({
+      integer_min_repeat_times<-min_rep_weighted_myownwr*ten_multiplier
+      integer_min_repeat_times<-round(integer_min_repeat_times,digits = 0)
+      integer_min_repeat_times<-as.integer(integer_min_repeat_times)
+      lcm<-Reduce(f=DescTools::LCM, x=integer_min_repeat_times)
+    }, warning=function (war) {
+      #message(war)
+      continue_to_minus<-TRUE
+      #return(TRUE)
+    }, error=function (err) {
+      #message(err)
+      continue_to_minus<-TRUE
+      #return(TRUE)
+    })
+    n_digits<-n_digits-1
+    if (continue_to_minus==TRUE) next
+    if (is.numeric(lcm) | is.integer(lcm)) break
+  }
+  #message("continue_to_minus is ", continue_to_minus, " and lcm is ", class(lcm))
+  lcm<-abs(lcm)
+  adj_min_repeat_times<-lcm/min_myownwr
+  adj_all_sample_rep_times<-extract2(single_survey_df, surveyweightvar)*adj_min_repeat_times
+  single_survey_df$repeat_sample_times<-adj_all_sample_rep_times
+  #message("adj_all_sample_rep_times is now ", length(adj_all_sample_rep_times))
+  #message("uniq adj_all_sample_rep_times is now ", length(unique(adj_all_sample_rep_times)))
+  weighted_adj_survey_data<-lapply(unique(adj_all_sample_rep_times), function(repeattimes, needvars, weight_reptimes_n_integer=1) {
+    needrows<-which(adj_all_sample_rep_times==repeattimes)
+    log_part<-log10(repeattimes)
+    integers_of_log_part<-trunc(log_part)
+    reptimes<-10^(log_part-integers_of_log_part+weight_reptimes_n_integer)
+    reptimes<-round(reptimes,digits = 0)
+    return(dplyr::slice(single_survey_df[,needvars], rep(needrows,reptimes)))
+  },needvars=needvars, weight_reptimes_n_integer=weight_reptimes_n_integer) %>% dplyr::bind_rows()
+  #needvars=c(clustering_var[[survey]],".imp")
+  #message("weighted_adj_survey_data has ", nrow(weighted_adj_survey_data), " rows")
+  return(weighted_adj_survey_data)
+}
+
+ret_std_legislators_data<-function(legislatorsxlsxpath = paste0(dataset_file_directory, "legislators.xlsx"), terms=5:9, elections_df=elections_df) {
+  openxlsx::read.xlsx(legislatorsxlsxpath, sheet = 1, detectDates = TRUE) %>%
+    dplyr::mutate(term=as.integer(term)) %>%  #mutate_at(c("term"), .funs = list(term = ~customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>% 
+    dplyr::mutate(onboardDate=as.Date(onboardDate)) %>%
+    dplyr::mutate(leaveDate=as.Date(leaveDate)) %>%
+    mutate_cond(customgrepl(name,"簡東明") & term %in% c(8,9), name="簡東明Uliw．Qaljupayare") %>%
+    mutate_cond(customgrepl(name,"Kolas"), name="谷辣斯．尤達卡Kolas．Yotaka") %>%
+    mutate_cond(customgrepl(name,"王雪."), name="王雪峰") %>%
+    mutate_cond(is.na(leaveDate) & term==2, leaveDate=as.Date(c("1996/1/31"))) %>% 
+    mutate_cond(is.na(leaveDate) & term==3, leaveDate=as.Date(c("1999/1/31"))) %>% 
+    mutate_cond(is.na(leaveDate) & term==4, leaveDate=as.Date(c("2002/1/31"))) %>% 
+    mutate_cond(is.na(leaveDate) & term==5, leaveDate=as.Date(c("2005/1/31"))) %>% 
+    mutate_cond(is.na(leaveDate) & term==6, leaveDate=as.Date(c("2008/1/31"))) %>% 
+    mutate_cond(is.na(leaveDate) & term==7, leaveDate=as.Date(c("2012/1/31"))) %>% 
+    mutate_cond(is.na(leaveDate) & term==8, leaveDate=as.Date(c("2016/1/31"))) %>% 
+    mutate_cond(is.na(leaveDate) & term==9, leaveDate=as.Date(c("2016/6/1"))) %>%  #調查開始日當作年資起算日
+    dplyr::mutate(servingdayslong_in_this_term=difftime(leaveDate, onboardDate, units = c("days"))) %>% 
+    dplyr::mutate_at("servingdayslong_in_this_term", as.integer) %>% 
+    dplyr::group_by(name) %>%    #calculate overall service time in previous periods
+    dplyr::mutate(seniority=cumsum(servingdayslong_in_this_term)-servingdayslong_in_this_term) %>%
+    dplyr::ungroup() %>%
+    dplyr::filter(term %in% terms) %>%
+    dplyr::mutate_at(c("term"), as.character) %>%
+    dplyr::inner_join(elections_df, by = c("name", "term", "sex"))  %>%
+    dplyr::rename(legislator_sex=sex,
+           legislator_party=party.x,
+           election_party=party.y,
+           legislator_age=age,
+           legislator_name=name
+    ) %>%
+    dplyr::mutate_at(c("term"), as.numeric) %>%
+    dplyr::mutate_at(c("legislator_sex","legislator_party","partyGroup","areaName","leaveFlag","incumbent","wonelection","election_party","elec_dist_type"), as.factor) %>%
+    return()
 }
 
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"

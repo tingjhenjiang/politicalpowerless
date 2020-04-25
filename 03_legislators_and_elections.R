@@ -1,7 +1,9 @@
 # 第Ｏ部份：環境設定 --------------------------------
+if (!("benchmarkme" %in% rownames(installed.packages()))) install.packages("benchmarkme")
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
-source(file = "shared_functions.R")
+t_sessioninfo_running_with_cpu_locale<-gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2]))
+source(file = "shared_functions.R", encoding="UTF-8")
 #選舉資料
 overall_elec_dist_types<-c('district','ab_m','ab_plain','partylist')
 supplement_election_termseven<-c('supp2009miaoli1','supp2009nantou1','supp2009yunlin2','supp2009taipei6','supp2010taichungs3','supp2010hualian','supp2010taoyuan2','supp2010taoyuan3','supp2009hsinchus','supp2010chiayi2','supp2010taitung','supp2011tainan4','supp2011kaoshiung4')
@@ -30,123 +32,126 @@ library(future)
 library(future.apply)
 reset_multi_p()
 #for (term in terms) {
-elections_df <- future.apply::future_lapply(terms, function(term, ...) {
-  elections_df <- elections_df_onekind <- data.frame()
-  message("term=",term)
-  term_character<-paste0("0",term)
-  elec_types<-overall_elec_dist_types
-  if (term==7) {
-    elec_types<-c(overall_elec_dist_types,supplement_election_termseven)
-  }
-  if (term==6) {
-    elec_types<-c(overall_elec_dist_types,supplement_election_termsix)
-  }
-  for (elec_dist_type in elec_types) {
-    message("")
-    message("term=",term," AND type=",elec_dist_type," AND nrow=", nrow(elections_df))
-    message("")
-    elections_cand_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elcand.csv")
-    elections_dist_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elbase.csv")
-    elections_party_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elpaty.csv")
-    elections_voteresult_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elprof.csv")
-    elections_df_dist <-read_csv(file=elections_dist_csv,col_types="cccccc")
-    elections_df_party <-read_csv(file=elections_party_csv)
-    elections_df_cand <-read_csv(file=elections_cand_csv)
-    #elections_df_voteresult <-read_csv(file=elections_voteresult_csv)
-    if (elec_dist_type=='partylist') {
-      elections_plcan_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elrepm.csv")
-      elections_df_plcan <-read_csv(file=elections_plcan_csv)
-      elections_df_plcan$性別<- customgsub(elections_df_plcan$性別,"'(\\d+)","\\1")
-      elections_df_plcan$出生日期<- customgsub(elections_df_plcan$出生日期,"'(\\d+)","\\1")
+load(file=paste0(dataset_in_scriptsfile_directory, "elections_df.RData"), verbose=TRUE)
+if ({process_elections_df<-FALSE; process_elections_df}) {
+  elections_df <- future.apply::future_lapply(terms, function(term, ...) {
+    elections_df <- elections_df_onekind <- data.frame()
+    message("term=",term)
+    term_character<-paste0("0",term)
+    elec_types<-overall_elec_dist_types
+    if (term==7) {
+      elec_types<-c(overall_elec_dist_types,supplement_election_termseven)
     }
-    elections_df_cand<-select(elections_df_cand,-starts_with("鄉鎮市區"),-starts_with("村里別"))
-    elections_df_cand$省市別<- customgsub(elections_df_cand$省市別,"'(\\d+)","\\1")
-    elections_df_cand$縣市別<- customgsub(elections_df_cand$縣市別,"'(\\d+)","\\1")
-    elections_df_cand$選區別<- customgsub(elections_df_cand$選區別,"'(\\d+)","\\1")
-    #elections_df_cand$鄉鎮市區<- customgsub(elections_df_cand$鄉鎮市區,"'(\\d+)","\\1")
-    #elections_df_cand$村里別<- customgsub(elections_df_cand$村里別,"'(\\d+)","\\1")
-    elections_df_cand$性別<- customgsub(elections_df_cand$性別,"'(\\d+)","\\1")
-    elections_df_cand$出生日期<- customgsub(elections_df_cand$出生日期,"'(\\d+)","\\1")
-    elections_df_cand$政黨代號<- customgsub(elections_df_cand$政黨代號,"'(\\d+)","\\1") %>%
-      as.integer()
-    elections_df_cand<-left_join(elections_df_cand,elections_df_party)
-    #找出真正的選舉區定義，但在補選時好像也定義為000，需轉換
-    election_real_elec_dist<- filter(elections_df_dist,customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
-      select("省市別","縣市別","選區別","名稱") %>%
-      rename("選舉區名稱"="名稱")
-    election_admin_county<-filter(elections_df_dist,鄉鎮市區!="000" & 鄉鎮市區!=0 ,村里別!="0000" & 村里別!=0,!customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
-      rename("村里名稱"="名稱")
-    #省市別  縣市別  選區別  鄉鎮市區  村里別  村里名稱
-    election_admin_dist<-filter(elections_df_dist,鄉鎮市區!="000",村里別=="0000" | 村里別==0,!customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
-      rename("鄉鎮市區名稱"="名稱") %>%
-      select("省市別","縣市別","選區別","鄉鎮市區","鄉鎮市區名稱")
-    election_admin_city<-filter(elections_df_dist,鄉鎮市區=="000" | 鄉鎮市區==0,選區別=="00" | 選區別==0, !customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
-      rename("縣市名稱"="名稱") %>%
-      select("省市別","縣市別","縣市名稱")
-    election_admin_to_elecdist<-left_join(election_real_elec_dist,election_admin_city) %>% #left_join(election_admin_county,election_admin_dist) %>%
-      left_join(election_admin_dist) %>%
-      left_join(election_admin_county)
-    #left_join(election_admin_city) %>%
-    #left_join(election_real_elec_dist)
-    elections_df_cand$省市別<-as.character(elections_df_cand$省市別)
-    election_admin_to_elecdist$省市別<-as.character(election_admin_to_elecdist$省市別)
-    elections_df_onekind<-left_join(elections_df_cand,election_admin_to_elecdist,by = c("省市別", "縣市別", "選區別"))
-    if (elec_dist_type=='partylist') { #把不分區名單和政黨代號名稱串起來
-      elections_df_onekind<-elections_df_onekind[,c("省市別",	"縣市別",	"選區別",	"鄉鎮市區",	"村里別",	"號次",	"政黨代號",	"副手",	"政黨名稱",	"選舉區名稱")]
-      elections_df_onekind<-left_join(elections_df_plcan,elections_df_onekind,by = c("政黨代號")) #%>%
-      #rename(鄉鎮市區.y=鄉鎮市區.x,村里別.y=村里別.x)
-      #pick_vector<-c( "省市別",       "縣市別",       "選區別",       "鄉鎮市區.x",  
-      #                "村里別.x",     "號次",         "名字",         "政黨代號",    
-      #                "性別",         "出生日期",     "年齡",         "出生地",      
-      #                "學歷",         "現任",         "當選註記",     "副手",        
-      #                "X17",          "政黨名稱",     "選舉區名稱",   "縣市名稱",    
-      #                "鄉鎮市區.y",   "鄉鎮市區名稱", "村里別.y",     "村里名稱")
-      #名字 名字.x 號次 排名 性別 性別.x 出生日期 出生日期.x 年齡 年齡.x 出生地 出生地.x 
+    if (term==6) {
+      elec_types<-c(overall_elec_dist_types,supplement_election_termsix)
     }
-    elections_df_onekind <- cbind(term = term_character, elections_df_onekind, elec_dist_type = elec_dist_type) %>%
-      mutate_cond(term=="05" && elec_dist_type=="district", 年齡=91-as.integer(出生日期)) %>%
-      mutate_cond(term=="05" && elec_dist_type=="ab_m", 年齡=91-as.integer(出生日期)) %>%
-      mutate_cond(term=="05" && elec_dist_type=="ab_plain", 年齡=91-as.integer(出生日期)) %>%
-      mutate_cond(term=="06" && elec_dist_type=="district", 年齡=93-as.integer(出生日期)) %>%
-      mutate_cond(term=="06" && elec_dist_type=="ab_m", 年齡=93-as.integer(出生日期)) %>%
-      mutate_cond(term=="06" && elec_dist_type=="ab_plain", 年齡=93-as.integer(出生日期))
-    if (elections_df_onekind$年齡[1]==99 | is.na(elections_df_onekind$年齡[1])) {
-      message("term = ", term, " and elec_dist_type = ", elec_dist_type, " and birthday format = ", elections_df_onekind$出生日期[1])
-      stop()
-    }
-    elections_df <- bind_rows(elections_df,elections_df_onekind) #結合參選人以及選區的資料
-  } #分區、全國區結束
-  return(elections_df)
-  #check: filter(elections_df,is.na(選舉區名稱)) %>% View()
-  #check: distinct(legislators_needed,areaName,選舉區名稱) %>% View()
-},
-exportvar=c("supplement_election_termseven","supplement_election_termsix","dataset_file_directory","terms","slash","filespath","overall_elec_dist_types","custompaste0","customgsub","customgrep","customgrepl","mutate_cond"), #,"error_leave_and_attend_legislators","error_vote_record_from_name","replace_troublesome_names","anti_join_with_nrow_zero"
-exportlib=c("base",lib)) %>%
-  dplyr::bind_rows() %>%
-  .[, c("term", "號次", "名字", "性別", "出生日期", "年齡", "出生地", "學歷", "現任", "當選註記", "政黨名稱", "選舉區名稱", "縣市名稱", "鄉鎮市區名稱", "村里名稱", "排名", "elec_dist_type")] %>%
-  rename(ballotid = 號次, name = 名字, sex = 性別, birthday = 出生日期, age = 年齡, birthplace = 出生地, education = 學歷, incumbent = 現任, wonelection = 當選註記, party = 政黨名稱, electionarea = 選舉區名稱, admincity = 縣市名稱, admindistrict = 鄉鎮市區名稱, adminvillage = 村里名稱, plranking = 排名) %>%
-  mutate_at(c("sex"), dplyr::recode_factor, `2`="女", `1`="男") %>%
-  mutate_cond(elec_dist_type %in% supplement_election_termseven,elec_dist_type="district") %>%
-  mutate_at(c("term"), .funs = list(term = ~customgsub(term, "0(\\d)+", "\\1", perl = TRUE)) ) %>% #funs(customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))
-  mutate_at(c("term"), as.character) #%>%
-#left_join(all_admin_dist_with_zip)
-#elections_df_test <- elections_df
+    for (elec_dist_type in elec_types) {
+      message("")
+      message("term=",term," AND type=",elec_dist_type," AND nrow=", nrow(elections_df))
+      message("")
+      elections_cand_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elcand.csv")
+      elections_dist_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elbase.csv")
+      elections_party_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elpaty.csv")
+      elections_voteresult_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elprof.csv")
+      elections_df_dist <-read_csv(file=elections_dist_csv,col_types="cccccc")
+      elections_df_party <-read_csv(file=elections_party_csv)
+      elections_df_cand <-read_csv(file=elections_cand_csv)
+      #elections_df_voteresult <-read_csv(file=elections_voteresult_csv)
+      if (elec_dist_type=='partylist') {
+        elections_plcan_csv <- paste0(dataset_file_directory,"cec_vote_dataset",slash,"term",term,slash,elec_dist_type,slash,"elrepm.csv")
+        elections_df_plcan <-read_csv(file=elections_plcan_csv)
+        elections_df_plcan$性別<- customgsub(elections_df_plcan$性別,"'(\\d+)","\\1")
+        elections_df_plcan$出生日期<- customgsub(elections_df_plcan$出生日期,"'(\\d+)","\\1")
+      }
+      elections_df_cand<-select(elections_df_cand,-starts_with("鄉鎮市區"),-starts_with("村里別"))
+      elections_df_cand$省市別<- customgsub(elections_df_cand$省市別,"'(\\d+)","\\1")
+      elections_df_cand$縣市別<- customgsub(elections_df_cand$縣市別,"'(\\d+)","\\1")
+      elections_df_cand$選區別<- customgsub(elections_df_cand$選區別,"'(\\d+)","\\1")
+      #elections_df_cand$鄉鎮市區<- customgsub(elections_df_cand$鄉鎮市區,"'(\\d+)","\\1")
+      #elections_df_cand$村里別<- customgsub(elections_df_cand$村里別,"'(\\d+)","\\1")
+      elections_df_cand$性別<- customgsub(elections_df_cand$性別,"'(\\d+)","\\1")
+      elections_df_cand$出生日期<- customgsub(elections_df_cand$出生日期,"'(\\d+)","\\1")
+      elections_df_cand$政黨代號<- customgsub(elections_df_cand$政黨代號,"'(\\d+)","\\1") %>%
+        as.integer()
+      elections_df_cand<-left_join(elections_df_cand,elections_df_party)
+      #找出真正的選舉區定義，但在補選時好像也定義為000，需轉換
+      election_real_elec_dist<- filter(elections_df_dist,customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
+        select("省市別","縣市別","選區別","名稱") %>%
+        rename("選舉區名稱"="名稱")
+      election_admin_county<-filter(elections_df_dist,鄉鎮市區!="000" & 鄉鎮市區!=0 ,村里別!="0000" & 村里別!=0,!customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
+        rename("村里名稱"="名稱")
+      #省市別  縣市別  選區別  鄉鎮市區  村里別  村里名稱
+      election_admin_dist<-filter(elections_df_dist,鄉鎮市區!="000",村里別=="0000" | 村里別==0,!customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
+        rename("鄉鎮市區名稱"="名稱") %>%
+        select("省市別","縣市別","選區別","鄉鎮市區","鄉鎮市區名稱")
+      election_admin_city<-filter(elections_df_dist,鄉鎮市區=="000" | 鄉鎮市區==0,選區別=="00" | 選區別==0, !customgrepl(名稱,"選區|選舉區|全國|政黨")) %>%
+        rename("縣市名稱"="名稱") %>%
+        select("省市別","縣市別","縣市名稱")
+      election_admin_to_elecdist<-left_join(election_real_elec_dist,election_admin_city) %>% #left_join(election_admin_county,election_admin_dist) %>%
+        left_join(election_admin_dist) %>%
+        left_join(election_admin_county)
+      #left_join(election_admin_city) %>%
+      #left_join(election_real_elec_dist)
+      elections_df_cand$省市別<-as.character(elections_df_cand$省市別)
+      election_admin_to_elecdist$省市別<-as.character(election_admin_to_elecdist$省市別)
+      elections_df_onekind<-left_join(elections_df_cand,election_admin_to_elecdist,by = c("省市別", "縣市別", "選區別"))
+      if (elec_dist_type=='partylist') { #把不分區名單和政黨代號名稱串起來
+        elections_df_onekind<-elections_df_onekind[,c("省市別",	"縣市別",	"選區別",	"鄉鎮市區",	"村里別",	"號次",	"政黨代號",	"副手",	"政黨名稱",	"選舉區名稱")]
+        elections_df_onekind<-dplyr::left_join(elections_df_plcan,elections_df_onekind,by = c("政黨代號")) #%>%
+        #rename(鄉鎮市區.y=鄉鎮市區.x,村里別.y=村里別.x)
+        #pick_vector<-c( "省市別",       "縣市別",       "選區別",       "鄉鎮市區.x",  
+        #                "村里別.x",     "號次",         "名字",         "政黨代號",    
+        #                "性別",         "出生日期",     "年齡",         "出生地",      
+        #                "學歷",         "現任",         "當選註記",     "副手",        
+        #                "X17",          "政黨名稱",     "選舉區名稱",   "縣市名稱",    
+        #                "鄉鎮市區.y",   "鄉鎮市區名稱", "村里別.y",     "村里名稱")
+        #名字 名字.x 號次 排名 性別 性別.x 出生日期 出生日期.x 年齡 年齡.x 出生地 出生地.x 
+      }
+      elections_df_onekind <- cbind(term = term_character, elections_df_onekind, elec_dist_type = elec_dist_type) %>%
+        mutate_cond(term=="05" && elec_dist_type=="district", 年齡=91-as.integer(出生日期)) %>%
+        mutate_cond(term=="05" && elec_dist_type=="ab_m", 年齡=91-as.integer(出生日期)) %>%
+        mutate_cond(term=="05" && elec_dist_type=="ab_plain", 年齡=91-as.integer(出生日期)) %>%
+        mutate_cond(term=="06" && elec_dist_type=="district", 年齡=93-as.integer(出生日期)) %>%
+        mutate_cond(term=="06" && elec_dist_type=="ab_m", 年齡=93-as.integer(出生日期)) %>%
+        mutate_cond(term=="06" && elec_dist_type=="ab_plain", 年齡=93-as.integer(出生日期))
+      if (elections_df_onekind$年齡[1]==99 | is.na(elections_df_onekind$年齡[1])) {
+        message("term = ", term, " and elec_dist_type = ", elec_dist_type, " and birthday format = ", elections_df_onekind$出生日期[1])
+        stop()
+      }
+      elections_df <- dplyr::bind_rows(elections_df,elections_df_onekind) #結合參選人以及選區的資料
+    } #分區、全國區結束
+    return(elections_df)
+    #check: filter(elections_df,is.na(選舉區名稱)) %>% View()
+    #check: distinct(legislators_needed,areaName,選舉區名稱) %>% View()
+  },
+  exportvar=c("supplement_election_termseven","supplement_election_termsix","dataset_file_directory","terms","slash","filespath","overall_elec_dist_types","custompaste0","customgsub","customgrep","customgrepl","mutate_cond"), #,"error_leave_and_attend_legislators","error_vote_record_from_name","replace_troublesome_names","anti_join_with_nrow_zero"
+  exportlib=c("base",lib)) %>%
+    dplyr::bind_rows() %>%
+    .[, c("term", "號次", "名字", "性別", "出生日期", "年齡", "出生地", "學歷", "現任", "當選註記", "政黨名稱", "選舉區名稱", "縣市名稱", "鄉鎮市區名稱", "村里名稱", "排名", "elec_dist_type")] %>%
+    rename(ballotid = 號次, name = 名字, sex = 性別, birthday = 出生日期, age = 年齡, birthplace = 出生地, education = 學歷, incumbent = 現任, wonelection = 當選註記, party = 政黨名稱, electionarea = 選舉區名稱, admincity = 縣市名稱, admindistrict = 鄉鎮市區名稱, adminvillage = 村里名稱, plranking = 排名) %>%
+    mutate_at(c("sex"), dplyr::recode_factor, `2`="女", `1`="男") %>%
+    mutate_cond(elec_dist_type %in% supplement_election_termseven,elec_dist_type="district") %>%
+    mutate_at(c("term"), .funs = list(term = ~customgsub(term, "0(\\d)+", "\\1", perl = TRUE)) ) %>% #funs(customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))
+    mutate_at(c("term"), as.character) #%>%
+  #left_join(all_admin_dist_with_zip)
+  #elections_df_test <- elections_df
+}
 
 ##從選區資料抓出舊制全國縣市鄉鎮市區
-all_admin_dist_with_zip <- distinct(elections_df, term, admincity, admindistrict) %>%
-  filter(!is.na(admincity)) %>%
+all_admin_dist_with_zip <- dplyr::distinct(elections_df, term, admincity, admindistrict) %>%
+  dplyr::filter(!is.na(admincity)) %>%
   cbind(., "fullcountyname" = .$admindistrict) %>%
-  mutate_at(c("admindistrict"), .funs = list(admindistrict = ~stri_sub(admindistrict, from = 1, to = -2))) %>% #funs(stri_sub(admindistrict, from = 1, to = -2))
-  mutate_at("fullcountyname",as.character) %>%
-  left_join({ #透過全國行政區的行政區名稱，比對不完整鄉鎮市區名稱的郵遞區號行政區，組裝出行政區郵遞區號
+  dplyr::mutate_at(c("admindistrict"), .funs = list(admindistrict = ~stri_sub(admindistrict, from = 1, to = -2))) %>% #funs(stri_sub(admindistrict, from = 1, to = -2))
+  dplyr::mutate_at("fullcountyname",as.character) %>%
+  dplyr::left_join({ #透過全國行政區的行政區名稱，比對不完整鄉鎮市區名稱的郵遞區號行政區，組裝出行政區郵遞區號
     paste0(dataset_file_directory,"zip3.xlsx") %>%
       openxlsx::read.xlsx(sheet = 1) %>%
-      rename(admincity = 縣市名稱, admindistrict = 鄉鎮市區名稱) %>%
-      mutate_at(c("admindistrict"), .funs = list(admindistrict = ~customgsub(admindistrict, "區", ""))) %>% ##鄉鎮市區名稱還沒有統一 #funs(customgsub(admindistrict, "區", ""))
-      mutate_at("term",as.character)
+      dplyr::rename(admincity = 縣市名稱, admindistrict = 鄉鎮市區名稱) %>%
+      dplyr::mutate_at(c("admindistrict"), .funs = list(admindistrict = ~customgsub(admindistrict, "區", ""))) %>% ##鄉鎮市區名稱還沒有統一 #funs(customgsub(admindistrict, "區", ""))
+      dplyr::mutate_at("term",as.character)
     }) %>%
   dplyr::select(term, admincity, fullcountyname, zip, zip3rocyear) %>%
-  rename(admindistrict = fullcountyname)
+  dplyr::rename(admindistrict = fullcountyname)
 #all_admin_dist <- distinct(elections_df, term, admincity, admindistrict) %>%
 #  filter(!is.na(admincity))
 #all_admin_dist_try <- cbind(all_admin_dist, "fullcountyname" = all_admin_dist$admindistrict) %>%
@@ -199,38 +204,7 @@ legislators_ethicity_df <- paste0(dataset_file_directory, "legislators_ethicity_
 
 #立委資料與選區資料合併
 #legislators <- read_csv(file = paste0(dataset_file_directory, "legislators.csv"))
-legislators_with_elections <- openxlsx::read.xlsx(paste0(dataset_file_directory, "legislators.xlsx"), sheet = 1, detectDates = TRUE) %>%
-  mutate(term=as.integer(term)) %>%  #mutate_at(c("term"), .funs = list(term = ~customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>% 
-  mutate(onboardDate=as.Date(onboardDate)) %>%
-  mutate(leaveDate=as.Date(leaveDate)) %>%
-  mutate_cond(customgrepl(name,"簡東明") & term %in% c(8,9), name="簡東明Uliw．Qaljupayare") %>%
-  mutate_cond(customgrepl(name,"Kolas"), name="谷辣斯．尤達卡Kolas．Yotaka") %>%
-  mutate_cond(customgrepl(name,"王雪峯"), name="王雪峰") %>%
-  mutate_cond(is.na(leaveDate) & term==2, leaveDate=as.Date(c("1996/1/31"))) %>% 
-  mutate_cond(is.na(leaveDate) & term==3, leaveDate=as.Date(c("1999/1/31"))) %>% 
-  mutate_cond(is.na(leaveDate) & term==4, leaveDate=as.Date(c("2002/1/31"))) %>% 
-  mutate_cond(is.na(leaveDate) & term==5, leaveDate=as.Date(c("2005/1/31"))) %>% 
-  mutate_cond(is.na(leaveDate) & term==6, leaveDate=as.Date(c("2008/1/31"))) %>% 
-  mutate_cond(is.na(leaveDate) & term==7, leaveDate=as.Date(c("2012/1/31"))) %>% 
-  mutate_cond(is.na(leaveDate) & term==8, leaveDate=as.Date(c("2016/1/31"))) %>% 
-  mutate_cond(is.na(leaveDate) & term==9, leaveDate=as.Date(c("2016/6/1"))) %>%  #調查開始日當作年資起算日
-  mutate(servingdayslong_in_this_term=difftime(leaveDate, onboardDate, units = c("days"))) %>% 
-  mutate_at("servingdayslong_in_this_term", as.integer) %>% 
-  group_by(name) %>%    #把先前屆期總和服務時間計算出來 
-  mutate(seniority=cumsum(servingdayslong_in_this_term)-servingdayslong_in_this_term) %>%
-  ungroup() %>%
-  filter(term %in% terms) %>% #c("05", "06", "07", "09")
-  mutate_at(c("term"), as.character) %>%
-  #傅崐萁消失 發現錯誤：distinct(elections_df, term, name, party, electionarea) %>% View()
-  inner_join(elections_df, by = c("name", "term", "sex"))  %>%
-  rename(legislator_sex=sex,
-         legislator_party=party.x,
-         election_party=party.y,
-         legislator_age=age,
-         legislator_name=name
-  ) %>%
-  mutate_at(c("term"), as.numeric) %>%
-  mutate_at(c("legislator_sex","legislator_party","partyGroup","areaName","leaveFlag","incumbent","wonelection","election_party","elec_dist_type"), as.factor) %>%
+legislators_with_elections <- ret_std_legislators_data() %>%
   dplyr::select(-ename,-onboardDate,-picUrl,-leaveFlag,-leaveDate,-leaveReason,-ballotid,-committee,-birthday,-birthplace,-plranking)#inner_join目的是要排除沒有當選也沒有遞補進來的立法委員
 #save(elections_df,file=paste0(dataset_in_scriptsfile_directory, "elections_df.RData"))
 #save(legislators_with_elections, file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"))
@@ -242,12 +216,12 @@ legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislato
   #         committee, degree, experience, birthday,
   #         legislator_age, birthplace, education, incumbent, wonelection,
   #         election_party, electionarea, plranking, elec_dist_type) %>%
-  distinct(term,legislator_name,electionarea,degree,experience,education) %>%
-  mutate(legislator_eduyr=NA,legislator_occp=NA,legislator_ses=NA) %>%
-  mutate_at("legislator_occp",as.character) %>%
+  dplyr::distinct(term,legislator_name,electionarea,degree,experience,education) %>%
+  dplyr::mutate(legislator_eduyr=NA,legislator_occp=NA,legislator_ses=NA) %>%
+  dplyr::mutate_at("legislator_occp",as.character) %>%
   mutate_cond(is.na(education), education=degree) %>%
-  left_join(legislators_ethicity_df,by=c("legislator_name")) %>%
-  mutate_at(c("legislator_ethnicity"), dplyr::recode, `fulo`="[1] 台灣閩南人",`hakka`="[2] 台灣客家人",`aboriginal`="[3] 台灣原住民",`foreignstates`="[4] 大陸各省市(含港澳金馬)",`newresident`="[5] 新移民",`other`="[6] 其他臺灣人") %>%
+  dplyr::left_join(legislators_ethicity_df,by=c("legislator_name")) %>%
+  dplyr::mutate_at(c("legislator_ethnicity"), dplyr::recode, `fulo`="[1] 台灣閩南人",`hakka`="[2] 台灣客家人",`aboriginal`="[3] 台灣原住民",`foreignstates`="[4] 大陸各省市(含港澳金馬)",`newresident`="[5] 新移民",`other`="[6] 其他臺灣人") %>%
   #朱星羽@國會雙週刊 江綺雯@中央綜合月刊 江綺雯@遠見
   mutate_cond(customgrepl(legislator_name,"簡東明Uliw．Qaljupayare"), education=paste0(education,"省立屏東師專畢業")) %>%
   mutate_cond(customgrepl(legislator_name,"周陳秀霞"), education=paste0(education,"臺南縣立官田國民中學畢業")) %>%
@@ -391,7 +365,7 @@ legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislato
   mutate_cond(customgrepl(experience,"NGO理事長|NGO執行長|NGO秘書長|產業總工會理事長|主管級公務員|職業民意代表") | customgrepl(legislator_name,"劉建國"), legislator_occp=140, legislator_ses=81.4) %>%
   mutate_cond(!is.na(legislator_ses), legislator_ses=(legislator_ses-55)*3) %>%
   dplyr::select(term,legislator_name,legislator_eduyr,legislator_occp,legislator_ses,legislator_ethnicity) %>%
-  mutate_at(c("legislator_occp"),as.factor)
+  dplyr::mutate_at(c("legislator_occp"),as.factor)
 save(legislators_additional_attr,file=paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"))
 #陳東榮 no degree
 #孫國華 僑選

@@ -2,7 +2,7 @@
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
 t_sessioninfo_running_with_cpu_locale<-gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2]))
-source(file = "shared_functions.R")
+source(file = "shared_functions.R", encoding="UTF-8")
 setwd(paste0(filespath, "2004_meeting", slash))
 ly_meeting_path <- paste0(filespath, "2004_meeting", slash, "original", slash, sep="", collapse="")
 filename<-c(#"立法院第5屆第5會期全院委員談話會紀錄.html",

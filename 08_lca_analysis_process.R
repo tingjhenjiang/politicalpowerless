@@ -4,7 +4,7 @@ t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
 t_sessioninfo_running_with_cpu_locale<-gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2]))
 #.libPaths("C:/Users/r03a21033/Documents/R")
-source(file = "shared_functions.R")
+source(file = "shared_functions.R", encoding="UTF-8")
 
 gc(verbose=TRUE)
 
