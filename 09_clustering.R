@@ -14,7 +14,6 @@ if (!file.exists(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mi
 }
 load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"), verbose=TRUE)
 imps<-imputation_sample_i_s
-detectedcores <- ifelse(check_if_windows(),1,parallel::detectCores())
 
 #"myown_dad_ethgroup","myown_mom_ethgroup","myown_working_status","myown_occp","myown_ses","myown_income","myown_family_income",
 
@@ -24,7 +23,9 @@ detectedcores <- ifelse(check_if_windows(),1,parallel::detectCores())
 #http://www.amarkos.gr/clustrd/
 #https://www.jamleecute.com/hierarchical-clustering-%E9%9A%8E%E5%B1%A4%E5%BC%8F%E5%88%86%E7%BE%A4/
 
-load_lib_or_install(c("rvest","rlist","RMariaDB","getPass","parallel","itertools","ggplot2")) #,"future","future.apply"
+load_lib_or_install(c("rvest","rlist","parallel")) #,"future","future.apply"
+load_lib_or_install(c("itertools","ggplot2")) #,"future","future.apply"
+load_lib_or_install(c("RMariaDB","getPass")) #,"future","future.apply"
 
 ## Establishing connections --------------------------------
 db_table_name<-"demographic_clusters"
@@ -75,7 +76,7 @@ weight_reptimes_n_integer<-0.15
 
 
 
-# clustrd clustering single result --------------------------------
+# * clustrd clustering single result --------------------------------
 
 tryCatch({
   con <- do.call(DBI::dbConnect, dbconnect_info)
@@ -92,11 +93,13 @@ idx_process_ratio<-8
 idx_process_ratio<-9.2
 source("09_clustering_clustrd_commonpart_smallrange.R")
 stop() #setwd('/mnt/e/Software/scripts/R/vote_record')
-# clustrd clustering ranging assement --------------------------------
+# * clustrd clustering ranging assement --------------------------------
 
-# My own Using WeightedCluster Examples --------------------------------
+# * My own Using WeightedCluster Examples --------------------------------
 
-load_lib_or_install(c("rvest","rlist","RMariaDB","getPass","parallel","itertools","WeightedCluster","cluster","ggplot2")) #,"future","future.apply"
+load_lib_or_install(c("rvest","rlist","parallel","itertools")) #,"future","future.apply"
+load_lib_or_install(c("RMariaDB","getPass"))
+load_lib_or_install(c("WeightedCluster","cluster","ggplot2"))
 
 
 k_range<-1:2#30
@@ -224,9 +227,9 @@ while(hasNext(it)) {
   
 }
 
+# http://fenyolab.org/presentations/Machine_Learning_2018/slides/2.%20Cluster%20Analysis.pdf
 
-
-# loading processed hierarchical Kmed cluster quality examination ------------------------
+# * loading processed hierarchical Kmed cluster quality examination ------------------------
 load(file=(paste0(dataset_in_scriptsfile_directory,"weightedclustering_detect_results.RData")), verbose=TRUE )
 cluster_quality_resultsdf %<>% dplyr::mutate(title=paste0(survey, "_", "imp", imp, "_", hmethod, "_", pmethod, "_", k))
 View(dplyr::distinct(dplyr::arrange(cluster_quality_resultsdf, survey, imp, by, indicator, desc(stats), hmethod),survey, imp, by, indicator, stats, hmethod, k, cor, pmethod))
@@ -337,92 +340,223 @@ View(dplyr::distinct(dplyr::arrange(cluster_quality_resultsdf, survey, imp, by, 
 90949	2016citizen	5	Partition	ASWw	0.5472830	mcquitty	49	NA	PAMonce
 "
 
-# DBSCAN ----------------
+# * DBSCAN ----------------
 
 load_lib_or_install(c("fpc","dbscan","factoextra"))
-clustrd_results_with_best_argument<-list()
-it <- ihasNext(product(needsurvey = survey_data_title, needimp = 1))
-while(hasNext(it)) {
-  iterx <- nextElem(it)
-  needdf<-dplyr::filter(survey_data_imputed[[iterx$needsurvey]], .imp==!!iterx$needimp) %>%
+#For more than 2 dimensions: minPts=2*dim (Sander et al., 1998)
+DBSCAN_arguments_df<-data.frame("survey"=survey_data_title) %>%
+  cbind(., imp = rep(imps, each = nrow(.))) %>%
+  cbind(., minpts = rep(12, each = nrow(.))) %>%
+  cbind(., minclusters = rep(2:5, each = nrow(.))) %>%
+  dplyr::mutate(dbscan_key=paste0(survey,"_imp",imp,"_minpts",minpts,"_minclusters",minclusters))
+DBSCAN_results<-list()
+DBSCANclusterfile <- paste0(dataset_in_scriptsfile_directory, "DBSCANcluster.Rdata")
+#OPTICS
+#DBSCAN_results<-lapply(1:nrow(DBSCAN_arguments_df), function(fi, ...)  {
+for (fi in 1:nrow(DBSCAN_arguments_df)) { #22
+  survey_key <- DBSCAN_arguments_df$survey[fi]
+  needimp <- DBSCAN_arguments_df$imp[fi]
+  need_minclusters<-DBSCAN_arguments_df$minclusters[fi]
+  store_key <- DBSCAN_arguments_df$dbscan_key[fi]
+  needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
     dplyr::mutate_at("myown_age",scale) %>%
     dplyr::mutate_at("myown_age",function (X) {X[,1]})
+  targetminpts <- DBSCAN_arguments_df$minpts[fi] %>%
+    as.integer() #readline(paste("assigning k value for detecting survey",survey_key, "imp", needimp, ":"))
   surveyweight<-needdf$myown_wr
-  inputData<-dplyr::select(needdf, !!clustering_var[[iterx$needsurvey]])
+  inputData<-dplyr::select(needdf, !!clustering_var[[survey_key]])
   G.dist <- cluster::daisy(x = inputData, metric = "gower")
   gower_mat <- as.matrix(G.dist)
   #finding epsilon distance(eps)
-  repeat {
-    targetminpts <- as.integer(readline(paste("assigning k value for detecting survey",iterx$needsurvey, "imp", iterx$needimp, ":")))
-    dbscan::kNNdistplot(G.dist, k = targetminpts)
-    repeat {
-      tryplotaxisylocation<-readline("try plot axis y location/or stop at:")
-      if (tryplotaxisylocation=="") {
-        break
-      } else {
-        assigned_dbscan_optimal_eps<-as.numeric(tryplotaxisylocation)
-        title(main = paste("survey",iterx$needsurvey, "imp", iterx$needimp))
-        abline(h = assigned_dbscan_optimal_eps, lty = 2)
-      }
+  dbscan::kNNdistplot(G.dist, k = targetminpts-1)
+  #dbscan::kNNdist(G.dist, k=targetminpts)
+  title(main = paste("survey",survey_key, "imp", needimp, "minpts", targetminpts))
+  iteri <- 1
+  repeat { #透過檢核有無dbscan分析出來的集群出現自動往上找eps參數
+    if (iteri==1) {
+      # repeat {
+      #   tryplotaxisylocation<-readline("where knee is at and try plot axis y location/or stop at:")
+      #   if (tryplotaxisylocation=="") {
+      #     break
+      #   }
+      # }
+      # tryplotaxisylocation<-.005
+      # assigned_dbscan_optimal_eps <- as.numeric(tryplotaxisylocation)
+    } else {
+      # assigned_dbscan_optimal_eps <- assigned_dbscan_optimal_eps + iteri*0.005
     }
+    assigned_dbscan_optimal_eps <- 0.1825+.0025*iteri
+    message(paste("now in iter", iteri,"of",store_key,"and try eps at",assigned_dbscan_optimal_eps))
+    abline(h = as.numeric(assigned_dbscan_optimal_eps), lty = 2)
     #generating clusters
-    dbscan_optimal_eps<-assigned_dbscan_optimal_eps
-    dbcluster_obj<-dbscan::dbscan(gower_mat, eps=dbscan_optimal_eps, minPts = targetminpts, weights=surveyweight)
-    print(unique(dbcluster_obj$cluster))
-    print(table(dbcluster_obj$cluster))
+    iteri <- iteri+1
+    dbcluster_obj<-dbscan::dbscan(gower_mat, eps=assigned_dbscan_optimal_eps, minPts = targetminpts, weights=surveyweight)
+    if (length(unique(dbcluster_obj$cluster))<need_minclusters) next
+    #optic_obj<-dbscan::optics(gower_mat, eps=dbscan_optimal_eps, minPts = targetminpts)
+    #dbcluster_obj<-dbscan::extractDBSCAN(optic_obj, eps_cl=dbscan_optimal_eps)
+    #print(unique(dbcluster_obj$cluster))
+    #print(table(dbcluster_obj$cluster))
     silhouetteresult<-cluster::silhouette(dbcluster_obj$cluster, dmatrix=gower_mat)
-    message("Silhouette is :")
-    print(summary(silhouetteresult))
-    if (readline("continue to change k-value?")=="N") break
-  }
-  clustrd_results_with_best_argument[[iterx$needsurvey]]$cluster<-dbcluster_obj$cluster
-}
-
-# model-based clustering by VarSelLCM ----------------
-load_lib_or_install(c("VarSelLCM"))
-clustrd_results_with_best_argument<-list()
-it <- ihasNext(product(needsurvey = survey_data_title[1], needimp = 1))
-while(hasNext(it)) {
-  iterx <- nextElem(it)
-  needdf<-dplyr::filter(survey_data_imputed[[iterx$needsurvey]], .imp==!!iterx$needimp) %>%
-    dplyr::mutate_at("myown_age",scale) %>%
-    dplyr::mutate_at("myown_age",function (X) {X[,1]}) %>%
-    dplyr::mutate_at("myown_age",as.numeric)
-  surveyweight<-needdf$myown_wr
-  inputData<-dplyr::select(needdf, !!clustering_var[[iterx$needsurvey]])
-  n_select_components<-2:6
-  # Cluster analysis without variable selection
-  res_without <- VarSelCluster(inputData, gvals = n_select_components, nbcores = detectedcores, vbleSelec = FALSE, crit.varsel = "BIC")
-  # Cluster analysis with variable selection (with parallelisation)
-  res_with <- VarSelCluster(inputData, gvals = n_select_components, nbcores = detectedcores, crit.varsel = "BIC")
-  for (res_modelsel in list(res_without,res_with) ) {
-    if (readline("next model:")=="N") break
-    BIC(res_modelsel) %>% print()
-    summary(res_modelsel) %>% print()
-    # Estimated probabilities of classification
-    head(fitted(res_modelsel, type="probability")) %>% print()
-    print(res_modelsel)
-    coef(res_modelsel) %>% print()
-    table(fitted(res_modelsel)) %>% print()
-    for (interpretvar in clustering_var[[iterx$needsurvey]]) {
-      if (readline("next var:")=="N") break
-      plot(x=res_modelsel, y=interpretvar)
+    sil_avg_width<-tryCatch(
+      summary(silhouetteresult)$avg.width,
+      error = function(e) {return("ERROR")}
+    )
+    if (sil_avg_width!="ERROR") {
+      DBSCAN_arguments_df[fi, "ncluster"]<-length(unique(dbcluster_obj$cluster))
+      DBSCAN_arguments_df[fi, "silhouetteresult"]<-sil_avg_width
+      DBSCAN_arguments_df[fi, "eps"]<-assigned_dbscan_optimal_eps
+      break
     }
   }
-  factorlevelseq <- as.character(sort(unique(fitted(res_with))))
-  factored_cluster<-fitted(res_with) %>%
+  #message("Silhouette is :")
+  #print(summary(silhouetteresult))
+  #if (readline("continue to change k-value?")=="N") break
+  DBSCAN_results[[store_key]]<-dbcluster_obj
+  #clustrd_results_with_best_argument[[iterx$needsurvey]]$cluster<-dbcluster_obj$cluster
+}#, DBSCAN_arguments_df=DBSCAN_arguments_df, survey_data_imputed=survey_data_imputed, clustering_var=clustering_var,
+#DBSCANclusterfile=DBSCANclusterfile, method="fork")
+save(DBSCAN_results, DBSCAN_arguments_df, file=DBSCANclusterfile)
+load(file=DBSCANclusterfile, verbose=TRUE)
+for (fi in 1:nrow(DBSCAN_arguments_df)) {
+  survey_key <- DBSCAN_arguments_df$survey[fi]
+  needimp <- DBSCAN_arguments_df$imp[fi]
+  store_key <- DBSCAN_arguments_df$dbscan_key[fi]
+  if (grepl("minclusters3", store_key)==FALSE) next
+  dbcluster_obj <- DBSCAN_results[[store_key]]
+  for (cluster_i in unique(dbcluster_obj$cluster)) {
+    dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
+      .[dbcluster_obj$cluster==cluster_i,clustering_var[[survey_key]]] %>% View()
+    readline(paste("now in",store_key,"and cluster is",cluster_i,"continue? "))
+  }
+}
+# * model-based clustering by VarSelLCM ----------------
+#load_lib_or_install(c("VarSelLCM"))
+varsellcm_results<-list()
+varsellcm_arguments_df<-data.frame("survey"=survey_data_title) %>%
+  cbind(., imp = rep(imps, each = nrow(.))) %>%
+  cbind(., varsel = rep(c("wtho","wth"), each = nrow(.))) %>%
+  dplyr::mutate(keyprefix=paste0(survey,"_imp",imp)) %>%
+  dplyr::mutate(store_key=paste0(survey, "_imp", imp, "_", varsel))
+resvarselclusterfile <- paste0(dataset_in_scriptsfile_directory, "varselcluster.Rdata")
+varsellcm_results<-custom_parallel_lapply(1:nrow(varsellcm_arguments_df), function (fi, varsellcm_arguments_df, survey_data_imputed, clustering_var, resvarselclusterfile) {
+  survey_key <- varsellcm_arguments_df$survey[fi]#iterx$needsurvey
+  needimp <- varsellcm_arguments_df$imp[fi]
+  needvarsel <- varsellcm_arguments_df$varsel[fi]
+  if (TRUE) {
+    needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
+      dplyr::mutate_at("myown_age",scale) %>%
+      dplyr::mutate_at("myown_age",function (X) {X[,1]}) %>%
+      dplyr::mutate_at("myown_age",as.numeric)
+    surveyweight<-needdf$myown_wr
+    inputData<-dplyr::select(needdf, !!clustering_var[[survey_key]])
+    n_select_components<-2:12
+    
+    resmod <- if (needvarsel=="wtho") {
+      # Cluster analysis without variable selection
+      VarSelLCM::VarSelCluster(inputData, gvals = n_select_components, nbcores = parallel::detectCores(), vbleSelec = FALSE, crit.varsel = "BIC")
+    } else {
+      # Cluster analysis with variable selection (with parallelisation)
+      VarSelLCM::VarSelCluster(inputData, gvals = n_select_components, nbcores = parallel::detectCores(), crit.varsel = "BIC")
+    }
+    #load(file=resvarselclusterfile, verbose=TRUE)
+    store_key <- paste0(survey_key, "_imp", needimp, "_", needvarsel)
+    #varsellcm_results[[store_key]] <- resmod
+    #save(varsellcm_results, file=resvarselclusterfile)
+    return(resmod)
+  }
+}, varsellcm_arguments_df=varsellcm_arguments_df,
+survey_data_imputed=survey_data_imputed,
+clustering_var=clustering_var,
+resvarselclusterfile=resvarselclusterfile, method="fork") %>%
+  magrittr::set_names(varsellcm_arguments_df$store_key)
+save(varsellcm_results, file=resvarselclusterfile)
+load(file=resvarselclusterfile, verbose=TRUE)
+for (varsellcm_results_key in sort(varsellcm_arguments_df$keyprefix)) {
+  survey_key <- stringr::str_split(varsellcm_results_key, "_imp") %>% unlist()
+  imp <- survey_key[2] %>% as.integer()
+  survey_key <- survey_key[1]
+  res_with <- paste0(varsellcm_results_key, "_wth") %>%
+    magrittr::extract2(varsellcm_results, .)
+  res_without <- paste0(varsellcm_results_key, "_wtho") %>%
+    magrittr::extract2(varsellcm_results, .)
+  resmodel<-if ( abs(VarSelLCM::BIC(res_without)) > abs(VarSelLCM::BIC(res_with)) ) res_with else res_without
+  
+  #VarSelLCM::BIC(resmodel) %>% print()
+  #VarSelLCM::summary(resmodel) %>% print()
+  # Estimated probabilities of classification
+  #head(VarSelLCM::fitted(resmodel, type="probability")) %>% print()
+  #print(resmodel)
+  #VarSelLCM::coef(resmodel) %>% print()
+  table_of_cluster_dist_orig<-table(VarSelLCM::fitted(resmodel))
+  for (interpretvar in clustering_var[[survey_key]]) {
+    #if (readline("next var:")=="N") break
+    #VarSelLCM::plot(x=resmodel, y=interpretvar)
+  }
+  #factorlevelseq <- as.character(sort(unique(VarSelLCM::fitted(resmodel))))
+  factored_cluster<-VarSelLCM::fitted(resmodel) %>%
     as.factor() %>%
     forcats::fct_infreq() %>%
     forcats::fct_recode(., !!!{
-      set_names(levels(.), as.list(factorlevelseq))
-      })
-  message("orig distribution of cluster is:")
-  table(fitted(res_with)) %>% print()
-  
-  clustrd_results_with_best_argument[[iterx$needsurvey]]$cluster<-fitted(res_with)
+      set_names(levels(.), as.list(sort(unique(.))))
+    })
+  table_of_cluster_dist<-table(factored_cluster)
+  message(paste0("distribution of cluster of ",varsellcm_results_key," is:"))
+  print(table_of_cluster_dist)
+  survey_data_imputed[[survey_key]][survey_data_imputed[[survey_key]]$.imp==imp,"cluster_varsellcm"] <- as.character(factored_cluster)
 }
 
-# model-based clustering by clustMD ----------------
+# * model-based clustering by KAMILA ----------------
+kamila_results<-list()
+kamila_arguments_df<-data.frame("survey"=survey_data_title) %>%
+  cbind(., imp = rep(imps, each = nrow(.))) %>%
+  dplyr::mutate(store_key=paste0(survey,"_",imp))
+reskamilaclusterfile <- paste0(dataset_in_scriptsfile_directory, "kamilacluster.Rdata")
+kamila_results<-custom_parallel_lapply(1:nrow(kamila_arguments_df), function (fi, kamila_arguments_df, survey_data_imputed, clustering_var, reskamilaclusterfile) {
+  survey_key <- kamila_arguments_df$survey[fi]#iterx$needsurvey
+  needimp <- kamila_arguments_df$imp[fi]
+  if (TRUE) {
+    needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
+      dplyr::mutate_at("myown_age",scale) %>%
+      dplyr::mutate_at("myown_age",function (X) {X[,1]}) %>%
+      dplyr::mutate_at("myown_age",as.numeric)
+    surveyweight<-needdf$myown_wr
+    inputData<-dplyr::select(needdf, !!clustering_var[[survey_key]])
+    n_select_components<-2:12
+    resmodel <- kamila::kamila(conVar=inputData[,c("myown_age","myown_factoredses")],
+                               catFactor=inputData[c("myown_sex","myown_selfid","myown_marriage", "myown_areakind")],
+                               numClust = n_select_components, numInit = 10, calcNumClust = "ps", numPredStrCvRun = 10, predStrThresh = 0.5, verbose=TRUE)
+    #load(file=reskamilaclusterfile, verbose=TRUE)
+    #kamila_results[[store_key]]<-resmodel
+    #save(kamila_results, file=reskamilaclusterfile)
+    return(resmodel)
+  }
+  if (FALSE) {
+    store_key <- paste0(survey_key, "_", needimp)
+    load(file=reskamilaclusterfile, verbose=TRUE)
+    return(kamila_results[[store_key]]$nClust$bestNClust)
+  }
+}, kamila_arguments_df=kamila_arguments_df,
+survey_data_imputed=survey_data_imputed,
+clustering_var=clustering_var,
+reskamilaclusterfile=reskamilaclusterfile,method="fork", mc.cores=parallel::detectCores()) %>%
+  magrittr::set_names(kamila_arguments_df$store_key)
+save(kamila_results, file=reskamilaclusterfile)
+load(file=reskamilaclusterfile, verbose=TRUE)
+for (survey_imp_key in names(kamila_results)) {
+  message(paste("now in",survey_imp_key))
+  survey_imp_key_i<-unlist(strsplit(survey_imp_key,"_"))
+  surveykey<-survey_imp_key_i[1]
+  imp<-survey_imp_key_i[2]
+  kamila_model<-kamila_results[[survey_imp_key]]
+  kamilaclusterres<-kamila_model$finalMemb %>%
+    as.factor() %>%
+    forcats::fct_infreq() %>%
+    forcats::fct_recode(., !!!{
+      set_names(levels(.), as.list(sort(unique(.))))
+    }) %>% as.character()
+  survey_data_imputed[[surveykey]][survey_data_imputed[[surveykey]]$.imp==imp, "kamilacluster"]<-kamilaclusterres
+}
+# * model-based clustering by clustMD ----------------
 load_lib_or_install(c("clustMD"))
 
 clustrd_results_with_best_argument<-list()
@@ -559,7 +693,7 @@ clustrd_results_with_best_argument<-parallel::mclapply(names(bestarguments_for_c
     } %>%
     do.call(clustrd::cluspcamix,.) %>%
     return()
-}, mc.cores=detectedcores) %>%
+}) %>%
   set_names(names(clustering_var))
 save(clustrd_results_with_best_argument,file=paste0(dataset_in_scriptsfile_directory,"clustrd_results_with_best_argument_nclus-threshold-",nclusbest_threshold,"_with_weight.RData"))
 

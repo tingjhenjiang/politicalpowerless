@@ -9,7 +9,7 @@ chooseCRANmirror(ind=which(grepl("cran.csie.ntu.edu.tw",getCRANmirrors()$URL)))
 #Sys.setenv(R_INSTALL_STAGED = FALSE)
 #lib<-c("stringi","stringr","XML","xml2","rvest","htmltidy","curl","RCurl","gdata","readr","DBI","lazyeval","dplyr","rmarkdown","rticles","knitr","data.table","ggplot2","scales","reshape2","janitor","stargazer","xtable","apa","tesseract","pdftools","tiff","schoolmath","jsonlite","foreign","MASS","class","caret","tm","kernlab","jiebaR","RTextTools","tmcn","text2vec","RODBC","xlsx")
 
-lib<-c("stringi","XML","xml2","readr","plyr","dplyr","magrittr","openxlsx","data.table","dtplyr","rvest")
+lib<-c("stringi","XML","xml2","readr","plyr","dplyr","magrittr","openxlsx","rvest","parallel") #,"data.table","dtplyr"
 #install.packages("xml2", dependencies=TRUE, INSTALL_opts = c('--no-lock'))
 #,"Rcmdr"
 load_lib_or_install<-function (libs) {
@@ -27,6 +27,7 @@ check_if_windows<-function () {
   return(grepl("Windows", backgroundinfo$running))
 }
 slash<-ifelse(check_if_windows(),"\\","/")
+parallel_method<-ifelse(check_if_windows(),"socks","fork")
 
 driverletter_prefixes <- c("C","D","E","F","G","V","X","Y","Z")
 filespath <- ifelse(check_if_windows(),
@@ -71,6 +72,7 @@ dataset_in_scriptsfile_directory <- switch(
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=paste0(filespath, "data", slash),
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=paste0(filespath, "data", slash),
   "Ubuntu18.04.3LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=paste0(filespath, "data", slash),
+  "Ubuntu18.04.4LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=paste0(filespath, "data", slash),
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\",
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\",
   "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\",
@@ -671,6 +673,54 @@ reset_multi_p <- function(t_sessioninfo_running = gsub("[>=()]","",gsub(" ","",s
   )
 }
 
+cn2num<-function(string){
+  if(is.numeric(string)){
+    return(string)
+  }
+  if(!is.na(as.numeric(string))) {
+    return(as.numeric(string))
+  }
+  # '仟' => '千','佰' => '百','拾' => '十',
+  string = gsub('仟', '千', string)
+  string = gsub('佰', '百', string)
+  string = gsub('拾', '十', string)
+  num = 0
+  wan = unlist(strsplit(string, '萬'))
+  if (length(wan) > 1) {
+    num = num+cn2num(wan[1]) * 10000
+    string = wan[2]
+  }
+  qian = unlist(strsplit(string, '千'))
+  if (length(qian) > 1) {
+    num = num+cn2num(qian[1]) * 1000
+    string = qian[2]
+  }
+  bai = unlist(strsplit(string, '百'))
+  if (length(bai) > 1) {
+    num = num+cn2num(bai[1]) * 100
+    string = bai[2]
+  }
+  shi = unlist(strsplit(string, '十'))
+  if (length(shi) > 1) {
+    #num = num+cn2num(shi[1] ? shi[1] : '一') * 10
+    num = num+cn2num(
+      ifelse(gtools::invalid(shi[1]), '一', shi[1])
+    )*10
+    #string = shi[2] ? shi[2] : '零'
+    string = ifelse(gtools::invalid(shi[2]), '零', shi[2])
+  }
+  ling = unlist(strsplit(string,'零'))
+  if (length(ling) > 1) {
+    string = ling[2]
+  }
+  d <- list(
+    "一" = 1,"二" = 2,"三" = 3,"四" = 4,"五" = 5,"六" = 6,"七" = 7,"八" = 8,"九" = 9,
+    "壹" = 1,"貳" = 2,"參" = 3,"肆" = 4,"伍" = 5,"陸" = 6,"柒" = 7,"捌" = 8,"玖" = 9,
+    #"贰" = 2,"叁" = 3,"陆" = 6,"两" = 2,
+    "零" = 0,"0" = 0,"O" = 0,"o" = 0,"兩" = 2
+  )
+  return(num + d[[string]])
+}
 
 generate_weight_repeated_data<-function(single_survey_df, weight_reptimes_n_integer=0.5, surveyweightvar="myown_wr", needvars="") {
   #message(survey)
