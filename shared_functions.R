@@ -31,10 +31,10 @@ parallel_method<-ifelse(check_if_windows(),"socks","fork")
 
 driverletter_prefixes <- c("C","D","E","F","G","V","X","Y","Z")
 filespath <- ifelse(check_if_windows(),
-                           paste(driverletter_prefixes, ":\\Software\\scripts\\R\\vote_record\\",sep="", collapse=","),
-                           "/home/j/rscripts/vote_record/"
-                           ) %>%
-                  stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]}
+  paste(driverletter_prefixes, ":\\Software\\scripts\\R\\vote_record\\",sep="", collapse=","),
+  "/home/j/rscripts/vote_record/"
+  ) %>%
+  stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]}
 dataset_file_directory <- ifelse(
   check_if_windows(),
   paste0(driverletter_prefixes, ":\\Users\\dowba\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",sep="", collapse=","),
@@ -43,7 +43,8 @@ dataset_file_directory <- ifelse(
     paste0("/mnt/", tolower(driverletter_prefixes), "/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",sep="")
     ),collapse=",")
   ) %>%
-  stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]} #
+  stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]} %>%
+  ifelse(gtools::invalid(.), paste0(here::here(),slash,"data",slash), .)
 dataset_file_directory_rdata <- paste0(dataset_file_directory,"rdata",slash)
 #filespath<-switch(
 #  t_sessioninfo_running_with_cpu,
@@ -78,7 +79,9 @@ dataset_in_scriptsfile_directory <- switch(
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\",
   "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\",
   "Windows10x64build17134Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\"
-)
+) %>%
+  ifelse(gtools::invalid(.), paste0(here::here(),slash,"data",slash), .)
+
 #dataset_file_directory <- switch(
 #  t_sessioninfo_running_with_cpu,
 #  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
