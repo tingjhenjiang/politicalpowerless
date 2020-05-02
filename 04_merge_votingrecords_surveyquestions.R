@@ -172,7 +172,7 @@ if ({testing_if_duplicated<-FALSE;testing_if_duplicated}) {
 myown_vote_record_df_wide <- dplyr::distinct(myown_vote_record_df, term, legislator_name, billid_myown, votedecision) %>%
   dplyr::left_join(dplyr::distinct(legislators_with_elections, term, legislator_name, legislator_party)) %>%#legislator_party,
   dplyr::left_join(dplyr::distinct(bills_billcontent, billid_myown , pp_agendavoting, research_period) ) %>%
-  dplyr::filter(pp_agendavoting==1, research_period==1)
+  dplyr::filter(pp_agendavoting==0, research_period==1)
 widedata_preserve_vars <- dplyr::setdiff(names(myown_vote_record_df_wide), c("billid_myown","votedecision"))
 widedata_formula <- paste0(widedata_preserve_vars, collapse="+") %>%
   paste0("~","billid_myown") %>% as.formula()
@@ -196,7 +196,7 @@ if ({parallelfa_result_n_factor<-data.frame(i=1:5,term=5:9,fa=c(3,3,3,1,4),princ
 # * * 投票結果#fa parallel探測因素數目 --------------------------------
   parallelfa_n_factors <- list()
   load(paste0(dataset_in_scriptsfile_directory, "parallelfa_n_factors.RData"), verbose=TRUE)
-  parallelfa_n_factors_agenda <- custom_parallel_lapply(1:length(myown_vote_record_df_wide_billidascol), function(i, ...) {
+  parallelfa_n_factors <- custom_parallel_lapply(1:length(myown_vote_record_df_wide_billidascol), function(i, ...) {
     #for (i in 1:length(myown_vote_record_df_wide_billidascol)) { #
     plot_title<-terms[i]
     message(paste0("now in ", plot_title))
@@ -216,9 +216,9 @@ if ({parallelfa_result_n_factor<-data.frame(i=1:5,term=5:9,fa=c(3,3,3,1,4),princ
     }
     return(res_n_factors)
   }, terms=terms, myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol
-  , method="fork") %>%
+  , method=parallel_method) %>%
     magrittr::set_names(paste0("term",5:9))
-  save(parallelfa_n_factors_agenda, file=paste0(dataset_in_scriptsfile_directory, "parallelfa_n_factors_agenda.RData"))
+  save(parallelfa_n_factors_agenda, file=paste0(dataset_in_scriptsfile_directory, "parallelfa_n_factors.RData"))
 }
 
 # * MDS algorithms --------------------------------
@@ -251,7 +251,7 @@ custom_parallel_lapply(1:4, function (fi, myown_vote_record_df_wide_billidascol,
 resmirtefasfile=resmirtefasfile,
 parallelfa_result_n_factor=parallelfa_result_n_factor,
 widedata_preserve_vars=widedata_preserve_vars,
-method="fork",
+method=parallel_method,
 mc.cores=nrow(parallelfa_result_n_factor))
 
 load(resmirtefasfile,verbose=TRUE)
@@ -345,7 +345,7 @@ res.MCMCefas <- custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), funct
 resMCMCefasfile=resMCMCefasfile,
 parallelfa_result_n_factor=parallelfa_result_n_factor,
 widedata_preserve_vars=widedata_preserve_vars,
-method="fork",
+method=parallel_method,
 mc.cores=parallel::detectCores()) %>%
   magrittr::set_names(parallelfa_result_n_factor$need_factorn)
 save(res.MCMCefas, file=resMCMCefasfile)
@@ -423,7 +423,7 @@ custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), function (fi, myown_v
 resirtefasfile=resirtefasfile,
 parallelfa_result_n_factor=parallelfa_result_n_factor,
 widedata_preserve_vars=widedata_preserve_vars,
-method="fork",
+method=parallel_method,
 mc.cores=1) #nrow(parallelfa_result_n_factor)
 load(file=resirtefasfile, verbose=TRUE)
 for (residx in names(res.irtefas)) {
@@ -471,7 +471,7 @@ custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), function (fi, myown_v
 rescatgfasfile=rescatgfasfile,
 parallelfa_result_n_factor=parallelfa_result_n_factor,
 widedata_preserve_vars=widedata_preserve_vars,
-method="fork",
+method=parallel_method,
 mc.cores=nrow(parallelfa_result_n_factor))
 load(rescatgfasfile,verbose=TRUE)
 for (residx in names(res.catgfas)) {
