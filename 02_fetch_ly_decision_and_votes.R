@@ -119,22 +119,18 @@ fetch_ly_decision_and_vote <- function(urln, meetingdata, urlarr, ...) { #length
   #clean data 特別處理
   if (term==7 & period==1 & meetingno==19) {
     #有一次的表決少了贊成者和棄權者的文字，補上
-    #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
     content<-readr::read_file(paste(filespath,"processed_ly_meeting_record",slash,"LCEWC03_070119.htm", sep = ""))
   }
   if (term==7 & period==2 & meetingno==17) {
     #有一次的表決少了贊成者和棄權者的文字，補上
-    #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
     content<-readr::read_file(paste(filespath,"processed_ly_meeting_record",slash,"LCEWC03_070217.htm", sep = ""))
   }
   if (term==7 & period==3 & meetingno==5) {
     #表決案數字亂碼修正
-    #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
     content<-readr::read_file(paste(filespath,"processed_ly_meeting_record",slash,"LCEWC03_070305.htm", sep = ""))
   }
   if (term==7 & period==3 & meetingno==8) {
     #立法院第7屆第3會期第8次會議議事錄有二個表決紀錄的敘述被合併
-    #content<-read_file("E:\Software\scripts\R\vote_record\processed_ly_meeting_record\LCEWC03_070119.htm")
     content<-readr::read_file(paste(filespath,"processed_ly_meeting_record",slash,"LCEWC03_070308.htm", sep = ""))
   }
   
@@ -580,7 +576,7 @@ fetch_ly_decision_and_vote <- function(urln, meetingdata, urlarr, ...) { #length
       paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],"薛　凌\\s{1,2}田秋堇","薛　凌　田秋堇") %>%
         customgsub("　{1}([\u4e00-\u9fa5]{1}　{0,1}[\u4e00-\u9fa5]{1,2})","　　\\1")
     }
-    modify_wrong_record_target<-filter(error_vote_record_from_name,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no),billn==UQ(billn))
+    modify_wrong_record_target<-dplyr::filter(error_vote_record_from_name,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no),billn==UQ(billn))
     nrow_modify_wrong_record_target<-nrow(modify_wrong_record_target)
     if (nrow_modify_wrong_record_target>0) {
       message("urln=",urln," | 4 除錯：原議事錄投票區塊第",billn,"案有文字結構錯誤處 modify ",nrow_modify_wrong_record_target," times. ", meetingname, onemeetingdata$url)
