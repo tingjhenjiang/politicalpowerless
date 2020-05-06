@@ -80,7 +80,7 @@ dataset_in_scriptsfile_directory <- switch(
   "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\",
   "Windows10x64build17134Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\"
 ) %>%
-  ifelse(gtools::invalid(.), paste0(here::here(),slash,"data",slash), .)
+  {ifelse((gtools::invalid(.) | !dir.exists(.) | !file.exists(paste0(., "shared_functions.R") )), paste0(here::here(),slash,"data",slash), .)}
 
 #dataset_file_directory <- switch(
 #  t_sessioninfo_running_with_cpu,

@@ -122,12 +122,18 @@ if (FALSE) {
 load(file=paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df_across2004.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
 
-myown_vote_bills_file <- paste0(dataset_file_directory, "votingdf_datafile_myown_englished.xlsx", sep="")
-bills_answer_to_bill <- openxlsx::read.xlsx(myown_vote_bills_file, sheet = 4)
-bills_billcontent <- openxlsx::read.xlsx(myown_vote_bills_file, sheet = 1) %>%
-  dplyr::mutate_at("billcontent", as.character) %>%
-  dplyr::select(-starts_with("pp_related_q_")) %>% #因為第四個表格問卷對政策實現與否表已經有了variable_on_q所以此處略過
-  dplyr::mutate_at("pp_agendavoting", as.factor)
+tryCatch({
+  myown_vote_bills_file <- paste0(dataset_file_directory, "votingdf_datafile_myown_englished.xlsx", sep="")
+  bills_answer_to_bill <- openxlsx::read.xlsx(myown_vote_bills_file, sheet = 4)
+  bills_billcontent <- openxlsx::read.xlsx(myown_vote_bills_file, sheet = 1) %>%
+    dplyr::mutate_at("billcontent", as.character) %>%
+    dplyr::select(-starts_with("pp_related_q_")) %>% #因為第四個表格問卷對政策實現與否表已經有了variable_on_q所以此處略過
+    dplyr::mutate_at("pp_agendavoting", as.factor)
+  save(bills_answer_to_bill, bills_billcontent, file=paste0(dataset_in_scriptsfile_directory, "bills_answer_to_bill_bills_billcontent.RData"))
+}, error = function(msg) {
+  message(paste0(msg,"\n"))
+  load(file=paste0(dataset_in_scriptsfile_directory, "bills_answer_to_bill_bills_billcontent.RData"), envir = .GlobalEnv, verbose=TRUE)
+})
 
 
 # 測試有無重複投票紀錄  -------------------------------------------
@@ -192,35 +198,74 @@ myown_vote_record_df_wide_billidascol <- myown_vote_record_df_wide %>%
 
 # * 先前parallel analysis的結果 --------------------------------
 if ({ parallelfa_result_n_factor<-data.frame(i=1:5,term=5:9,fa=c(3,3,3,1,4),princp=c(3,3,2,1,3)) %>%
-    dplyr::mutate(need_factorn = paste0(term,"_",fa)) ;FALSE}) {
+    dplyr::mutate(need_factorn = paste0(term,"_",fa)) ; parallelfa_n_factors_agenda<-data.frame(i=1:5,term=5:9,fa=c(1,3,1,1,2),princp=c(1,2,1,1,2)) %>%
+      dplyr::mutate(need_factorn = paste0(term,"_",fa)) ; if(TRUE) {
+        parallelfa_result_n_factor<-parallelfa_n_factors_agenda
+      } ;FALSE}) {
 # * * 投票結果#fa parallel探測因素數目 --------------------------------
   parallelfa_n_factors <- list()
-  load(paste0(dataset_in_scriptsfile_directory, "parallelfa_n_factors.RData"), verbose=TRUE)
-  parallelfa_n_factors <- custom_parallel_lapply(1:length(myown_vote_record_df_wide_billidascol), function(i, ...) {
+  parallelfa_n_factors_args_df <- data.frame(i=1:5, term=5:9) %>%
+    cbind(., fm = rep(c("minres", "ml", "wls", "pa"), each = nrow(.))) %>%
+    dplyr::mutate(store_key=paste0("term",term,"_",fm) ) %>%
+    dplyr::mutate_at(c("fm","store_key"), as.character)
+  random.polychor.parallelfa_n_factors_file<-paste0(dataset_in_scriptsfile_directory, "random.polychor.parallelfa_n_factors.RData")
+  parallelfa_n_factors_file<-paste0(dataset_in_scriptsfile_directory, "parallelfa_n_factors.RData")
+  usingrandom.polychor.pa<-FALSE
+  parallel_analysis_result_filename <- ifelse(usingrandom.polychor.pa==TRUE, random.polychor.parallelfa_n_factors_file, parallelfa_n_factors_file)
+  load(file=parallel_analysis_result_filename, envir = .GlobalEnv, verbose=TRUE)
+  parallel_analysis_looprange<-1:nrow(parallelfa_n_factors_args_df) #nrow(parallelfa_n_factors_args_df):1
+  need_parallel_analysis_looprange<-lapply(parallelfa_n_factors, class) %>%
+    .[!(. %in% c("try-error", "character"))] %>% names() %>%
+    {which(parallelfa_n_factors_args_df$store_key %in% .)} %>%
+    dplyr::setdiff(parallel_analysis_looprange, .)
+  parallelfa_n_factors <-custom_parallel_lapply(need_parallel_analysis_looprange, function(fi, ...) {
     #for (i in 1:length(myown_vote_record_df_wide_billidascol)) { #
-    plot_title<-terms[i]
-    message(paste0("now in ", plot_title))
+    arg_row<-parallelfa_n_factors_args_df[fi,]
+    i<-arg_row$i
+    plot_title<-arg_row$term
+    message(paste("now in term", plot_title, "fm=", arg_row$fm))
     colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[i]]), widedata_preserve_vars)
     votingdfwide<-myown_vote_record_df_wide_billidascol[[i]][,colname_billids] %>%
+      #.[complete.cases(.),] %>%
       dplyr::mutate_all(.funs=unclass) %>%
-      .[complete.cases(.),] %>%
       as.matrix()
-    res_n_factors <- tryCatch({
-      psych::fa.parallel(votingdfwide, fm="minres", main="Parallel Analysis Scree Plots", cor="poly")
-    }, error = function(msg) {
-      message(paste0(msg,"\n"))
-      return("ERROR")
+    # if (usingrandom.polychor.pa!=TRUE) {
+    #   votingdfwide <- votingdfwide %>%
+    #   .[complete.cases(.),]
+    # }
+    res_n_factors <- try({
+      if (usingrandom.polychor.pa!=TRUE) {
+        psych::fa.parallel(votingdfwide, fm=arg_row$fm, main=paste("Parallel Analysis Scree Plots with fm =", arg_row$fm), cor="poly")
+      } else { #capture.output
+        (random.polychor.pa::random.polychor.pa(nrep=5, data.matrix = votingdfwide, q.eigen=.99, distr="uniform", print.all=FALSE))
+      }
     })
     if (res_n_factors!="ERROR") {
       #plot(res_n_factors)
     }
+    while(TRUE){
+      loadingstatus<-try({load(file=parallel_analysis_result_filename, envir = .GlobalEnv, verbose=TRUE)})
+      if(!is(loadingstatus, 'try-error')) break
+    }
+    if (class(res_n_factors)=="psych") {
+      parallelfa_n_factors[[arg_row$store_key]]<-res_n_factors
+      while(TRUE){
+        savingstatus<-try({save(parallelfa_n_factors, file=parallel_analysis_result_filename)})
+        if(!is(savingstatus, 'try-error')) break
+      }
+    }
     return(res_n_factors)
   }, terms=terms, myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol
-  , method=parallel_method) %>%
-    magrittr::set_names(paste0("term",5:9))
-  save(parallelfa_n_factors, file=paste0(dataset_in_scriptsfile_directory, "parallelfa_n_factors.RData"))
+  , usingrandom.polychor.pa=usingrandom.polychor.pa
+  , parallelfa_n_factors_args_df=parallelfa_n_factors_args_df
+  , parallel_analysis_result_filename=parallel_analysis_result_filename
+  , method=parallel_method
+  ) %>%
+    magrittr::set_names(parallelfa_n_factors_args_df[need_parallel_analysis_looprange,"store_key"])
+  save(parallelfa_n_factors, file=parallel_analysis_result_filename)
 }
-
+#remove(plot_title,colname_billids,votingdfwide,parallel_analysis_result_filename,res_n_factors,parallelfa_n_factors)
+lapply(parallelfa_n_factors, function (X) {if (class(X)=="psych") {return(X$nfact)} else {return(X)}})
 # * MDS algorithms --------------------------------
 #http://www.hmwu.idv.tw/web/R/C01-hmwu_R-DimensionReduction.pdf
 
@@ -243,7 +288,7 @@ res.mirtefas<-custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), functio
   mirt::mirtCluster()
   if (TRUE) {
     resmodel <- mirt::mirt(data=votingdfwide, model=n_component, itemtype='graded', method='QMCEM', technical=list(NCYCLES=2000))
-    load(file=resmirtefasfile)
+    load(file=resmirtefasfile, verbose=TRUE)
     res.mirtefas[[residx]] <- resmodel
     save(res.mirtefas, file = resmirtefasfile)
     return(resmodel)
@@ -256,7 +301,6 @@ widedata_preserve_vars=widedata_preserve_vars,
 method=parallel_method,
 mc.cores=nrow(parallelfa_result_n_factor))
 
-load(resmirtefasfile,verbose=TRUE)
 #load(file=paste0(dataset_in_scriptsfile_directory, "res.mirtefas.a715.MCEM.RData"), verbose=TRUE)
 #load(file=paste0(dataset_in_scriptsfile_directory, "res.mirtefas.h170.RData"), verbose=TRUE)
 
@@ -268,9 +312,14 @@ parallelfa_result_n_factor
 mirtitemfit<-list()
 load(file=resmirt_itemfitefasfile, verbose=TRUE)
 for (residx in names(res.mirtefas)) {
-  if (residx %in% c("7_3",names(mirtitemfit))) {next}
+  #if (residx %in% c("7_3",names(mirtitemfit))) {next}
   resmodel<-res.mirtefas[[residx]]
-  mirtitemfit[[residx]]<-mirt::itemfit(resmodel, na.rm=TRUE)
+  mirtitemfit[[residx]]<-tryCatch({
+    mirt::itemfit(resmodel, na.rm=TRUE, QMC=TRUE)
+  }, error = function(msg) {
+    message(paste0(msg,"\n"))
+    return("ERROR")
+  } ) 
   save(mirtitemfit, file=resmirt_itemfitefasfile)
   #readline(paste0("now in ", residx,", continue?"))
 }
@@ -316,8 +365,8 @@ summary(resmodel, rotate = "varimax")
 mirt::itemplot(resmodel)
 # * EFA by MCMC --------------------------------
 res.MCMCefas <- list()
-resMCMCefasfile <- paste0(dataset_in_scriptsfile_directory, "res.MCMCefas.RData")
-res.MCMCefas <- custom_parallel_lapply(c(1,3), function (fi, myown_vote_record_df_wide_billidascol, resMCMCefasfile, parallelfa_result_n_factor, widedata_preserve_vars) { #1:nrow(parallelfa_result_n_factor)
+resMCMCefasfile <- paste0(dataset_in_scriptsfile_directory, "res.MCMCefas.agenda.RData")
+res.MCMCefas <- custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), function (fi, ...) { #1:nrow(parallelfa_result_n_factor)
   n_component_row<-dplyr::filter(parallelfa_result_n_factor, i==fi)
   n_component<-magrittr::use_series(n_component_row, fa)
   plot_title<-magrittr::use_series(n_component_row, term)
@@ -348,8 +397,8 @@ resMCMCefasfile=resMCMCefasfile,
 parallelfa_result_n_factor=parallelfa_result_n_factor,
 widedata_preserve_vars=widedata_preserve_vars,
 method=parallel_method,
-mc.cores=parallel::detectCores()) %>%
-  magrittr::set_names(parallelfa_result_n_factor$need_factorn[c(1,3)])
+mc.cores=1) %>% #parallel::detectCores()
+  magrittr::set_names(parallelfa_result_n_factor$need_factorn)
 save(res.MCMCefas, file=resMCMCefasfile)
 
 load(file=resMCMCefasfile, verbose=TRUE)
