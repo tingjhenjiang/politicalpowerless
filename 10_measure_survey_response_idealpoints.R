@@ -59,3 +59,35 @@ method=parallel_method) %>% #,  method=parallel_method ,  mc.cores = 1
   magrittr::set_names(survey_parallelfa_arguments_df$store_key)
 
 save(survey_parallelfa_n_factors, file=survey_parallelfa_n_factors_file)
+if (FALSE) {
+  survey_parallelfa_n_factors <- custom_parallel_lapply(1:nrow(survey_parallelfa_arguments_df), function(fi, ...) {
+    message(paste("now in", survey_parallelfa_arguments_df[fi,"store_key"],"and fi is",fi))
+    argument_imp<-survey_parallelfa_arguments_df$imp[fi]
+    surveyvars<-survey_question_category_df[[survey_parallelfa_arguments_df$survey[fi]]]$ID
+    ordinalsurveyvars<-dplyr::filter(survey_question_category_df[[survey_parallelfa_arguments_df$survey[fi]]], MEASUREMENT=="ordinal") %>%
+      magrittr::use_series("ID")
+    targetsurveydf<-survey_data_imputed[[survey_parallelfa_arguments_df$survey[fi]]] %>%
+      .[magrittr::use_series(., ".imp")==argument_imp,surveyvars] %>% dplyr::mutate_all(unclass)
+    notemptyvars<-sapply(targetsurveydf, is.na) %>% colSums() %>% .[.==0] %>% names()
+    fewerthan8catgsvars<-sapply(targetsurveydf, function(X) {
+      length(unique(X))
+    }) %>% .[.<=8] %>% names()
+    targetsurveydf<-targetsurveydf[,intersect(notemptyvars, fewerthan8catgsvars)]
+    res_n_factors <- capture.output(tryCatch({
+      #https://rmc.ehe.osu.edu/files/2018/08/Parallel-AnalysisOct2017.pdf
+      #psych::fa.parallel(targetsurveydf, fm="ml", main="Parallel Analysis Scree Plots", cor="poly")
+      random.polychor.pa::random.polychor.pa(nrep=50, data.matrix = targetsurveydf, q.eigen=.99)
+    }, error = function(msg) {
+      message(paste0(msg,"\n"))
+      return("ERROR")
+    }))
+    return(res_n_factors)
+  }, survey_question_category_df=survey_question_category_df,
+  survey_data_imputed=survey_data_imputed,
+  survey_parallelfa_arguments_df=survey_parallelfa_arguments_df,
+  survey_question_category_df=survey_question_category_df,
+  method=parallel_method) %>% #,  method=parallel_method ,  mc.cores = 1
+    magrittr::set_names(survey_parallelfa_arguments_df$store_key)
+  save(survey_parallelfa_n_factors, file=survey_parallelfa_n_factors_file)
+  load(file=survey_parallelfa_n_factors_file, verbose=TRUE)
+}
