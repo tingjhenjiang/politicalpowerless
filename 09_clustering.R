@@ -347,7 +347,7 @@ load_lib_or_install(c("fpc","dbscan","factoextra"))
 DBSCAN_arguments_df<-data.frame("survey"=survey_data_title) %>%
   cbind(., imp = rep(imps, each = nrow(.))) %>%
   cbind(., minpts = rep(12, each = nrow(.))) %>%
-  cbind(., minclusters = rep(2:5, each = nrow(.))) %>%
+  cbind(., minclusters = rep(2, each = nrow(.))) %>%
   dplyr::mutate(dbscan_key=paste0(survey,"_imp",imp,"_minpts",minpts,"_minclusters",minclusters))
 DBSCAN_results<-list()
 DBSCANclusterfile <- paste0(dataset_in_scriptsfile_directory, "DBSCANcluster.Rdata")
@@ -385,15 +385,15 @@ for (fi in 1:nrow(DBSCAN_arguments_df)) { #22
     } else {
       # assigned_dbscan_optimal_eps <- assigned_dbscan_optimal_eps + iteri*0.005
     }
-    assigned_dbscan_optimal_eps <- 0.1825+.0025*iteri
+    assigned_dbscan_optimal_eps <- 2+.0025*iteri
     message(paste("now in iter", iteri,"of",store_key,"and try eps at",assigned_dbscan_optimal_eps))
     abline(h = as.numeric(assigned_dbscan_optimal_eps), lty = 2)
     #generating clusters
     iteri <- iteri+1
-    dbcluster_obj<-dbscan::dbscan(gower_mat, eps=assigned_dbscan_optimal_eps, minPts = targetminpts, weights=surveyweight)
+    #dbcluster_obj<-dbscan::dbscan(gower_mat, eps=assigned_dbscan_optimal_eps, minPts = targetminpts, weights=surveyweight)
+    optic_obj<-dbscan::optics(gower_mat, minPts = targetminpts)
+    dbcluster_obj<-dbscan::extractDBSCAN(optic_obj, eps_cl=assigned_dbscan_optimal_eps)
     if (length(unique(dbcluster_obj$cluster))<need_minclusters) next
-    #optic_obj<-dbscan::optics(gower_mat, eps=dbscan_optimal_eps, minPts = targetminpts)
-    #dbcluster_obj<-dbscan::extractDBSCAN(optic_obj, eps_cl=dbscan_optimal_eps)
     #print(unique(dbcluster_obj$cluster))
     #print(table(dbcluster_obj$cluster))
     silhouetteresult<-cluster::silhouette(dbcluster_obj$cluster, dmatrix=gower_mat)
@@ -602,9 +602,9 @@ while(hasNext(it)) {
   inputData <- dplyr::mutate_if(inputData, is.factor, forcats::fct_recode, !!!recode_factorvar_levellabels)
 }
 
-
-
 # Assessing Cluster clustrd Stability --------------------------------
+#https://zh-tw.coursera.org/lecture/cluster-analysis/6-9-cluster-stability-65y3a
+#https://www.cyut.edu.tw/~rcchen/research/html/ms/s8914617/cyut-8-324.pdf
 #load(file=paste0(dataset_in_scriptsfile_directory,"clustrd_results.RData"))
 #load(file=paste0(dataset_in_scriptsfile_directory,"small_clustrd_results.RData"))
 clustering_result_compare_table<-future_mapply(function(title,listelement) {
