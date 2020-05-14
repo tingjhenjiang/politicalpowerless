@@ -196,6 +196,27 @@ myown_vote_record_df_wide_billidascol <- myown_vote_record_df_wide %>%
   })} ) %>%
   lapply(function(data) {magrittr::set_rownames(data, data$legislator_name)})
 
+## Establishing connections --------------------------------
+db_table_name<-"parallel_fa_result"
+message(myremoteip)
+dbtype <- RMariaDB::MariaDB() #RSQLite::SQLite()
+dbname <- "thesis"
+dbhost <- mysqldbhost
+dbusername <- "j"
+dbpassword <- ifelse(exists("dbpassword"),dbpassword,getPass::getPass("Please enter your password: ")) #rstudioapi::askForPassword("input password")
+dbport <- 3306
+dbconnect_info <- list(
+  "drv"=dbtype,
+  "host"=dbhost,
+  "dbname"=dbname,
+  "username"=dbusername,
+  "password"=dbpassword,
+  "port"=dbport
+)
+con <- do.call(DBI::dbConnect, dbconnect_info)
+DBI::dbDisconnect(con)
+
+
 # * 先前parallel analysis的結果 --------------------------------
 if ({ parallelfa_result_n_factor<-data.frame(i=1:5,term=5:9,fa=c(3,3,3,1,4),princp=c(3,3,2,1,3)) %>%
     dplyr::mutate(need_factorn = paste0(term,"_",fa)) ; parallelfa_n_factors_agenda<-data.frame(i=1:5,term=5:9,fa=c(1,3,1,1,2),princp=c(1,2,1,1,2)) %>%
@@ -206,7 +227,8 @@ if ({ parallelfa_result_n_factor<-data.frame(i=1:5,term=5:9,fa=c(3,3,3,1,4),prin
   parallelfa_n_factors <- list()
   parallelfa_n_factors_args_df <- data.frame(i=1:5, term=5:9) %>%
     cbind(., fm = rep(c("minres", "ml", "wls", "pa"), each = nrow(.))) %>%
-    dplyr::mutate(store_key=paste0("term",term,"_",fm) ) %>%
+    cbind(., completecase = rep(c(0,1), each = nrow(.))) %>%
+    dplyr::mutate(store_key=paste0("term",term,"_",fm,"_completecase",completecase) ) %>%
     dplyr::mutate_at(c("fm","store_key"), as.character)
   random.polychor.parallelfa_n_factors_file<-paste0(dataset_in_scriptsfile_directory, "random.polychor.parallelfa_n_factors.RData")
   parallelfa_n_factors_file<-paste0(dataset_in_scriptsfile_directory, "parallelfa_n_factors.RData")
@@ -218,21 +240,26 @@ if ({ parallelfa_result_n_factor<-data.frame(i=1:5,term=5:9,fa=c(3,3,3,1,4),prin
     .[!(. %in% c("try-error", "character"))] %>% names() %>%
     {which(parallelfa_n_factors_args_df$store_key %in% .)} %>%
     dplyr::setdiff(parallel_analysis_looprange, .)
+  need_parallel_analysis_looprange<-1:nrow(parallelfa_n_factors_args_df)
+  need_parallel_analysis_looprange<-which(!parallelfa_n_factors_args_df$store_key %in% names(parallelfa_n_factors))
+  need_parallel_analysis_looprange<-sort(need_parallel_analysis_looprange, decreasing = TRUE)
+  need_parallel_analysis_looprange<-parallelfa_n_factors_args_df[need_parallel_analysis_looprange,] %>%
+    cbind(needi=need_parallel_analysis_looprange) %>%
+    dplyr::arrange(term, dplyr::desc(completecase)) %>%
+    magrittr::use_series(needi)
   parallelfa_n_factors <-custom_parallel_lapply(need_parallel_analysis_looprange, function(fi, ...) {
     #for (i in 1:length(myown_vote_record_df_wide_billidascol)) { #
     arg_row<-parallelfa_n_factors_args_df[fi,]
     i<-arg_row$i
     plot_title<-arg_row$term
-    message(paste("now in term", plot_title, "fm=", arg_row$fm))
+    message(paste("now in term", plot_title, "fm=", arg_row$fm, "completecase=", arg_row$completecase))
     colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[i]]), widedata_preserve_vars)
     votingdfwide<-myown_vote_record_df_wide_billidascol[[i]][,colname_billids] %>%
-      #.[complete.cases(.),] %>%
+      {
+        if(arg_row$completecase==1) .[complete.cases(.),] else .
+      } %>%
       dplyr::mutate_all(.funs=unclass) %>%
       as.matrix()
-    # if (usingrandom.polychor.pa!=TRUE) {
-    #   votingdfwide <- votingdfwide %>%
-    #   .[complete.cases(.),]
-    # }
     res_n_factors <- try({
       if (usingrandom.polychor.pa!=TRUE) {
         psych::fa.parallel(votingdfwide, fm=arg_row$fm, main=paste("Parallel Analysis Scree Plots with fm =", arg_row$fm), cor="poly")
@@ -243,15 +270,19 @@ if ({ parallelfa_result_n_factor<-data.frame(i=1:5,term=5:9,fa=c(3,3,3,1,4),prin
     if (res_n_factors!="ERROR") {
       #plot(res_n_factors)
     }
+    tryn<-1
     while(TRUE){
       loadingstatus<-try({load(file=parallel_analysis_result_filename, envir = .GlobalEnv, verbose=TRUE)})
-      if(!is(loadingstatus, 'try-error')) break
+      tryn <- tryn+1
+      if(!is(loadingstatus, 'try-error') | tryn>10) break
     }
     if (class(res_n_factors)=="psych") {
       parallelfa_n_factors[[arg_row$store_key]]<-res_n_factors
+      tryn<-1
       while(TRUE){
         savingstatus<-try({save(parallelfa_n_factors, file=parallel_analysis_result_filename)})
-        if(!is(savingstatus, 'try-error')) break
+        tryn <- tryn+1
+        if(!is(savingstatus, 'try-error') | tryn>10) break
       }
     }
     return(res_n_factors)
@@ -260,12 +291,20 @@ if ({ parallelfa_result_n_factor<-data.frame(i=1:5,term=5:9,fa=c(3,3,3,1,4),prin
   , parallelfa_n_factors_args_df=parallelfa_n_factors_args_df
   , parallel_analysis_result_filename=parallel_analysis_result_filename
   , method=parallel_method
+  , mc.cores=7
   ) %>%
     magrittr::set_names(parallelfa_n_factors_args_df[need_parallel_analysis_looprange,"store_key"])
   save(parallelfa_n_factors, file=parallel_analysis_result_filename)
 }
 #remove(plot_title,colname_billids,votingdfwide,parallel_analysis_result_filename,res_n_factors,parallelfa_n_factors)
-lapply(parallelfa_n_factors, function (X) {if (class(X)=="psych") {return(X$nfact)} else {return(X)}})
+parallelfa_result_n_factor <- dplyr::left_join(parallelfa_n_factors_args_df,
+  data.frame(
+    store_key=names(parallelfa_n_factors),
+    fa=sapply(parallelfa_n_factors, function (X) {if (class(X)=="psych") {return(X$nfact)} else {return(X)}}),
+    comp=sapply(parallelfa_n_factors, function (X) {if (class(X)=="psych") {return(X$ncomp)} else {return(X)}})
+  )
+) %>%
+  dplyr::arrange(term, fm, completecase)
 # * MDS algorithms --------------------------------
 #http://www.hmwu.idv.tw/web/R/C01-hmwu_R-DimensionReduction.pdf
 
@@ -394,17 +433,22 @@ res.MCMCefas <- custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), funct
   }
 },myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol,
 resMCMCefasfile=resMCMCefasfile,
-parallelfa_result_n_factor=parallelfa_result_n_factor,
+parallelfa_result_n_factor=parallelfa_n_factors,#parallelfa_result_n_factor
 widedata_preserve_vars=widedata_preserve_vars,
 method=parallel_method,
 mc.cores=1) %>% #parallel::detectCores()
   magrittr::set_names(parallelfa_result_n_factor$need_factorn)
 save(res.MCMCefas, file=resMCMCefasfile)
 
+# res.MCMCefas <- names(res.MCMCefas) %>%
+#   gsub(pattern="_\\d{1}","_minres",.) %>%
+#   paste0("term",.) %>%
+#   magrittr::set_names(res.MCMCefas,.)
+
 load(file=resMCMCefasfile, verbose=TRUE)
 for (residx in names(res.MCMCefas)) {
-  fi<-parallelfa_result_n_factor$i[which(parallelfa_result_n_factor$need_factorn==residx)]
-  term<-parallelfa_result_n_factor$term[which(parallelfa_result_n_factor$need_factorn==residx)]
+  fi<-parallelfa_result_n_factor$i[which(parallelfa_result_n_factor$store_key==residx)]
+  term<-parallelfa_result_n_factor$term[which(parallelfa_result_n_factor$store_key==residx)]
   #legislator_names <- myown_vote_record_df_wide_billidascol[[fi]]$legislator_name
   result<-res.MCMCefas[[residx]]
   means.sds <- summary(result)[[1]][,1:2]

@@ -528,60 +528,64 @@ custom_df_replaceinto_db<-function(dbconnect_info, db_table_name, with_df, colum
 }
 
 custom_parallel_lapply<-function(X=list(), FUN=FUN, ..., method="socks", exportlib=c("base","magrittr","parallel"), exportvar=c(), outfile="", verbose=TRUE, mc.cores=parallel::detectCores()  ) {
-  result<-switch(method,
-    #as.character(grepl("Ubuntu",sessionInfo()$running)),
-    "fork"=#function (X=list(), FUN, ..., mc.cores=parallel::detectCores() ) {
-      mclapply(X=X, FUN=FUN, ..., mc.cores=mc.cores,mc.preschedule=FALSE )
-    #  return(result)
-    #}
-    ,
-    "socks" = {#function ( X=list(), FUN, ... ) {
-      argumentstopass<-list(...)
-      tryCatch({stopCluster(cl)},
-        # 遇到 warning 時的自訂處理函數
-        warning = function(msg) {
-          message("tryCatch Original warning message while stopCluster:")
-          message(paste0(msg,"\n"))
-        },
-        # 遇到 error 時的自訂處理函數
-        error = function(msg) {
-          message("tryCatch Original error message while stopCluster:")
-          message(paste0(msg,"\n"))
-        }
-      )
-      #library(MASS)
-      if (verbose) {
-        message("<===== at custom_parallel_lapply exportlib is ", exportlib, " and exportvar is ", exportvar, " and outfile is ", outfile, "=====>")
-      }
-      cl <- makeCluster(parallel::detectCores(),outfile=outfile)
-      sapply(exportlib,function(needlib,cl) {
-        if (verbose) {message("cluster calling ", needlib, " at ", substr(as.character(cl),6,13) )}
-        clusterCall(cl=cl, library, needlib, character.only=TRUE)
-      },cl=cl)
-      clustersessioninfopkgs<-clusterCall(cl=cl, sessionInfo) %>%
-        sapply(function(X) {
-          return(dplyr::union(X$basePkgs,names(X$otherPkgs)) %>% paste0(collapse=" "))
-        })
-      if (verbose) {message("overall libraries called are ", clustersessioninfopkgs, " at ",substr(as.character(cl),6,13) )    }
-      if (length(exportvar)>0) {
-        if (verbose) {message("cluster exporting: ", paste0(exportvar, collapse=" "), " at ", substr(as.character(cl),6,13) )}
-        clusterExport(cl, varlist=c("exportlib",exportvar,"exportvar","outfile"), envir=environment())#
-      }
-      if (length(argumentstopass)>0) {
-        #lapply(argumentstopass,function(needvar,cl) {
-        #  clusterExport(cl, needvar, envir=environment())
-        #},cl=cl)#
-      }
-      returndata<-parLapply(
-        cl,
-        X=X,
-        fun=FUN,
-        ...)
-      stopCluster(cl)
-      #return(returndata)
-      returndata
-    }
-  )
+  if (mc.cores==1) {
+    return(lapply(X, FUN=FUN, ...))
+  } else {
+    result<-switch(method,
+     #as.character(grepl("Ubuntu",sessionInfo()$running)),
+     "fork"=#function (X=list(), FUN, ..., mc.cores=parallel::detectCores() ) {
+       mclapply(X=X, FUN=FUN, ..., mc.cores=mc.cores,mc.preschedule=FALSE )
+     #  return(result)
+     #}
+     ,
+     "socks" = {#function ( X=list(), FUN, ... ) {
+       argumentstopass<-list(...)
+       tryCatch({stopCluster(cl)},
+                # 遇到 warning 時的自訂處理函數
+                warning = function(msg) {
+                  message("tryCatch Original warning message while stopCluster:")
+                  message(paste0(msg,"\n"))
+                },
+                # 遇到 error 時的自訂處理函數
+                error = function(msg) {
+                  message("tryCatch Original error message while stopCluster:")
+                  message(paste0(msg,"\n"))
+                }
+       )
+       #library(MASS)
+       if (verbose) {
+         message("<===== at custom_parallel_lapply exportlib is ", exportlib, " and exportvar is ", exportvar, " and outfile is ", outfile, "=====>")
+       }
+       cl <- makeCluster(parallel::detectCores(),outfile=outfile)
+       sapply(exportlib,function(needlib,cl) {
+         if (verbose) {message("cluster calling ", needlib, " at ", substr(as.character(cl),6,13) )}
+         clusterCall(cl=cl, library, needlib, character.only=TRUE)
+       },cl=cl)
+       clustersessioninfopkgs<-clusterCall(cl=cl, sessionInfo) %>%
+         sapply(function(X) {
+           return(dplyr::union(X$basePkgs,names(X$otherPkgs)) %>% paste0(collapse=" "))
+         })
+       if (verbose) {message("overall libraries called are ", clustersessioninfopkgs, " at ",substr(as.character(cl),6,13) )    }
+       if (length(exportvar)>0) {
+         if (verbose) {message("cluster exporting: ", paste0(exportvar, collapse=" "), " at ", substr(as.character(cl),6,13) )}
+         clusterExport(cl, varlist=c("exportlib",exportvar,"exportvar","outfile"), envir=environment())#
+       }
+       if (length(argumentstopass)>0) {
+         #lapply(argumentstopass,function(needvar,cl) {
+         #  clusterExport(cl, needvar, envir=environment())
+         #},cl=cl)#
+       }
+       returndata<-parLapply(
+         cl,
+         X=X,
+         fun=FUN,
+         ...)
+       stopCluster(cl)
+       #return(returndata)
+       returndata
+     }
+    )
+  }
 }
 
 vhead<- function(X) {
@@ -720,7 +724,7 @@ cn2num<-function(string){
   d <- list(
     "一" = 1,"二" = 2,"三" = 3,"四" = 4,"五" = 5,"六" = 6,"七" = 7,"八" = 8,"九" = 9,
     "壹" = 1,"貳" = 2,"參" = 3,"肆" = 4,"伍" = 5,"陸" = 6,"柒" = 7,"捌" = 8,"玖" = 9,
-    #"贰" = 2,"叁" = 3,"陆" = 6,"两" = 2,
+    "贰" = 2,"叁" = 3,"陆" = 6,"两" = 2,
     "零" = 0,"0" = 0,"O" = 0,"o" = 0,"兩" = 2
   )
   return(num + d[[string]])

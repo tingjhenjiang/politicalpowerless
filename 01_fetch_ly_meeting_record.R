@@ -108,3 +108,18 @@ meetingdata<-dplyr::bind_cols(meetingurldata,fetchmeetingdata) %>%
 
 #出錯處 at 312 臨時會 第08屆 第04會期 第01次臨時會 第01次會議 or 313
 save(meetingdata, file = paste0(dataset_in_scriptsfile_directory, "meetingdata.RData", sep = "") )
+
+
+#會議記錄（非議事錄）
+sapply(1:20, function(X) {paste0("http://data.ly.gov.tw:80/odw/openDatasetJson.action?id=41&selectTerm=all&page=",X)}) %>%
+  lapply(jsonlite::fromJSON) %>%
+  lapply(magrittr::extract2, 1) %>%
+  {
+    magrittr::extract(., which(sapply(., class)=="data.frame"))
+  } %>%
+  dplyr::bind_rows() %>%
+  dplyr::rename(period=sessionPeriod, meetingno=sessionTimes, temp_meeting_no=meetingTimes) %>%
+  dplyr::select(term, period, temp_meeting_no, meetingno, everything()) %>%
+  dplyr::mutate_at(c("period","meetingno","temp_meeting_no"), as.integer) %>%
+  dplyr::filter(!grepl("(本期委員發言紀錄索引|本會召集委員|國是論壇|委員會會議|委員會聯席會議|選舉本院院長|選舉本院副院長|談話會|議事錄)", subject, perl=TRUE)) %>%
+  openxlsx::write.xlsx(paste0(dataset_in_scriptsfile_directory, "fullmeetingrecordlinks.xlsx"))
