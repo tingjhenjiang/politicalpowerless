@@ -178,23 +178,29 @@ if ({testing_if_duplicated<-FALSE;testing_if_duplicated}) {
 myown_vote_record_df_wide <- dplyr::distinct(myown_vote_record_df, term, legislator_name, billid_myown, votedecision) %>%
   dplyr::left_join(dplyr::distinct(legislators_with_elections, term, legislator_name, legislator_party)) %>%#legislator_party,
   dplyr::left_join(dplyr::distinct(bills_billcontent, billid_myown , pp_agendavoting, research_period) ) %>%
-  dplyr::filter(pp_agendavoting==0, research_period==1)
-widedata_preserve_vars <- dplyr::setdiff(names(myown_vote_record_df_wide), c("billid_myown","votedecision"))
+  {
+    list("notagendavoting"=dplyr::filter(., pp_agendavoting==0, research_period==1),
+    "agendavoting"=dplyr::filter(., pp_agendavoting==1, research_period==1))
+  }
+widedata_preserve_vars <- dplyr::setdiff(names(myown_vote_record_df_wide[[1]]), c("billid_myown","votedecision"))
 widedata_formula <- paste0(widedata_preserve_vars, collapse="+") %>%
-  paste0("~","billid_myown") %>% as.formula()
-myown_vote_record_df_wide_billidascol <- myown_vote_record_df_wide %>%
-  dplyr::arrange(legislator_name, billid_myown, votedecision) %>%
-  dplyr::mutate_at(.vars=c("votedecision","legislator_party"), as.character) %>%
-  lapply(terms, function (term,data) { data[data$term==term,] }, data=. ) %>%
-  lapply(function(data) {reshape2::dcast(data, widedata_formula, fun.aggregate=paste0, value.var="votedecision", fill="")}) %>%
-  lapply(function(data) {dplyr::mutate_all(data, .funs=function (X){X<-ifelse(X=="",NA,X)} )} ) %>%
-  #lapply(function(data) {t(data)}) %>%
-  #lapply(function(data) {magrittr::set_colnames(data, data[2,])}) %>%
-  #lapply(function(data) {as.data.frame(data[4:nrow(data),])}) %>%
-  lapply(function(data) {dplyr::mutate_at(data, .vars=dplyr::setdiff(colnames(data), widedata_preserve_vars), function (X) {
-    ordered(X, levels = c("反對", non_decision, "贊成"))
-  })} ) %>%
-  lapply(function(data) {magrittr::set_rownames(data, data$legislator_name)})
+    paste0("~","billid_myown") %>%
+    as.formula()
+myown_vote_record_df_wide_billidascol <- lapply(names(myown_vote_record_df_wide), function(key, ...) {
+  dplyr::arrange(myown_vote_record_df_wide[[key]], legislator_name, billid_myown, votedecision) %>%
+    dplyr::mutate_at(.vars=c("votedecision","legislator_party"), as.character) %>%
+    lapply(terms, function (term,data) { data[data$term==term,] }, data=. ) %>%
+    lapply(function(data, ...) {reshape2::dcast(data, widedata_formula, fun.aggregate=paste0, value.var="votedecision", fill="")}, widedata_formula=widedata_formula) %>%
+    lapply(function(data) {dplyr::mutate_all(data, .funs=function (X){X<-ifelse(X=="",NA,X)} )} ) %>%
+    #lapply(function(data) {t(data)}) %>%
+    #lapply(function(data) {magrittr::set_colnames(data, data[2,])}) %>%
+    #lapply(function(data) {as.data.frame(data[4:nrow(data),])}) %>%
+    lapply(function(data) {dplyr::mutate_at(data, .vars=dplyr::setdiff(colnames(data), widedata_preserve_vars), function (X) {
+      ordered(X, levels = c("反對", non_decision, "贊成"))
+    })} ) %>%
+    lapply(function(data) {magrittr::set_rownames(data, data$legislator_name)})
+}, myown_vote_record_df_wide=myown_vote_record_df_wide, terms=terms, widedata_preserve_vars=widedata_preserve_vars, widedata_formula=widedata_formula) %>%
+  magrittr::set_names(names(myown_vote_record_df_wide))
 
 ## Establishing connections --------------------------------
 db_table_name<-"parallel_fa_result"
@@ -228,7 +234,8 @@ if ({ parallelfa_result_n_factor<-data.frame(i=1:5,term=5:9,fa=c(3,3,3,1,4),prin
   parallelfa_n_factors_args_df <- data.frame(i=1:5, term=5:9) %>%
     cbind(., fm = rep(c("minres", "ml", "wls", "pa"), each = nrow(.))) %>%
     cbind(., completecase = rep(c(0,1), each = nrow(.))) %>%
-    dplyr::mutate(store_key=paste0("term",term,"_",fm,"_completecase",completecase) ) %>%
+    cbind(., agenda = rep(c("agendavoting","notagendavoting"), each = nrow(.))) %>%
+    dplyr::mutate(store_key=paste0("term",term,"_",fm,"_completecase",completecase,"_",agenda) ) %>%
     dplyr::mutate_at(c("fm","store_key"), as.character)
   random.polychor.parallelfa_n_factors_file<-paste0(dataset_in_scriptsfile_directory, "random.polychor.parallelfa_n_factors.RData")
   parallelfa_n_factors_file<-paste0(dataset_in_scriptsfile_directory, "parallelfa_n_factors.RData")
@@ -245,16 +252,17 @@ if ({ parallelfa_result_n_factor<-data.frame(i=1:5,term=5:9,fa=c(3,3,3,1,4),prin
   need_parallel_analysis_looprange<-sort(need_parallel_analysis_looprange, decreasing = TRUE)
   need_parallel_analysis_looprange<-parallelfa_n_factors_args_df[need_parallel_analysis_looprange,] %>%
     cbind(needi=need_parallel_analysis_looprange) %>%
-    dplyr::arrange(term, dplyr::desc(completecase)) %>%
+    dplyr::arrange(agenda, term, dplyr::desc(completecase)) %>%
     magrittr::use_series(needi)
   parallelfa_n_factors <-custom_parallel_lapply(need_parallel_analysis_looprange, function(fi, ...) {
     #for (i in 1:length(myown_vote_record_df_wide_billidascol)) { #
     arg_row<-parallelfa_n_factors_args_df[fi,]
     i<-arg_row$i
     plot_title<-arg_row$term
-    message(paste("now in term", plot_title, "fm=", arg_row$fm, "completecase=", arg_row$completecase))
-    colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[i]]), widedata_preserve_vars)
-    votingdfwide<-myown_vote_record_df_wide_billidascol[[i]][,colname_billids] %>%
+    if_agenda<-arg_row$agenda %>% as.character()
+    message(paste("now in term", plot_title, "fm=", arg_row$fm, "completecase=", arg_row$completecase," agenda=",if_agenda))
+    colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[if_agenda]][[i]]), widedata_preserve_vars)
+    votingdfwide<-myown_vote_record_df_wide_billidascol[[if_agenda]][[i]][,colname_billids] %>%
       {
         if(arg_row$completecase==1) .[complete.cases(.),] else .
       } %>%
@@ -291,7 +299,7 @@ if ({ parallelfa_result_n_factor<-data.frame(i=1:5,term=5:9,fa=c(3,3,3,1,4),prin
   , parallelfa_n_factors_args_df=parallelfa_n_factors_args_df
   , parallel_analysis_result_filename=parallel_analysis_result_filename
   , method=parallel_method
-  , mc.cores=7
+  #, mc.cores=7
   ) %>%
     magrittr::set_names(parallelfa_n_factors_args_df[need_parallel_analysis_looprange,"store_key"])
   save(parallelfa_n_factors, file=parallel_analysis_result_filename)
@@ -404,16 +412,21 @@ summary(resmodel, rotate = "varimax")
 mirt::itemplot(resmodel)
 # * EFA by MCMC --------------------------------
 res.MCMCefas <- list()
-resMCMCefasfile <- paste0(dataset_in_scriptsfile_directory, "res.MCMCefas.agenda.RData")
-res.MCMCefas <- custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), function (fi, ...) { #1:nrow(parallelfa_result_n_factor)
-  n_component_row<-dplyr::filter(parallelfa_result_n_factor, i==fi)
-  n_component<-magrittr::use_series(n_component_row, fa)
+resMCMCefasfile <- paste0(dataset_in_scriptsfile_directory, "res.MCMCefas.RData")
+#[c(2,10,18,26,34),]
+need_parallelfa_result_n_factor<-dplyr::filter(parallelfa_result_n_factor, !is.na(fa)) %>%
+  dplyr::distinct(i,term,fa,agenda) %>%
+  dplyr::mutate(store_key=paste0("term",term,"_",fa,"_",agenda))
+res.MCMCefas <- custom_parallel_lapply(1:nrow(need_parallelfa_result_n_factor), function (fi, ...) { #1:nrow(parallelfa_result_n_factor)
+  n_component_row<-need_parallelfa_result_n_factor[fi,]
+  n_component<-magrittr::use_series(n_component_row, fa) %>% as.character() %>% as.integer()
   plot_title<-magrittr::use_series(n_component_row, term)
-  colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[fi]]), widedata_preserve_vars)
+  need_agenda_key<-n_component_row$agenda %>% as.character()
+  colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[need_agenda_key]][[n_component_row$i]]), widedata_preserve_vars)
   adj_colname_billids <- stringr::str_replace_all(colname_billids, "-","_") %>%
     #stringr::str_replace_all(c("0"="zero", "1"="one", "2"="two", "3"="three", "4"="four", "5"="five", "6"="six", "7"="seven", "8"="eight", "9"="nine")) %>%
     paste0("w",.)
-  votingdfwide<-myown_vote_record_df_wide_billidascol[[fi]][,colname_billids] %>%
+  votingdfwide<-myown_vote_record_df_wide_billidascol[[need_agenda_key]][[n_component_row$i]][,colname_billids] %>%
     dplyr::mutate_all(.funs=unclass) %>%
     magrittr::set_colnames(adj_colname_billids)
   residx <- paste0(plot_title,"_",n_component)
@@ -424,7 +437,7 @@ res.MCMCefas <- custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), funct
     resmodel <- MCMCpack::MCMCordfactanal(
       x=~. , factors=n_component, data=votingdfwide, verbose=0,
       l0=0, L0=0.1,
-      mcmc=25000, thin=25, store.lambda=TRUE, store.scores=TRUE
+      mcmc=27500, thin=25, store.lambda=TRUE, store.scores=TRUE
     )
     load(file=resMCMCefasfile, verbose=TRUE)
     res.MCMCefas[[residx]] <- resmodel
@@ -433,11 +446,10 @@ res.MCMCefas <- custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), funct
   }
 },myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol,
 resMCMCefasfile=resMCMCefasfile,
-parallelfa_result_n_factor=parallelfa_n_factors,#parallelfa_result_n_factor
+need_parallelfa_result_n_factor=need_parallelfa_result_n_factor,#parallelfa_result_n_factor
 widedata_preserve_vars=widedata_preserve_vars,
-method=parallel_method,
-mc.cores=1) %>% #parallel::detectCores()
-  magrittr::set_names(parallelfa_result_n_factor$need_factorn)
+method=parallel_method) %>% #parallel::detectCores()
+  magrittr::set_names(need_parallelfa_result_n_factor$store_key)
 save(res.MCMCefas, file=resMCMCefasfile)
 
 # res.MCMCefas <- names(res.MCMCefas) %>%

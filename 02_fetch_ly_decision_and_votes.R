@@ -773,7 +773,7 @@ myown_vote_record_df <- meetingdata %>% #20:114 term9 58,
       mc.cores=parallel::detectCores() # #
     ), .$termmeetingtime)
   } %>%
-  plyr::rbind.fill() %>%
+  dplyr::bind_rows() %>% #plyr::rbind.fill() %>%
   dplyr::filter(!is.na(legislator_name)) %>%
   mutate_cond(term==9 & customgrepl(legislator_name,"簡東明"),legislator_name="簡東明Uliw．Qaljupayare") %>%
   mutate_cond(term==9 & customgrepl(legislator_name,"廖國棟"),legislator_name="廖國棟Sufin．Siluko") %>%
