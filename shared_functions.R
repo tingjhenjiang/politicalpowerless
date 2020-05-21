@@ -20,6 +20,11 @@ load_lib_or_install<-function (libs) {
     }
   })
 }
+#shared install.packages(c("DBI", "DescTools", "dplyr", "feather", "future", "ggplot2", "ggsci", "gtools", "here", "magrittr", "openxlsx", "rvest", "sparklyr", "SparkR", "survey", "utf8"))
+#04 install.packages(c("benchmarkme", "DBI", "dplyr", "factoextra", "getPass", "Gifi", "homals", "magrittr", "MCMCpack", "mirt", "openxlsx", "psych", "random.polychor.pa", "reshape2", "RMariaDB", "stringr"))
+#03 install.packages("future.apply")
+#05 install.packages("labelled")
+#06 install.packages(c("BaylorEdPsych", "Hmisc", "mice", "micemd", "VIM"))
 load_lib_or_install(lib)
 check_if_windows<-function () {
   backgroundinfo<-sessionInfo()

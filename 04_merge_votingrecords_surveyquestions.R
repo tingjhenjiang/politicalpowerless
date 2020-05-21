@@ -186,6 +186,7 @@ widedata_preserve_vars <- dplyr::setdiff(names(myown_vote_record_df_wide[[1]]), 
 widedata_formula <- paste0(widedata_preserve_vars, collapse="+") %>%
     paste0("~","billid_myown") %>%
     as.formula()
+newlevel_of_voting<-c("反對", non_decision, "贊成")
 myown_vote_record_df_wide_billidascol <- lapply(names(myown_vote_record_df_wide), function(key, ...) {
   dplyr::arrange(myown_vote_record_df_wide[[key]], legislator_name, billid_myown, votedecision) %>%
     dplyr::mutate_at(.vars=c("votedecision","legislator_party"), as.character) %>%
@@ -196,7 +197,7 @@ myown_vote_record_df_wide_billidascol <- lapply(names(myown_vote_record_df_wide)
     #lapply(function(data) {magrittr::set_colnames(data, data[2,])}) %>%
     #lapply(function(data) {as.data.frame(data[4:nrow(data),])}) %>%
     lapply(function(data) {dplyr::mutate_at(data, .vars=dplyr::setdiff(colnames(data), widedata_preserve_vars), function (X) {
-      ordered(X, levels = c("反對", non_decision, "贊成"))
+      ordered(X, levels = newlevel_of_voting)
     })} ) %>%
     lapply(function(data) {magrittr::set_rownames(data, data$legislator_name)})
 }, myown_vote_record_df_wide=myown_vote_record_df_wide, terms=terms, widedata_preserve_vars=widedata_preserve_vars, widedata_formula=widedata_formula) %>%
@@ -224,24 +225,21 @@ DBI::dbDisconnect(con)
 
 
 # * 先前parallel analysis的結果 --------------------------------
-if ({ parallelfa_result_n_factor<-data.frame(i=1:5,term=5:9,fa=c(3,3,3,1,4),princp=c(3,3,2,1,3)) %>%
-    dplyr::mutate(need_factorn = paste0(term,"_",fa)) ; parallelfa_n_factors_agenda<-data.frame(i=1:5,term=5:9,fa=c(1,3,1,1,2),princp=c(1,2,1,1,2)) %>%
-      dplyr::mutate(need_factorn = paste0(term,"_",fa)) ; if(TRUE) {
-        parallelfa_result_n_factor<-parallelfa_n_factors_agenda
-      } ;FALSE}) {
+
 # * * 投票結果#fa parallel探測因素數目 --------------------------------
-  parallelfa_n_factors <- list()
-  parallelfa_n_factors_args_df <- data.frame(i=1:5, term=5:9) %>%
-    cbind(., fm = rep(c("minres", "ml", "wls", "pa"), each = nrow(.))) %>%
-    cbind(., completecase = rep(c(0,1), each = nrow(.))) %>%
-    cbind(., agenda = rep(c("agendavoting","notagendavoting"), each = nrow(.))) %>%
-    dplyr::mutate(store_key=paste0("term",term,"_",fm,"_completecase",completecase,"_",agenda) ) %>%
-    dplyr::mutate_at(c("fm","store_key"), as.character)
-  random.polychor.parallelfa_n_factors_file<-paste0(dataset_in_scriptsfile_directory, "random.polychor.parallelfa_n_factors.RData")
-  parallelfa_n_factors_file<-paste0(dataset_in_scriptsfile_directory, "parallelfa_n_factors.RData")
-  usingrandom.polychor.pa<-FALSE
-  parallel_analysis_result_filename <- ifelse(usingrandom.polychor.pa==TRUE, random.polychor.parallelfa_n_factors_file, parallelfa_n_factors_file)
-  load(file=parallel_analysis_result_filename, envir = .GlobalEnv, verbose=TRUE)
+parallelfa_n_factors <- list()
+parallelfa_n_factors_args_df <- data.frame(i=1:5, term=5:9) %>%
+  cbind(., fm = rep(c("minres", "ml", "wls", "pa"), each = nrow(.))) %>%
+  cbind(., completecase = rep(c(0,1), each = nrow(.))) %>%
+  cbind(., agenda = rep(c("agendavoting","notagendavoting"), each = nrow(.))) %>%
+  dplyr::mutate(store_key=paste0("term",term,"_",fm,"_completecase",completecase,"_",agenda) ) %>%
+  dplyr::mutate_at(c("fm","store_key"), as.character)
+random.polychor.parallelfa_n_factors_file<-paste0(dataset_in_scriptsfile_directory, "random.polychor.parallelfa_n_factors.RData")
+parallelfa_n_factors_file<-paste0(dataset_in_scriptsfile_directory, "parallelfa_n_factors.RData")
+usingrandom.polychor.pa<-FALSE
+parallel_analysis_result_filename <- ifelse(usingrandom.polychor.pa==TRUE, random.polychor.parallelfa_n_factors_file, parallelfa_n_factors_file)
+load(file=parallel_analysis_result_filename, envir = .GlobalEnv, verbose=TRUE)
+if (FALSE) {
   parallel_analysis_looprange<-1:nrow(parallelfa_n_factors_args_df) #nrow(parallelfa_n_factors_args_df):1
   need_parallel_analysis_looprange<-lapply(parallelfa_n_factors, class) %>%
     .[!(. %in% c("try-error", "character"))] %>% names() %>%
@@ -316,6 +314,183 @@ parallelfa_result_n_factor <- dplyr::left_join(parallelfa_n_factors_args_df,
 # * MDS algorithms --------------------------------
 #http://www.hmwu.idv.tw/web/R/C01-hmwu_R-DimensionReduction.pdf
 
+
+# * EFA by MCMC --------------------------------
+res.MCMCefas <- list()
+resMCMCefasfile <- paste0(dataset_in_scriptsfile_directory, "res.MCMCefas.RData")
+load(file=resMCMCefasfile, verbose=TRUE)
+need_parallelfa_result_n_factor<-reshape2::melt(parallelfa_result_n_factor, id.vars=c("i","term","fm","completecase","agenda","store_key")) %>%
+  dplyr::filter(!is.na(value)) %>%
+  dplyr::distinct(i,term,agenda,value) %>%
+  dplyr::mutate_at("value", as.integer) %>%
+  dplyr::bind_rows(., {
+    dplyr::mutate_at(., "value", list(~.+1))
+  }) %>%
+  dplyr::distinct(i,term,agenda,value) %>%
+  dplyr::mutate(store_key=paste0("term",term,"_",value,"_",agenda)) %>%
+  dplyr::mutate(alreadyprocessed=magrittr::is_in(store_key, !!names(res.MCMCefas))) %>%
+  dplyr::arrange(alreadyprocessed, dplyr::desc(term), dplyr::desc(agenda))
+res.MCMCefas <- custom_parallel_lapply(1:nrow(need_parallelfa_result_n_factor), function (fi, ...) { #1:nrow(parallelfa_result_n_factor)
+  n_component_row<-need_parallelfa_result_n_factor[fi,]
+  n_component<-magrittr::use_series(n_component_row, value) %>% as.character() %>% as.integer()
+  need_agenda_key<-n_component_row$agenda %>% as.character()
+  colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[need_agenda_key]][[n_component_row$i]]), widedata_preserve_vars)
+  adj_colname_billids <- stringr::str_replace_all(colname_billids, "-","_") %>%
+    paste0("w",.)
+  votingdfwide<-myown_vote_record_df_wide_billidascol[[need_agenda_key]][[n_component_row$i]][,colname_billids] %>%
+    dplyr::mutate_all(.funs=unclass) %>%
+    magrittr::set_colnames(adj_colname_billids)
+  residx <- magrittr::use_series(n_component_row, store_key) %>% as.character()
+  mcmcformula <- paste("`",adj_colname_billids,"`", collapse=" + ", sep="") %>%
+    paste0("~ ",.) %>%
+    as.formula()
+  lconstrains<-list()
+  if (residx=="term9_4_notagendavoting") {
+    lconstrains<-list(
+      #PRO政治檔案條例草案立法通過 與 促轉 完全同s at dim2；大部分同at dim3,5
+      #同婚與促轉 同s at dim2,5；大部分同s at dim3；
+      #同婚與勞基法修惡同s at dim2 dim3 dim5(絕大部分)
+      #同婚與PRO降低遺贈稅免稅額門檻 同s at dim2,3,4,5
+      #同婚與
+      #國安五法
+      #同婚系列
+      w9_7_0_14_4=list(2,"-"),w9_7_0_14_2=list(2,"-"), w9_7_0_14_26=list(2,"-"), w9_7_0_14_3=list(2,"-"), w9_7_0_14_20=list(2,"-"), w9_7_0_14_8=list(2,"-"), w9_7_0_14_4=list(2,"-"), w9_7_0_14_15=list(2,"-"), w9_7_0_14_31=list(2,"-"), w9_7_0_14_13=list(2,"-"), w9_7_0_14_18=list(2,"-"), w9_7_0_14_22=list(2,"-"), w9_7_0_14_24=list(2,"-"), w9_7_0_14_21=list(2,"-"), w9_7_0_14_30=list(2,"-"), w9_7_0_14_12=list(2,"-"), w9_7_0_14_27=list(2,"-"), w9_7_0_14_9=list(2,"-"), w9_7_0_14_25=list(2,"-"), w9_7_0_14_33=list(2,"-"), w9_7_0_14_28=list(2,"-"), w9_7_0_14_34=list(2,"-"), w9_7_0_14_17=list(2,"-"), w9_7_0_14_32=list(2,"-"), w9_7_0_14_19=list(2,"-"), w9_7_0_14_29=list(2,"-"), w9_7_0_14_14=list(2,"-"), w9_7_0_14_11=list(2,"-"), w9_7_0_14_23=list(2,"-"), w9_7_0_14_10=list(2,"-"), w9_7_0_14_16=list(2,"-"), w9_7_0_14_6=list(2,"-"), w9_7_0_14_5=list(2,"-"), w9_7_0_14_7=list(2,"-"),
+      w9_7_0_14_4=list(5,"-"),w9_7_0_14_2=list(5,"-"), w9_7_0_14_26=list(5,"-"), w9_7_0_14_3=list(5,"-"), w9_7_0_14_20=list(5,"-"), w9_7_0_14_8=list(5,"-"), w9_7_0_14_4=list(5,"-"), w9_7_0_14_15=list(5,"-"), w9_7_0_14_31=list(5,"-"), w9_7_0_14_13=list(5,"-"), w9_7_0_14_18=list(5,"-"), w9_7_0_14_22=list(5,"-"), w9_7_0_14_24=list(5,"-"), w9_7_0_14_21=list(5,"-"), w9_7_0_14_30=list(5,"-"), w9_7_0_14_12=list(5,"-"), w9_7_0_14_27=list(5,"-"), w9_7_0_14_9=list(5,"-"), w9_7_0_14_25=list(5,"-"), w9_7_0_14_33=list(5,"-"), w9_7_0_14_28=list(5,"-"), w9_7_0_14_34=list(5,"-"), w9_7_0_14_17=list(5,"-"), w9_7_0_14_32=list(5,"-"), w9_7_0_14_19=list(5,"-"), w9_7_0_14_29=list(5,"-"), w9_7_0_14_14=list(5,"-"), w9_7_0_14_11=list(5,"-"), w9_7_0_14_23=list(5,"-"), w9_7_0_14_10=list(5,"-"), w9_7_0_14_16=list(5,"-"), w9_7_0_14_6=list(5,"-"), w9_7_0_14_5=list(5,"-"), w9_7_0_14_7=list(5,"-"),
+      #酒駕加刑
+      #w9_7_0_16_5=list(), 
+      #促轉會系列
+      w9_4_0_11_3=list(2,"-"), w9_4_0_11_13=list(2,"-"), w9_4_0_11_23=list(2,"-"), w9_4_0_11_11=list(2,"-"), w9_4_0_11_12=list(2,"-"), w9_4_0_11_18=list(2,"-"), w9_4_0_11_4=list(2,"-"), w9_4_0_11_15=list(2,"-"), w9_4_0_11_8=list(2,"-"), w9_4_0_11_20=list(2,"-"), w9_4_0_11_9=list(2,"-"), w9_4_0_11_10=list(2,"-"), w9_4_0_11_1=list(2,"-"), w9_4_0_11_14=list(2,"-"), w9_4_0_11_17=list(2,"-"), w9_4_0_11_24=list(2,"-"), w9_4_0_11_25=list(2,"-"), w9_4_0_11_19=list(2,"-"), w9_4_0_11_22=list(2,"-"), w9_4_0_11_2=list(2,"-"), w9_4_0_11_16=list(2,"-"),
+      w9_4_0_11_3=list(5,"-"), w9_4_0_11_13=list(5,"-"), w9_4_0_11_23=list(5,"-"), w9_4_0_11_11=list(5,"-"), w9_4_0_11_12=list(5,"-"), w9_4_0_11_18=list(5,"-"), w9_4_0_11_4=list(5,"-"), w9_4_0_11_15=list(5,"-"), w9_4_0_11_8=list(5,"-"), w9_4_0_11_20=list(5,"-"), w9_4_0_11_9=list(5,"-"), w9_4_0_11_10=list(5,"-"), w9_4_0_11_1=list(5,"-"), w9_4_0_11_14=list(5,"-"), w9_4_0_11_17=list(5,"-"), w9_4_0_11_24=list(5,"-"), w9_4_0_11_25=list(5,"-"), w9_4_0_11_19=list(5,"-"), w9_4_0_11_22=list(5,"-"), w9_4_0_11_2=list(5,"-"), w9_4_0_11_16=list(5,"-"),w9_4_0_11_3=list(5,"-"), w9_4_0_11_13=list(5,"-"), w9_4_0_11_23=list(5,"-"), w9_4_0_11_11=list(5,"-"), w9_4_0_11_12=list(5,"-"), w9_4_0_11_18=list(5,"-"), w9_4_0_11_4=list(5,"-"), w9_4_0_11_15=list(5,"-"), w9_4_0_11_8=list(5,"-"), w9_4_0_11_20=list(5,"-"), w9_4_0_11_9=list(5,"-"), w9_4_0_11_10=list(5,"-"), w9_4_0_11_1=list(5,"-"), w9_4_0_11_14=list(5,"-"), w9_4_0_11_17=list(5,"-"), w9_4_0_11_24=list(5,"-"), w9_4_0_11_25=list(5,"-"), w9_4_0_11_19=list(5,"-"), w9_4_0_11_22=list(5,"-"), w9_4_0_11_2=list(5,"-"), w9_4_0_11_16=list(5,"-"),
+      
+      #勞基法修惡 與 勞基法PRO降低特休門檻增加特休、PRO特休勞工決定(9-2-0-13-6)	不同s at dim3,5
+      #勞基法修惡 與 砍七天國定假 同s at dim2,4,5
+      #勞基法修惡 與 PRO所得稅法修正；PRO有錢人、財團降稅 同s at dim4,5
+      #勞基法修惡 與 PRO平均地權條例不動產交易價格資訊申報登錄免除地政士登錄責任改為買賣雙方 同s at dim4
+      #勞基法修惡 與 PRO降低遺贈稅免稅額門檻(課更多稅) 不同s at dim4
+      #勞基法修惡 與 Pro工廠管理輔導法輔導農地工廠合法化 增訂第二十八條之五 同s at dim2,3,4,5
+      #PRO降低遺贈稅免稅額門檻 與 #PRO所得稅法修正；PRO有錢人、財團降稅 不同s at dim2,3,4,5
+      #PRO推動國家住宅與都市更新 與 #PRO所得稅法修正；PRO有錢人、財團降稅 不同s at dim3
+      #年改間 同s at dim2
+      #PRO勞基法修惡 與 年改 不同s at dim3（一點點）dim4（一點點）dim5（一點點）
+      #勞基法修惡 與 年改 不同s at no dim ;
+      #PRO推動國家住宅與都市更新 and PRO長照法修正明訂遺產稅及贈與稅、菸酒稅菸品應徵稅稅率加稅作為財源 同s at dim2,4,5
+      #綜合以上dim4應該是與經濟社會面向、所得重分配有關
+      #PRO長照法修正增加財源
+      
+      #勞基法修惡系列
+      w_9_4_1_2_152=list(5,"+"), w9_4_1_2_153=list(5,"+"), w9_4_1_2_154=list(5,"+"), w9_4_1_2_155=list(5,"+"), w9_4_1_2_156=list(5,"+"), w9_4_1_2_157=list(5,"+"), w9_4_1_2_158=list(5,"+"), w9_4_1_2_160=list(5,"+"),
+      #砍七天國定假
+      w9_2_0_13_5=list(5,"+"),
+      #保障勞工的勞基法系列
+      w9_2_0_13_6=list(5,"-"),
+      #PRO降低遺贈稅免稅額門檻
+      w9_3_0_10_1=list(5,"-"),
+      #PRO所得稅法修正；PRO有錢人、財團降稅 系列
+      w9_4_1_2_168=list(5,"+"), w9_4_1_2_169=list(5,"+"), w9_4_1_2_170=list(5,"+"),
+      #PRO推動國家住宅與都市更新
+      #w9_4_1_2_171=list(),
+      #PRO長照法修正明訂遺產稅及贈與稅、菸酒稅菸品應徵稅稅率加稅作為財源(對照時代力量版本)
+      #w9_2_1_1_4=list(),
+      #Pro工廠管理輔導法輔導農地工廠合法化 增訂第二十八條之五
+      #w_7_1_2_7=list(),
+      #政務人員年改系列
+      w9_3_1_3_25=list(2,"-"), w9_3_1_3_26=list(2,"-"), w9_3_1_3_27=list(2,"-"), w9_3_1_3_28=list(2,"-"),
+      #公務員年改系列,
+      w9_3_1_2_1=list(2,"-"), w9_3_1_2_2=list(2,"-"), w9_3_1_2_3=list(2,"-"), w9_3_1_2_4=list(2,"-"), w9_3_1_2_5=list(2,"-"), w9_3_1_2_6=list(2,"-"), w9_3_1_2_7=list(2,"-"), w9_3_1_2_8=list(2,"-"), w9_3_1_2_9=list(2,"-"), w9_3_1_2_10=list(2,"-"), w9_3_1_2_11=list(2,"-"),w9_3_1_3_1=list(2,"-"), w9_3_1_3_2=list(2,"-"), w9_3_1_3_3=list(2,"-"), w9_3_1_3_4=list(2,"-"),
+      #教職員年改系列,
+      w9_3_1_3_5=list(2,"-"), w9_3_1_3_6=list(2,"-"), w9_3_1_3_7=list(2,"-"), w9_3_1_3_8=list(2,"-"), w9_3_1_3_9=list(2,"-"), w9_3_1_3_10=list(2,"-"), w9_3_1_3_11=list(2,"-"), w9_3_1_3_12=list(2,"-"), w9_3_1_3_13=list(2,"-"), w9_3_1_3_14=list(2,"-"), w9_3_1_3_15=list(2,"-"), w9_3_1_3_16=list(2,"-"), w9_3_1_3_17=list(2,"-"), w9_3_1_3_18=list(2,"-"), w9_3_1_3_19=list(2,"-"), w9_3_1_3_20=list(2,"-"), w9_3_1_3_21=list(2,"-"), w9_3_1_3_22=list(2,"-"), w9_3_1_3_23=list(2,"-"), w9_3_1_3_24=list(2,"-"),
+      #軍人年改系列
+      w9_5_1_1_2=list(2,"-"), w9_5_1_1_3=list(2,"-"), w9_5_1_1_4=list(2,"-"), w9_5_1_1_5=list(2,"-"), w9_5_1_1_6=list(2,"-"), w9_5_1_1_7=list(2,"-"), w9_5_1_1_8=list(2,"-"), w9_5_1_1_9=list(2,"-"), w9_5_1_1_10=list(2,"-"), w9_5_1_1_11=list(2,"-"), w9_5_1_1_12=list(2,"-"), w9_5_1_1_13=list(2,"-"), w9_5_1_1_14=list(2,"-"), w9_5_1_1_15=list(2,"-"), w9_5_1_1_16=list(2,"-"), w9_5_1_1_17=list(2,"-"), w9_5_1_1_18=list(2,"-")
+    )
+  }
+  if (TRUE) {
+    resmodel <- MCMCpack::MCMCordfactanal(
+      x=~. , factors=n_component,
+      lambda.constraints=lconstrains,
+      data=votingdfwide, verbose=0,
+      l0=0, L0=0.1,
+      mcmc=50000, thin=25, store.lambda=TRUE, store.scores=TRUE
+    )
+    tryn<-1
+    while(TRUE){
+      loadingsvingstatus<-try({
+        load(file=resMCMCefasfile, verbose=TRUE)
+        res.MCMCefas[[residx]] <- resmodel
+        save(res.MCMCefas, file = resMCMCefasfile)
+      })
+      tryn <- tryn+1
+      if(!is(loadingsvingstatus, 'try-error') | tryn>10) {break}
+      Sys.sleep(10)
+    }
+    return(resmodel)
+  }
+},myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol,
+resMCMCefasfile=resMCMCefasfile,
+need_parallelfa_result_n_factor=need_parallelfa_result_n_factor,
+widedata_preserve_vars=widedata_preserve_vars,
+method=parallel_method) %>% #parallel::detectCores()
+  magrittr::set_names(need_parallelfa_result_n_factor$store_key)
+save(res.MCMCefas, file=resMCMCefasfile)
+
+# res.MCMCefas <- names(res.MCMCefas) %>%
+#   gsub(pattern="_\\d{1}","_minres",.) %>%
+#   paste0("term",.) %>%
+#   magrittr::set_names(res.MCMCefas,.)
+
+load(file=resMCMCefasfile, verbose=TRUE)
+for (residx in names(res.MCMCefas)) {
+  residx_args<-unlist(strsplit(residx,"_"))
+  term<-grep("term", residx_args, value=TRUE) %>%
+    gsub("term","",.)
+  if (as.character(term)!="9") next
+  fi<-dplyr::filter(parallelfa_result_n_factor, term==!!term)$i[1]
+  need_agenda_key<-grep("agenda", residx_args, value=TRUE)
+  #fi<-parallelfa_result_n_factor$i[which(parallelfa_result_n_factor$store_key==residx)]
+  #legislator_names <- myown_vote_record_df_wide_billidascol[[fi]]$legislator_name
+  result<-res.MCMCefas[[residx]]
+  means.sds <- summary(result)[[1]][,1:2]
+  ideal.points.df <- means.sds[grepl("phi",rownames(means.sds)),] %>%
+    as.data.frame() %>%
+    cbind(dim={
+      stringr::str_extract(row.names(.), "\\.\\d$") %>%
+        unlist() %>%
+        stringr::str_replace(., "\\.", "") %>%
+        unlist() %>%
+        paste0("dim", .)
+    }) %>%
+    cbind(legislator_id=as.integer({
+      stringr::str_extract(row.names(.), "phi\\.\\d{1,3}") %>%
+        unlist() %>%
+        gsub("phi\\.","", .)
+    })) %>%
+    reshape2::melt(id.vars=c("legislator_id","dim")) %>%
+    reshape2::dcast(legislator_id ~ dim + variable, value.var="value") %>%
+    data.frame(term=term,legislator_name=myown_vote_record_df_wide_billidascol[[need_agenda_key]][[fi]]$legislator_name, agenda=need_agenda_key, .) %>%
+    dplyr::select(-legislator_id)
+  openxlsx::write.xlsx(ideal.points.df, file="TMP.xlsx")
+  readline(paste0("now in ",residx," ideal points, continue?"))
+  item.params.df <- means.sds[grepl("Lambda",rownames(means.sds)),] %>%
+    as.data.frame() %>%
+    cbind(dim={
+      stringr::str_extract(row.names(.), "\\.\\d") %>%
+        unlist() %>%
+        stringr::str_replace(., "\\.", "") %>%
+        unlist() %>%
+        paste0("dim", .)
+    }) %>%
+    dplyr::mutate(billid={
+      gsub("Lambdaw","",row.names(.)) %>%
+        gsub("_","-",.) %>%
+        stringr::str_extract(., "\\d{1,3}-\\d{1,3}-\\d{1,3}-\\d{1,3}-\\d{1,3}") %>%
+        unlist()
+    }) %>%
+    magrittr::set_rownames(NULL) %>%
+    reshape2::melt(id.vars=c("billid","dim")) %>%
+    reshape2::dcast(billid ~ dim + variable, value.var="value") %>%
+    data.frame(term=term, agenda=need_agenda_key, .)
+  openxlsx::write.xlsx(item.params.df, file="TMP.xlsx")
+  readline(paste0("now in ",residx," item loadings, continue?"))
+}
 
 # * EFA by exploratory IRT using mirt --------------------------------
 res.mirtefas <- list()
@@ -410,102 +585,6 @@ for (residx in names(res.mirtefas)) {
 t[t[, 4] < 0.05, ]
 summary(resmodel, rotate = "varimax")
 mirt::itemplot(resmodel)
-# * EFA by MCMC --------------------------------
-res.MCMCefas <- list()
-resMCMCefasfile <- paste0(dataset_in_scriptsfile_directory, "res.MCMCefas.RData")
-#[c(2,10,18,26,34),]
-need_parallelfa_result_n_factor<-dplyr::filter(parallelfa_result_n_factor, !is.na(fa)) %>%
-  dplyr::distinct(i,term,fa,agenda) %>%
-  dplyr::mutate(store_key=paste0("term",term,"_",fa,"_",agenda))
-res.MCMCefas <- custom_parallel_lapply(1:nrow(need_parallelfa_result_n_factor), function (fi, ...) { #1:nrow(parallelfa_result_n_factor)
-  n_component_row<-need_parallelfa_result_n_factor[fi,]
-  n_component<-magrittr::use_series(n_component_row, fa) %>% as.character() %>% as.integer()
-  plot_title<-magrittr::use_series(n_component_row, term)
-  need_agenda_key<-n_component_row$agenda %>% as.character()
-  colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[need_agenda_key]][[n_component_row$i]]), widedata_preserve_vars)
-  adj_colname_billids <- stringr::str_replace_all(colname_billids, "-","_") %>%
-    #stringr::str_replace_all(c("0"="zero", "1"="one", "2"="two", "3"="three", "4"="four", "5"="five", "6"="six", "7"="seven", "8"="eight", "9"="nine")) %>%
-    paste0("w",.)
-  votingdfwide<-myown_vote_record_df_wide_billidascol[[need_agenda_key]][[n_component_row$i]][,colname_billids] %>%
-    dplyr::mutate_all(.funs=unclass) %>%
-    magrittr::set_colnames(adj_colname_billids)
-  residx <- paste0(plot_title,"_",n_component)
-  mcmcformula <- paste("`",adj_colname_billids,"`", collapse=" + ", sep="") %>%
-    paste0("~ ",.) %>%
-    as.formula()
-  if (TRUE) {
-    resmodel <- MCMCpack::MCMCordfactanal(
-      x=~. , factors=n_component, data=votingdfwide, verbose=0,
-      l0=0, L0=0.1,
-      mcmc=27500, thin=25, store.lambda=TRUE, store.scores=TRUE
-    )
-    load(file=resMCMCefasfile, verbose=TRUE)
-    res.MCMCefas[[residx]] <- resmodel
-    save(res.MCMCefas, file = resMCMCefasfile)
-    return(resmodel)
-  }
-},myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol,
-resMCMCefasfile=resMCMCefasfile,
-need_parallelfa_result_n_factor=need_parallelfa_result_n_factor,#parallelfa_result_n_factor
-widedata_preserve_vars=widedata_preserve_vars,
-method=parallel_method) %>% #parallel::detectCores()
-  magrittr::set_names(need_parallelfa_result_n_factor$store_key)
-save(res.MCMCefas, file=resMCMCefasfile)
-
-# res.MCMCefas <- names(res.MCMCefas) %>%
-#   gsub(pattern="_\\d{1}","_minres",.) %>%
-#   paste0("term",.) %>%
-#   magrittr::set_names(res.MCMCefas,.)
-
-load(file=resMCMCefasfile, verbose=TRUE)
-for (residx in names(res.MCMCefas)) {
-  fi<-parallelfa_result_n_factor$i[which(parallelfa_result_n_factor$store_key==residx)]
-  term<-parallelfa_result_n_factor$term[which(parallelfa_result_n_factor$store_key==residx)]
-  #legislator_names <- myown_vote_record_df_wide_billidascol[[fi]]$legislator_name
-  result<-res.MCMCefas[[residx]]
-  means.sds <- summary(result)[[1]][,1:2]
-  ideal.points.df <- means.sds[grepl("phi",rownames(means.sds)),] %>%
-    as.data.frame() %>%
-    cbind(dim={
-      stringr::str_extract(row.names(.), "\\.\\d$") %>%
-        unlist() %>%
-        stringr::str_replace(., "\\.", "") %>%
-        unlist() %>%
-        paste0("dim", .)
-    }) %>%
-    cbind(legislator_id=as.integer({
-      stringr::str_extract(row.names(.), "phi\\.\\d{1,3}") %>%
-        unlist() %>%
-        gsub("phi\\.","", .)
-    })) %>%
-    reshape2::melt(id.vars=c("legislator_id","dim")) %>%
-    reshape2::dcast(legislator_id ~ dim + variable, value.var="value") %>%
-    data.frame(term=term,legislator_name=myown_vote_record_df_wide_billidascol[[fi]]$legislator_name, .) %>%
-    dplyr::select(-legislator_id)
-  openxlsx::write.xlsx(ideal.points.df, file="TMP.xlsx")
-  readline(paste0("now in ",residx," ideal points, continue?"))
-  item.params.df <- means.sds[grepl("Lambda",rownames(means.sds)),] %>%
-    as.data.frame() %>%
-    cbind(dim={
-      stringr::str_extract(row.names(.), "\\.\\d") %>%
-        unlist() %>%
-        stringr::str_replace(., "\\.", "") %>%
-        unlist() %>%
-        paste0("dim", .)
-    }) %>%
-    dplyr::mutate(billid={
-      gsub("Lambdaw","",row.names(.)) %>%
-        gsub("_","-",.) %>%
-        stringr::str_extract(., "\\d{1,3}-\\d{1,3}-\\d{1,3}-\\d{1,3}-\\d{1,3}") %>%
-        unlist()
-    }) %>%
-    magrittr::set_rownames(NULL) %>%
-    reshape2::melt(id.vars=c("billid","dim")) %>%
-    reshape2::dcast(billid ~ dim + variable, value.var="value") %>%
-    data.frame(term=term,.)
-  openxlsx::write.xlsx(item.params.df, file="TMP.xlsx")
-  readline(paste0("now in ",residx," item loadings, continue?"))
-}
 
 
 # * EFA by IRT.fa --------------------------------

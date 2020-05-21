@@ -110,7 +110,7 @@ meetingdata<-dplyr::bind_cols(meetingurldata,fetchmeetingdata) %>%
 save(meetingdata, file = paste0(dataset_in_scriptsfile_directory, "meetingdata.RData", sep = "") )
 
 
-#會議記錄（非議事錄）
+#會議記錄文件連結（非議事錄）
 sapply(1:20, function(X) {paste0("http://data.ly.gov.tw:80/odw/openDatasetJson.action?id=41&selectTerm=all&page=",X)}) %>%
   lapply(jsonlite::fromJSON) %>%
   lapply(magrittr::extract2, 1) %>%
@@ -119,7 +119,18 @@ sapply(1:20, function(X) {paste0("http://data.ly.gov.tw:80/odw/openDatasetJson.a
   } %>%
   dplyr::bind_rows() %>%
   dplyr::rename(period=sessionPeriod, meetingno=sessionTimes, temp_meeting_no=meetingTimes) %>%
-  dplyr::select(term, period, temp_meeting_no, meetingno, everything()) %>%
-  dplyr::mutate_at(c("period","meetingno","temp_meeting_no"), as.integer) %>%
-  dplyr::filter(!grepl("(本期委員發言紀錄索引|本會召集委員|國是論壇|委員會會議|委員會聯席會議|選舉本院院長|選舉本院副院長|談話會|議事錄)", subject, perl=TRUE)) %>%
+  dplyr::select(-temp_meeting_no) %>%
+  dplyr::left_join(., {
+    paste0(dataset_file_directory, "votingdf_datafile_myown_englished.xlsx", sep="") %>%
+      openxlsx::read.xlsx(sheet = 1) %>%
+      dplyr::distinct(temp_meeting_no, date) %>%
+      dplyr::mutate_at("date", ~gsub("/", "", .) ) %>%
+      dplyr::mutate_at("date", ~gsub("[\\s]", "", ., perl=TRUE) )
+  }, by=c("meetingDate"="date")) %>%
+  dplyr::mutate_at(c("term","period","temp_meeting_no","meetingno"), as.character) %>%
+  dplyr::mutate_at(c("term","period","temp_meeting_no","meetingno"), as.integer) %>%
+  mutate_cond(is.na(temp_meeting_no), temp_meeting_no=0) %>%
+  dplyr::mutate(meetingid=paste0(term,"-",period,"-",temp_meeting_no,"-",meetingno)) %>%
+  dplyr::select(term, period, meetingno, temp_meeting_no, meetingid, everything()) %>%
+  dplyr::filter(!grepl("(本期委員發言紀錄索引|本會召集委員|國是論壇|委員會會議|委員會聯席會議|選舉本院院長|選舉本院副院長|談話會|議事錄|勘誤)", subject, perl=TRUE)) %>%
   openxlsx::write.xlsx(paste0(dataset_in_scriptsfile_directory, "fullmeetingrecordlinks.xlsx"))
