@@ -330,7 +330,8 @@ need_parallelfa_result_n_factor<-reshape2::melt(parallelfa_result_n_factor, id.v
   dplyr::mutate(store_key=paste0("term",term,"_",value,"_",agenda)) %>%
   dplyr::mutate(alreadyprocessed=magrittr::is_in(store_key, !!names(res.MCMCefas))) %>%
   dplyr::arrange(alreadyprocessed, dplyr::desc(term), dplyr::desc(agenda))
-res.MCMCefas <- custom_parallel_lapply(1:nrow(need_parallelfa_result_n_factor), function (fi, ...) { #1:nrow(parallelfa_result_n_factor)
+iterswqforres.MCMCefas<-nrow(need_parallelfa_result_n_factor):1
+res.MCMCefas <- custom_parallel_lapply(iterswqforres.MCMCefas, function (fi, ...) { #1:nrow(parallelfa_result_n_factor)
   n_component_row<-need_parallelfa_result_n_factor[fi,]
   n_component<-magrittr::use_series(n_component_row, value) %>% as.character() %>% as.integer()
   need_agenda_key<-n_component_row$agenda %>% as.character()
@@ -429,7 +430,7 @@ resMCMCefasfile=resMCMCefasfile,
 need_parallelfa_result_n_factor=need_parallelfa_result_n_factor,
 widedata_preserve_vars=widedata_preserve_vars,
 method=parallel_method) %>% #parallel::detectCores()
-  magrittr::set_names(need_parallelfa_result_n_factor$store_key)
+  magrittr::set_names(need_parallelfa_result_n_factor$store_key[iterswqforres.MCMCefas])
 save(res.MCMCefas, file=resMCMCefasfile)
 
 # res.MCMCefas <- names(res.MCMCefas) %>%
