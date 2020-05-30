@@ -127,13 +127,39 @@ tryCatch({
   bills_answer_to_bill <- openxlsx::read.xlsx(myown_vote_bills_file, sheet = 4)
   bills_billcontent <- openxlsx::read.xlsx(myown_vote_bills_file, sheet = 1) %>%
     dplyr::mutate_at("billcontent", as.character) %>%
-    dplyr::select(-starts_with("pp_related_q_")) %>% #因為第四個表格問卷對政策實現與否表已經有了variable_on_q所以此處略過
     dplyr::mutate_at("pp_agendavoting", as.factor)
-  save(bills_answer_to_bill, bills_billcontent, file=paste0(dataset_in_scriptsfile_directory, "bills_answer_to_bill_bills_billcontent.RData"))
+  bills_billcontent_with_relatedq <- names(bills_billcontent) %>%
+    .[!grepl(pattern="note",x=.)] %>%
+    grep(pattern="pp_related_q",x=.,value=TRUE) %>%
+    c("term","billid_myown",.) %>%
+    bills_billcontent[,.] %>%
+    dplyr::filter(!is.na(pp_related_q_1))
+  term_related_q <- unique(bills_billcontent_with_relatedq$term) %>%
+    magrittr::set_names( lapply(., function(needterm,...) {
+      dplyr::filter(bills_billcontent_with_relatedq, term==!!needterm) %>%
+        dplyr::select(dplyr::starts_with("pp_related_q_")) %>%
+        lapply(c) %>%
+        unlist %>%
+        unique() %>%
+        .[!is.na(.)]
+    }, bills_billcontent_with_relatedq=bills_billcontent_with_relatedq), .)
+  bills_billid_to_relatedq_pairs <- bills_billcontent_with_relatedq$billid_myown %>%
+    magrittr::set_names(lapply(., function(X,...) {
+      dplyr::filter(bills_billcontent_with_relatedq, billid_myown==X) %>%
+        dplyr::select(dplyr::starts_with("pp_related_q_")) %>%
+        .[1,] %>%
+        as.vector() %>%
+        unique() %>%
+        .[!is.na(.)] %>%
+        return()
+    }, bills_billcontent_with_relatedq=bills_billcontent_with_relatedq), .)
+  bills_billcontent <- dplyr::select(bills_billcontent, -dplyr::starts_with("pp_related_q_")) #因為第四個表格問卷對政策實現與否表已經有了variable_on_q所以此處略過
+  save(bills_answer_to_bill, bills_billcontent, bills_billcontent_with_relatedq, term_related_q, bills_billid_to_relatedq_pairs, file=paste0(dataset_in_scriptsfile_directory, "bills_answer_to_bill_bills_billcontent.RData"))
 }, error = function(msg) {
   message(paste0(msg,"\n"))
   load(file=paste0(dataset_in_scriptsfile_directory, "bills_answer_to_bill_bills_billcontent.RData"), envir = .GlobalEnv, verbose=TRUE)
 })
+
 
 
 # 測試有無重複投票紀錄  -------------------------------------------
@@ -331,6 +357,7 @@ need_parallelfa_result_n_factor<-reshape2::melt(parallelfa_result_n_factor, id.v
   dplyr::mutate(alreadyprocessed=magrittr::is_in(store_key, !!names(res.MCMCefas))) %>%
   dplyr::arrange(alreadyprocessed, dplyr::desc(term), dplyr::desc(agenda))
 iterswqforres.MCMCefas<-nrow(need_parallelfa_result_n_factor):1
+iterswqforres.MCMCefas<-1
 res.MCMCefas <- custom_parallel_lapply(iterswqforres.MCMCefas, function (fi, ...) { #1:nrow(parallelfa_result_n_factor)
   n_component_row<-need_parallelfa_result_n_factor[fi,]
   n_component<-magrittr::use_series(n_component_row, value) %>% as.character() %>% as.integer()
@@ -355,13 +382,26 @@ res.MCMCefas <- custom_parallel_lapply(iterswqforres.MCMCefas, function (fi, ...
       #同婚與
       #國安五法
       #同婚系列
+      #not added
       w9_7_0_14_4=list(2,"-"),w9_7_0_14_2=list(2,"-"), w9_7_0_14_26=list(2,"-"), w9_7_0_14_3=list(2,"-"), w9_7_0_14_20=list(2,"-"), w9_7_0_14_8=list(2,"-"), w9_7_0_14_4=list(2,"-"), w9_7_0_14_15=list(2,"-"), w9_7_0_14_31=list(2,"-"), w9_7_0_14_13=list(2,"-"), w9_7_0_14_18=list(2,"-"), w9_7_0_14_22=list(2,"-"), w9_7_0_14_24=list(2,"-"), w9_7_0_14_21=list(2,"-"), w9_7_0_14_30=list(2,"-"), w9_7_0_14_12=list(2,"-"), w9_7_0_14_27=list(2,"-"), w9_7_0_14_9=list(2,"-"), w9_7_0_14_25=list(2,"-"), w9_7_0_14_33=list(2,"-"), w9_7_0_14_28=list(2,"-"), w9_7_0_14_34=list(2,"-"), w9_7_0_14_17=list(2,"-"), w9_7_0_14_32=list(2,"-"), w9_7_0_14_19=list(2,"-"), w9_7_0_14_29=list(2,"-"), w9_7_0_14_14=list(2,"-"), w9_7_0_14_11=list(2,"-"), w9_7_0_14_23=list(2,"-"), w9_7_0_14_10=list(2,"-"), w9_7_0_14_16=list(2,"-"), w9_7_0_14_6=list(2,"-"), w9_7_0_14_5=list(2,"-"), w9_7_0_14_7=list(2,"-"),
+      #added
+      w9_7_0_14_4=list(3,"-"),w9_7_0_14_2=list(3,"-"), w9_7_0_14_26=list(3,"-"), w9_7_0_14_3=list(3,"-"), w9_7_0_14_20=list(3,"-"), w9_7_0_14_8=list(3,"-"), w9_7_0_14_4=list(3,"-"), w9_7_0_14_15=list(3,"-"), w9_7_0_14_31=list(3,"-"), w9_7_0_14_13=list(3,"-"), w9_7_0_14_18=list(3,"-"), w9_7_0_14_22=list(3,"-"), w9_7_0_14_24=list(3,"-"), w9_7_0_14_21=list(3,"-"), w9_7_0_14_30=list(3,"-"), w9_7_0_14_12=list(3,"-"), w9_7_0_14_27=list(3,"-"), w9_7_0_14_9=list(3,"-"), w9_7_0_14_25=list(3,"-"), w9_7_0_14_33=list(3,"-"), w9_7_0_14_28=list(3,"-"), w9_7_0_14_34=list(3,"-"), w9_7_0_14_17=list(3,"-"), w9_7_0_14_32=list(3,"-"), w9_7_0_14_19=list(3,"-"), w9_7_0_14_29=list(3,"-"), w9_7_0_14_14=list(3,"-"), w9_7_0_14_11=list(3,"-"), w9_7_0_14_23=list(3,"-"), w9_7_0_14_10=list(3,"-"), w9_7_0_14_16=list(3,"-"), w9_7_0_14_6=list(3,"-"), w9_7_0_14_5=list(3,"-"), w9_7_0_14_7=list(3,"-"),
+      #added
+      w9_7_0_14_4=list(4,"-"),w9_7_0_14_2=list(4,"-"), w9_7_0_14_26=list(4,"-"), w9_7_0_14_3=list(4,"-"), w9_7_0_14_20=list(4,"-"), w9_7_0_14_8=list(4,"-"), w9_7_0_14_4=list(4,"-"), w9_7_0_14_15=list(4,"-"), w9_7_0_14_31=list(4,"-"), w9_7_0_14_13=list(4,"-"), w9_7_0_14_18=list(4,"-"), w9_7_0_14_22=list(4,"-"), w9_7_0_14_24=list(4,"-"), w9_7_0_14_21=list(4,"-"), w9_7_0_14_30=list(4,"-"), w9_7_0_14_12=list(4,"-"), w9_7_0_14_27=list(4,"-"), w9_7_0_14_9=list(4,"-"), w9_7_0_14_25=list(4,"-"), w9_7_0_14_33=list(4,"-"), w9_7_0_14_28=list(4,"-"), w9_7_0_14_34=list(4,"-"), w9_7_0_14_17=list(4,"-"), w9_7_0_14_32=list(4,"-"), w9_7_0_14_19=list(4,"-"), w9_7_0_14_29=list(4,"-"), w9_7_0_14_14=list(4,"-"), w9_7_0_14_11=list(4,"-"), w9_7_0_14_23=list(4,"-"), w9_7_0_14_10=list(4,"-"), w9_7_0_14_16=list(4,"-"), w9_7_0_14_6=list(4,"-"), w9_7_0_14_5=list(4,"-"), w9_7_0_14_7=list(4,"-"),
+      #not added
       w9_7_0_14_4=list(5,"-"),w9_7_0_14_2=list(5,"-"), w9_7_0_14_26=list(5,"-"), w9_7_0_14_3=list(5,"-"), w9_7_0_14_20=list(5,"-"), w9_7_0_14_8=list(5,"-"), w9_7_0_14_4=list(5,"-"), w9_7_0_14_15=list(5,"-"), w9_7_0_14_31=list(5,"-"), w9_7_0_14_13=list(5,"-"), w9_7_0_14_18=list(5,"-"), w9_7_0_14_22=list(5,"-"), w9_7_0_14_24=list(5,"-"), w9_7_0_14_21=list(5,"-"), w9_7_0_14_30=list(5,"-"), w9_7_0_14_12=list(5,"-"), w9_7_0_14_27=list(5,"-"), w9_7_0_14_9=list(5,"-"), w9_7_0_14_25=list(5,"-"), w9_7_0_14_33=list(5,"-"), w9_7_0_14_28=list(5,"-"), w9_7_0_14_34=list(5,"-"), w9_7_0_14_17=list(5,"-"), w9_7_0_14_32=list(5,"-"), w9_7_0_14_19=list(5,"-"), w9_7_0_14_29=list(5,"-"), w9_7_0_14_14=list(5,"-"), w9_7_0_14_11=list(5,"-"), w9_7_0_14_23=list(5,"-"), w9_7_0_14_10=list(5,"-"), w9_7_0_14_16=list(5,"-"), w9_7_0_14_6=list(5,"-"), w9_7_0_14_5=list(5,"-"), w9_7_0_14_7=list(5,"-"),
       #酒駕加刑
       #w9_7_0_16_5=list(), 
+      
       #促轉會系列
+      #not added
       w9_4_0_11_3=list(2,"-"), w9_4_0_11_13=list(2,"-"), w9_4_0_11_23=list(2,"-"), w9_4_0_11_11=list(2,"-"), w9_4_0_11_12=list(2,"-"), w9_4_0_11_18=list(2,"-"), w9_4_0_11_4=list(2,"-"), w9_4_0_11_15=list(2,"-"), w9_4_0_11_8=list(2,"-"), w9_4_0_11_20=list(2,"-"), w9_4_0_11_9=list(2,"-"), w9_4_0_11_10=list(2,"-"), w9_4_0_11_1=list(2,"-"), w9_4_0_11_14=list(2,"-"), w9_4_0_11_17=list(2,"-"), w9_4_0_11_24=list(2,"-"), w9_4_0_11_25=list(2,"-"), w9_4_0_11_19=list(2,"-"), w9_4_0_11_22=list(2,"-"), w9_4_0_11_2=list(2,"-"), w9_4_0_11_16=list(2,"-"),
-      w9_4_0_11_3=list(5,"-"), w9_4_0_11_13=list(5,"-"), w9_4_0_11_23=list(5,"-"), w9_4_0_11_11=list(5,"-"), w9_4_0_11_12=list(5,"-"), w9_4_0_11_18=list(5,"-"), w9_4_0_11_4=list(5,"-"), w9_4_0_11_15=list(5,"-"), w9_4_0_11_8=list(5,"-"), w9_4_0_11_20=list(5,"-"), w9_4_0_11_9=list(5,"-"), w9_4_0_11_10=list(5,"-"), w9_4_0_11_1=list(5,"-"), w9_4_0_11_14=list(5,"-"), w9_4_0_11_17=list(5,"-"), w9_4_0_11_24=list(5,"-"), w9_4_0_11_25=list(5,"-"), w9_4_0_11_19=list(5,"-"), w9_4_0_11_22=list(5,"-"), w9_4_0_11_2=list(5,"-"), w9_4_0_11_16=list(5,"-"),w9_4_0_11_3=list(5,"-"), w9_4_0_11_13=list(5,"-"), w9_4_0_11_23=list(5,"-"), w9_4_0_11_11=list(5,"-"), w9_4_0_11_12=list(5,"-"), w9_4_0_11_18=list(5,"-"), w9_4_0_11_4=list(5,"-"), w9_4_0_11_15=list(5,"-"), w9_4_0_11_8=list(5,"-"), w9_4_0_11_20=list(5,"-"), w9_4_0_11_9=list(5,"-"), w9_4_0_11_10=list(5,"-"), w9_4_0_11_1=list(5,"-"), w9_4_0_11_14=list(5,"-"), w9_4_0_11_17=list(5,"-"), w9_4_0_11_24=list(5,"-"), w9_4_0_11_25=list(5,"-"), w9_4_0_11_19=list(5,"-"), w9_4_0_11_22=list(5,"-"), w9_4_0_11_2=list(5,"-"), w9_4_0_11_16=list(5,"-"),
+      #added
+      w9_4_0_11_3=list(3,"-"), w9_4_0_11_13=list(3,"-"), w9_4_0_11_23=list(3,"-"), w9_4_0_11_11=list(3,"-"), w9_4_0_11_12=list(3,"-"), w9_4_0_11_18=list(3,"-"), w9_4_0_11_4=list(3,"-"), w9_4_0_11_15=list(3,"-"), w9_4_0_11_8=list(3,"-"), w9_4_0_11_20=list(3,"-"), w9_4_0_11_9=list(3,"-"), w9_4_0_11_10=list(3,"-"), w9_4_0_11_1=list(3,"-"), w9_4_0_11_14=list(3,"-"), w9_4_0_11_17=list(3,"-"), w9_4_0_11_24=list(3,"-"), w9_4_0_11_25=list(3,"-"), w9_4_0_11_19=list(3,"-"), w9_4_0_11_22=list(3,"-"), w9_4_0_11_2=list(3,"-"), w9_4_0_11_16=list(3,"-"),
+      #added
+      w9_4_0_11_3=list(4,"-"), w9_4_0_11_13=list(4,"-"), w9_4_0_11_23=list(4,"-"), w9_4_0_11_11=list(4,"-"), w9_4_0_11_12=list(4,"-"), w9_4_0_11_18=list(4,"-"), w9_4_0_11_4=list(4,"-"), w9_4_0_11_15=list(4,"-"), w9_4_0_11_8=list(4,"-"), w9_4_0_11_20=list(4,"-"), w9_4_0_11_9=list(4,"-"), w9_4_0_11_10=list(4,"-"), w9_4_0_11_1=list(4,"-"), w9_4_0_11_14=list(4,"-"), w9_4_0_11_17=list(4,"-"), w9_4_0_11_24=list(4,"-"), w9_4_0_11_25=list(4,"-"), w9_4_0_11_19=list(4,"-"), w9_4_0_11_22=list(4,"-"), w9_4_0_11_2=list(4,"-"), w9_4_0_11_16=list(4,"-"),
+      #not added
+      w9_4_0_11_3=list(5,"-"), w9_4_0_11_13=list(5,"-"), w9_4_0_11_23=list(5,"-"), w9_4_0_11_11=list(5,"-"), w9_4_0_11_12=list(5,"-"), w9_4_0_11_18=list(5,"-"), w9_4_0_11_4=list(5,"-"), w9_4_0_11_15=list(5,"-"), w9_4_0_11_8=list(5,"-"), w9_4_0_11_20=list(5,"-"), w9_4_0_11_9=list(5,"-"), w9_4_0_11_10=list(5,"-"), w9_4_0_11_1=list(5,"-"), w9_4_0_11_14=list(5,"-"), w9_4_0_11_17=list(5,"-"), w9_4_0_11_24=list(5,"-"), w9_4_0_11_25=list(5,"-"), w9_4_0_11_19=list(5,"-"), w9_4_0_11_22=list(5,"-"), w9_4_0_11_2=list(5,"-"), w9_4_0_11_16=list(5,"-"),
       
       #勞基法修惡 與 勞基法PRO降低特休門檻增加特休、PRO特休勞工決定(9-2-0-13-6)	不同s at dim3,5
       #勞基法修惡 與 砍七天國定假 同s at dim2,4,5
@@ -379,21 +419,64 @@ res.MCMCefas <- custom_parallel_lapply(iterswqforres.MCMCefas, function (fi, ...
       #PRO長照法修正增加財源
       
       #勞基法修惡系列
-      w_9_4_1_2_152=list(5,"+"), w9_4_1_2_153=list(5,"+"), w9_4_1_2_154=list(5,"+"), w9_4_1_2_155=list(5,"+"), w9_4_1_2_156=list(5,"+"), w9_4_1_2_157=list(5,"+"), w9_4_1_2_158=list(5,"+"), w9_4_1_2_160=list(5,"+"),
+      #added
+      w_9_4_1_2_152=list(2,"+"), w9_4_1_2_153=list(2,"+"), w9_4_1_2_154=list(2,"+"), w9_4_1_2_155=list(2,"+"), w9_4_1_2_156=list(2,"+"), w9_4_1_2_157=list(2,"+"), w9_4_1_2_158=list(2,"+"), w9_4_1_2_159=list(2,"+"), w9_4_1_2_160=list(2,"+"),
+      #added
+      w_9_4_1_2_152=list(3,"+"), w9_4_1_2_153=list(3,"+"), w9_4_1_2_154=list(3,"+"), w9_4_1_2_155=list(3,"+"), w9_4_1_2_156=list(3,"+"), w9_4_1_2_157=list(3,"+"), w9_4_1_2_158=list(3,"+"), w9_4_1_2_159=list(3,"+"), w9_4_1_2_160=list(3,"+"),
+      #added
+      w_9_4_1_2_152=list(4,"+"), w9_4_1_2_153=list(4,"+"), w9_4_1_2_154=list(4,"+"), w9_4_1_2_155=list(4,"+"), w9_4_1_2_156=list(4,"+"), w9_4_1_2_157=list(4,"+"), w9_4_1_2_158=list(4,"+"), w9_4_1_2_159=list(4,"+"), w9_4_1_2_160=list(4,"+"),
+      #not added
+      w_9_4_1_2_152=list(5,"+"), w9_4_1_2_153=list(5,"+"), w9_4_1_2_154=list(5,"+"), w9_4_1_2_155=list(5,"+"), w9_4_1_2_156=list(5,"+"), w9_4_1_2_157=list(5,"+"), w9_4_1_2_158=list(5,"+"), w9_4_1_2_159=list(5,"+"), w9_4_1_2_160=list(5,"+"),
       #砍七天國定假
+      #added
+      w9_2_0_13_5=list(2,"+"),
+      #added
+      w9_2_0_13_5=list(3,"+"),
+      #added
+      w9_2_0_13_5=list(4,"+"),
+      #not added
       w9_2_0_13_5=list(5,"+"),
+      
       #保障勞工的勞基法系列
+      #added
+      w9_2_0_13_6=list(2,"-"),
+      #added
+      w9_2_0_13_6=list(3,"-"),
+      #added
+      w9_2_0_13_6=list(4,"-"),
+      #not added
       w9_2_0_13_6=list(5,"-"),
+      
       #PRO降低遺贈稅免稅額門檻
+      #added
+      w9_3_0_10_1=list(2,"-"),
+      #added
+      w9_3_0_10_1=list(3,"-"),
+      #added
+      w9_3_0_10_1=list(4,"-"),
+      #not added
       w9_3_0_10_1=list(5,"-"),
+      
       #PRO所得稅法修正；PRO有錢人、財團降稅 系列
+      #added
+      w9_4_1_2_168=list(2,"+"), w9_4_1_2_169=list(2,"+"), w9_4_1_2_170=list(2,"+"),
+      #added
+      w9_4_1_2_168=list(3,"+"), w9_4_1_2_169=list(3,"+"), w9_4_1_2_170=list(3,"+"),
+      #added
+      w9_4_1_2_168=list(4,"+"), w9_4_1_2_169=list(4,"+"), w9_4_1_2_170=list(4,"+"),
+      #not added
       w9_4_1_2_168=list(5,"+"), w9_4_1_2_169=list(5,"+"), w9_4_1_2_170=list(5,"+"),
+      
       #PRO推動國家住宅與都市更新
       #w9_4_1_2_171=list(),
       #PRO長照法修正明訂遺產稅及贈與稅、菸酒稅菸品應徵稅稅率加稅作為財源(對照時代力量版本)
       #w9_2_1_1_4=list(),
       #Pro工廠管理輔導法輔導農地工廠合法化 增訂第二十八條之五
-      #w_7_1_2_7=list(),
+      #w_7_1_2_7=list(), 9-7-1-2-15 correct at dim3,5
+      #政治檔案條例 9-7-1-3-69
+      #correct at dim2,3,4,5
+      
+      
       #政務人員年改系列
       w9_3_1_3_25=list(2,"-"), w9_3_1_3_26=list(2,"-"), w9_3_1_3_27=list(2,"-"), w9_3_1_3_28=list(2,"-"),
       #公務員年改系列,
@@ -410,7 +493,7 @@ res.MCMCefas <- custom_parallel_lapply(iterswqforres.MCMCefas, function (fi, ...
       lambda.constraints=lconstrains,
       data=votingdfwide, verbose=0,
       l0=0, L0=0.1,
-      mcmc=50000, thin=25, store.lambda=TRUE, store.scores=TRUE
+      mcmc=60000, thin=25, store.lambda=TRUE, store.scores=TRUE
     )
     tryn<-1
     while(TRUE){
@@ -438,6 +521,8 @@ save(res.MCMCefas, file=resMCMCefasfile)
 #   paste0("term",.) %>%
 #   magrittr::set_names(res.MCMCefas,.)
 
+#bills_billcontent
+library(MCMCpack)
 load(file=resMCMCefasfile, verbose=TRUE)
 for (residx in names(res.MCMCefas)) {
   residx_args<-unlist(strsplit(residx,"_"))
@@ -446,51 +531,69 @@ for (residx in names(res.MCMCefas)) {
   if (as.character(term)!="9") next
   fi<-dplyr::filter(parallelfa_result_n_factor, term==!!term)$i[1]
   need_agenda_key<-grep("agenda", residx_args, value=TRUE)
-  #fi<-parallelfa_result_n_factor$i[which(parallelfa_result_n_factor$store_key==residx)]
-  #legislator_names <- myown_vote_record_df_wide_billidascol[[fi]]$legislator_name
   result<-res.MCMCefas[[residx]]
-  means.sds <- summary(result)[[1]][,1:2]
-  ideal.points.df <- means.sds[grepl("phi",rownames(means.sds)),] %>%
-    as.data.frame() %>%
-    cbind(dim={
-      stringr::str_extract(row.names(.), "\\.\\d$") %>%
-        unlist() %>%
-        stringr::str_replace(., "\\.", "") %>%
-        unlist() %>%
-        paste0("dim", .)
-    }) %>%
-    cbind(legislator_id=as.integer({
-      stringr::str_extract(row.names(.), "phi\\.\\d{1,3}") %>%
-        unlist() %>%
-        gsub("phi\\.","", .)
-    })) %>%
-    reshape2::melt(id.vars=c("legislator_id","dim")) %>%
-    reshape2::dcast(legislator_id ~ dim + variable, value.var="value") %>%
-    data.frame(term=term,legislator_name=myown_vote_record_df_wide_billidascol[[need_agenda_key]][[fi]]$legislator_name, agenda=need_agenda_key, .) %>%
-    dplyr::select(-legislator_id)
-  openxlsx::write.xlsx(ideal.points.df, file="TMP.xlsx")
-  readline(paste0("now in ",residx," ideal points, continue?"))
-  item.params.df <- means.sds[grepl("Lambda",rownames(means.sds)),] %>%
-    as.data.frame() %>%
-    cbind(dim={
-      stringr::str_extract(row.names(.), "\\.\\d") %>%
-        unlist() %>%
-        stringr::str_replace(., "\\.", "") %>%
-        unlist() %>%
-        paste0("dim", .)
-    }) %>%
-    dplyr::mutate(billid={
-      gsub("Lambdaw","",row.names(.)) %>%
-        gsub("_","-",.) %>%
-        stringr::str_extract(., "\\d{1,3}-\\d{1,3}-\\d{1,3}-\\d{1,3}-\\d{1,3}") %>%
-        unlist()
-    }) %>%
-    magrittr::set_rownames(NULL) %>%
-    reshape2::melt(id.vars=c("billid","dim")) %>%
-    reshape2::dcast(billid ~ dim + variable, value.var="value") %>%
-    data.frame(term=term, agenda=need_agenda_key, .)
-  openxlsx::write.xlsx(item.params.df, file="TMP.xlsx")
-  readline(paste0("now in ",residx," item loadings, continue?"))
+  means.sds <- summary(result)
+  means.sds <- try(magrittr::extract2(means.sds, "statistics")) %>%
+    {if(!is(., 'try-error')) . else means.sds}
+  means.sds <- if(!is(means.sds, 'matrix')) {as.data.frame(means.sds)[,1:2]} else means.sds[,1:2]
+  #means.sds.try <- try({means.sds[,1:2]})
+  #means.sds.try2 <- try({as.data.frame(means.sds) %>%
+  #    dplyr::select_if(colSums(. == "") < 1) %>%
+  #      magrittr::set_rownames(.[,1])})
+  #means.sds <- if(!is(means.sds.try, 'try-error')) means.sds.try else means.sds
+  if (TRUE) {
+    ideal.points.df <- means.sds[grepl("phi",rownames(means.sds)),] %>%
+      as.data.frame() %>%
+      cbind(dim={
+        stringr::str_extract(row.names(.), "\\.\\d$") %>%
+          unlist() %>%
+          stringr::str_replace(., "\\.", "") %>%
+          unlist() %>%
+          paste0("dim", .)
+      }) %>%
+      cbind(legislator_id=as.integer({
+        stringr::str_extract(row.names(.), "phi\\.\\d{1,3}") %>%
+          unlist() %>%
+          gsub("phi\\.","", .)
+      })) %>%
+      reshape2::melt(id.vars=c("legislator_id","dim")) %>%
+      reshape2::dcast(legislator_id ~ dim + variable, value.var="value") %>%
+      data.frame(term=term,legislator_name=myown_vote_record_df_wide_billidascol[[need_agenda_key]][[fi]]$legislator_name, agenda=need_agenda_key, .) %>%
+      dplyr::select(-legislator_id)
+    openxlsx::write.xlsx(ideal.points.df, file="TMP.xlsx")
+    readline(paste0("now in ",residx," ideal points, continue?"))
+    item.params.df <- means.sds[grepl("Lambda",rownames(means.sds)),] %>%
+      as.data.frame() %>%
+      cbind(dim={
+        stringr::str_extract(row.names(.), "\\.\\d") %>%
+          unlist() %>%
+          stringr::str_replace(., "\\.", "") %>%
+          unlist() %>%
+          paste0("dim", .)
+      }) %>%
+      dplyr::mutate(billid_myown={
+        gsub("Lambdaw","",row.names(.)) %>%
+          gsub("_","-",.) %>%
+          stringr::str_extract(., "\\d{1,3}-\\d{1,3}-\\d{1,3}-\\d{1,3}-\\d{1,3}") %>%
+          unlist()
+      }) %>%
+      magrittr::set_rownames(NULL) %>%
+      reshape2::melt(id.vars=c("billid_myown","dim")) %>%
+      reshape2::dcast(billid_myown ~ dim + variable, value.var="value") %>%
+      data.frame(term=term, agenda=need_agenda_key, .)
+    openxlsx::write.xlsx(item.params.df, file="TMP.xlsx")
+    readline(paste0("now in ",residx," item loadings, continue?"))
+    item.params.df_sum_by_field<-dplyr::distinct(bills_billcontent, billid_myown, billarea01, billarea02, billarea03, billarea04) %>%
+      reshape2::melt(id.vars=c("billid_myown")) %>%
+      dplyr::filter(!is.na(value)) %>%
+      dplyr::left_join(item.params.df, .) %>%
+      dplyr::filter(!is.na(value)) %>%
+      dplyr::mutate_if(is.numeric, abs) %>%
+      dplyr::group_by(value) %>%
+      dplyr::summarise_if(is.numeric, mean)
+    openxlsx::write.xlsx(item.params.df_sum_by_field, file="TMP.xlsx")
+    readline(paste0("now in ",residx," item loadings group by issue, continue?"))
+  }
 }
 
 # * EFA by exploratory IRT using mirt --------------------------------

@@ -820,6 +820,23 @@ ret_std_legislators_data<-function(legislatorsxlsxpath = paste0(dataset_file_dir
     return()
 }
 
+custom_mirt_coef_to_df <- function(mirtmodel) {
+  coefdf <- mirt::coef(mirtmodel, rotate="varimax", as.data.frame=TRUE) %>%
+    .[grepl("Group",rownames(.))==FALSE,] %>%
+    data.frame(value=., attr={
+      #names(.)
+      stringr::str_extract_all(names(.), "\\..+$") %>%
+        unlist() %>%
+        gsub(pattern="\\.",replacement="",x=.)
+    }, rowvar={
+      stringr::str_extract_all(names(.), ".+\\.") %>%
+        unlist() %>%
+        gsub(pattern="\\.",replacement="",x=.)
+    }) %>%
+    reshape2::dcast(rowvar ~ attr, value.var="value")
+  return(coefdf)
+}
+
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"
 #research_odbc_ch <- odbcConnect(research_odbc, believeNRows = FALSE, rows_at_time = 1, DBMSencoding="UTF-8")
