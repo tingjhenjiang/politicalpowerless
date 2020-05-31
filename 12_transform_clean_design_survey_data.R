@@ -291,7 +291,7 @@ C．選取合格者
 
 
 # 第七部份：把問卷資料變形以便串連及行政區、選舉資料 ---------------------------------
-load(paste0(dataset_in_scriptsfile_directory, "survey_data_test.RData"), verbose=TRUE)
+load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
 #library(reshape2)
 
 #survey_oldq_id<-list(

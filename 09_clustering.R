@@ -93,6 +93,97 @@ idx_process_ratio<-8
 idx_process_ratio<-9.2
 source("09_clustering_clustrd_commonpart_smallrange.R")
 stop() #setwd('/mnt/e/Software/scripts/R/vote_record')
+
+# * loading clustrd cluster assement and applying --------------------------------
+
+con <- do.call(DBI::dbConnect, dbconnect_info)
+clustrd_assesment_result_argu_df_basis<-dbReadTable(con, "demographic_clusters") %>%
+  dplyr::filter(dst=="low", criterion=="asw") %>%
+  dplyr::inner_join({
+    dplyr::group_by(., survey, imp, weight) %>%
+      dplyr::summarise(critbest = max(critbest))
+  }) %>%
+  dplyr::inner_join({
+    dplyr::group_by(., survey, imp, weight) %>%
+      dplyr::summarise(nclusbest = max(nclusbest))
+  }) %>%
+  dplyr::inner_join({
+    dplyr::group_by(., survey, imp, weight) %>%
+      dplyr::summarise(criterion_in_obj = max(criterion_in_obj))
+  }) %>%
+  dplyr::arrange(survey, imp, weight) %>%
+  mutate_cond(is.na(scale), scale=1) %>%
+  mutate_cond(is.na(center), center=1) %>%
+  mutate_cond(is.na(nstart), nstart=100) %>%
+  dplyr::mutate(title2=paste0(survey,"_imp",imp))
+DBI::dbDisconnect(con)
+
+for (i in 24:100) {
+  clustrd_assesment_result_argu_df<-clustrd_assesment_result_argu_df_basis  %>%
+    dplyr::inner_join({
+      dplyr::group_by(., survey, imp, weight) %>%
+        dplyr::slice(!!i)
+    }) %>%
+    dplyr::filter(weight==0)
+  clustrd_results_after_assesment_file<-paste0(dataset_in_scriptsfile_directory, "clustrd_results_after_assesment.RData")
+  #re-model if error occurs; do not delete
+  #errorkeys<-which(sapply(clustrd_results_after_assesment,class)=="try-error")
+  #clustrd_assesment_result_argu_df %<>% .[errorkeys,]
+  clustrd_assesment_result_argu_df %<>% dplyr::filter(title2 %in% !!assign_results)
+  clustrd_assesment_result_argu_df$title2 %>%
+    magrittr::set_names(custom_parallel_lapply(., function(fikey,...) {
+      needrow<-dplyr::filter(clustrd_assesment_result_argu_df, title2==!!fikey)
+      needsurvey<-needrow$survey
+      clustrd_model<-try({survey_data_imputed[[needsurvey]] %>%
+        .[.$.imp==needrow$imp,magrittr::extract2(clustering_var,needsurvey)] %>%
+        # clustrd::tuneclus(nclusrange=2:3,ndimrange=1:2, method="mixedRKM", dst="low")
+        clustrd::cluspcamix(nclus=needrow$nclusbest, ndim=needrow$ndimbest, method=needrow$method, 
+                           center=as.logical(needrow$center), scale=as.logical(needrow$scale), alpha=as.logical(needrow$alpha), rotation=needrow$rotation, 
+                           nstart=needrow$nstart)
+      })
+      if(!is(clustrd_model, 'try-error')) {
+        while(TRUE){
+          loadsavestatus<-try({
+            load(file=clustrd_results_after_assesment_file, verbose=TRUE)
+            clustrd_results_after_assesment[[fikey]]<-clustrd_model
+            save(clustrd_results_after_assesment, file=clustrd_results_after_assesment_file)
+          })
+          if(!is(loadsavestatus, 'try-error')) break
+        }
+        return(clustrd_model)
+      } else {
+        return("ERROR")
+      }
+    },survey_data_imputed=survey_data_imputed,
+    clustrd_assesment_result_argu_df=clustrd_assesment_result_argu_df,
+    clustering_var=clustering_var,
+    clustrd_results_after_assesment_file=clustrd_results_after_assesment_file,
+    method=parallel_method
+    ), .)
+  load(file=clustrd_results_after_assesment_file, verbose=TRUE)
+  assign_results<-c()
+  for (fi in 1:nrow(clustrd_assesment_result_argu_df)) {
+    needrow<-clustrd_assesment_result_argu_df[fi,]
+    clustrdmodel<-clustrd_results_after_assesment[[needrow$title2]]
+    tempdf_imppos<-which(survey_data_imputed[[needrow$survey]]$.imp==needrow$imp)
+    if (!("cluster_clustrd" %in% names(survey_data_imputed[[needrow$survey]]))) {
+      survey_data_imputed[[needrow$survey]] %<>% dplyr::mutate(cluster_clustrd=NA)
+    }
+    assign_result<-try({
+      survey_data_imputed[[needrow$survey]]$cluster_clustrd[tempdf_imppos]<-clustrdmodel$cluster
+    })
+    if(is(assign_result, 'try-error')) {
+      assign_results %<>% c(needrow$title2)
+    }
+    #assign_results[[fi]]<-assign_result
+    # #table(clustrdmodel$cluster)
+  }
+  if (length(assign_results)==0) break
+}
+
+
+
+
 # * clustrd clustering ranging assement --------------------------------
 
 # * My own Using WeightedCluster Examples --------------------------------
@@ -810,4 +901,4 @@ while(hasNext(it)) {
 
 
 
-save(survey_data_imputed,file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_Ubuntu18.04.3LTSdf_with_mirt_clustering_",".RData"))
+save(survey_data_imputed,file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"))

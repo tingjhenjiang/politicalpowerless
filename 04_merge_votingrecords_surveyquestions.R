@@ -83,7 +83,7 @@ if (FALSE) {
     openxlsx::write.xlsx("TMP.xlsx")
 }
 
-# (通常略過)讀取投票紀錄資料(此處通常預處理好，直接load下面 mergedf_votes_bills_surveyanswer)  -------------------------------------------
+# （通常略過）讀取投票紀錄資料(此處通常預處理好，直接load下面 mergedf_votes_bills_surveyanswer)  -------------------------------------------
 if (FALSE) {
   load(paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df.RData"), verbose=TRUE)
   load(paste0(dataset_in_scriptsfile_directory, "myown_vote_record_detailed_part_df.RData"), verbose=TRUE)
@@ -339,6 +339,9 @@ parallelfa_result_n_factor <- dplyr::left_join(parallelfa_n_factors_args_df,
   dplyr::arrange(term, fm, completecase)
 # * MDS algorithms --------------------------------
 #http://www.hmwu.idv.tw/web/R/C01-hmwu_R-DimensionReduction.pdf
+
+# * EFA by mirt on limited variables --------------------------------
+
 
 
 # * EFA by MCMC --------------------------------
@@ -935,11 +938,11 @@ mergedf_votes_bills_surveyanswer <- dplyr::distinct(legislators_with_elections,t
   dplyr::left_join(., { #此處設計一個政黨壓力指標並串連加入
     dplyr::group_by(., votedecision, billid_myown, legislator_party) %>%
       dplyr::summarise(samepartysamepositioncounts=n()) %>%
-      arrange(billid_myown, legislator_party, desc(samepartysamepositioncounts), votedecision) %>%
+      dplyr::arrange(billid_myown, legislator_party, desc(samepartysamepositioncounts), votedecision) %>%
       dplyr::group_by(billid_myown, legislator_party) %>%
       dplyr::summarise(party_pressure=(max(samepartysamepositioncounts)-sum(samepartysamepositioncounts)+max(samepartysamepositioncounts))/sum(samepartysamepositioncounts)) 
   }) %>%
-  dplyr::left_join(adminparty)
+  dplyr::left_join(adminparty, by=c("term"="term","legislator_party"="party"))
 
 # 第四部分：合併投票紀錄與法案資料  -------------------------------------------
 
