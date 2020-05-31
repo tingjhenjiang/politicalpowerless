@@ -300,7 +300,7 @@ load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_
 #  "2010overall"=c("kv21c_0", "kv31_0", "kv67_0", "v14a", "v14b", "v15a", "v15b", "v16a", "v16b", "v19", "v20a", "v20b", "v21c", "v22a", "v22b", "v22c", "v23a", "v23b", "v23c", "v24a", "v24b", "v24c", "v25a", "v25b", "v25c", "v26a", "v26b", "v26c", "v26d", "v26e", "v26f", "v26g", "v27a", "v27b", "v27c", "v27d", "v27e", "v27f", "v27g", "v28a", "v28b", "v29", "v30a", "v30b", "v31", "v32a", "v32b", "v32c", "v36a", "v36b", "v37a", "v37b", "v37c", "v37d", "v37e", "v37f", "v37g", "v37h", "v37i", "v38a1", "v38a2", "v38b1", "v38b2", "v38c1", "v38c2", "v38d1", "v38d2", "v38e1", "v38e2", "v39a", "v39b", "v39c", "v40", "v57", "v58", "v59", "v63", "v66c", "v66f", "v67", "v68", "v69", "v70b", "v70c", "v70d", "v70e", "v70f"),
 #  "2016citizen"=c("c1a",	"c1b",	"c1c",	"c1d",	"c1e",	"c2",	"c3",	"c4",	"c5",	"c6",	"c10",	"c11",	"c12",	"c13",	"c14",	"d1",	"d2a",	"d2b",	"d3a",	"d3b",	"d4",	"d5a",	"d5b",	"d5c",	"d5d",	"d5e",	"d5f",	"d6a",	"d6b",	"d6c",	"d6d",	"d6e",	"d6f",	"d6g",	"d6h",	"d7a",	"d7b",	"d7c",	"d7d",	"d7e",	"d7f",	"d7g",	"d7h",	"d7i",	"d7j",	"d7k",	"d8a",	"d8b",	"d8c",	"d11a",	"d11b",	"d12",	"d13a",	"d13b",	"d14a",	"d14b",	"d14c",	"d17a",	"d17b",	"d17c",	"e2a",	"e2b",	"e2c",	"e2d",	"e2e",	"e2f",	"e2g",	"e2h",	"e2i",	"f3",	"f4",	"f5",	"f8",	"f9",	"h10")
 #)
-survey_q_id<-sapply(survey_data_title,function(X,df,oldvec=c()) {
+survey_q_ids<-sapply(survey_data_title,function(X,df,oldvec=c()) {
   topickeyword<-c("議題","議題（或民主價值與公民意識牽涉群體）","民主價值與公民意識")
   if(identical(oldvec,c())) {
     oldvec[[X]]=c()
@@ -349,11 +349,11 @@ if({covert_label_according_to_xls_codebook<-FALSE;covert_label_according_to_xls_
 #survey_data_melted
 complete_survey_dataset <- mapply(function(X,Y) {
   survey_data_title<-X$SURVEY[1]
-  other_var_as_id<-setdiff(names(X),Y)
-  X<-mutate_at(X,Y,as.character)
+  other_var_as_id<-dplyr::setdiff(names(X),Y)
+  X<-dplyr::mutate_at(X,Y,as.character)
   reshape2::melt(X, id.vars = other_var_as_id, variable.name = "SURVEYQUESTIONID", value.name = "SURVEYANSWERVALUE") %>%
     dplyr::mutate_at("SURVEYANSWERVALUE", as.character)
-},X=survey_data_test,Y=survey_q_id) %>%
+},X=survey_data_imputed,Y=survey_q_ids) %>%
   {#節省欄位合併
     common_var<-Reduce(intersect, lapply(., names )) %>%
       setdiff(c("sd"))

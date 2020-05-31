@@ -645,7 +645,7 @@ for (survey_imp_key in names(kamila_results)) {
     forcats::fct_recode(., !!!{
       set_names(levels(.), as.list(sort(unique(.))))
     }) %>% as.character()
-  survey_data_imputed[[surveykey]][survey_data_imputed[[surveykey]]$.imp==imp, "kamilacluster"]<-kamilaclusterres
+  survey_data_imputed[[surveykey]][survey_data_imputed[[surveykey]]$.imp==imp, "cluster_kamila"]<-kamilaclusterres
 }
 # * model-based clustering by clustMD ----------------
 load_lib_or_install(c("clustMD"))
@@ -901,4 +901,5 @@ while(hasNext(it)) {
 
 
 
-save(survey_data_imputed,file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"))
+#save(survey_data_imputed,file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"))
+load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"), verbose=TRUE)

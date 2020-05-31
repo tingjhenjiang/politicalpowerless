@@ -25,21 +25,35 @@ gc(verbose=TRUE)
 
 # 第八部份：問卷資料串連立委資料、選舉資料 ---------------------------------
 
-library(parallel)
-rulingparty <- list("2004citizen"=c("民主進步黨"),"2010env"=c("中國國民黨"),"2010overall"=c("中國國民黨"),"2016citizen"=c("民主進步黨"))
-#load(paste0(filespath,"data",slash,"elections_df_test.RData"))
-
 #直接讀取分析立法通過的資料集
 #as glmdata_pass_on_bill
 #distinct(glmdata,)
 #load(file=paste0(dataset_file_directory,"rdata",slash,"pass_on_bill.RData"))
-#load(paste0(filespath,"data",slash,"mergedf__votes_bills_surveyanswer.RData"))
-#new_mergedf_votes_bills_surveyanswer<-mergedf_votes_bills_surveyanswer
-load(paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"))
-load(paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"))
-load(paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"))
-load(paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"))
-legislators_with_elections %<>% select(-degree,-experience,-education,-wonelection)
+load(paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"), verbose=TRUE)
+load(paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"), verbose=TRUE)
+load(paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"), verbose=TRUE)
+load(paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
+load(paste0(dataset_in_scriptsfile_directory, "similarities_match.RData"), verbose=TRUE)
+
+complete_survey_dataset %<>% data.table::setDT() %>% dtplyr::lazy_dt()
+mergedf_votes_bills_surveyanswer %<>% data.table::setDT() %>% dtplyr::lazy_dt()
+legislators_additional_attr %<>% data.table::setDT() %>% dtplyr::lazy_dt()
+legislators_with_elections %<>% data.table::setDT() %>% dtplyr::lazy_dt()
+similarities_bet_pp_ly_longdf %<>% data.table::setDT() %>% dtplyr::lazy_dt()
+
+testdf<-dplyr::left_join(complete_survey_dataset, term_to_survey) %>%
+  dplyr::left_join(term_to_survey) %>% #135654
+  dplyr::left_join(legislators_with_elections) %>% #135654
+  dplyr::left_join(legislators_additional_attr) %>% #135654
+  dplyr::left_join(legislators_with_elections) %>% #135654
+  dplyr::left_join(legislators_additional_attr) %>% #135654
+  dplyr::left_join(similarities_bet_pp_ly_longdf) %>%
+  dplyr::left_join(mergedf_votes_bills_surveyanswer) %>% #231990  %>% nrow()
+  dplyr::filter(research_period==1) %>%
+  dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days"))
+  
+View(as.data.frame(testdf[1:5]))
+
 #admincity admindistrict adminvillage
 
 #View(mergedf_votes_bills_surveyanswer)

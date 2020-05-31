@@ -946,7 +946,7 @@ mergedf_votes_bills_surveyanswer <- dplyr::distinct(legislators_with_elections,t
 
 # 第四部分：合併投票紀錄與法案資料  -------------------------------------------
 
-mergedf_votes_bills_surveyanswer %>%
+mergedf_votes_bills_surveyanswer %<>%
   dplyr::right_join(bills_billcontent, by = c("billid_myown","term","period","meetingno","temp_meeting_no","billn","billresult","date")) %>% ##,"url"
   dplyr::right_join(bills_answer_to_bill, by = c("billid_myown")) %>% 
   #篩選出研究範圍
