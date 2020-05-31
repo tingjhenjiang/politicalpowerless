@@ -367,7 +367,11 @@ complete_survey_dataset <- mapply(function(X,Y) {
   dplyr::select(-term1,-term2,-year,-year_m,-sm) %>%#,-sd,-myown_int_pol_efficacy,-myown_ext_pol_efficacy,-myown_constituency_party_vote
   dplyr::select(!dplyr::ends_with("NA")) %>%
   dplyr::select(-myown_dad_ethgroup,-myown_mom_ethgroup,-myown_religion,-myown_working_status,-myown_job_status,-myown_familymembers_num,-myown_selfid_population) %>%
-  dplyr::mutate_at(c("SURVEY","admincity","admindistrict","adminvillage","value_on_q_variable"),as.factor)
+  dplyr::mutate_at(c("SURVEY","admincity","admindistrict","adminvillage","value_on_q_variable"),as.factor) %>%
+  dplyr::mutate_at("id", as.integer)
+
+#complete_survey_dataset %<>% data.table::as.data.table()
+#save(complete_survey_dataset,file=paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"))
 
 #View(filter(complete_survey_dataset[[1]],SURVEYQUESTIONID=='myown_indp_atti'))
 #dplyr::recode(survey_data_test[[1]]$v61,!!!getElement(getElement(prepare_for_label_adj_df,"2004citizen"),"v61"))
@@ -396,9 +400,6 @@ complete_survey_dataset <- mapply(function(X,Y) {
 #  distinct(SURVEY,SURVEYQUESTIONID,ansv_and_label) %>%
 #  View()
 #c(NA,"","以上皆非等待發明  不知道何種替代能源","用垃圾科技轉換能源",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,)
-
-#complete_survey_dataset %<>% data.table::as.data.table()
-#save(complete_survey_dataset,file=paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"))
 
 ##針對調查問卷資料處理變形，以便合併
 

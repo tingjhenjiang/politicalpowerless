@@ -202,15 +202,16 @@ legislators_ethicity_df <- paste0(dataset_file_directory, "legislators_ethicity_
 #  write_csv(legislators_correct_csv, path=paste0(dataset_file_directory, "cec_vote_dataset", slash, "term", checkterm, slash, "partylist", slash, "elrepm_new.csv"), na = "")
 #}
 
-#立委資料與選區資料合併
-#legislators <- read_csv(file = paste0(dataset_file_directory, "legislators.csv"))
-legislators_with_elections <- ret_std_legislators_data() %>%
-  dplyr::select(-ename,-onboardDate,-picUrl,-leaveFlag,-leaveDate,-leaveReason,-ballotid,-committee,-birthday,-birthplace,-plranking)#inner_join目的是要排除沒有當選也沒有遞補進來的立法委員
-
 #save(elections_df,file=paste0(dataset_in_scriptsfile_directory, "elections_df.RData"))
 #test result: filter(legislators_needed,is.na(zip)) %>% View()
 
-load(paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
+#立委資料與選區資料合併
+#legislators <- read_csv(file = paste0(dataset_file_directory, "legislators.csv"))
+
+#load(paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
+legislators_with_elections <- ret_std_legislators_data(legislatorsxlsxpath = paste0(dataset_file_directory, "legislators.xlsx"), terms=terms, elections_df=elections_df) %>%
+  dplyr::select(-ename,-onboardDate,-picUrl,-leaveFlag,-leaveDate,-leaveReason,-ballotid,-committee,-birthday,-birthplace,-plranking)#inner_join目的是要排除沒有當選也沒有遞補進來的立法委員
+
 legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislators_with_elections$wonelection),]
   #distinct(term, legislator_name, legislator_sex, legislator_party, partyGroup, areaName,
   #         committee, degree, experience, birthday,
@@ -240,6 +241,7 @@ legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislato
   mutate_cond(customgrepl(legislator_name,"謝鈞惠"), education=paste0(education,"美國舊金山大學公共行政研究所結業 83年台南縣省議員選舉公報")) %>%
   mutate_cond(customgrepl(legislator_name,"陳唐山|黃昭輝|徐欣瑩"), experience=paste0(experience,"學術科研機構研究員")) %>%
   mutate_cond(customgrepl(legislator_name,"王廷升|張顯耀|費鴻泰|林郁方|孫國華|李全教|陳碧涵|詹滿容"), experience=paste0(experience,"副教授 助理教授"), education="博士") %>%
+  dplyr::mutate_at("legislator_eduyr", as.numeric) %>%
   mutate_cond(customgrepl(education,"國小|小學"), legislator_eduyr=6) %>%
   mutate_cond(customgrepl(education,"國中"), legislator_eduyr=9) %>%
   mutate_cond(customgrepl(education,"中學|高中|高職|高工畢|高商畢|高級職業學校畢"), legislator_eduyr=12) %>%
@@ -337,32 +339,34 @@ legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislato
               experience=paste0(experience,"宗教專業人員")) %>%
   mutate_cond(customgrepl(legislator_name,"田秋堇|陳節如|黃淑英|王育敏|王榮璋|吳玉琴|李麗芬|林麗蟬|陳曼麗|高潞|鍾孔炤"),
               experience=paste0(experience,"NGO理事長 NGO執行長 NGO秘書長 工會理事長")) %>%
-  mutate_cond(customgrepl(experience,"漁民|討海人"), legislator_occp=620, legislator_ses=65.9) %>%
-  mutate_cond(customgrepl(experience,"固定攤販與市場售貨"), legislator_occp=532, legislator_ses=67.3) %>%
-  mutate_cond(customgrepl(experience,"商店售貨"), legislator_occp=531, legislator_ses=71.8) %>%
-  mutate_cond(customgrepl(experience,"營建採礦技術工|水泥公司工人"), legislator_occp=710, legislator_ses=72.0) %>%
-  mutate_cond(customgrepl(experience,"電器維修工|金屬機械技術工|鐵道工人"), legislator_occp=720, legislator_ses=74.2) %>%
-  mutate_cond(customgrepl(experience,"辦公室事務性工作|公所秘書|事務工作公務員"), legislator_occp=410, legislator_ses=76.5) %>%
-  mutate_cond(customgrepl(experience,"職業選手"), legislator_occp=322, legislator_ses=77.5) %>%
-  mutate_cond(customgrepl(experience,"補習班教師|訓練班教師"), legislator_occp=303, legislator_ses=78.4) %>%
-  mutate_cond(customgrepl(experience,"社會工作員|輔導員|社工"), legislator_occp=312, legislator_ses=74.5) %>%
-  mutate_cond(customgrepl(experience,"護理師|醫藥專業人員"), legislator_occp=223, legislator_ses=79.1) %>%
-  mutate_cond(customgrepl(experience,"記者|主播|採訪中心主任|作家|編輯"), legislator_occp=212, legislator_ses=80.0) %>%
-  mutate_cond(customgrepl(experience,"藝人|主唱"), legislator_occp=213, legislator_ses=80.0) %>%
-  mutate_cond(customgrepl(experience,"國會助理|省議員助理|政治人物幕僚"), legislator_occp=311, legislator_ses=80.1) %>%
-  mutate_cond(customgrepl(experience,"高中教師|中學教師|中學教員|國中教師|國小教師|國中小教師|商工教師|商專教師|補校教師"), legislator_occp=202, legislator_ses=81.1) %>%
-  mutate_cond(customgrepl(experience,"股長|襄理|課長|科長|副理|環保署資深科學主管") | customgrepl(legislator_name,"吳光訓"), legislator_occp=370, legislator_ses=81.9) %>%
-  mutate_cond(customgrepl(experience,"專案經理"), legislator_occp=120, legislator_ses=81.4) %>%
-  mutate_cond(customgrepl(experience,"牧師|宗教專業人員"), legislator_occp=214, legislator_ses=80.0) %>%
-  mutate_cond(customgrepl(experience,"商學專業人員"), legislator_occp=230, legislator_ses=85.1) %>%
-  mutate_cond(customgrepl(experience,"測量技士|土木技師|化工研究員|工程師|建築師|水利技師"), legislator_occp=250, legislator_ses=83.2) %>%
-  mutate_cond(customgrepl(experience,"(基金會){0}(集團){0,1}(托兒所){0,1}董事長|總經理|監察人|(托兒所){0,1}負責人"), legislator_occp=110, legislator_ses=83.3) %>%
-  mutate_cond(customgrepl(experience,"會計師"), legislator_occp=230, legislator_ses=85.1) %>%
-  mutate_cond(customgrepl(experience,"法官|律師|地政士|土地登記代理人") | customgrepl(legislator_name,"吳志揚") & !customgrepl(legislator_name,"鄭天財Sra．Kacaw"), legislator_occp=211, legislator_ses=86.0) %>%
-  mutate_cond(customgrepl(experience,"(兼任){0}副?教授|學系主任|系主任|學術科研機構研究員|大專講師"), legislator_occp=201, legislator_ses=87.9) %>%
-  mutate_cond(customgrepl(experience,"醫師|產科主任"), legislator_occp=221, legislator_ses=86.0) %>%
+  dplyr::mutate_at("legislator_ses", as.numeric) %>%
+  dplyr::mutate_at("legislator_occp", as.character) %>%
+  mutate_cond(customgrepl(experience,"漁民|討海人"), legislator_occp="620", legislator_ses=65.9) %>%
+  mutate_cond(customgrepl(experience,"固定攤販與市場售貨"), legislator_occp="532", legislator_ses=67.3) %>%
+  mutate_cond(customgrepl(experience,"商店售貨"), legislator_occp="531", legislator_ses=71.8) %>%
+  mutate_cond(customgrepl(experience,"營建採礦技術工|水泥公司工人"), legislator_occp="710", legislator_ses=72.0) %>%
+  mutate_cond(customgrepl(experience,"電器維修工|金屬機械技術工|鐵道工人"), legislator_occp="720", legislator_ses=74.2) %>%
+  mutate_cond(customgrepl(experience,"辦公室事務性工作|公所秘書|事務工作公務員"), legislator_occp="410", legislator_ses=76.5) %>%
+  mutate_cond(customgrepl(experience,"職業選手"), legislator_occp="322", legislator_ses=77.5) %>%
+  mutate_cond(customgrepl(experience,"補習班教師|訓練班教師"), legislator_occp="303", legislator_ses=78.4) %>%
+  mutate_cond(customgrepl(experience,"社會工作員|輔導員|社工"), legislator_occp="312", legislator_ses=74.5) %>%
+  mutate_cond(customgrepl(experience,"護理師|醫藥專業人員"), legislator_occp="223", legislator_ses=79.1) %>%
+  mutate_cond(customgrepl(experience,"記者|主播|採訪中心主任|作家|編輯"), legislator_occp="212", legislator_ses=80.0) %>%
+  mutate_cond(customgrepl(experience,"藝人|主唱"), legislator_occp="213", legislator_ses=80.0) %>%
+  mutate_cond(customgrepl(experience,"國會助理|省議員助理|政治人物幕僚"), legislator_occp="311", legislator_ses=80.1) %>%
+  mutate_cond(customgrepl(experience,"高中教師|中學教師|中學教員|國中教師|國小教師|國中小教師|商工教師|商專教師|補校教師"), legislator_occp="202", legislator_ses=81.1) %>%
+  mutate_cond(customgrepl(experience,"股長|襄理|課長|科長|副理|環保署資深科學主管") | customgrepl(legislator_name,"吳光訓"), legislator_occp="370", legislator_ses=81.9) %>%
+  mutate_cond(customgrepl(experience,"專案經理"), legislator_occp="120", legislator_ses=81.4) %>%
+  mutate_cond(customgrepl(experience,"牧師|宗教專業人員"), legislator_occp="214", legislator_ses=80.0) %>%
+  mutate_cond(customgrepl(experience,"商學專業人員"), legislator_occp="230", legislator_ses=85.1) %>%
+  mutate_cond(customgrepl(experience,"測量技士|土木技師|化工研究員|工程師|建築師|水利技師"), legislator_occp="250", legislator_ses=83.2) %>%
+  mutate_cond(customgrepl(experience,"(基金會){0}(集團){0,1}(托兒所){0,1}董事長|總經理|監察人|(托兒所){0,1}負責人"), legislator_occp="110", legislator_ses=83.3) %>%
+  mutate_cond(customgrepl(experience,"會計師"), legislator_occp="230", legislator_ses=85.1) %>%
+  mutate_cond(customgrepl(experience,"法官|律師|地政士|土地登記代理人") | customgrepl(legislator_name,"吳志揚") & !customgrepl(legislator_name,"鄭天財Sra．Kacaw"), legislator_occp="211", legislator_ses=86.0) %>%
+  mutate_cond(customgrepl(experience,"(兼任){0}副?教授|學系主任|系主任|學術科研機構研究員|大專講師"), legislator_occp="201", legislator_ses=87.9) %>%
+  mutate_cond(customgrepl(experience,"醫師|產科主任"), legislator_occp="221", legislator_ses=86.0) %>%
   mutate_cond(customgrepl(experience,"旅長|軍總司令|國防管理學院院長"), legislator_occp="012", legislator_ses=81.4) %>%
-  mutate_cond(customgrepl(experience,"NGO理事長|NGO執行長|NGO秘書長|產業總工會理事長|主管級公務員|職業民意代表") | customgrepl(legislator_name,"劉建國"), legislator_occp=140, legislator_ses=81.4) %>%
+  mutate_cond(customgrepl(experience,"NGO理事長|NGO執行長|NGO秘書長|產業總工會理事長|主管級公務員|職業民意代表") | customgrepl(legislator_name,"劉建國"), legislator_occp="140", legislator_ses=81.4) %>%
   mutate_cond(!is.na(legislator_ses), legislator_ses=(legislator_ses-55)*3) %>%
   dplyr::select(term,legislator_name,legislator_eduyr,legislator_occp,legislator_ses,legislator_ethnicity) %>%
   dplyr::mutate_at(c("legislator_occp"),as.factor) %>%
@@ -372,7 +376,6 @@ legislators_with_elections %<>% dplyr::select(-education,-degree,-experience,-wo
   dplyr::mutate_at("legislator_name", as.factor)
 #legislators_with_elections %<>% data.table::as.data.table()
 #save(legislators_with_elections, file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"))
-
 
 #legislators_additional_attr %<>% data.table::as.data.table()
 #save(legislators_additional_attr,file=paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"))
