@@ -984,7 +984,14 @@ mergedf_votes_bills_surveyanswer %<>%
   dplyr::mutate(ansv_and_label=paste0("[",SURVEYANSWERVALUE,"] ",LABEL)) %>%
   dplyr::mutate_at(c("SURVEY","billresult","legislator_party","pp_agendavoting","pp_propose_advanceforagenda","value_on_q_variable","variable_on_q","pp_lawamendment","issue_field1","issue_field2","respondopinion","success_on_bill","ansv_and_label"), as.factor) %>%
   dplyr::select(-url.x,-url.y,-pp_keyword.x,-pp_keyword.y,-billcontent.x,-billcontent.y, -SURVEYANSWERVALUE, -LABEL, -QUESTION) %>%
-  dplyr::arrange(term, period, temp_meeting_no, meetingno, billn)
+  dplyr::arrange(term, period, temp_meeting_no, meetingno, billn) %>%
+  dplyr::select(-yrmonth, -pp_groupbased, -pp_propose_advanceforagenda) %>%
+  dplyr::select(!dplyr::starts_with("billarea0")) %>%
+  dplyr::mutate_at("respondopinion", as.ordered) %>%
+  dplyr::select(!starts_with("opiniondirection")) %>%
+  dplyr::select(!starts_with("opinionfrom")) %>%
+  dplyr::select(-period, -temp_meeting_no, -meetingno, -billn) %>%
+  dplyr::mutate_at("legislator_name", as.factor)
 
 #save(mergedf_votes_bills_surveyanswer, file = paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"))
 #mergedf_votes_bills_surveyanswer %<>% data.table::as.data.table()

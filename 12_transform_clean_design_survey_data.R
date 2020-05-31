@@ -364,8 +364,10 @@ complete_survey_dataset <- mapply(function(X,Y) {
   dplyr::rename(ansv_and_label=SURVEYANSWERVALUE) %>%
   dplyr::mutate("value_on_q_variable"=paste0(SURVEY,"@",SURVEYQUESTIONID)) %>%
   dplyr::select(-zip,-village,-wave,-qtype,-myown_industry,-myown_job,-villagefullname,-myown_family_income_ingroup, -SURVEYQUESTIONID) %>%
-  dplyr::select(-term1,-term2,-year,-year_m,-sm)#,-sd,-myown_int_pol_efficacy,-myown_ext_pol_efficacy,-myown_constituency_party_vote
-
+  dplyr::select(-term1,-term2,-year,-year_m,-sm) %>%#,-sd,-myown_int_pol_efficacy,-myown_ext_pol_efficacy,-myown_constituency_party_vote
+  dplyr::select(!dplyr::ends_with("NA")) %>%
+  dplyr::select(-myown_dad_ethgroup,-myown_mom_ethgroup,-myown_religion,-myown_working_status,-myown_job_status,-myown_familymembers_num,-myown_selfid_population) %>%
+  dplyr::mutate_at(c("SURVEY","admincity","admindistrict","adminvillage","value_on_q_variable"),as.factor)
 
 #View(filter(complete_survey_dataset[[1]],SURVEYQUESTIONID=='myown_indp_atti'))
 #dplyr::recode(survey_data_test[[1]]$v61,!!!getElement(getElement(prepare_for_label_adj_df,"2004citizen"),"v61"))
