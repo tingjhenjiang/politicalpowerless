@@ -987,6 +987,8 @@ mergedf_votes_bills_surveyanswer %<>%
   dplyr::arrange(term, period, temp_meeting_no, meetingno, billn)
 
 #save(mergedf_votes_bills_surveyanswer, file = paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"))
+#mergedf_votes_bills_surveyanswer %<>% data.table::as.data.table()
+#save(mergedf_votes_bills_surveyanswer, file = paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"))
 
 #%>%
 #mutate(term=stringi::stri_sub(electionname,from=1,length=1)) #%>%

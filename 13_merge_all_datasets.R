@@ -35,11 +35,11 @@ load(paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData
 load(paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
 load(paste0(dataset_in_scriptsfile_directory, "similarities_match.RData"), verbose=TRUE)
 
-complete_survey_dataset %<>% data.table::setDT() %>% dtplyr::lazy_dt()
-mergedf_votes_bills_surveyanswer %<>% data.table::setDT() %>% dtplyr::lazy_dt()
-legislators_additional_attr %<>% data.table::setDT() %>% dtplyr::lazy_dt()
-legislators_with_elections %<>% data.table::setDT() %>% dtplyr::lazy_dt()
-similarities_bet_pp_ly_longdf %<>% data.table::setDT() %>% dtplyr::lazy_dt()
+complete_survey_dataset %<>% dtplyr::lazy_dt()
+mergedf_votes_bills_surveyanswer %<>% dtplyr::lazy_dt()
+legislators_additional_attr %<>% dtplyr::lazy_dt()
+legislators_with_elections %<>% dtplyr::lazy_dt()
+similarities_bet_pp_ly_longdf %<>% dtplyr::lazy_dt()
 
 testdf<-dplyr::left_join(complete_survey_dataset, term_to_survey) %>%
   dplyr::left_join(term_to_survey) %>% #135654

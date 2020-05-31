@@ -206,7 +206,9 @@ legislators_ethicity_df <- paste0(dataset_file_directory, "legislators_ethicity_
 #legislators <- read_csv(file = paste0(dataset_file_directory, "legislators.csv"))
 legislators_with_elections <- ret_std_legislators_data() %>%
   dplyr::select(-ename,-onboardDate,-picUrl,-leaveFlag,-leaveDate,-leaveReason,-ballotid,-committee,-birthday,-birthplace,-plranking)#inner_join目的是要排除沒有當選也沒有遞補進來的立法委員
+
 #save(elections_df,file=paste0(dataset_in_scriptsfile_directory, "elections_df.RData"))
+#legislators_with_elections %<>% data.table::as.data.table()
 #save(legislators_with_elections, file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"))
 #test result: filter(legislators_needed,is.na(zip)) %>% View()
 
@@ -366,7 +368,10 @@ legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislato
   mutate_cond(!is.na(legislator_ses), legislator_ses=(legislator_ses-55)*3) %>%
   dplyr::select(term,legislator_name,legislator_eduyr,legislator_occp,legislator_ses,legislator_ethnicity) %>%
   dplyr::mutate_at(c("legislator_occp"),as.factor)
-save(legislators_additional_attr,file=paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"))
+
+#legislators_additional_attr %<>% data.table::as.data.table()
+#save(legislators_additional_attr,file=paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"))
+
 #陳東榮 no degree
 #孫國華 僑選
 #write.xlsx(legislators_additional_attr,file=paste0(dataset_file_directory,"legislator_additional_attributes.xlsx"))

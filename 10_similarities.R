@@ -63,4 +63,5 @@ similarities_bet_pp_ly_longdf <- names(distance_dissimilarities_pply) %>%
   ) %>%
   dplyr::bind_rows()
 
-save(similarities_bet_pp_ly_longdf, file = paste0(dataset_in_scriptsfile_directory, "similarities_match.RData"))
+#similarities_bet_pp_ly_longdf %<>% data.table::as.data.table()
+#save(similarities_bet_pp_ly_longdf, file = paste0(dataset_in_scriptsfile_directory, "similarities_match.RData"))

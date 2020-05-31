@@ -395,6 +395,7 @@ complete_survey_dataset <- mapply(function(X,Y) {
 #  View()
 #c(NA,"","以上皆非等待發明  不知道何種替代能源","用垃圾科技轉換能源",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,)
 
+#complete_survey_dataset %<>% data.table::as.data.table()
 #save(complete_survey_dataset,file=paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"))
 
 ##針對調查問卷資料處理變形，以便合併
