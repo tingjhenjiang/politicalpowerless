@@ -17,14 +17,15 @@ survey_time_range <- list(
   "2016citizen"=data.frame("SURVEY"="2016citizen","yrmonth"=c("105/09","105/11","105/12","106/01","106/04","106/05","106/06","106/08","106/10","106/11","106/12","107/01","107/03","107/04","107/05","107/06","107/07","107/08","107/09","107/10","107/11"))
 )
 survey_time_range_df <- plyr::rbind.fill(survey_time_range)
-term_to_survey <- data.frame("term"=c(5,6,7,7,8,8,9), "SURVEY"=c("2004citizen","2004citizen","2010env","2010overall","2010env","2010overall","2016citizen"))
+term_to_survey <- data.frame("term"=c(5,6,7,7,8,8,9), "SURVEY"=c("2004citizen","2004citizen","2010env","2010overall","2010env","2010overall","2016citizen")) %>%
+  data.table::as.data.table()
 gc(verbose=TRUE)
 
 
 
 
 # 第八部份：問卷資料串連立委資料、選舉資料 ---------------------------------
-
+library(data.table)
 #直接讀取分析立法通過的資料集
 #load(file=paste0(dataset_file_directory,"rdata",slash,"pass_on_bill.RData"))
 
@@ -32,7 +33,7 @@ overalldf_general_func<-function(targetdf) {
   targetdf %>% #231990  %>% nrow()
     dplyr::filter(research_period==1, !is.na(respondopinion)) %>%
     dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
-    dplyr::mutate_at(c("SURVEY","admincity","admindistrict","adminvillage","value_on_q_variable","legislator_name"),as.factor) %>%
+    dplyr::mutate_at(c("SURVEY","value_on_q_variable","legislator_name"),as.factor) %>%
     dplyr::select(-stdsurveydate, -stdbilldate, -ansv_and_label, -value_on_q_variable) %>%
     return()
 }
@@ -49,15 +50,16 @@ legislators_with_elections %<>% dtplyr::lazy_dt()
 legislators_additional_attr %<>% dtplyr::lazy_dt()
 similarities_bet_pp_ly_longdf %<>% dtplyr::lazy_dt()
 
-# Joining, by = "SURVEY"
-# Joining, by = c("term", "elec_dist_type")
-# Joining, by = c("term", "legislator_name")
-# Joining, by = c("id", "SURVEY", "term", "legislator_name")
-# Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name", "legislator_sex", "legislator_party", "seniority", "legislator_age", "incumbent")
-
+# overalldf_district<-merge(complete_survey_dataset, term_to_survey, all.x=TRUE, allow.cartesian=TRUE, by = "SURVEY") %>%
+#   merge(legislators_with_elections, all.x=TRUE, allow.cartesian=TRUE, by = c("admincity", "admindistrict", "adminvillage", "term")) %>%
+#   merge(legislators_additional_attr, all.x=TRUE, allow.cartesian=TRUE, by = c("term", "legislator_name")) %>%
+#   merge(similarities_bet_pp_ly_longdf, all.x=TRUE, allow.cartesian=TRUE, by = c("id", "SURVEY", "term", "legislator_name")) %>%
+#   merge(mergedf_votes_bills_surveyanswer, all.x=TRUE, allow.cartesian=TRUE, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "legislator_name", "legislator_sex", "legislator_party", "seniority", "legislator_age", "incumbent", "elec_dist_type")) %>%
+#   overalldf_general_func() #64.7GB
 
 overalldf_district<-dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
   dplyr::left_join(legislators_with_elections) %>% #Joining, by = c("admincity", "admindistrict", "adminvillage", "term")
+  dplyr::select(-admincity,-admindistrict,-adminvillage) %>%
   dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
   dplyr::left_join(similarities_bet_pp_ly_longdf) %>% #Joining, by = c("id", "SURVEY", "term", "legislator_name")
   dplyr::left_join(mergedf_votes_bills_surveyanswer) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "legislator_name", "legislator_sex", "legislator_party", "seniority", "legislator_age", "incumbent", "elec_dist_type")
@@ -69,8 +71,9 @@ overalldf_partylist<-dplyr::left_join(complete_survey_dataset, term_to_survey) %
   dplyr::mutate(elec_dist_type="partylist") %>%
   dplyr::left_join({
     dplyr::filter(legislators_with_elections, elec_dist_type=="partylist") %>%
-      dplyr::select(-admincity,-admindistrict,-adminvillage)
+      dplyr::distinct_at(.vars=vars(-admincity,-admindistrict,-adminvillage))
     }) %>% #Joining, by = c("term", "elec_dist_type")
+  dplyr::select(-admincity,-admindistrict,-adminvillage) %>%
   dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
   dplyr::left_join(similarities_bet_pp_ly_longdf) %>% #Joining, by = c("id", "SURVEY", "term", "legislator_name")
   dplyr::left_join(mergedf_votes_bills_surveyanswer) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name", "legislator_sex", "legislator_party", "seniority", "legislator_age", "incumbent")
