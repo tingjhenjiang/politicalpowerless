@@ -901,6 +901,15 @@ while(hasNext(it)) {
 }
 
 
+for (s in names(survey_data_imputed)) {
+  for (imp in imps) {  #"cluster_varsellcm" "cluster_clustrd" "cluster_kamila"
+    message(paste0("SURVEY is ",s," and imp is",imp))
+    dplyr::filter(survey_data_imputed[[s]], .imp==!!imp) %>%
+      magrittr::use_series("cluster_kamila") %>%
+      table() %>%
+      print()
+  }
+}
 
 #save(survey_data_imputed,file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"))
 load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"), verbose=TRUE)
