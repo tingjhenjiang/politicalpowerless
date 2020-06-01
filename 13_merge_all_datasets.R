@@ -104,7 +104,7 @@ overalldf<-dplyr::bind_rows(
     #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
     overalldf_general_func(agendavoting=1,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer)
   ) %>% #11.6GB
-  overalldf_to_implist_func()
+  overalldf_to_implist_func() #104.1GB
 
 #different number of rows error would occur
 #sapply(1:5, function(X)nrow(dplyr::filter(overalldf_district, imp==X)))
@@ -117,7 +117,8 @@ overalldf<-dplyr::bind_rows(
 #calculate p-value https://www.researchgate.net/post/p_value_calculator
 
 des<-survey::svydesign(ids=~0, weight=~myown_wr, data=overalldf)
-modelvars<-c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_factoredefficacy","myown_factoredparticip","similarity_distance","party_pressure","seniority","party_pressure","days_diff_survey_bill") %>%
+modelvars<-c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_factoredefficacy","myown_factoredparticip","similarity_distance","party_pressure","seniority","party_pressure","days_diff_survey_bill","issuefield") %>%
+  c("elec_dist_type") %>%
   c("cluster_varsellcm")
 modelformula<-paste0(modelvars, collapse="+") %>%
   paste0("respondopinion~",.) %>%
