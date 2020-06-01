@@ -71,7 +71,7 @@ overalldf_district<-dplyr::left_join(complete_survey_dataset, term_to_survey) %>
     dplyr::filter(mergedf_votes_bills_surveyanswer,research_period==1,pp_agendavoting==0) %>%
       dplyr::select(-pp_agendavoting,-pp_lawamendment,-research_period)
   }) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name")
-  overalldf_general_func() #19.4GB
+  overalldf_general_func() #13.4GB
 
 overalldf_district %<>% as.data.frame()
 

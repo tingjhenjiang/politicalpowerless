@@ -361,7 +361,7 @@ complete_survey_dataset <- mapply(function(X,Y) {
   } %>%
   plyr::rbind.fill() %>%
   #dplyr::bind_rows() %>%
-  dplyr::rename(ansv_and_label=SURVEYANSWERVALUE) %>%
+  dplyr::rename(ansv_and_label=SURVEYANSWERVALUE, imp=.imp) %>%
   dplyr::mutate("value_on_q_variable"=paste0(SURVEY,"@",SURVEYQUESTIONID)) %>%
   dplyr::select(-tidyselect::any_of(c("zip","village","wave","qtype","myown_industry","myown_job","villagefullname","myown_family_income_ingroup","SURVEYQUESTIONID"))) %>%
   dplyr::select(-tidyselect::any_of(c("term1","term2","year","year_m","sm"))) %>%#,-sd,-myown_int_pol_efficacy,-myown_ext_pol_efficacy,-myown_constituency_party_vote
