@@ -67,7 +67,7 @@ overalldf_district<-dplyr::left_join(complete_survey_dataset, term_to_survey) %>
   overalldf_general_inter_func() %>%
   #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
   dplyr::left_join(similarities_bet_pp_ly_longdf) %>% #Joining, by = c("id", "SURVEY", "term", "legislator_name")
-  dplyr::left_join(mergedf_votes_bills_surveyanswer) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "legislator_name", "legislator_sex", "legislator_party", "seniority", "legislator_age", "incumbent", "elec_dist_type")
+  dplyr::left_join(mergedf_votes_bills_surveyanswer) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name", "seniority")
   overalldf_general_func()
 
 overalldf_district %<>% as.data.frame()
@@ -81,7 +81,7 @@ overalldf_partylist<-dplyr::left_join(complete_survey_dataset, term_to_survey) %
   overalldf_general_inter_func() %>%
   #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
   dplyr::left_join(similarities_bet_pp_ly_longdf) %>% #Joining, by = c("id", "SURVEY", "term", "legislator_name")
-  dplyr::left_join(mergedf_votes_bills_surveyanswer) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name", "legislator_sex", "legislator_party", "seniority", "legislator_age", "incumbent")
+  dplyr::left_join(mergedf_votes_bills_surveyanswer) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name", "seniority")
   overalldf_general_func()
 
 overalldf_partylist %<>% as.data.frame()

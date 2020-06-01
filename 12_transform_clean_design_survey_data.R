@@ -369,7 +369,7 @@ complete_survey_dataset <- mapply(function(X,Y) {
   dplyr::select(-tidyselect::any_of(c(".id","myown_eduyr","myown_occp","myown_ses","myown_income","myown_family_income","myown_dad_ethgroup","myown_mom_ethgroup","myown_religion","myown_working_status","myown_job_status","myown_familymembers_num","myown_selfid_population","myown_wsel","fpc"))) %>%
   dplyr::mutate_at(c("SURVEY","admincity","admindistrict","adminvillage","value_on_q_variable"),as.factor) %>%
   dplyr::mutate_at("id", as.integer) %>%
-  dplyr::filter(SURVEY!="2004citizen")
+  dplyr::filter(!(SURVEY %in% c("2004citizen","2010env")))
 
 #complete_survey_dataset %<>% data.table::as.data.table()
 #save(complete_survey_dataset,file=paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"))
