@@ -980,17 +980,17 @@ mergedf_votes_bills_surveyanswer %<>%
   mutate_cond(opiniondirectionfromconstituent==opiniondirectionfromlegislator, respondopinion=2) %>%
   mutate_cond(votedecision==non_decision, respondopinion=1, opiniondirectionfromlegislator='ig/gu') %>% #ignore/giveup
   mutate_cond(opiniondirectionfromconstituent=='x' | opiniondirectionfromconstituent=='b' | opiniondirectionfrombill=='x', respondopinion=NA, success_on_bill=NA) %>%
-  dplyr::select(-date,-urln,-pp_committee,-votecontent,-pp_enactment,-pp_enforcement,-pp_res_bynew,-pp_res_bycompete,-pp_res_notjudged,-pp_ignored,-billconflict,-pol_score,-eco_score,-SURVEYQUESTIONID) %>%
+  dplyr::select(-tidyselect::any_of(c("date","urln","pp_committee","votecontent","pp_enactment","pp_enforcement","pp_res_bynew","pp_res_bycompete","pp_res_notjudged","pp_ignored","billconflict","pol_score","eco_score","SURVEYQUESTIONID"))) %>%
   dplyr::mutate(ansv_and_label=paste0("[",SURVEYANSWERVALUE,"] ",LABEL)) %>%
   dplyr::mutate_at(c("SURVEY","billresult","legislator_party","pp_agendavoting","pp_propose_advanceforagenda","value_on_q_variable","variable_on_q","pp_lawamendment","issue_field1","issue_field2","respondopinion","success_on_bill","ansv_and_label"), as.factor) %>%
-  dplyr::select(-url.x,-url.y,-pp_keyword.x,-pp_keyword.y,-billcontent.x,-billcontent.y, -SURVEYANSWERVALUE, -LABEL, -QUESTION) %>%
+  dplyr::select(-tidyselect::any_of(c("url.x","url.y","pp_keyword.x","pp_keyword.y","billcontent.x","billcontent.y","SURVEYANSWERVALUE","LABEL","QUESTION"))) %>%
   dplyr::arrange(term, period, temp_meeting_no, meetingno, billn) %>%
-  dplyr::select(-yrmonth,-pp_groupbased,-pp_propose_advanceforagenda,-period,-temp_meeting_no,-meetingno,-billn,-billresult) %>%
+  dplyr::select(-tidyselect::any_of(c("yrmonth","pp_groupbased","pp_propose_advanceforagenda","period","temp_meeting_no","meetingno","billn","billresult"))) %>%
   dplyr::select(!dplyr::starts_with("billarea0")) %>%
   dplyr::mutate_at("respondopinion", as.ordered) %>%
   dplyr::select(!starts_with("opiniondirection")) %>%
   dplyr::select(!starts_with("opinionfrom")) %>%
-  dplyr::select(-legislator_age,-incumbent,-legislator_party) %>%
+  dplyr::select(-tidyselect::any_of(c("legislator_age","incumbent","legislator_party","legislator_sex"))) %>%
   dplyr::mutate_at(c("legislator_name","salient"), as.factor)
 
 

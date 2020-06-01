@@ -31,7 +31,7 @@ gc(verbose=TRUE)
 
 overalldf_general_inter_func<-function(targetdf) {
   targetdf %>%
-    dplyr::select(-admincity,-admindistrict,-adminvillage,-legislator_sex,-legislator_age,-legislator_party,-incumbent) %>%
+    dplyr::select(-tidyselect::any_of(c("admincity","admindistrict","adminvillage","legislator_sex","legislator_age","legislator_party","incumbent"))) %>%
     return()
 }
 overalldf_general_func<-function(targetdf) {
@@ -39,7 +39,7 @@ overalldf_general_func<-function(targetdf) {
     dplyr::filter(research_period==1, !is.na(respondopinion)) %>%
     dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
     dplyr::mutate_at(c("SURVEY","value_on_q_variable","legislator_name"),as.factor) %>%
-    dplyr::select(-stdsurveydate, -stdbilldate, -ansv_and_label, -value_on_q_variable) %>%
+    dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","value_on_q_variable"))) %>%
     return()
 }
 
