@@ -36,7 +36,7 @@ overalldf_general_inter_func<-function(targetdf) {
 }
 overalldf_general_func<-function(targetdf) {
   targetdf %>% #231990  %>% nrow()
-    dplyr::filter(research_period==1, !is.na(respondopinion)) %>%
+    dplyr::filter(!is.na(respondopinion)) %>%
     dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
     dplyr::mutate_at(c("SURVEY","value_on_q_variable","legislator_name"),as.factor) %>%
     dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","value_on_q_variable"))) %>%
@@ -67,10 +67,11 @@ overalldf_district<-dplyr::left_join(complete_survey_dataset, term_to_survey) %>
   overalldf_general_inter_func() %>%
   #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
   dplyr::left_join(similarities_bet_pp_ly_longdf) %>% #Joining, by = c("id", "SURVEY", "term", "legislator_name")
-  dplyr::left_join({
-    dplyr::filter(mergedf_votes_bills_surveyanswer,pp_agendavoting==0)
-  }) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name", "seniority")
-  overalldf_general_func()
+  dplyr::inner_join({
+    dplyr::filter(mergedf_votes_bills_surveyanswer,research_period==1,pp_agendavoting==0) %>%
+      dplyr::select(-pp_agendavoting,-pp_lawamendment,-research_period)
+  }) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name")
+  overalldf_general_func() #19.4GB
 
 overalldf_district %<>% as.data.frame()
 
@@ -83,9 +84,10 @@ overalldf_partylist<-dplyr::left_join(complete_survey_dataset, term_to_survey) %
   overalldf_general_inter_func() %>%
   #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
   dplyr::left_join(similarities_bet_pp_ly_longdf) %>% #Joining, by = c("id", "SURVEY", "term", "legislator_name")
-  dplyr::left_join({
-    dplyr::filter(mergedf_votes_bills_surveyanswer,pp_agendavoting==0)
-  }) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name", "seniority")
+  dplyr::inner_join({
+    dplyr::filter(mergedf_votes_bills_surveyanswer,research_period==1,pp_agendavoting==0) %>%
+      dplyr::select(-pp_agendavoting,-pp_lawamendment,-research_period)
+  }) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name")
   overalldf_general_func()
 
 overalldf_partylist %<>% as.data.frame()
