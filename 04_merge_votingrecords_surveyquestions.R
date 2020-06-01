@@ -990,8 +990,8 @@ mergedf_votes_bills_surveyanswer %<>%
   dplyr::mutate_at("respondopinion", as.ordered) %>%
   dplyr::select(!starts_with("opiniondirection")) %>%
   dplyr::select(!starts_with("opinionfrom")) %>%
-  dplyr::select(-tidyselect::any_of(c("legislator_age","incumbent","legislator_party","legislator_sex","seniority"))) %>%
-  dplyr::mutate_at(c("legislator_name","salient"), as.factor)
+  dplyr::select(-tidyselect::any_of(c("legislator_age","incumbent","legislator_party","legislator_sex","seniority","votedecision"))) %>%
+  dplyr::mutate_at(c("legislator_name","salient","billid_myown"), as.factor)
 
 
 #mergedf_votes_bills_surveyanswer %<>% data.table::as.data.table()
