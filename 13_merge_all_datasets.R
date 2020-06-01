@@ -26,9 +26,16 @@ gc(verbose=TRUE)
 # 第八部份：問卷資料串連立委資料、選舉資料 ---------------------------------
 
 #直接讀取分析立法通過的資料集
-#as glmdata_pass_on_bill
-#distinct(glmdata,)
 #load(file=paste0(dataset_file_directory,"rdata",slash,"pass_on_bill.RData"))
+
+overalldf_general_func<-function(targetdf) {
+  targetdf %>% #231990  %>% nrow()
+    dplyr::filter(research_period==1, !is.na(respondopinion)) %>%
+    dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
+    dplyr::mutate_at(c("SURVEY","admincity","admindistrict","adminvillage","value_on_q_variable","legislator_name"),as.factor) %>%
+    dplyr::select(-stdsurveydate, -stdbilldate, -ansv_and_label, -value_on_q_variable) %>%
+    return()
+}
 
 load(paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"), verbose=TRUE)
 load(paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"), verbose=TRUE)
@@ -42,14 +49,6 @@ legislators_with_elections %<>% dtplyr::lazy_dt()
 legislators_additional_attr %<>% dtplyr::lazy_dt()
 similarities_bet_pp_ly_longdf %<>% dtplyr::lazy_dt()
 
-overalldf_general_func<-function(targetdf) {
-  targetdf %>% #231990  %>% nrow()
-    dplyr::filter(research_period==1, !is.na(respondopinion)) %>%
-    dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
-    dplyr::mutate_at(c("SURVEY","admincity","admindistrict","adminvillage","value_on_q_variable","legislator_name"),as.factor) %>%
-    dplyr::select(-stdsurveydate, -stdbilldate, -ansv_and_label, -value_on_q_variable) %>%
-    return()
-}
 # Joining, by = "SURVEY"
 # Joining, by = c("term", "elec_dist_type")
 # Joining, by = c("term", "legislator_name")
@@ -57,91 +56,30 @@ overalldf_general_func<-function(targetdf) {
 # Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name", "legislator_sex", "legislator_party", "seniority", "legislator_age", "incumbent")
 
 
-overalldf_district<-dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #135654
-  dplyr::left_join(legislators_with_elections) %>% #135654
-  dplyr::left_join(legislators_additional_attr) %>% #135654
-  dplyr::left_join(similarities_bet_pp_ly_longdf) %>%
-  dplyr::left_join(mergedf_votes_bills_surveyanswer) %>%
+overalldf_district<-dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
+  dplyr::left_join(legislators_with_elections) %>% #Joining, by = c("admincity", "admindistrict", "adminvillage", "term")
+  dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
+  dplyr::left_join(similarities_bet_pp_ly_longdf) %>% #Joining, by = c("id", "SURVEY", "term", "legislator_name")
+  dplyr::left_join(mergedf_votes_bills_surveyanswer) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "legislator_name", "legislator_sex", "legislator_party", "seniority", "legislator_age", "incumbent", "elec_dist_type")
   overalldf_general_func()
 
 overalldf_district %<>% as.data.frame()
 
-overalldf_partylist<-dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #135654
+overalldf_partylist<-dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
   dplyr::mutate(elec_dist_type="partylist") %>%
   dplyr::left_join({
     dplyr::filter(legislators_with_elections, elec_dist_type=="partylist") %>%
       dplyr::select(-admincity,-admindistrict,-adminvillage)
-    }) %>% #135654
-  dplyr::left_join(legislators_additional_attr) %>% #135654
-  dplyr::left_join(similarities_bet_pp_ly_longdf) %>%
-  dplyr::left_join(mergedf_votes_bills_surveyanswer) %>%
+    }) %>% #Joining, by = c("term", "elec_dist_type")
+  dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
+  dplyr::left_join(similarities_bet_pp_ly_longdf) %>% #Joining, by = c("id", "SURVEY", "term", "legislator_name")
+  dplyr::left_join(mergedf_votes_bills_surveyanswer) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name", "legislator_sex", "legislator_party", "seniority", "legislator_age", "incumbent")
   overalldf_general_func()
 
 overalldf_partylist %<>% as.data.frame()
 
 
-# [1] "votedecision"                    "legislator_name"                
-# [3] "term"                            "period"                         
-# [5] "meetingno"                       "temp_meeting_no"                
-# [7] "billn"                           "billresult"                     
-# [9] "billid_myown"                    "legislator_party"               
-# [11] "legislator_sex"                  "seniority"                      
-# [13] "legislator_age"                  "incumbent"                      
-# [15] "elec_dist_type"                  "party_pressure"                 
-# [17] "adminparty"                      "salient"                        
-# [19] "billarea01"                      "billarea02"                     
-# [21] "billarea03"                      "billarea04"                     
-# [23] "pp_agendavoting"                 "pp_propose_advanceforagenda"    
-# [25] "pp_lawamendment"                 "yrmonth"                        
-# [27] "research_period"                 "pp_groupbased"                  
-# [29] "SURVEY"                          "value_on_q_variable"            
-# [31] "variable_on_q"                   "opinionfromconstituent"         
-# [33] "opinionfrombill"                 "issue_field1"                   
-# [35] "issue_field2"                    "stdbilldate"                    
-# [37] "opinionstrength"                 "opiniondirectionfromconstituent"
-# [39] "opiniondirectionfrombill"        "opiniondirectionfromlegislator" 
-# [41] "respondopinion"                  "success_on_bill"                
-# [43] "ansv_and_label"                  "imp"                            
-# [45] "id"                              "similarity_distance"            
-# [47] "legislator_eduyr"                "legislator_occp"                
-# [49] "legislator_ses"                  "legislator_ethnicity"           
-# [51] "partyGroup"                      "areaName"                       
-# [53] "degree"                          "experience"                     
-# [55] "servingdayslong_in_this_term"    "education"                      
-# [57] "wonelection"                     "election_party"                 
-# [59] "electionarea"                    "admincity"                      
-# [61] "admindistrict"                   "adminvillage"                   
-# [63] ".imp"                            ".id"                            
-# [65] "myown_sex"                       "myown_age"                      
-# [67] "myown_dad_ethgroup"              "myown_mom_ethgroup"             
-# [69] "myown_selfid"                    "myown_marriage"                 
-# [71] "myown_eduyr"                     "myown_religion"                 
-# [73] "myown_working_status"            "myown_occp"                     
-# [75] "myown_ses"                       "myown_job_status"               
-# [77] "myown_familymembers_num"         "myown_income"                   
-# [79] "myown_family_income"             "myown_areakind"                 
-# [81] "myown_wsel"                      "myown_wr"                       
-# [83] "fpc"                             "myown_selfid_population"        
-# [85] "stdsurveydate"                   "myown_industryNA"               
-# [87] "myown_jobNA"                     "myown_occpNA"                   
-# [89] "myown_sesNA"                     "myown_job_statusNA"             
-# [91] "myown_factoredses"               "myown_factoredefficacy"         
-# [93] "myown_factoredparticip"          "cluster_varsellcm"              
-# [95] "cluster_clustrd"                 "cluster_kamila"                 
-# [97] "days_diff_survey_bill"
-#View(mergedf_votes_bills_surveyanswer)
-#remove(mergedf_votes_bills_surveyanswer)
-#sapply(names(mergedf_votes_bills_surveyanswer), function(X,df1,df2) {
-#  message(X,identical(df1$X,df2$X))
-#},df1=new_mergedf_votes_bills_surveyanswer, df2=mergedf_votes_bills_surveyanswer)
 
-#only_bill_to_survey_information<-distinct(mergedf_votes_bills_surveyanswer,stdbilldate,term,period,meetingno,temp_meeting_no,billn,billresult,billid_myown,SURVEY,variable_on_q,value_on_q_variable,SURVEYQUESTIONID,SURVEYANSWERVALUE,LABEL,QUESTION,opinionfromconstituent,opinionfrombill,issue_field1,issue_field2,opinionstrength,opiniondirectionfromconstituent,opiniondirectionfrombill,success_on_bill) %>%
-#  mutate_at("SURVEYANSWERVALUE", as.character)
-#save(only_bill_to_survey_information,file=paste0(filespath,"data",slash,"only_bill_to_survey_information.RData"))
-#load(paste0(filespath,"data",slash,"only_bill_to_survey_information.RData"))
-#filter(mergedf_votes_bills_surveyanswer[1:1000,], respondopinion==1) %>% View()
-#test_tiny_legislators_with_election <- distinct(legislators_with_election, term, legislator_name, legislator_sex, legislator_party, partyGroup, areaName, birthday, legislator_age, incumbent, election_party, electionarea, admincity)
-#term, legislator_name, legislator_sex, legislator_party, partyGroup, areaName, birthday, legislator_age, incumbent, election_party, electionarea, admincity, admindistrict, adminvillage, plranking, elec_dist_type
 ##注意有遺漏的部分委員
 #list(
 #  complete_survey_dataset,

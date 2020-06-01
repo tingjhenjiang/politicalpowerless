@@ -368,11 +368,12 @@ legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislato
   mutate_cond(customgrepl(experience,"旅長|軍總司令|國防管理學院院長"), legislator_occp="012", legislator_ses=81.4) %>%
   mutate_cond(customgrepl(experience,"NGO理事長|NGO執行長|NGO秘書長|產業總工會理事長|主管級公務員|職業民意代表") | customgrepl(legislator_name,"劉建國"), legislator_occp="140", legislator_ses=81.4) %>%
   mutate_cond(!is.na(legislator_ses), legislator_ses=(legislator_ses-55)*3) %>%
-  dplyr::select(term,legislator_name,legislator_eduyr,legislator_occp,legislator_ses,legislator_ethnicity) %>%
+  dplyr::select(term,legislator_name,legislator_eduyr,legislator_ses,legislator_ethnicity) %>%
   dplyr::mutate_at(c("legislator_name","legislator_occp","legislator_ethnicity"),as.factor)
 
 legislators_with_elections %<>% dplyr::select(-education,-degree,-experience,-wonelection,-servingdayslong_in_this_term) %>%
-  dplyr::mutate_at(c("legislator_name","electionarea","admincity","admindistrict","adminvillage"), as.factor)
+  dplyr::mutate_at(c("legislator_name","electionarea","admincity","admindistrict","adminvillage"), as.factor) %>%
+  dplyr::select(-areaName,-election_party)
 #legislators_with_elections %<>% data.table::as.data.table()
 #save(legislators_with_elections, file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"))
 

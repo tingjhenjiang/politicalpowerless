@@ -990,7 +990,7 @@ mergedf_votes_bills_surveyanswer %<>%
   dplyr::mutate_at("respondopinion", as.ordered) %>%
   dplyr::select(!starts_with("opiniondirection")) %>%
   dplyr::select(!starts_with("opinionfrom")) %>%
-  dplyr::select(-period, -temp_meeting_no, -meetingno, -billn) %>%
+  dplyr::select(-period,-temp_meeting_no,-meetingno,-billn) %>%
   dplyr::mutate_at(c("legislator_name","salient"), as.factor)
 
 
