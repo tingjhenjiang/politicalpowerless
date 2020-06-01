@@ -22,6 +22,7 @@ imps<-imputation_sample_i_s
 #https://cran.r-project.org/web/packages/clustrd/clustrd.pdf
 #http://www.amarkos.gr/clustrd/
 #https://www.jamleecute.com/hierarchical-clustering-%E9%9A%8E%E5%B1%A4%E5%BC%8F%E5%88%86%E7%BE%A4/
+#weight https://sdaza.com/blog/2012/raking/
 
 load_lib_or_install(c("rvest","rlist","parallel")) #,"future","future.apply"
 load_lib_or_install(c("itertools","ggplot2")) #,"future","future.apply"
