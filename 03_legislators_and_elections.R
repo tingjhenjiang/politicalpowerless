@@ -374,6 +374,7 @@ legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislato
 legislators_with_elections %<>% dplyr::select(-education,-degree,-experience,-wonelection,-servingdayslong_in_this_term) %>%
   dplyr::mutate_at(c("legislator_name","electionarea","admincity","admindistrict","adminvillage"), as.factor) %>%
   dplyr::select(-areaName,-election_party,-electionarea)
+
 #legislators_with_elections %<>% data.table::as.data.table()
 #save(legislators_with_elections, file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"))
 
