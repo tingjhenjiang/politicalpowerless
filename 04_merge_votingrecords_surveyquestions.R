@@ -980,6 +980,7 @@ mergedf_votes_bills_surveyanswer %<>%
   mutate_cond(opiniondirectionfromconstituent==opiniondirectionfromlegislator, respondopinion=2) %>%
   mutate_cond(votedecision==non_decision, respondopinion=1, opiniondirectionfromlegislator='ig/gu') %>% #ignore/giveup
   mutate_cond(opiniondirectionfromconstituent=='x' | opiniondirectionfromconstituent=='b' | opiniondirectionfrombill=='x', respondopinion=NA, success_on_bill=NA) %>%
+  mutate_cond(is.na(salient), salient=0) %>%
   dplyr::select(-tidyselect::any_of(c("date","urln","pp_committee","votecontent","pp_enactment","pp_enforcement","pp_res_bynew","pp_res_bycompete","pp_res_notjudged","pp_ignored","billconflict","pol_score","eco_score","SURVEYQUESTIONID"))) %>%
   dplyr::mutate(ansv_and_label=paste0("[",SURVEYANSWERVALUE,"] ",LABEL)) %>%
   dplyr::mutate_at(c("SURVEY","billresult","legislator_party","pp_agendavoting","pp_propose_advanceforagenda","value_on_q_variable","variable_on_q","pp_lawamendment","issue_field1","issue_field2","respondopinion","success_on_bill","ansv_and_label"), as.factor) %>%
