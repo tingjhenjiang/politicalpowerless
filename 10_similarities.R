@@ -18,7 +18,7 @@ people_legialator_match <- data.frame(
 #legislators_additional_attr: "term" "legislator_name" "legislator_eduyr" "legislator_occp" "legislator_ses" "legislator_ethnicity"
 #"myown_sex" "myown_eduyr" "myown_ses" "myown_age" "myown_selfid"
 legislators_sim_basis <- dplyr::distinct(legislators_with_elections, term, legislator_name, legislator_sex, legislator_age) %>%
-  dplyr::left_join(dplyr::select(legislators_additional_attr, -legislator_occp))
+  dplyr::left_join(legislators_additional_attr)
 distance_dissimilarities_pply<-mapply(function(key,term,imp,survey_data_imputed,legislators_sim_basis) {
   targetcolnames<-c("sex","eduyr","ses","age","selfid")
   basissurveydf<-survey_data_imputed[[key]] %>%
