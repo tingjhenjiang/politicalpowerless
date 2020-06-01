@@ -124,7 +124,7 @@ modelformula<-paste0(modelvars, collapse="+") %>%
   paste0("respondopinion~",.) %>%
   as.formula()
 responseopinion_model_overall<-with(des,survey::svyolr(modelformula))
-save(responseopinion_model_overall, paste0(dataset_in_scriptsfile_directory, "responseopinion_model_overall.RData"))
+save(responseopinion_model_overall, file=paste0(dataset_in_scriptsfile_directory, "responseopinion_model_overall.RData"))
 #summary(mitools::MIcombine(model_district))
 
 # [1] "imp"                    "myown_sex"              "myown_age"             
