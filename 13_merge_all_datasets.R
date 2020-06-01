@@ -25,10 +25,15 @@ gc(verbose=TRUE)
 
 
 # 第八部份：問卷資料串連立委資料、選舉資料 ---------------------------------
-library(data.table)
+#library(data.table)
 #直接讀取分析立法通過的資料集
 #load(file=paste0(dataset_file_directory,"rdata",slash,"pass_on_bill.RData"))
 
+overalldf_general_inter_func<-function(targetdf) {
+  targetdf %>%
+    dplyr::select(-admincity,-admindistrict,-adminvillage,-legislator_sex,-legislator_age,-legislator_party,-incumbent) %>%
+    return()
+}
 overalldf_general_func<-function(targetdf) {
   targetdf %>% #231990  %>% nrow()
     dplyr::filter(research_period==1, !is.na(respondopinion)) %>%
@@ -59,8 +64,8 @@ similarities_bet_pp_ly_longdf %<>% dtplyr::lazy_dt()
 
 overalldf_district<-dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
   dplyr::left_join(legislators_with_elections) %>% #Joining, by = c("admincity", "admindistrict", "adminvillage", "term")
-  dplyr::select(-admincity,-admindistrict,-adminvillage) %>%
-  dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
+  overalldf_general_inter_func() %>%
+  #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
   dplyr::left_join(similarities_bet_pp_ly_longdf) %>% #Joining, by = c("id", "SURVEY", "term", "legislator_name")
   dplyr::left_join(mergedf_votes_bills_surveyanswer) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "legislator_name", "legislator_sex", "legislator_party", "seniority", "legislator_age", "incumbent", "elec_dist_type")
   overalldf_general_func()
@@ -73,8 +78,8 @@ overalldf_partylist<-dplyr::left_join(complete_survey_dataset, term_to_survey) %
     dplyr::filter(legislators_with_elections, elec_dist_type=="partylist") %>%
       dplyr::distinct_at(.vars=vars(-admincity,-admindistrict,-adminvillage))
     }) %>% #Joining, by = c("term", "elec_dist_type")
-  dplyr::select(-admincity,-admindistrict,-adminvillage) %>%
-  dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
+  overalldf_general_inter_func() %>%
+  #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
   dplyr::left_join(similarities_bet_pp_ly_longdf) %>% #Joining, by = c("id", "SURVEY", "term", "legislator_name")
   dplyr::left_join(mergedf_votes_bills_surveyanswer) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name", "legislator_sex", "legislator_party", "seniority", "legislator_age", "incumbent")
   overalldf_general_func()

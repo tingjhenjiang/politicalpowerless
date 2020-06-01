@@ -67,3 +67,6 @@ similarities_bet_pp_ly_longdf <- names(distance_dissimilarities_pply) %>%
 
 #similarities_bet_pp_ly_longdf %<>% data.table::as.data.table()
 #save(similarities_bet_pp_ly_longdf, file = paste0(dataset_in_scriptsfile_directory, "similarities_match.RData"))
+
+#legislators_with_elections %<>% dplyr::select(-legislator_party,-legislator_age)
+#save(legislators_with_elections, file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"))

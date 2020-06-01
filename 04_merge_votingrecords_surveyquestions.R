@@ -985,12 +985,12 @@ mergedf_votes_bills_surveyanswer %<>%
   dplyr::mutate_at(c("SURVEY","billresult","legislator_party","pp_agendavoting","pp_propose_advanceforagenda","value_on_q_variable","variable_on_q","pp_lawamendment","issue_field1","issue_field2","respondopinion","success_on_bill","ansv_and_label"), as.factor) %>%
   dplyr::select(-url.x,-url.y,-pp_keyword.x,-pp_keyword.y,-billcontent.x,-billcontent.y, -SURVEYANSWERVALUE, -LABEL, -QUESTION) %>%
   dplyr::arrange(term, period, temp_meeting_no, meetingno, billn) %>%
-  dplyr::select(-yrmonth, -pp_groupbased, -pp_propose_advanceforagenda) %>%
+  dplyr::select(-yrmonth,-pp_groupbased,-pp_propose_advanceforagenda,-period,-temp_meeting_no,-meetingno,-billn,-billresult) %>%
   dplyr::select(!dplyr::starts_with("billarea0")) %>%
   dplyr::mutate_at("respondopinion", as.ordered) %>%
   dplyr::select(!starts_with("opiniondirection")) %>%
   dplyr::select(!starts_with("opinionfrom")) %>%
-  dplyr::select(-period,-temp_meeting_no,-meetingno,-billn) %>%
+  dplyr::select(-legislator_age,-incumbent,-legislator_party) %>%
   dplyr::mutate_at(c("legislator_name","salient"), as.factor)
 
 
