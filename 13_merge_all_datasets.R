@@ -76,12 +76,14 @@ if (FALSE) {
       dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
       dplyr::mutate_at(c("SURVEY","value_on_q_variable","legislator_name"),as.factor) %>%
       dplyr::mutate_at("elec_dist_type", droplevels) %>%
-      dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","value_on_q_variable","variablename_of_issuefield")))
+      dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","variablename_of_issuefield"))) %>%#,"value_on_q_variable"
+      dplyr::mutate_at(c("cluster_clustrd","cluster_varsellcm","cluster_kamila"), as.ordered)
     targetdfcolnames<-colnames(targetdf)
     reserve_cols<-base::setdiff(targetdfcolnames,c("issue_field1","issue_field2"))
-    data.table::melt(targetdf, id.vars=reserve_cols, measure.vars=c("issue_field1","issue_field2"), variable.name = "variablename_of_issuefield", value.name="issuefield") %>%
+    data.table::melt(targetdf, id.vars=reserve_cols, variable.name = "variablename_of_issuefield", value.name="issuefield") %>%
       dplyr::select(-tidyselect::any_of(c("variablename_of_issuefield"))) %>%
-      dplyr::mutate_at(c("cluster_clustrd","cluster_varsellcm","cluster_kamila"), as.ordered) %>%
+      dplyr::mutate_at("issuefield",as.factor) %>%
+      dplyr::filter(!is.na(issuefield)) %>%
       return()
   }
   overalldf_to_implist_func<-function(targetdf, usinglib="lavaan") {
@@ -134,12 +136,8 @@ if (FALSE) {
       overalldf_general_inter_func() %>%
       #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
       overalldf_general_func(agendavoting=1,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer)
-  ) %>% #11.6GB
-    overalldf_to_implist_func() #34.2GB
-  
-  #different number of rows error would occur
-  #sapply(1:5, function(X)nrow(dplyr::filter(overalldf_district, imp==X)))
-  #sapply(1:5, function(X)length(unique(dplyr::filter(overalldf_district, imp==X, SURVEY=="2010overall")$id)))
+  )# %>% #11.6GB
+  #  overalldf_to_implist_func() #34.2GB
   
   #http://r-survey.r-forge.r-project.org/survey/svymi.html
   #http://docs.zeligproject.org/articles/zelig_logitsurvey.html
@@ -151,28 +149,23 @@ if (FALSE) {
     c("elec_dist_type") %>%
     c("cluster_varsellcm")
   #c("myown_factoredses","myown_factoredefficacy","myown_factoredparticip")
-  # modelformula<-paste0(modelvars, collapse="+") %>%
-  #   paste0("respondopinion~",.) %>%
-  #   as.formula()
   dummyc_vars<-custom_pickcolnames_accordingtoclass(overalldf, needclass="factor") %>%
     base::intersect(modelvars_indo)
-  sample_n_for_df<-sample(1:nrow(overalldf),10000)
+  sample_n_for_df<-sample(1:nrow(overalldf),100000)
   semmodelonrespondopinion <- overalldf[sample_n_for_df,] %>%
-    dummycode_of_a_dataframe(catgvars=dummyc_vars)
+    dummycode_of_a_dataframe(catgvars=dummyc_vars) %>%
+    dplyr::select(-dplyr::starts_with("cluster_clustrd"))
   afterdummyc_vars<-grep(pattern=paste0("(",paste0(dummyc_vars,collapse="|"),")"),x=names(semmodelonrespondopinion),value=TRUE)
   paste0(afterdummyc_vars,collapse="+")
   modelformula<-"
     # measurement model
-    latent_particip =~ myown_factoredses + myown_factoredefficacy + myown_factoredparticip
+    #latent_particip =~ myown_factoredses + myown_factoredefficacy + myown_factoredparticip
     # regressions
-    respondopinion ~ latent_particip+myown_age+myown_factoredses+similarity_distance+party_pressure+seniority+days_diff_survey_bill+myown_sex.2..女+myown_selfid.2..台灣客家人+myown_selfid.3..台灣原住民+myown_selfid.4..大陸各省市.含港澳金馬.+myown_selfid.5..新移民+myown_selfid.6..其他臺灣人+myown_marriage.2..已婚且與配偶同住+myown_marriage.3..已婚但沒有與配偶同住+myown_marriage.4..同居+myown_marriage.5..離婚+myown_marriage.6..分居+myown_marriage.7..配偶去世+cluster_varsellcm2+cluster_varsellcm3+cluster_varsellcm4+cluster_varsellcm5+cluster_varsellcm6+adminparty1
-    #myown_sex+myown_selfid+myown_marriage+adminparty+issuefield+elec_dist_type
+    respondopinion ~ myown_factoredses + myown_factoredefficacy + myown_factoredparticip+myown_age+myown_factoredses+similarity_distance+party_pressure+seniority+days_diff_survey_bill+myown_sex.2..女+myown_selfid.2..台灣客家人+myown_selfid.3..台灣原住民+myown_selfid.4..大陸各省市.含港澳金馬.+myown_selfid.5..新移民+myown_selfid.6..其他臺灣人+myown_marriage.2..已婚且與配偶同住+myown_marriage.3..已婚但沒有與配偶同住+myown_marriage.4..同居+myown_marriage.5..離婚+myown_marriage.6..分居+myown_marriage.7..配偶去世+cluster_varsellcm2+cluster_varsellcm3+cluster_varsellcm4+cluster_varsellcm5+cluster_varsellcm6+adminparty1+issuefield兩岸+issuefield公民與政治權+issuefield教育+issuefield環境+issuefield社會福利+issuefield經濟+issuefield經濟社會文化權+issuefield財政
   "
   colSums(is.na(semmodelonrespondopinion))
-  dplyr::filter(semmodelonrespondopinion,is.na(adminparty1)) %>% View()
-  trialdata<-overalldf_to_implist_func(semmodelonrespondopinion) %>%
-    lapply(function(X) {dplyr::slice(X,1:1000)})
-  semmodelonrespondopinion <- semTools::sem.mi(model=modelformula, data=trialdata, ordered=c("respondopinion"), sampling.weights="myown_wr", cluster="myown_areakind")
+  trialdata<-overalldf_to_implist_func(semmodelonrespondopinion)
+  semmodelonrespondopinion <- semTools::sem.mi(model=modelformula, data=trialdata, ordered=c("respondopinion")) #, sampling.weights="myown_wr", cluster="myown_areakind"
   des<-survey::svydesign(ids=~0, weight=~myown_wr, data=overalldf)
   responseopinion_model_overall<-with(des,survey::svyolr(modelformula))
   
