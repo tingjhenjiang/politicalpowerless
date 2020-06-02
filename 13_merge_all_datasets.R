@@ -45,7 +45,10 @@ gc(verbose=TRUE)
 
 if (FALSE) {
   dummycode_of_a_dataframe<-function(df,catgvars=c()) {
-    if (length(catgvars)==0) catgvars<-names(which(sapply(df, class)=="factor"))
+    detectedcatgvars<-custom_pickcolnames_accordingtoclass(overalldf,needclass="factor")
+    detectedcatgvars<-detectedcatgvars[(sapply(dplyr::select(df,!!detectedcatgvars), nlevels ))>=2]
+    catgvars<-if (length(catgvars)==0) detectedcatgvars else base::intersect(catgvars, detectedcatgvars)
+    if (length(catgvars)==0) return(df)
     dplyr::bind_cols(dplyr::select(df, -!!catgvars), lapply(catgvars, function(factorvar,df,...) {
       psych::dummy.code(dplyr::pull(df,!!factorvar)) %>%
         {.[,gtools::mixedsort(colnames(.))]} %>%
@@ -150,10 +153,10 @@ if (FALSE) {
   # modelformula<-paste0(modelvars, collapse="+") %>%
   #   paste0("respondopinion~",.) %>%
   #   as.formula()
-  dummyc_vars<-colnames(overalldf)[which(grepl(pattern="factor", x=sapply(overalldf,function(X) paste0(class(X),collapse=""))) )] %>%
-    base::intersect(modelvars_indo) %>%
-    base::setdiff("elec_dist_type")
-  semmodelonrespondopinion <- overalldf %>%
+  dummyc_vars<-custom_pickcolnames_accordingtoclass(overalldf, needclass="factor") %>%
+    base::intersect(modelvars_indo)
+  sample_n_for_df<-sample(1:nrow(overalldf),10000)
+  semmodelonrespondopinion <- overalldf[sample_n_for_df,] %>%
     dummycode_of_a_dataframe(catgvars=dummyc_vars)
   afterdummyc_vars<-grep(pattern=paste0("(",paste0(dummyc_vars,collapse="|"),")"),x=names(semmodelonrespondopinion),value=TRUE)
   paste0(afterdummyc_vars,collapse="+")
@@ -164,8 +167,11 @@ if (FALSE) {
     respondopinion ~ latent_particip+myown_age+myown_factoredses+similarity_distance+party_pressure+seniority+days_diff_survey_bill+myown_sex.2..女+myown_selfid.2..台灣客家人+myown_selfid.3..台灣原住民+myown_selfid.4..大陸各省市.含港澳金馬.+myown_selfid.5..新移民+myown_selfid.6..其他臺灣人+myown_marriage.2..已婚且與配偶同住+myown_marriage.3..已婚但沒有與配偶同住+myown_marriage.4..同居+myown_marriage.5..離婚+myown_marriage.6..分居+myown_marriage.7..配偶去世+cluster_varsellcm2+cluster_varsellcm3+cluster_varsellcm4+cluster_varsellcm5+cluster_varsellcm6+adminparty1
     #myown_sex+myown_selfid+myown_marriage+adminparty+issuefield+elec_dist_type
   "
-  semmodelonrespondopinion %<>% overalldf_to_implist_func() %>%
-    semTools::sem.mi(model=modelformula, data=., ordered=c("respondopinion"), sampling.weights="myown_wr", cluster="myown_areakind")
+  colSums(is.na(semmodelonrespondopinion))
+  dplyr::filter(semmodelonrespondopinion,is.na(adminparty1)) %>% View()
+  trialdata<-overalldf_to_implist_func(semmodelonrespondopinion) %>%
+    lapply(function(X) {dplyr::slice(X,1:1000)})
+  semmodelonrespondopinion <- semTools::sem.mi(model=modelformula, data=trialdata, ordered=c("respondopinion"), sampling.weights="myown_wr", cluster="myown_areakind")
   des<-survey::svydesign(ids=~0, weight=~myown_wr, data=overalldf)
   responseopinion_model_overall<-with(des,survey::svyolr(modelformula))
   

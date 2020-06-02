@@ -848,6 +848,11 @@ custom_mirt_coef_to_df <- function(mirtmodel) {
   return(coefdf)
 }
 
+custom_pickcolnames_accordingtoclass<-function(df,needclass="factor") {
+  colnames(df)[which(grepl(pattern=needclass, x=sapply(df,function(X) paste0(class(X),collapse=""))) )] %>%
+    return()
+}
+
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"
 #research_odbc_ch <- odbcConnect(research_odbc, believeNRows = FALSE, rows_at_time = 1, DBMSencoding="UTF-8")
