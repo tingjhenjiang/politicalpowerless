@@ -1017,4 +1017,5 @@ mergedf_votes_bills_surveyanswer %<>%
 #  arrange(party,billid_myown,variable_on_q,respondopinion) %>%
 #  View()
 
-
+#dplyr::distinct(mergedf_votes_bills_surveyanswer, success_on_bill, respondopinion, billresult)
+#dplyr::filter(mergedf_votes_bills_surveyanswer, success_on_bill, respondopinion)

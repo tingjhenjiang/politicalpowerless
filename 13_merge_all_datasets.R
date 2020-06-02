@@ -6,12 +6,19 @@ if (FALSE) {
   t_sessioninfo_running_with_cpu_locale<-gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2]))
   source(file = "shared_functions.R", encoding="UTF-8")
 } else {
-  sapply( c("data.table","magrittr","dplyr","survey","tidyselect","mitools"), function(X) {
-    if(!require(X,character.only=TRUE)) {
-      install.packages(X)
-      require(X,character.only=TRUE)
+  path <- .libPaths()
+  liblocs<-c(path, "/home/u4/dowbatw1133/x86_64-redhat-linux-gnu-library/3.5/","/home/u4/dowbatw1133/x86_64-redhat-linux-gnu-library/","/home/u4/dowbatw1133/")
+  .libPaths(liblocs)
+  for (X in c("data.table","magrittr","dplyr","survey","tidyselect","mitools","lavaan","semTools","Amelia"))  {
+    for (libloc in liblocs) {
+      if(!require(X,character.only=TRUE,lib.loc=libloc)) {
+        install.packages(X)
+        require(X,character.only=TRUE,lib.loc=libloc)
+      } else {
+        next
+      }
     }
-  })
+  }
   dataset_in_scriptsfile_directory<-"/home/u4/dowbatw1133/Documents/vote_record/data/"
 }
 
@@ -28,6 +35,7 @@ if (FALSE) {
 #   "2016citizen"=data.frame("SURVEY"="2016citizen","yrmonth"=c("105/09","105/11","105/12","106/01","106/04","106/05","106/06","106/08","106/10","106/11","106/12","107/01","107/03","107/04","107/05","107/06","107/07","107/08","107/09","107/10","107/11"))
 # )
 # survey_time_range_df <- plyr::rbind.fill(survey_time_range)
+
 term_to_survey <- data.frame("term"=c(5,6,7,7,8,8,9), "SURVEY"=c("2004citizen","2004citizen","2010env","2010overall","2010env","2010overall","2016citizen")) %>%
   data.table::as.data.table()
 gc(verbose=TRUE)
@@ -35,43 +43,64 @@ gc(verbose=TRUE)
 
 # 第八部份：問卷資料串連立委資料、選舉資料 ---------------------------------
 
-overalldf_general_inter_func<-function(targetdf) {
-  targetdf %>%
-    dplyr::select(-tidyselect::any_of(c("admincity","admindistrict","adminvillage","legislator_sex","legislator_age","legislator_party","incumbent"))) %>%
-    return()
-}
-overalldf_general_func<-function(targetdf, agendavoting=0, similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf, mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer) {
-  targetdf %<>%
-    dplyr::left_join(similarities_bet_pp_ly_longdf) %>% #Joining, by = c("imp", "id", "SURVEY", "term", "legislator_name")
-    dplyr::inner_join({
-      dplyr::filter(mergedf_votes_bills_surveyanswer,research_period==1,pp_agendavoting==!!agendavoting) %>%
-        dplyr::select(-pp_agendavoting,-pp_lawamendment,-research_period)
-    }) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name")
-    dplyr::filter(!is.na(respondopinion)) %>%
-    dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
-    dplyr::mutate_at(c("SURVEY","value_on_q_variable","legislator_name"),as.factor) %>%
-    dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","value_on_q_variable","variablename_of_issuefield")))
-  targetdfcolnames<-colnames(targetdf)
-  reserve_cols<-base::setdiff(targetdfcolnames,c("issue_field1","issue_field2"))
-  data.table::melt(targetdf, id.vars=reserve_cols, measure.vars=c("issue_field1","issue_field2"), variable.name = "variablename_of_issuefield", value.name="issuefield") %>%
-    dplyr::select(-tidyselect::any_of(c("variablename_of_issuefield"))) %>%
-    dplyr::mutate_at(c("cluster_clustrd","cluster_varsellcm","cluster_kamila"), as.ordered) %>%
-    dplyr::mutate_at(c("issuefield"), as.factor) %>%
-    return()
-}
-overalldf_to_implist_func<-function(targetdf) {
-  targetdf %>% lapply(1:5, function(needimp,df) {
+
+if (FALSE) {
+  dummycode_of_a_dataframe<-function(df,catgvars=c()) {
+    detectedcatgvars<-custom_pickcolnames_accordingtoclass(overalldf,needclass="factor")
+    detectedcatgvars<-detectedcatgvars[(sapply(dplyr::select(df,!!detectedcatgvars), nlevels ))>=2]
+    catgvars<-if (length(catgvars)==0) detectedcatgvars else base::intersect(catgvars, detectedcatgvars)
+    if (length(catgvars)==0) return(df)
+    dplyr::bind_cols(dplyr::select(df, -!!catgvars), lapply(catgvars, function(factorvar,df,...) {
+      psych::dummy.code(dplyr::pull(df,!!factorvar)) %>%
+        {.[,gtools::mixedsort(colnames(.))]} %>%
+        {magrittr::set_colnames(., paste0(factorvar,colnames(.)))} %>%
+        {(.[,2:ncol(.),drop=FALSE])} %>%
+        return()
+    }, df=df, method=parallel_method) %>%
+      data.frame() ) %>%
+      return()
+  }
+  overalldf_general_inter_func<-function(targetdf) {
+    targetdf %>%
+      dplyr::select(-tidyselect::any_of(c("admincity","admindistrict","adminvillage","legislator_sex","legislator_age","legislator_party","incumbent"))) %>%
+      return()
+  }
+  overalldf_general_func<-function(targetdf, agendavoting=0, similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf, mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer) {
+    targetdf %<>%
+      dplyr::left_join(similarities_bet_pp_ly_longdf) %>% #Joining, by = c("imp", "id", "SURVEY", "term", "legislator_name")
+      dplyr::inner_join({
+        dplyr::filter(mergedf_votes_bills_surveyanswer,research_period==1,pp_agendavoting==!!agendavoting) %>%
+          dplyr::select(-pp_agendavoting,-pp_lawamendment,-research_period)
+      }) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name")
+      dplyr::filter(!is.na(respondopinion)) %>%
+      dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
+      dplyr::mutate_at(c("SURVEY","value_on_q_variable","legislator_name"),as.factor) %>%
+      dplyr::mutate_at("elec_dist_type", droplevels) %>%
+      dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","value_on_q_variable","variablename_of_issuefield")))
+    targetdfcolnames<-colnames(targetdf)
+    reserve_cols<-base::setdiff(targetdfcolnames,c("issue_field1","issue_field2"))
+    data.table::melt(targetdf, id.vars=reserve_cols, measure.vars=c("issue_field1","issue_field2"), variable.name = "variablename_of_issuefield", value.name="issuefield") %>%
+      dplyr::select(-tidyselect::any_of(c("variablename_of_issuefield"))) %>%
+      dplyr::mutate_at(c("cluster_clustrd","cluster_varsellcm","cluster_kamila"), as.ordered) %>%
+      return()
+  }
+  overalldf_to_implist_func<-function(targetdf, usinglib="lavaan") {
+    targetdf %>% lapply(1:5, function(needimp,df) {
       return(dplyr::filter(df, imp==!!needimp))
     }, df=.) %>%
-    mitools::imputationList() %>%
-    return()
+      {if (usinglib=="survey") mitools::imputationList(.) else .} %>%
+      return()
+  }
 }
 
-load(paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"), verbose=TRUE)
-load(paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"), verbose=TRUE)
-load(paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
-load(paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"), verbose=TRUE)
-load(paste0(dataset_in_scriptsfile_directory, "similarities_match.RData"), verbose=TRUE)
+
+if (FALSE) {
+  load(paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"), verbose=TRUE)
+  load(paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"), verbose=TRUE)
+  load(paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
+  load(paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"), verbose=TRUE)
+  load(paste0(dataset_in_scriptsfile_directory, "similarities_match.RData"), verbose=TRUE)
+}
 
 if (FALSE) {
   complete_survey_dataset %<>% dtplyr::lazy_dt()
@@ -88,43 +117,69 @@ if (FALSE) {
 #   merge(mergedf_votes_bills_surveyanswer, all.x=TRUE, allow.cartesian=TRUE, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "legislator_name", "legislator_sex", "legislator_party", "seniority", "legislator_age", "incumbent", "elec_dist_type")) %>%
 #   overalldf_general_func() #64.7GB
 
-overalldf<-dplyr::bind_rows(
-  dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
-    dplyr::left_join(legislators_with_elections) %>% #Joining, by = c("admincity", "admindistrict", "adminvillage", "term")
-    overalldf_general_inter_func() %>%
-    #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
-    overalldf_general_func(agendavoting=0,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer),
-
-  dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
-    dplyr::mutate(elec_dist_type="partylist") %>%
-    dplyr::left_join({
-      dplyr::filter(legislators_with_elections, elec_dist_type=="partylist") %>%
-        dplyr::distinct_at(.vars=vars(-admincity,-admindistrict,-adminvillage))
-    }) %>% #Joining, by = c("term", "elec_dist_type")
-    overalldf_general_inter_func() %>%
-    #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
-    overalldf_general_func(agendavoting=1,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer)
+if (FALSE) {
+  overalldf<-dplyr::bind_rows(
+    dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
+      dplyr::left_join(legislators_with_elections) %>% #Joining, by = c("admincity", "admindistrict", "adminvillage", "term")
+      overalldf_general_inter_func() %>%
+      #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
+      overalldf_general_func(agendavoting=0,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer),
+    
+    dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
+      dplyr::mutate(elec_dist_type="partylist") %>%
+      dplyr::left_join({
+        dplyr::filter(legislators_with_elections, elec_dist_type=="partylist") %>%
+          dplyr::distinct_at(.vars=vars(-admincity,-admindistrict,-adminvillage))
+      }) %>% #Joining, by = c("term", "elec_dist_type")
+      overalldf_general_inter_func() %>%
+      #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
+      overalldf_general_func(agendavoting=1,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer)
   ) %>% #11.6GB
-  overalldf_to_implist_func()
-
-#different number of rows error would occur
-#sapply(1:5, function(X)nrow(dplyr::filter(overalldf_district, imp==X)))
-#sapply(1:5, function(X)length(unique(dplyr::filter(overalldf_district, imp==X, SURVEY=="2010overall")$id)))
-
-#http://r-survey.r-forge.r-project.org/survey/svymi.html
-#http://docs.zeligproject.org/articles/zelig_logitsurvey.html
-#https://zeligproject.org/
-#https://stats.stackexchange.com/questions/69130/how-to-get-pooled-p-values-on-tests-done-in-multiple-imputed-datasets
-#calculate p-value https://www.researchgate.net/post/p_value_calculator
-
-des<-survey::svydesign(ids=~0, weight=~myown_wr, data=overalldf)
-modelvars<-c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_factoredefficacy","myown_factoredparticip","similarity_distance","party_pressure","seniority","party_pressure","days_diff_survey_bill") %>%
-  c("cluster_varsellcm")
-modelformula<-paste0(modelvars, collapse="+") %>%
-  paste0("respondopinion~",.) %>%
-  as.formula()
-responseopinion_model_overall<-with(des,survey::svyolr(modelformula))
-save(responseopinion_model_overall, paste0(dataset_in_scriptsfile_directory, "responseopinion_model_overall.RData"))
+    overalldf_to_implist_func() #34.2GB
+  
+  #different number of rows error would occur
+  #sapply(1:5, function(X)nrow(dplyr::filter(overalldf_district, imp==X)))
+  #sapply(1:5, function(X)length(unique(dplyr::filter(overalldf_district, imp==X, SURVEY=="2010overall")$id)))
+  
+  #http://r-survey.r-forge.r-project.org/survey/svymi.html
+  #http://docs.zeligproject.org/articles/zelig_logitsurvey.html
+  #https://zeligproject.org/
+  #https://stats.stackexchange.com/questions/69130/how-to-get-pooled-p-values-on-tests-done-in-multiple-imputed-datasets
+  #calculate p-value https://www.researchgate.net/post/p_value_calculator
+  
+  modelvars_indo<-c("myown_sex","myown_age","myown_selfid","myown_marriage","similarity_distance","party_pressure","adminparty","seniority","days_diff_survey_bill","issuefield") %>%
+    c("elec_dist_type") %>%
+    c("cluster_varsellcm")
+  #c("myown_factoredses","myown_factoredefficacy","myown_factoredparticip")
+  # modelformula<-paste0(modelvars, collapse="+") %>%
+  #   paste0("respondopinion~",.) %>%
+  #   as.formula()
+  dummyc_vars<-custom_pickcolnames_accordingtoclass(overalldf, needclass="factor") %>%
+    base::intersect(modelvars_indo)
+  sample_n_for_df<-sample(1:nrow(overalldf),10000)
+  semmodelonrespondopinion <- overalldf[sample_n_for_df,] %>%
+    dummycode_of_a_dataframe(catgvars=dummyc_vars)
+  afterdummyc_vars<-grep(pattern=paste0("(",paste0(dummyc_vars,collapse="|"),")"),x=names(semmodelonrespondopinion),value=TRUE)
+  paste0(afterdummyc_vars,collapse="+")
+  modelformula<-"
+    # measurement model
+    latent_particip =~ myown_factoredses + myown_factoredefficacy + myown_factoredparticip
+    # regressions
+    respondopinion ~ latent_particip+myown_age+myown_factoredses+similarity_distance+party_pressure+seniority+days_diff_survey_bill+myown_sex.2..女+myown_selfid.2..台灣客家人+myown_selfid.3..台灣原住民+myown_selfid.4..大陸各省市.含港澳金馬.+myown_selfid.5..新移民+myown_selfid.6..其他臺灣人+myown_marriage.2..已婚且與配偶同住+myown_marriage.3..已婚但沒有與配偶同住+myown_marriage.4..同居+myown_marriage.5..離婚+myown_marriage.6..分居+myown_marriage.7..配偶去世+cluster_varsellcm2+cluster_varsellcm3+cluster_varsellcm4+cluster_varsellcm5+cluster_varsellcm6+adminparty1
+    #myown_sex+myown_selfid+myown_marriage+adminparty+issuefield+elec_dist_type
+  "
+  colSums(is.na(semmodelonrespondopinion))
+  dplyr::filter(semmodelonrespondopinion,is.na(adminparty1)) %>% View()
+  trialdata<-overalldf_to_implist_func(semmodelonrespondopinion) %>%
+    lapply(function(X) {dplyr::slice(X,1:1000)})
+  semmodelonrespondopinion <- semTools::sem.mi(model=modelformula, data=trialdata, ordered=c("respondopinion"), sampling.weights="myown_wr", cluster="myown_areakind")
+  des<-survey::svydesign(ids=~0, weight=~myown_wr, data=overalldf)
+  responseopinion_model_overall<-with(des,survey::svyolr(modelformula))
+  
+}
+des<-list()
+responseopinion_model_overall<-list()
+save(des, responseopinion_model_overall, file=paste0(dataset_in_scriptsfile_directory, "responseopinion_model_overall.RData"))
 #summary(mitools::MIcombine(model_district))
 
 # [1] "imp"                    "myown_sex"              "myown_age"             
