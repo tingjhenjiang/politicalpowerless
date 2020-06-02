@@ -56,6 +56,7 @@ overalldf_general_func<-function(targetdf, agendavoting=0, similarities_bet_pp_l
   data.table::melt(targetdf, id.vars=reserve_cols, measure.vars=c("issue_field1","issue_field2"), variable.name = "variablename_of_issuefield", value.name="issuefield") %>%
     dplyr::select(-tidyselect::any_of(c("variablename_of_issuefield"))) %>%
     dplyr::mutate_at(c("cluster_clustrd","cluster_varsellcm","cluster_kamila"), as.ordered) %>%
+    dplyr::mutate_at(c("issuefield"), as.factor) %>%
     return()
 }
 overalldf_to_implist_func<-function(targetdf) {
