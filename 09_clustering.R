@@ -541,9 +541,9 @@ varsellcm_arguments_df<-data.frame("survey"=survey_data_title) %>%
   cbind(., imp = rep(imps, each = nrow(.))) %>%
   cbind(., varsel = rep(c("wtho","wth"), each = nrow(.))) %>%
   dplyr::mutate(keyprefix=paste0(survey,"_imp",imp)) %>%
-  dplyr::mutate(store_key=paste0(survey, "_imp", imp, "_", varsel)) %>%
-  dplyr::filter(survey %in% c("2010overall","2016citizen")) %>%
-  dplyr::filter(!(store_key %in% !!names(varsellcm_results)) )
+  dplyr::mutate(store_key=paste0(survey, "_imp", imp, "_", varsel)) #%>%
+  #dplyr::filter(survey %in% c("2010overall","2016citizen")) %>%
+  #dplyr::filter(!(store_key %in% !!names(varsellcm_results)) )
 resvarselclusterfile <- paste0(dataset_in_scriptsfile_directory, "varselcluster.Rdata")
 varsellcm_results<- varsellcm_arguments_df$store_key %>%
   magrittr::set_names( custom_parallel_lapply(., function (fikey, varsellcm_arguments_df, ...) {
