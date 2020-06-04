@@ -229,27 +229,6 @@ myown_vote_record_df_wide_billidascol <- lapply(names(myown_vote_record_df_wide)
 }, myown_vote_record_df_wide=myown_vote_record_df_wide, terms=terms, widedata_preserve_vars=widedata_preserve_vars, widedata_formula=widedata_formula) %>%
   magrittr::set_names(names(myown_vote_record_df_wide))
 
-## Establishing connections --------------------------------
-db_table_name<-"parallel_fa_result"
-message(myremoteip)
-dbtype <- RMariaDB::MariaDB() #RSQLite::SQLite()
-dbname <- "thesis"
-dbhost <- mysqldbhost
-dbusername <- "j"
-dbpassword <- ifelse(exists("dbpassword"),dbpassword,getPass::getPass("Please enter your password: ")) #rstudioapi::askForPassword("input password")
-dbport <- 3306
-dbconnect_info <- list(
-  "drv"=dbtype,
-  "host"=dbhost,
-  "dbname"=dbname,
-  "username"=dbusername,
-  "password"=dbpassword,
-  "port"=dbport
-)
-con <- do.call(DBI::dbConnect, dbconnect_info)
-DBI::dbDisconnect(con)
-
-
 # * 先前parallel analysis的結果 --------------------------------
 
 # * * 投票結果#fa parallel探測因素數目 --------------------------------
@@ -917,6 +896,7 @@ for (key in names(myown_vote_record_df_wide)) {
 
 mergedf_votes_bills_surveyanswer <- dplyr::distinct(legislators_with_elections,term,legislator_name,legislator_party,legislator_sex,seniority,legislator_age,incumbent,elec_dist_type) %>%
   dplyr::mutate_at("term", as.numeric) %>%
+  dplyr::mutate_at(c("seniority"), ~as.numeric(scale(.))) %>%
   dplyr::left_join(myown_vote_record_df, ., by=c("term","legislator_name")) %>%
   dplyr::distinct(votedecision,legislator_name,billid_myown,legislator_party,legislator_sex,seniority,legislator_age,incumbent,elec_dist_type) %>%
   dplyr::left_join(dplyr::filter(myown_vote_record_df, term %in% terms), .) %>%
@@ -941,7 +921,8 @@ mergedf_votes_bills_surveyanswer <- dplyr::distinct(legislators_with_elections,t
       dplyr::arrange(billid_myown, legislator_party, desc(samepartysamepositioncounts), votedecision) %>%
       dplyr::group_by(billid_myown, legislator_party) %>%
       dplyr::summarise(party_pressure=(max(samepartysamepositioncounts)-sum(samepartysamepositioncounts)+max(samepartysamepositioncounts))/sum(samepartysamepositioncounts)) 
-  }) %>%
+  })  %>%
+  dplyr::mutate_at("party_pressure", ~as.numeric(scale(.)) ) %>%
   dplyr::left_join(adminparty, by=c("term"="term","legislator_party"="party"))
 
 # 第四部分：合併投票紀錄與法案資料  -------------------------------------------
@@ -981,19 +962,21 @@ mergedf_votes_bills_surveyanswer %<>%
   mutate_cond(votedecision==non_decision, respondopinion=1, opiniondirectionfromlegislator='ig/gu') %>% #ignore/giveup
   mutate_cond(opiniondirectionfromconstituent=='x' | opiniondirectionfromconstituent=='b' | opiniondirectionfrombill=='x', respondopinion=NA, success_on_bill=NA) %>%
   mutate_cond(is.na(salient), salient=0) %>%
-  dplyr::select(-tidyselect::any_of(c("date","urln","pp_committee","votecontent","pp_enactment","pp_enforcement","pp_res_bynew","pp_res_bycompete","pp_res_notjudged","pp_ignored","billconflict","pol_score","eco_score","SURVEYQUESTIONID"))) %>%
   dplyr::mutate(ansv_and_label=paste0("[",SURVEYANSWERVALUE,"] ",LABEL)) %>%
   dplyr::mutate_at(c("SURVEY","billresult","legislator_party","pp_agendavoting","pp_propose_advanceforagenda","value_on_q_variable","variable_on_q","pp_lawamendment","issue_field1","issue_field2","respondopinion","success_on_bill","ansv_and_label"), as.factor) %>%
-  dplyr::select(-tidyselect::any_of(c("url.x","url.y","pp_keyword.x","pp_keyword.y","billcontent.x","billcontent.y","SURVEYANSWERVALUE","LABEL","QUESTION"))) %>%
   dplyr::arrange(term, period, temp_meeting_no, meetingno, billn) %>%
-  dplyr::select(-tidyselect::any_of(c("yrmonth","pp_groupbased","pp_propose_advanceforagenda","period","temp_meeting_no","meetingno","billn","billresult"))) %>%
-  dplyr::select(!dplyr::starts_with("billarea0")) %>%
   dplyr::mutate_at("respondopinion", as.ordered) %>%
+  dplyr::select(-tidyselect::any_of(c("date","urln","pp_committee","votecontent","pp_enactment","pp_enforcement","pp_res_bynew","pp_res_bycompete","pp_res_notjudged","pp_ignored","billconflict","pol_score","eco_score","SURVEYQUESTIONID"))) %>%
+  dplyr::select(-tidyselect::any_of(c("url.x","url.y","pp_keyword.x","pp_keyword.y","billcontent.x","billcontent.y","SURVEYANSWERVALUE","LABEL","QUESTION"))) %>%
+  dplyr::select(-tidyselect::any_of(c("yrmonth","pp_groupbased","pp_propose_advanceforagenda","period","temp_meeting_no","meetingno","billn","billresult","opinionstrength","issue_field_importance"))) %>%
+  dplyr::select(!dplyr::starts_with("billarea0")) %>%
   dplyr::select(!starts_with("opiniondirection")) %>%
   dplyr::select(!starts_with("opinionfrom")) %>%
   dplyr::select(-tidyselect::any_of(c("legislator_age","incumbent","legislator_party","legislator_sex","seniority","votedecision"))) %>%
   dplyr::mutate_at(c("legislator_name","salient","billid_myown"), as.factor)
 
+#check
+#dplyr::filter(mergedf_votes_bills_surveyanswer,is.na(opinionstrength)) %>% dplyr::distinct(billid_myown, value_on_q_variable, variable_on_q) %>% View()
 
 #mergedf_votes_bills_surveyanswer %<>% data.table::as.data.table()
 #save(mergedf_votes_bills_surveyanswer, file = paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"))

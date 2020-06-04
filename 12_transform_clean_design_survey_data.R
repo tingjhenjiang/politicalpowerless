@@ -348,14 +348,25 @@ if({covert_label_according_to_xls_codebook<-FALSE;covert_label_according_to_xls_
 #survey_data_melted
 complete_survey_dataset <- mapply(function(X,Y) {
   survey_data_title<-X$SURVEY[1]
-  other_var_as_id<-dplyr::setdiff(names(X),Y)
-  X<-dplyr::mutate_at(X,Y,as.character)
+  X<-dplyr::mutate_at(X,Y,as.character) %>%
+    dplyr::mutate_at("myown_age",~as.numeric(scale(.)))
+  if (survey_data_title=="2010overall") {
+    X %<>% dplyr::mutate(stratum=as.character(paste0("2010overall",stratum2)))
+  }
+  if (survey_data_title=="2016citizen") {
+    X %<>% dplyr::mutate(stratum=as.character(paste0("2016citizen",r_stratum2014))) %>%
+      mutate_cond(is.na(ssu), ssu="花東不抽樣")
+  }
+  if (survey_data_title %in% c("2010overall","2016citizen")) {
+    X %<>% dplyr::mutate_at(c("psu","ssu"),~as.character(paste0(!!survey_data_title,as.character(.))))
+  }
+  other_var_as_id<-base::setdiff(names(X),Y)
   reshape2::melt(X, id.vars = other_var_as_id, variable.name = "SURVEYQUESTIONID", value.name = "SURVEYANSWERVALUE") %>%
     dplyr::mutate_at("SURVEYANSWERVALUE", as.character)
 },X=survey_data_imputed,Y=survey_q_ids) %>%
   {#節省欄位合併
-    common_var<-Reduce(intersect, lapply(., names )) %>%
-      setdiff(c("sd"))
+    common_var<-Reduce(base::intersect, lapply(., names )) %>%
+      base::setdiff(c("sd")) %>% c("psu","ssu","stratum")
     lapply(., select_and_fill_nonexistcol, common_var)
   } %>%
   plyr::rbind.fill() %>%
@@ -365,9 +376,10 @@ complete_survey_dataset <- mapply(function(X,Y) {
   dplyr::select(-tidyselect::any_of(c("zip","village","wave","qtype","myown_industry","myown_job","villagefullname","myown_family_income_ingroup","SURVEYQUESTIONID"))) %>%
   dplyr::select(-tidyselect::any_of(c("term1","term2","year","year_m","sm"))) %>%#,-sd,-myown_int_pol_efficacy,-myown_ext_pol_efficacy,-myown_constituency_party_vote
   dplyr::select(!dplyr::ends_with("NA")) %>%
-  dplyr::select(-tidyselect::any_of(c(".id","myown_eduyr","myown_occp","myown_ses","myown_income","myown_family_income","myown_dad_ethgroup","myown_mom_ethgroup","myown_religion","myown_working_status","myown_job_status","myown_familymembers_num","myown_selfid_population","myown_wsel","fpc"))) %>%
+  dplyr::select(-tidyselect::any_of(c(".id","myown_eduyr","myown_occp","myown_ses","myown_income","myown_family_income","myown_dad_ethgroup","myown_mom_ethgroup","myown_religion","myown_working_status","myown_job_status","myown_familymembers_num","myown_selfid_population"))) %>%
   dplyr::mutate_at(c("SURVEY","admincity","admindistrict","adminvillage","value_on_q_variable"),as.factor) %>%
   dplyr::mutate_at("id", as.integer) %>%
+  dplyr::mutate_at(c("stratum","psu","ssu"), as.factor) %>%
   dplyr::filter(SURVEY %in% c("2010overall","2016citizen"))
 
 #complete_survey_dataset %<>% data.table::as.data.table()

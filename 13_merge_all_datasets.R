@@ -78,6 +78,7 @@ if (running_bigdata_computation) {
       }) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name")
       dplyr::filter(!is.na(respondopinion)) %>%
       dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
+      dplyr::mutate_at("days_diff_survey_bill",~as.numeric(scale(.))) %>%
       dplyr::mutate_at(c("SURVEY","value_on_q_variable","legislator_name"),as.factor) %>%
       dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","variablename_of_issuefield","value_on_q_variable")))#
     
@@ -147,7 +148,7 @@ if (running_bigdata_computation) {
     overall_nonagenda_df %<>% dplyr::bind_rows() %>%
       dplyr::mutate_at("elec_dist_type",as.factor) %>%
       dplyr::mutate_at("elec_dist_type", droplevels) %>%
-      dplyr::mutate_at(c("cluster_clustrd","cluster_varsellcm","cluster_kamila"), as.ordered)# %>% #11.6GB
+      dplyr::mutate_at(c("cluster_clustrd","cluster_varsellcm","cluster_kamila"), as.ordered) #11.6GB
     #save(overall_nonagenda_df, file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"))
   } else {
     load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"), verbose=TRUE)
@@ -158,20 +159,27 @@ if (running_bigdata_computation) {
 if (running_bigdata_computation) {
   #if(!is(overalldf, 'try-error')) {
   #  overalldf_to_implist_func() #34.2GB
-  
+  #litrature
+  #Regression Models for Ordinal Responses: A Review of Methods and Applications
+  #https://pubmed.ncbi.nlm.nih.gov/9447413/
+  #software
   #http://r-survey.r-forge.r-project.org/survey/svymi.html
   #http://docs.zeligproject.org/articles/zelig_logitsurvey.html
   #https://zeligproject.org/
   #https://stats.stackexchange.com/questions/69130/how-to-get-pooled-p-values-on-tests-done-in-multiple-imputed-datasets
-  #calculate p-value https://www.researchgate.net/post/p_value_calculator
   #https://stats.stackexchange.com/questions/89204/fitting-multilevel-models-to-complex-survey-data-in-r
   #https://www.hcp.med.harvard.edu/statistics/survey-soft/
   #https://cran.r-project.org/web/packages/BIFIEsurvey/index.html
   #https://cran.r-project.org/web/packages/brms/index.html
+  #Handle Missing Values with brms
+  #https://cran.r-project.org/web/packages/brms/vignettes/brms_missings.html
+
   #myown_areakind
-  sample_n_for_df<-sample(1:nrow(overall_nonagenda_df),150000)
+  sample_n_for_df<-sample(1:nrow(overall_nonagenda_df),50000)
   overall_nonagenda_df_sampled<-overall_nonagenda_df[sample_n_for_df,]
   #save(overall_nonagenda_df_sampled, file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"))
+  #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"), verbose=TRUE)
+  #overall_nonagenda_df<-overall_nonagenda_df_sampled
   modelvars_indo<-c("myown_sex","myown_age","myown_selfid","myown_marriage","similarity_distance","party_pressure","adminparty","seniority","days_diff_survey_bill","issuefield") %>%
     c("elec_dist_type")
   modelvars_latentrelated<-c("myown_factoredses","myown_factoredefficacy","myown_factoredparticip")
@@ -180,12 +188,42 @@ if (running_bigdata_computation) {
     base::intersect(c(modelvars_indo,modelvars_clustervars))
 }
 
+# modeling on survey Ordinal Logistic --------------------------------
+#DEM 7283 - Example 2 - Logit and Probit Models
+#https://rpubs.com/corey_sparks/577954
+#DEM 7283 - Example 7 Multiple Imputation & Missing Data
+#https://rpubs.com/corey_sparks/477390
+#DEM 7283 - Example 1 - Survey Statistics using BRFSS data
+#https://rpubs.com/corey_sparks/571267
+#DEM 7283 Example 10 - Survey Information and Small Area Estimation
+#https://rpubs.com/corey_sparks/484730  
+#DEM 7283 - Example 3 - Ordinal & Multinomial Logit Models
+#https://rpubs.com/corey_sparks/356551
+#calculate p-value
+#https://www.researchgate.net/post/p_value_calculator
+#weight assigning method
+#https://cran.r-project.org/web/packages/survey/vignettes/pps.pdf
+
+if (running_bigdata_computation) {
+  modelformula<-c(modelvars_indo, modelvars_latentrelated, modelvars_clustervars[1], "myown_areakind") %>%
+    paste0(., collapse="+") %>%
+    paste0("respondopinion~",.) %>%
+    as.formula()
+  des<-overalldf_to_implist_func(overall_nonagenda_df, usinglib="survey") %>%
+    survey::svydesign(ids=~1, weight=~myown_wsel, data=., pps="brewer")
+  ordinallogisticmodelonrespondopinion<-survey:::with.svyimputationList(des,survey::svyolr(modelformula))
+  save(ordinallogisticmodelonrespondopinion, file=paste0(dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"))
+  #load(file=paste0(dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"), verbose=TRUE)
+  #summary(mitools::MIcombine(ordinallogisticmodelonrespondopinion))
+  poolresult<-mice::pool(ordinallogisticmodelonrespondopinion) %>%
+    {dplyr::mutate(.$pooled, "pvalue"=pt(-abs(t), df=df-1))}
+}
 
 # modeling on SEM --------------------------------
 
 if (running_bigdata_computation) {
 
-  semmodelonrespondopinion <- overall_nonagenda_df[sample_n_for_df,] %>%
+  semmodelonrespondopinion <- overall_nonagenda_df %>%
     dummycode_of_a_dataframe(catgvars=dummyc_vars)
   afterdummyc_vars<-grep(pattern=paste0("(",paste0(dummyc_vars,collapse="|"),")"),x=names(semmodelonrespondopinion),value=TRUE)
   paste0(afterdummyc_vars,collapse="+")
@@ -207,15 +245,48 @@ if (running_bigdata_computation) {
           fit.measures = FALSE)
 }
 
-# modeling on Ordinal Logistic --------------------------------
+
+# modeling on brm --------------------------------
+#Handle Missing Values with brms
+#https://cran.r-project.org/web/packages/brms/vignettes/brms_missings.html
+#DEM 7473 - Bayesian Regression using the INLA Approach
+#https://rpubs.com/corey_sparks/431920
+#DEM 7473 - Week 7: Bayesian modeling part 1
+#https://rpubs.com/corey_sparks/431913
+#DEM 7473 - Week 5: Hierarchical Models - Cross level interactions & Contextual Effects
+#https://rpubs.com/corey_sparks/424927
+#DEM 7473 - Week 3: Basic Hierarchical Models - Random Intercepts and Slopes
+#https://rpubs.com/corey_sparks/420770
+#DEM 7283 Example 10 - Survey Information and Small Area Estimation
+#https://rpubs.com/corey_sparks/484730
+#Example of using survey design weights Bayesian regression models for survey data
+#https://rpubs.com/corey_sparks/157901
+#HLM! 想聽不懂,很難!
+#https://www.slideshare.net/beckett53/hlm-20140929
+#第 60 章 隨機截距模型中加入共變量 random intercept model with covariates
+#https://wangcc.me/LSHTMlearningnote/%E9%9A%A8%E6%A9%9F%E6%88%AA%E8%B7%9D%E6%A8%A1%E5%9E%8B%E4%B8%AD%E5%8A%A0%E5%85%A5%E5%85%B1%E8%AE%8A%E9%87%8F-random-intercept-model-with-covariates.html
+#https://bookdown.org/wangminjie/R4SS/
 
 if (running_bigdata_computation) {
-
-  des<-overalldf_to_implist_func(overall_nonagenda_df[sample_n_for_df,], usinglib="survey") %>%
-    survey::svydesign(ids=~0, weight=~myown_wr, data=.)
-  ordinallogisticmodelonrespondopinion<-responseopinion_model_overall<-with(des,survey::svyolr(modelformula))
-  
+  # Ordinal regression modeling patient's rating of inhaler instructions
+  # category specific effects are estimated for variable 'treat'
+  modelformula<-c(modelvars_indo, modelvars_latentrelated, modelvars_clustervars[1], "myown_areakind") %>%
+    paste0(., collapse="+") %>%
+    paste0("respondopinion~",.)
+  brmmodelonrespondopinion <- dplyr::group_by(overall_nonagenda_df, imp) %>%
+    {
+      targetfreq<-{as.data.frame(table(.$imp)) %>% .$Freq %>% min()}
+      dplyr::slice(., 1:targetfreq)
+    } %>%
+    #lapply(., usinglib="lavaan") %>%
+    brms::brm(modelformula,
+              data = ., family = brms::sratio("logit"), chains = 1)
+  summary(fit2)
+  plot(fit2, ask = FALSE)
+  WAIC(fit2)
 }
+
+
 des<-list()
 responseopinion_model_overall<-list()
 save(des, responseopinion_model_overall, file=paste0(dataset_in_scriptsfile_directory, "responseopinion_model_overall.RData"))
