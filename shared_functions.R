@@ -609,8 +609,8 @@ vhead<- function(X) {
 }
 
 select_and_fill_nonexistcol <- function(fundf,colVec) {
-  fundf <- fundf[intersect(colVec, names(fundf))]
-  fundf[setdiff(colVec, names(fundf))] <- NA
+  fundf <- fundf[base::intersect(colVec, names(fundf))]
+  fundf[base::setdiff(colVec, names(fundf))] <- NA
   fundf
 }
 
