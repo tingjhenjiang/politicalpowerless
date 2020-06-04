@@ -109,7 +109,7 @@ if (TRUE) {
 }
 
 
-if (FALSE) {
+if ({mergingoverlldf<-FALSE; mergingoverlldf & running_bigdata_computation}) {
   load(paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"), verbose=TRUE)
   load(paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"), verbose=TRUE)
   load(paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
@@ -134,35 +134,39 @@ if (FALSE) {
 
 # merge of load data --------------------------------
 
-if (running_bigdata_computation) {
-  mergingoverlldf<-FALSE
-  if (mergingoverlldf) {
-    overall_nonagenda_df<-list(
-      dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
-        dplyr::left_join(legislators_with_elections) %>% #Joining, by = c("admincity", "admindistrict", "adminvillage", "term")
-        overalldf_general_inter_func() %>%
-        #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
-        overalldf_general_func(agendavoting=0,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer),
-      
-      dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
-        dplyr::mutate(elec_dist_type="partylist") %>%
-        dplyr::left_join({
-          dplyr::filter(legislators_with_elections, elec_dist_type=="partylist") %>%
-            dplyr::distinct_at(.vars=vars(-admincity,-admindistrict,-adminvillage))
-        }) %>% #Joining, by = c("term", "elec_dist_type")
-        overalldf_general_inter_func() %>%
-        #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
-        overalldf_general_func(agendavoting=0,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer)
-    )
-    overall_nonagenda_df %<>% dplyr::bind_rows() %>%
-      dplyr::mutate_at("elec_dist_type",as.factor) %>%
-      dplyr::mutate_at("elec_dist_type", droplevels) %>%
-      dplyr::mutate_at(c("cluster_clustrd","cluster_varsellcm","cluster_kamila"), as.ordered) #11.6GB
-    #save(overall_nonagenda_df, file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"))
-  }
+if (mergingoverlldf & running_bigdata_computation) {
+  overall_nonagenda_df<-list(
+    dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
+      dplyr::left_join(legislators_with_elections) %>% #Joining, by = c("admincity", "admindistrict", "adminvillage", "term")
+      overalldf_general_inter_func() %>%
+      #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
+      overalldf_general_func(agendavoting=0,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer),
+    
+    dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
+      dplyr::mutate(elec_dist_type="partylist") %>%
+      dplyr::left_join({
+        dplyr::filter(legislators_with_elections, elec_dist_type=="partylist") %>%
+          dplyr::distinct_at(.vars=vars(-admincity,-admindistrict,-adminvillage))
+      }) %>% #Joining, by = c("term", "elec_dist_type")
+      overalldf_general_inter_func() %>%
+      #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
+      overalldf_general_func(agendavoting=0,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer)
+  )
+  overall_nonagenda_df %<>% dplyr::bind_rows() %>%
+    dplyr::mutate_at("elec_dist_type",as.factor) %>%
+    dplyr::mutate_at("elec_dist_type", droplevels) %>%
+    dplyr::mutate_at(c("cluster_clustrd","cluster_varsellcm","cluster_kamila"), as.ordered) #11.6GB
+  #save(overall_nonagenda_df, file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"))
 }
 
 # modeling data prepare when bigdata exists --------------------------------
+
+if (running_bigdata_computation) {
+  #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"), verbose=TRUE)
+  #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_fullydummycoded.RData"), verbose=TRUE)
+  load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"), verbose=TRUE)
+}
+
 if (running_bigdata_computation) {
   #if(!is(overalldf, 'try-error')) {
   #  overalldf_to_implist_func() #34.2GB
@@ -181,8 +185,6 @@ if (running_bigdata_computation) {
   #Handle Missing Values with brms
   #https://cran.r-project.org/web/packages/brms/vignettes/brms_missings.html
 
-  load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"), verbose=TRUE)
-
   #myown_areakind
   #sample_n_for_df<-sample(1:nrow(overall_nonagenda_df),50000)
   #overall_nonagenda_df_sampled<-overall_nonagenda_df[sample_n_for_df,]
@@ -200,15 +202,19 @@ if (running_bigdata_computation) {
 }
 
 # dummy coding bigdata --------------------------------
-if (running_platform=="guicluster") {
-  # overall_nonagenda_df %<>%
-  #   {dplyr::bind_cols(dplyr::select(., !!modelvars_controllclustervars),
-  #                     dummycode_of_a_dataframe(., catgvars=dummyc_vars))}
-  # save(overall_nonagenda_df, file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"))
-  #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"), verbose=TRUE)
-}
-if (running_bigdata_computation) {
-  load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"), verbose=TRUE)
+if ({dummycoding<-FALSE; dummycoding & running_platform=="guicluster"}) {
+  partlydummycoding<-FALSE
+  partlydummycoding<-TRUE
+  dummycodingvars<-if (partlydummycoding) base::intersect(dummyc_vars,modelvars_clustervars) else dummyc_vars
+  overall_nonagenda_df <- if (partlydummycoding) {
+    dummycode_of_a_dataframe(overall_nonagenda_df, catgvars=dummycodingvars)
+  } else {
+    dplyr::bind_cols(
+      dplyr::select(overall_nonagenda_df, !!modelvars_controllclustervars),
+      dummycode_of_a_dataframe(., catgvars=dummycodingvars)
+    )
+  }
+  #save(overall_nonagenda_df, file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"))
 }
 
 # modeling on survey Ordinal Logistic --------------------------------
@@ -228,7 +234,7 @@ if (running_bigdata_computation) {
 #weight assigning method
 #https://cran.r-project.org/web/packages/survey/vignettes/pps.pdf
 
-if (running_bigdata_computation) {
+if ({running_ordinal_logistic_model<-TRUE; running_ordinal_logistic_model & running_bigdata_computation}) {
   afterdummyc_vars<- c(modelvars_ex_catg,modelvars_controllclustervars,modelvars_clustervars[1]) %>% #only choose one cluster variable
     paste0(collapse="|") %>%
     paste0("(",.,")") %>%
@@ -253,7 +259,7 @@ if (running_bigdata_computation) {
 
 # modeling on SEM --------------------------------
 
-if (running_bigdata_computation & running_platform=="guicluster") {
+if ({running_sem_model<-FALSE; running_sem_model & running_bigdata_computation}) {
 
   semmodelonrespondopinion <- overall_nonagenda_df %>%
     dummycode_of_a_dataframe(catgvars=dummyc_vars)
@@ -300,7 +306,8 @@ if (running_bigdata_computation & running_platform=="guicluster") {
 #https://wangcc.me/LSHTMlearningnote/%E9%9A%A8%E6%A9%9F%E6%88%AA%E8%B7%9D%E6%A8%A1%E5%9E%8B%E4%B8%AD%E5%8A%A0%E5%85%A5%E5%85%B1%E8%AE%8A%E9%87%8F-random-intercept-model-with-covariates.html
 #https://bookdown.org/wangminjie/R4SS/
 
-if (running_bigdata_computation & running_platform=="guicluster") {
+if ({running_brms_model<-FALSE; running_brms_model & running_bigdata_computation}) {
+
   # Ordinal regression modeling patient's rating of inhaler instructions
   # category specific effects are estimated for variable 'treat'
   #要把屆次加入群
