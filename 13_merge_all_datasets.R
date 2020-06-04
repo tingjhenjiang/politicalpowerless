@@ -201,10 +201,13 @@ if (running_bigdata_computation) {
 
 # dummy coding bigdata --------------------------------
 if (running_platform=="guicluster") {
-  overall_nonagenda_df %<>%
-    {dplyr::bind_cols(dplyr::select(., !!modelvars_controllclustervars),
-                      dummycode_of_a_dataframe(., catgvars=dummyc_vars))}
-  #save(overall_nonagenda_df, file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"))
+  # overall_nonagenda_df %<>%
+  #   {dplyr::bind_cols(dplyr::select(., !!modelvars_controllclustervars),
+  #                     dummycode_of_a_dataframe(., catgvars=dummyc_vars))}
+  # save(overall_nonagenda_df, file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"))
+  #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"), verbose=TRUE)
+}
+if (running_bigdata_computation) {
   load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"), verbose=TRUE)
 }
 
