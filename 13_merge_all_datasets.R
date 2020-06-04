@@ -63,7 +63,7 @@ if (TRUE) {
     detectedcatgvars<-detectedcatgvars[(sapply(dplyr::select(df,!!detectedcatgvars), nlevels ))>=2]
     catgvars<-if (length(catgvars)==0) detectedcatgvars else base::intersect(catgvars, detectedcatgvars)
     if (length(catgvars)==0) return(df)
-    dplyr::bind_cols(dplyr::select(df, -!!catgvars), lapply(catgvars, function(factorvar,df,...) {
+    dplyr::bind_cols(dplyr::select(df, -!!catgvars), custom_parallel_lapply(catgvars, function(factorvar,df,...) {
       psych::dummy.code(dplyr::pull(df,!!factorvar)) %>%
         {.[,gtools::mixedsort(colnames(.))]} %>%
         {magrittr::set_colnames(., paste0(factorvar,colnames(.)))} %>%
