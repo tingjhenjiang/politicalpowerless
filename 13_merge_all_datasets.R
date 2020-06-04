@@ -1,9 +1,9 @@
 # 第Ｏ部份：環境設定 --------------------------------
-running_from_guicluster<-FALSE
-running_from_guicluster<-TRUE
-running_bigdata_computation<-FALSE
+running_platform<-"computecluster"
+running_platform<-"guicluster"
 running_bigdata_computation<-TRUE
-if (running_from_guicluster) {
+running_bigdata_computation<-FALSE
+if (running_platform=="guicluster") {
   if (!("benchmarkme" %in% rownames(installed.packages()))) install.packages("benchmarkme")
   t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
   t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
@@ -24,6 +24,10 @@ if (running_from_guicluster) {
     }
   }
   dataset_in_scriptsfile_directory<-"/home/u4/dowbatw1133/Documents/vote_record/data/"
+  custom_pickcolnames_accordingtoclass<-function(df,needclass="factor") {
+    colnames(df)[which(grepl(pattern=needclass, x=sapply(df,function(X) paste0(class(X),collapse=""))) )] %>%
+      return()
+  }
 }
 
 #選舉資料
@@ -44,11 +48,16 @@ term_to_survey <- data.frame("term"=c(5,6,7,7,8,8,9), "SURVEY"=c("2004citizen","
   data.table::as.data.table()
 gc(verbose=TRUE)
 
+# 第八部份：大串連資料 ---------------------------------
 
-# 第八部份：問卷資料串連立委資料、選舉資料 ---------------------------------
-
-
-if (running_bigdata_computation) {
+if (TRUE) {
+  micombineresult<-function(mimodel) {
+    poolresult<-mitools:::summary.MIresult(mitools::MIcombine(mimodel)) %>%
+      dplyr::select(missInfo) %>%
+      dplyr::bind_cols( mice::pool(mimodel) %>%
+                          mice:::summary.mipo(conf.int=TRUE),.)
+    return(poolresult)
+  }
   dummycode_of_a_dataframe<-function(df,catgvars=c()) {
     detectedcatgvars<-custom_pickcolnames_accordingtoclass(df,needclass="factor")
     detectedcatgvars<-detectedcatgvars[(sapply(dplyr::select(df,!!detectedcatgvars), nlevels ))>=2]
@@ -79,7 +88,7 @@ if (running_bigdata_computation) {
       dplyr::filter(!is.na(respondopinion)) %>%
       dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
       dplyr::mutate_at("days_diff_survey_bill",~as.numeric(scale(.))) %>%
-      dplyr::mutate_at(c("SURVEY","value_on_q_variable","legislator_name"),as.factor) %>%
+      dplyr::mutate_at(c("SURVEY","value_on_q_variable","legislator_name","term"),as.factor) %>%
       dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","variablename_of_issuefield","value_on_q_variable")))#
     
     targetdfcolnames<-colnames(targetdf)
@@ -100,7 +109,7 @@ if (running_bigdata_computation) {
 }
 
 
-if (running_bigdata_computation) {
+if (FALSE) {
   load(paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"), verbose=TRUE)
   load(paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"), verbose=TRUE)
   load(paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
@@ -150,8 +159,6 @@ if (running_bigdata_computation) {
       dplyr::mutate_at("elec_dist_type", droplevels) %>%
       dplyr::mutate_at(c("cluster_clustrd","cluster_varsellcm","cluster_kamila"), as.ordered) #11.6GB
     #save(overall_nonagenda_df, file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"))
-  } else {
-    load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"), verbose=TRUE)
   }
 }
 
@@ -174,21 +181,35 @@ if (running_bigdata_computation) {
   #Handle Missing Values with brms
   #https://cran.r-project.org/web/packages/brms/vignettes/brms_missings.html
 
+  load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"), verbose=TRUE)
+
   #myown_areakind
-  sample_n_for_df<-sample(1:nrow(overall_nonagenda_df),50000)
-  overall_nonagenda_df_sampled<-overall_nonagenda_df[sample_n_for_df,]
+  #sample_n_for_df<-sample(1:nrow(overall_nonagenda_df),50000)
+  #overall_nonagenda_df_sampled<-overall_nonagenda_df[sample_n_for_df,]
   #save(overall_nonagenda_df_sampled, file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"))
   #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"), verbose=TRUE)
   #overall_nonagenda_df<-overall_nonagenda_df_sampled
-  modelvars_indo<-c("myown_sex","myown_age","myown_selfid","myown_marriage","similarity_distance","party_pressure","adminparty","seniority","days_diff_survey_bill","issuefield") %>%
+  modelvars_ex_conti<-c("myown_age","similarity_distance","party_pressure","seniority","days_diff_survey_bill")
+  modelvars_ex_catg<-c("myown_sex","myown_selfid","myown_marriage","adminparty","issuefield") %>%
     c("elec_dist_type")
   modelvars_latentrelated<-c("myown_factoredses","myown_factoredefficacy","myown_factoredparticip")
   modelvars_clustervars<-c("cluster_varsellcm","cluster_kamila","cluster_clustrd")
+  modelvars_controllclustervars<-c("term","myown_areakind")
   dummyc_vars<-custom_pickcolnames_accordingtoclass(overall_nonagenda_df, needclass="factor") %>%
-    base::intersect(c(modelvars_indo,modelvars_clustervars))
+    base::intersect(c(modelvars_ex_catg,modelvars_clustervars,modelvars_controllclustervars))
+}
+
+# dummy coding bigdata --------------------------------
+if (running_platform=="guicluster") {
+  overall_nonagenda_df %<>%
+    {dplyr::bind_cols(dplyr::select(., !!modelvars_controllclustervars),
+                      dummycode_of_a_dataframe(., catgvars=dummyc_vars))}
+  #save(overall_nonagenda_df, file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"))
+  load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"), verbose=TRUE)
 }
 
 # modeling on survey Ordinal Logistic --------------------------------
+
 #DEM 7283 - Example 2 - Logit and Probit Models
 #https://rpubs.com/corey_sparks/577954
 #DEM 7283 - Example 7 Multiple Imputation & Missing Data
@@ -205,23 +226,31 @@ if (running_bigdata_computation) {
 #https://cran.r-project.org/web/packages/survey/vignettes/pps.pdf
 
 if (running_bigdata_computation) {
-  modelformula<-c(modelvars_indo, modelvars_latentrelated, modelvars_clustervars[1], "myown_areakind") %>%
+  afterdummyc_vars<- c(modelvars_ex_catg,modelvars_controllclustervars,modelvars_clustervars[1]) %>% #only choose one cluster variable
+    paste0(collapse="|") %>%
+    paste0("(",.,")") %>%
+    grep(pattern=.,x=names(overall_nonagenda_df),value=TRUE) %>%
+    .[!(. %in% modelvars_controllclustervars)]
+  paste0(afterdummyc_vars,collapse="+")
+  modelformula<-c(modelvars_ex_conti, modelvars_latentrelated) %>%
+    c(afterdummyc_vars) %>%
+    #c("myown_sex.2..女+myown_selfid.2..台灣客家人+myown_selfid.3..台灣原住民+myown_selfid.4..大陸各省市.含港澳金馬.+myown_selfid.5..新移民+myown_selfid.6..其他臺灣人+myown_marriage.2..已婚且與配偶同住+myown_marriage.3..已婚但沒有與配偶同住+myown_marriage.4..同居+myown_marriage.5..離婚+myown_marriage.6..分居+myown_marriage.7..配偶去世+cluster_varsellcm2+cluster_varsellcm3+cluster_varsellcm4+cluster_varsellcm5+cluster_varsellcm6+elec_dist_typepartylist+adminparty1+issuefield公民與政治權+issuefield環境+issuefield教育+issuefield經濟+issuefield經濟社會文化權+issuefield兩岸+issuefield內政+issuefield社會福利") %>%
     paste0(., collapse="+") %>%
     paste0("respondopinion~",.) %>%
     as.formula()
-  des<-overalldf_to_implist_func(overall_nonagenda_df, usinglib="survey") %>%
-    survey::svydesign(ids=~1, weight=~myown_wsel, data=., pps="brewer")
+  des <- overalldf_to_implist_func(overall_nonagenda_df, usinglib="survey") %>%
+    survey::svydesign(ids=~1, weight=~myown_wr, data=., pps="brewer")
   ordinallogisticmodelonrespondopinion<-survey:::with.svyimputationList(des,survey::svyolr(modelformula))
-  save(ordinallogisticmodelonrespondopinion, file=paste0(dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"))
+  save(des, ordinallogisticmodelonrespondopinion, file=paste0(dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"))
   #load(file=paste0(dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"), verbose=TRUE)
   #summary(mitools::MIcombine(ordinallogisticmodelonrespondopinion))
-  poolresult<-mice::pool(ordinallogisticmodelonrespondopinion) %>%
-    {dplyr::mutate(.$pooled, "pvalue"=pt(-abs(t), df=df-1))}
+  #poolresult<-micombineresult(ordinallogisticmodelonrespondopinion)
+  #View(poolresult)
 }
 
 # modeling on SEM --------------------------------
 
-if (running_bigdata_computation) {
+if (running_bigdata_computation & running_platform=="guicluster") {
 
   semmodelonrespondopinion <- overall_nonagenda_df %>%
     dummycode_of_a_dataframe(catgvars=dummyc_vars)
@@ -247,6 +276,7 @@ if (running_bigdata_computation) {
 
 
 # modeling on brm --------------------------------
+
 #Handle Missing Values with brms
 #https://cran.r-project.org/web/packages/brms/vignettes/brms_missings.html
 #DEM 7473 - Bayesian Regression using the INLA Approach
@@ -267,9 +297,10 @@ if (running_bigdata_computation) {
 #https://wangcc.me/LSHTMlearningnote/%E9%9A%A8%E6%A9%9F%E6%88%AA%E8%B7%9D%E6%A8%A1%E5%9E%8B%E4%B8%AD%E5%8A%A0%E5%85%A5%E5%85%B1%E8%AE%8A%E9%87%8F-random-intercept-model-with-covariates.html
 #https://bookdown.org/wangminjie/R4SS/
 
-if (running_bigdata_computation) {
+if (running_bigdata_computation & running_platform=="guicluster") {
   # Ordinal regression modeling patient's rating of inhaler instructions
   # category specific effects are estimated for variable 'treat'
+  #要把屆次加入群
   modelformula<-c(modelvars_indo, modelvars_latentrelated, modelvars_clustervars[1], "myown_areakind") %>%
     paste0(., collapse="+") %>%
     paste0("respondopinion~",.)
@@ -286,11 +317,11 @@ if (running_bigdata_computation) {
   WAIC(fit2)
 }
 
-
-des<-list()
-responseopinion_model_overall<-list()
-save(des, responseopinion_model_overall, file=paste0(dataset_in_scriptsfile_directory, "responseopinion_model_overall.RData"))
-#summary(mitools::MIcombine(model_district))
+if (FALSE) {
+  des<-list()
+  responseopinion_model_overall<-list()
+  save(des, responseopinion_model_overall, file=paste0(dataset_in_scriptsfile_directory, "responseopinion_model_overall.RData"))
+}
 
 # [1] "imp"                    "myown_sex"              "myown_age"             
 # [4] "myown_selfid"           "myown_marriage"         "id"                    
@@ -370,11 +401,3 @@ save(des, responseopinion_model_overall, file=paste0(dataset_in_scriptsfile_dire
 #只有針對議案的決定，而非有無代理
 # testdf <- mutate_at(complete_survey_dataset,"term", as.numeric) %>%
 #   inner_join(only_bill_to_survey_information)
-#沒有投票權也會串到立委，也就是只串選區的串法
-# testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionarea", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE"))
-#只串到支持的候選人的串法
-#testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "electionarea", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE", "myown_constituency_party_vote"="election_party"))
-#串全國，不限選區
-#testdf <- inner_join(complete_survey_dataset, testdf, by = c("term", "SURVEY", "SURVEYQUESTIONID", "SURVEYANSWERVALUE", "myown_constituency_party_vote"="election_party"))
-# only observe if bills are passed
-# testdf<-inner_join(complete_survey_dataset, only_bill_to_survey_information,by = c("SURVEY", "term", "SURVEYQUESTIONID", "SURVEYANSWERVALUE"))
