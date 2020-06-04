@@ -248,7 +248,7 @@ if ({running_ordinal_logistic_model<-TRUE; running_ordinal_logistic_model & runn
     paste0("respondopinion~",.) %>%
     as.formula()
   des <- overalldf_to_implist_func(overall_nonagenda_df, usinglib="survey") %>%
-    survey::svydesign(ids=~1, weight=~myown_wr, data=., pps="brewer")
+    survey::svydesign(ids=~1, fpc=~myown_wsel, data=., pps="brewer")
   ordinallogisticmodelonrespondopinion<-survey:::with.svyimputationList(des,survey::svyolr(modelformula))
   save(des, ordinallogisticmodelonrespondopinion, file=paste0(dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"))
   #load(file=paste0(dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"), verbose=TRUE)
