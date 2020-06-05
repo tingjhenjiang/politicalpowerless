@@ -1,8 +1,8 @@
 # 第Ｏ部份：環境設定 --------------------------------
-running_platform<-"guicluster"
-running_platform<-"computecluster"
-running_bigdata_computation<-FALSE
-running_bigdata_computation<-TRUE
+
+running_platform<-if (exists("running_platform")) running_platform else "guicluster"
+running_bigdata_computation<-if (exists("running_bigdata_computation")) running_bigdata_computation else FALSE
+
 if (running_platform=="guicluster") {
   if (!("benchmarkme" %in% rownames(installed.packages()))) install.packages("benchmarkme")
   t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
@@ -219,120 +219,9 @@ if ({dummycoding<-FALSE; dummycoding & running_platform=="guicluster"}) {
   #save(overall_nonagenda_df, file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"))
 }
 
-# modeling on survey Ordinal Logistic --------------------------------
-
-#DEM 7283 - Example 2 - Logit and Probit Models
-#https://rpubs.com/corey_sparks/577954
-#DEM 7283 - Example 7 Multiple Imputation & Missing Data
-#https://rpubs.com/corey_sparks/477390
-#DEM 7283 - Example 1 - Survey Statistics using BRFSS data
-#https://rpubs.com/corey_sparks/571267
-#DEM 7283 Example 10 - Survey Information and Small Area Estimation
-#https://rpubs.com/corey_sparks/484730  
-#DEM 7283 - Example 3 - Ordinal & Multinomial Logit Models
-#https://rpubs.com/corey_sparks/356551
-#calculate p-value
-#https://www.researchgate.net/post/p_value_calculator
-#weight assigning method
-#https://cran.r-project.org/web/packages/survey/vignettes/pps.pdf
-
-if ({running_ordinal_logistic_model<-TRUE; running_ordinal_logistic_model & running_bigdata_computation}) {
-  afterdummyc_vars<- c(modelvars_ex_catg,modelvars_controllclustervars,modelvars_clustervars[1]) %>% #only choose one cluster variable
-    paste0(collapse="|") %>%
-    paste0("(",.,")") %>%
-    grep(pattern=.,x=names(overall_nonagenda_df),value=TRUE)# %>%
-    #.[!(. %in% modelvars_controllclustervars)]
-  paste0(afterdummyc_vars,collapse="+")
-  modelformula<-c(modelvars_ex_conti, modelvars_latentrelated) %>%
-    c(afterdummyc_vars) %>%
-    #c("myown_sex.2..女+myown_selfid.2..台灣客家人+myown_selfid.3..台灣原住民+myown_selfid.4..大陸各省市.含港澳金馬.+myown_selfid.5..新移民+myown_selfid.6..其他臺灣人+myown_marriage.2..已婚且與配偶同住+myown_marriage.3..已婚但沒有與配偶同住+myown_marriage.4..同居+myown_marriage.5..離婚+myown_marriage.6..分居+myown_marriage.7..配偶去世+cluster_varsellcm2+cluster_varsellcm3+cluster_varsellcm4+cluster_varsellcm5+cluster_varsellcm6+elec_dist_typepartylist+adminparty1+issuefield公民與政治權+issuefield環境+issuefield教育+issuefield經濟+issuefield經濟社會文化權+issuefield兩岸+issuefield內政+issuefield社會福利") %>%
-    paste0(., collapse="+") %>%
-    paste0("respondopinion~",.) %>%
-    as.formula()
-  options(survey.multicore = TRUE)
-  #des <- overalldf_to_implist_func(overall_nonagenda_df, usinglib="survey") %>%
-  #  survey::svydesign(ids=~1, weight=~myown_wr, data=.)
-  load(file=paste0(dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"))
-  ordinallogisticmodelonrespondopinion<-survey:::with.svyimputationList(des,survey::svyolr(modelformula),multicore=TRUE)
-  while (TRUE) {
-    savestatus<-try({save(ordinallogisticmodelonrespondopinion, file=paste0(save_dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"))})
-    if(!is(savestatus, 'try-error')) break
-  }
-  #load(file=paste0(dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"), verbose=TRUE)
-  #summary(mitools::MIcombine(ordinallogisticmodelonrespondopinion))
-  #poolresult<-micombineresult(ordinallogisticmodelonrespondopinion)
-  #View(poolresult)
-}
-
-# modeling on SEM --------------------------------
-
-if ({running_sem_model<-FALSE; running_sem_model & running_bigdata_computation}) {
-
-  semmodelonrespondopinion <- overall_nonagenda_df %>%
-    dummycode_of_a_dataframe(catgvars=dummyc_vars)
-  afterdummyc_vars<-grep(pattern=paste0("(",paste0(dummyc_vars,collapse="|"),")"),x=names(semmodelonrespondopinion),value=TRUE)
-  paste0(afterdummyc_vars,collapse="+")
-  semmodelformula<-"
-    # measurement model
-    #latent_particip =~ myown_factoredses + myown_factoredefficacy + myown_factoredparticip
-    # regressions
-    respondopinion ~ myown_factoredses + myown_factoredefficacy + myown_factoredparticip+myown_sex.2..女+myown_selfid.2..台灣客家人+myown_selfid.3..台灣原住民+myown_selfid.4..大陸各省市.含港澳金馬.+myown_selfid.5..新移民+myown_selfid.6..其他臺灣人+myown_marriage.2..已婚且與配偶同住+myown_marriage.3..已婚但沒有與配偶同住+myown_marriage.4..同居+myown_marriage.5..離婚+myown_marriage.6..分居+myown_marriage.7..配偶去世+cluster_varsellcm2+cluster_varsellcm3+cluster_varsellcm4+cluster_varsellcm5+cluster_varsellcm6+elec_dist_typepartylist+adminparty1+issuefield兩岸+issuefield公民與政治權+issuefield教育+issuefield環境+issuefield社會福利+issuefield經濟+issuefield經濟社會文化權+issuefield財政
-  "
-  colSums(is.na(semmodelonrespondopinion))
-  #empty on success_on_bill,opinionstrength
-  trialdata<-overalldf_to_implist_func(semmodelonrespondopinion)
-  semmodelonrespondopinion <- semTools::sem.mi(model=semmodelformula, data=trialdata, ordered=c("respondopinion")) #, sampling.weights="myown_wr", cluster="myown_areakind"
-  library(semTools)
-  summary(semmodelonrespondopinion, se = TRUE, ci = TRUE,
-          level = 0.95, standardized = TRUE, rsquare = TRUE, fmi = TRUE,
-          scale.W = !asymptotic, omit.imps = c("no.conv", "no.se"),
-          asymptotic = FALSE, header = TRUE, output = "text",
-          fit.measures = FALSE)
-}
 
 
-# modeling on brm --------------------------------
 
-#Handle Missing Values with brms
-#https://cran.r-project.org/web/packages/brms/vignettes/brms_missings.html
-#DEM 7473 - Bayesian Regression using the INLA Approach
-#https://rpubs.com/corey_sparks/431920
-#DEM 7473 - Week 7: Bayesian modeling part 1
-#https://rpubs.com/corey_sparks/431913
-#DEM 7473 - Week 5: Hierarchical Models - Cross level interactions & Contextual Effects
-#https://rpubs.com/corey_sparks/424927
-#DEM 7473 - Week 3: Basic Hierarchical Models - Random Intercepts and Slopes
-#https://rpubs.com/corey_sparks/420770
-#DEM 7283 Example 10 - Survey Information and Small Area Estimation
-#https://rpubs.com/corey_sparks/484730
-#Example of using survey design weights Bayesian regression models for survey data
-#https://rpubs.com/corey_sparks/157901
-#HLM! 想聽不懂,很難!
-#https://www.slideshare.net/beckett53/hlm-20140929
-#第 60 章 隨機截距模型中加入共變量 random intercept model with covariates
-#https://wangcc.me/LSHTMlearningnote/%E9%9A%A8%E6%A9%9F%E6%88%AA%E8%B7%9D%E6%A8%A1%E5%9E%8B%E4%B8%AD%E5%8A%A0%E5%85%A5%E5%85%B1%E8%AE%8A%E9%87%8F-random-intercept-model-with-covariates.html
-#https://bookdown.org/wangminjie/R4SS/
-
-if ({running_brms_model<-FALSE; running_brms_model & running_bigdata_computation}) {
-
-  # Ordinal regression modeling patient's rating of inhaler instructions
-  # category specific effects are estimated for variable 'treat'
-  #要把屆次加入群
-  modelformula<-c(modelvars_indo, modelvars_latentrelated, modelvars_clustervars[1], "myown_areakind") %>%
-    paste0(., collapse="+") %>%
-    paste0("respondopinion~",.)
-  brmmodelonrespondopinion <- dplyr::group_by(overall_nonagenda_df, imp) %>%
-    {
-      targetfreq<-{as.data.frame(table(.$imp)) %>% .$Freq %>% min()}
-      dplyr::slice(., 1:targetfreq)
-    } %>%
-    #lapply(., usinglib="lavaan") %>%
-    brms::brm(modelformula,
-              data = ., family = brms::sratio("logit"), chains = 1)
-  summary(fit2)
-  plot(fit2, ask = FALSE)
-  WAIC(fit2)
-}
 
 if (FALSE) {
   des<-list()
