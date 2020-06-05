@@ -9,7 +9,7 @@ chooseCRANmirror(ind=which(grepl("cran.csie.ntu.edu.tw",getCRANmirrors()$URL)))
 #Sys.setenv(R_INSTALL_STAGED = FALSE)
 #lib<-c("stringi","stringr","XML","xml2","rvest","htmltidy","curl","RCurl","gdata","readr","DBI","lazyeval","dplyr","rmarkdown","rticles","knitr","data.table","ggplot2","scales","reshape2","janitor","stargazer","xtable","apa","tesseract","pdftools","tiff","schoolmath","jsonlite","foreign","MASS","class","caret","tm","kernlab","jiebaR","RTextTools","tmcn","text2vec","RODBC","xlsx")
 
-lib<-c("stringi","XML","xml2","readr","plyr","dplyr","magrittr","openxlsx","rvest","parallel") #,"data.table","dtplyr"
+lib<-c("stringi","readr","plyr","dplyr","magrittr","parallel") #,"openxlsx","XML","xml2","rvest","data.table","dtplyr"
 #install.packages("xml2", dependencies=TRUE, INSTALL_opts = c('--no-lock'))
 #,"Rcmdr"
 load_lib_or_install<-function (libs) {
@@ -93,6 +93,8 @@ dataset_in_scriptsfile_directory <- switch(
       returnhere<-TRUE
     } else if (!file.exists(paste0(., "shared_functions.R") )) {
       returnhere<-TRUE
+    } else if(is(., 'try-error')) {
+      returnhere<-TRUE
     }
     if (returnhere==TRUE) paste0(here::here(),slash,"data",slash) else NA
   }
@@ -116,12 +118,12 @@ if (nchar(Sys.getenv("SPARK_HOME")) < 1) {
 }
 survey_data_title<-c("2004citizen","2010env","2010overall","2016citizen") %>% sort()
 imputation_sample_i_s <- seq(1,5)
-myremoteip <- tryCatch({read_html('https://www.myip.com/') %>%
-      html_nodes(xpath = "//span[@id='ip']//text()") %>%
-      html_text()},error=function (e) {
-        read_html('https://www.whatismyip.com.tw/') %>%
-          html_nodes(xpath = "//body/b/span//text()") %>%
-          html_text()
+myremoteip <- tryCatch({xml2::read_html('https://www.myip.com/') %>%
+    rvest::html_nodes(xpath = "//span[@id='ip']//text()") %>%
+    rvest::html_text()},error=function (e) {
+      try(xml2::read_html('https://www.whatismyip.com.tw/') %>%
+        rvest::html_nodes(xpath = "//body/b/span//text()") %>%
+        rvest::html_text())
       })
 mysqldbhost <- if (t_sessioninfo_running_with_cpu_locale=="Ubuntu18.04.3LTSIntel(R)Core(TM)i7-9750HCPU@2.60GHzzh_TW.UTF-8") {
   "tjhome.crabdance.com" #gsub("nameserver ","", x=system("cat /etc/resolv.conf", intern=TRUE)[4])
@@ -505,14 +507,14 @@ if (check_if_windows()) {
   Sys.setenv(JAVA_OPTS='-Xms128M -Xmx512M')
   #library("rJava")
   #library("xlsx")
-  library("openxlsx")
+  try(library("openxlsx"))
 } else {
   #export LD_LIBRARY_PATH=/usr/lib/jvm/java-9-oracle/lib/server/
   Sys.setenv(JAVA_HOME='/usr/lib/jvm/java-9-oracle/bin/java')
   Sys.setenv(JAVA_OPTS='-Xms128M -Xmx512M')
   #library("rJava")
   #library("xlsx")
-  library("openxlsx")
+  try(library("openxlsx"))
 }
 as_factor_to_integer<-function(f) {
   as.numeric(levels(f))[f]

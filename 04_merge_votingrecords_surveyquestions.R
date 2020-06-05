@@ -1,11 +1,13 @@
 # 第Ｏ部份：環境設定 --------------------------------
 #Sys.setlocale(category = "LC_ALL", locale = "UTF-8")
 #Sys.setlocale(category = "LC_ALL", locale = "zh_TW.UTF-8")
-if (!("benchmarkme" %in% rownames(installed.packages()))) install.packages("benchmarkme")
+if (!("benchmarkme" %in% rownames(installed.packages()))) try(install.packages("benchmarkme"))
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
-t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
-t_sessioninfo_running_with_cpu_locale<-gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2]))
-source(file = "shared_functions.R", encoding="UTF-8")
+t_sessioninfo_running_with_cpu<-try(paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model))
+t_sessioninfo_running_with_cpu_locale<-try(gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2])))
+source_sharedfuncs_r_path<-try(here::here())
+if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
+source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
 terms<-c(5,6,7,8,9)
 survey_time_range <- list(
   "2004citizen"=data.frame("SURVEY"="2004citizen","yrmonth"=c("093/07","093/08","093/09","093/10","093/11","093/12","094/01","094/02","094/03","094/04","094/05","094/06","094/07","094/08","094/09","094/10","094/11","094/12","095/01","095/02","095/03","095/04","095/05","095/06","095/07","095/08","095/09")), #,"095/10","095/11","095/12"
