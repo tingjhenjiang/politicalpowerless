@@ -1,19 +1,20 @@
 # 第Ｏ部份：環境設定 --------------------------------
-running_platform<-"computecluster"
 running_platform<-"guicluster"
-running_bigdata_computation<-TRUE
+running_platform<-"computecluster"
 running_bigdata_computation<-FALSE
+running_bigdata_computation<-TRUE
 if (running_platform=="guicluster") {
   if (!("benchmarkme" %in% rownames(installed.packages()))) install.packages("benchmarkme")
   t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
   t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
   t_sessioninfo_running_with_cpu_locale<-gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2]))
   source(file = "shared_functions.R", encoding="UTF-8")
+  save_dataset_in_scriptsfile_directory<-dataset_in_scriptsfile_directory
 } else {
   path <- .libPaths()
   liblocs<-c(path, "/home/u4/dowbatw1133/x86_64-redhat-linux-gnu-library/3.5/","/home/u4/dowbatw1133/x86_64-redhat-linux-gnu-library/","/home/u4/dowbatw1133/")
   .libPaths(liblocs)
-  for (X in c("data.table","magrittr","dplyr","survey","tidyselect","mitools","lavaan","semTools","Amelia","lavaan.survey"))  {
+  for (X in c("data.table","magrittr","dplyr","survey","tidyselect","mitools"))  { #,"lavaan","semTools","Amelia","lavaan.survey"
     for (libloc in liblocs) {
       if(!require(X,character.only=TRUE,lib.loc=libloc)) {
         install.packages(X)
@@ -24,6 +25,7 @@ if (running_platform=="guicluster") {
     }
   }
   dataset_in_scriptsfile_directory<-"/home/u4/dowbatw1133/Documents/vote_record/data/"
+  save_dataset_in_scriptsfile_directory<-"/work1/dowbatw1133/"
   custom_pickcolnames_accordingtoclass<-function(df,needclass="factor") {
     colnames(df)[which(grepl(pattern=needclass, x=sapply(df,function(X) paste0(class(X),collapse=""))) )] %>%
       return()
@@ -247,10 +249,15 @@ if ({running_ordinal_logistic_model<-TRUE; running_ordinal_logistic_model & runn
     paste0(., collapse="+") %>%
     paste0("respondopinion~",.) %>%
     as.formula()
-  des <- overalldf_to_implist_func(overall_nonagenda_df, usinglib="survey") %>%
-    survey::svydesign(ids=~1, weight=~myown_wr, data=.)
-  ordinallogisticmodelonrespondopinion<-survey:::with.svyimputationList(des,survey::svyolr(modelformula))
-  save(des, ordinallogisticmodelonrespondopinion, file=paste0(dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"))
+  options(survey.multicore = TRUE)
+  #des <- overalldf_to_implist_func(overall_nonagenda_df, usinglib="survey") %>%
+  #  survey::svydesign(ids=~1, weight=~myown_wr, data=.)
+  load(file=paste0(dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"))
+  ordinallogisticmodelonrespondopinion<-survey:::with.svyimputationList(des,survey::svyolr(modelformula),multicore=TRUE)
+  while (TRUE) {
+    savestatus<-try({save(ordinallogisticmodelonrespondopinion, file=paste0(save_dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"))})
+    if(!is(savestatus, 'try-error')) break
+  }
   #load(file=paste0(dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"), verbose=TRUE)
   #summary(mitools::MIcombine(ordinallogisticmodelonrespondopinion))
   #poolresult<-micombineresult(ordinallogisticmodelonrespondopinion)
