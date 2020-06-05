@@ -3,9 +3,9 @@ running_platform<-"computecluster"
 running_bigdata_computation<-FALSE
 running_bigdata_computation<-TRUE
 
-source_mergalldf_r_path<-try(here::here())
-if(is(source_mergalldf_r_path, 'try-error')) source_mergalldf_r_path<-"/home/u4/dowbatw1133/Documents/vote_record"
-source(file = paste0(source_mergalldf_r_path,"/13_merge_all_datasets.R"), encoding="UTF-8")
+source_sharedfuncs_r_path<-try(here::here())
+if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
+source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), encoding="UTF-8")
 
 
 # modeling on SEM --------------------------------

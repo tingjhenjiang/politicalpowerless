@@ -4,25 +4,28 @@ running_platform<-if (exists("running_platform")) running_platform else "guiclus
 running_bigdata_computation<-if (exists("running_bigdata_computation")) running_bigdata_computation else FALSE
 
 if (running_platform=="guicluster") {
-  if (!("benchmarkme" %in% rownames(installed.packages()))) install.packages("benchmarkme")
+  if (!("benchmarkme" %in% rownames(installed.packages()))) try(install.packages("benchmarkme"))
   t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
-  t_sessioninfo_running_with_cpu<-paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model)
-  t_sessioninfo_running_with_cpu_locale<-gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2]))
-  source(file = "shared_functions.R", encoding="UTF-8")
+  t_sessioninfo_running_with_cpu<-try(paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model))
+  t_sessioninfo_running_with_cpu_locale<-try(gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2])))
+  source_sharedfuncs_r_path<-try(here::here())
+  if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
+  source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
   save_dataset_in_scriptsfile_directory<-dataset_in_scriptsfile_directory
 } else {
   path <- .libPaths()
   liblocs<-c(path, "/home/u4/dowbatw1133/x86_64-redhat-linux-gnu-library/3.5/","/home/u4/dowbatw1133/x86_64-redhat-linux-gnu-library/","/home/u4/dowbatw1133/")
   .libPaths(liblocs)
   for (X in c("data.table","magrittr","dplyr","survey","tidyselect","mitools"))  { #,"lavaan","semTools","Amelia","lavaan.survey"
-    for (libloc in liblocs) {
-      if(!require(X,character.only=TRUE,lib.loc=libloc)) {
-        install.packages(X)
-        require(X,character.only=TRUE,lib.loc=libloc)
-      } else {
-        next
-      }
-    }
+    require(X,character.only=TRUE)
+    # for (libloc in liblocs) {
+    #   if(!require(X,character.only=TRUE,lib.loc=libloc)) {
+    #     install.packages(X)
+    #     require(X,character.only=TRUE,lib.loc=libloc)
+    #   } else {
+    #     next
+    #   }
+    # }
   }
   dataset_in_scriptsfile_directory<-"/home/u4/dowbatw1133/Documents/vote_record/data/"
   save_dataset_in_scriptsfile_directory<-"/work1/dowbatw1133/"
