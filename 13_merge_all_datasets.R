@@ -3,6 +3,7 @@
 #setwd("/home/u4/dowbatw1133/Documents/vote_record")
 running_platform<-if (exists("running_platform")) running_platform else "guicluster"
 running_bigdata_computation<-if (exists("running_bigdata_computation")) running_bigdata_computation else FALSE
+loadbigdatadf<-if (exists("loadbigdatadf")) loadbigdatadf else TRUE
 if (!("benchmarkme" %in% rownames(installed.packages()))) try(install.packages("benchmarkme"))
 t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
 t_sessioninfo_running_with_cpu<-try(paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model))
@@ -143,7 +144,7 @@ if (mergingoverlldf & running_bigdata_computation) {
 
 # modeling data prepare when bigdata exists --------------------------------
 
-if (running_bigdata_computation) {
+if (running_bigdata_computation & loadbigdatadf) {
   #load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"), verbose=TRUE)
   #load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_fullydummycoded.RData"), verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"), verbose=TRUE)
@@ -155,7 +156,7 @@ modelvars_ex_catg<-c("myown_sex","myown_selfid","myown_marriage","adminparty","i
 modelvars_latentrelated<-c("myown_factoredses","myown_factoredefficacy","myown_factoredparticip")
 modelvars_clustervars<-c("cluster_varsellcm","cluster_kamila","cluster_clustrd")
 modelvars_controllclustervars<-c("term","myown_areakind")
-if (running_bigdata_computation) {
+if (running_bigdata_computation & loadbigdatadf) {
   #if(!is(overalldf, 'try-error')) {
   #  overalldf_to_implist_func() #34.2GB
   #litrature

@@ -332,7 +332,8 @@ custommessage<-function(v,existingDF=data.frame()) {
 }
 custom_plot<-function(df, fvar, weightvar="", usingsurveypkg=FALSE, fillcolor="", ...) {
   n_bins<-350
-  singleclass<-class(extract2(df, fvar))
+  singleclass<-class(magrittr::extract2(df, fvar))
+  discri_class<-paste0(singleclass,collapse="")
   randomcolors<-ggsci::pal_npg("nrc", alpha = 0.7)(10)
   randomcolors<-c(randomcolors,"lightblue","lightgreen")#,"lightred"
   if (fillcolor=="") fillcolor<-sample(randomcolors,1)
@@ -340,7 +341,7 @@ custom_plot<-function(df, fvar, weightvar="", usingsurveypkg=FALSE, fillcolor=""
     if (class(weightvar)!="character") {
       ggplotweight<-weightvar
     } else {
-      df_weight<-extract2(df,weightvar)
+      df_weight<-magrittr::extract2(df,weightvar)
       sum_df_weight<-sum(df_weight)
       samplerepresents<-df_weight*sum_df_weight
       ggplotweight<-df_weight/sum_df_weight
@@ -350,34 +351,29 @@ custom_plot<-function(df, fvar, weightvar="", usingsurveypkg=FALSE, fillcolor=""
   #https://rpubs.com/mcchadreque/survey10
   if (weightvar!="" & usingsurveypkg==TRUE) {
     svdesi<-survey::svydesign(ids = ~1, data = df, weights = df_weight)
-    switch(singleclass,
-           "numeric"=survey::svyhist(as.formula(paste0("~",fvar)), svdesi, breaks=n_bins, col=fillcolor),
-           "factor"={
-             library(survey)
-             a<- survey::svymean(as.formula(paste0("~",fvar)), svdesi)
-             barplot(a, col=fillcolor)
-           })
+    if (base::is.element(discri_class,c("factor", "orderedfactor")) ) {
+      a<-survey::svymean(as.formula(paste0("~",fvar)), svdesi)
+      survey:::barplot.svystat(a, col=fillcolor)
+    } else if (discri_class=="numeric") {
+      survey::svyhist(as.formula(paste0("~",fvar)), svdesi, breaks=n_bins, col=fillcolor)
+    }
   } else {
     #mappingopt<-list(x=fvar, alpha=0.5)
     #if (weightvar!="") mappingopt<-rlist::list.append(mappingopt, weight = ggplotweight)
-    mapping <-aes(
+    mapping <-ggplot2::aes(
       x=.data[[fvar]],
-      weight={
-        if (weightvar=="") {
-          1
-        } else {
-          ggplotweight #.data[[weightvar]]
-        }
-      })
-    ggplotinit<-ggplot(df)
+      weight={if (weightvar=="") 1 else ggplotweight} #.data[[weightvar]]
+    )
+    ggplotinit<-ggplot2::ggplot(df)
     statlayeropt<-list(mapping=mapping,
                        fill = fillcolor,
                        bins=n_bins,
                        alpha=0.5)
-    statlayer<-do.call(switch(singleclass,
-                              "numeric"=stat_bin,
-                              "integer"=stat_bin,
-                              "factor"=stat_count),
+    statlayer<-do.call(switch(discri_class,
+                              "numeric"=ggplot2::stat_bin,
+                              "integer"=ggplot2::stat_bin,
+                              "factor"=ggplot2::stat_count,
+                              "orderedfactor"=ggplot2::stat_count),
                        statlayeropt)
     if (FALSE) {
       geom_func<-switch(singleclass,
@@ -385,11 +381,11 @@ custom_plot<-function(df, fvar, weightvar="", usingsurveypkg=FALSE, fillcolor=""
                         "factor"=geom_bar(mapping=mapping, stat="identity")#fill="white", 
       )
     }
-    ggplotlab<-labs(x = paste0("ggplot ",fvar))
-    ggp_using_color<-scale_colour_brewer()#scale_color_brewer(palette="Pastel2")
-    ggp_scale<-switch(singleclass,
-           "numeric"=scale_fill_distiller(palette = "Pastel2"),#scale_fill_continuous(type = "gradient"),
-           "factor"=scale_fill_brewer(palette = "Pastel2")
+    ggplotlab<-ggplot2::labs(x = paste0("ggplot ",fvar))
+    ggp_using_color<-ggplot2::scale_colour_brewer()#scale_color_brewer(palette="Pastel2")
+    ggp_scale<-switch(discri_class,
+           "numeric"=ggplot2::scale_fill_distiller(palette = "Pastel2"),#scale_fill_continuous(type = "gradient"),
+           "factor"=ggplot2::scale_fill_brewer(palette = "Pastel2")
     )
     ggplotinit+statlayer+ggplotlab#+geom_func+scale_colour_brewer()+ggp_scale
   }

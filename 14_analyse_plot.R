@@ -2,6 +2,7 @@ running_platform<-"guicluster"
 running_platform<-"computecluster"
 running_bigdata_computation<-FALSE
 running_bigdata_computation<-TRUE
+loadbigdatadf<-FALSE
 
 source_sharedfuncs_r_path<-try(here::here())
 if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
@@ -13,12 +14,10 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #  survey::svydesign(ids=~1, weight=~myown_wr, data=.)
 load(file=paste0(save_dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion_des.RData"), verbose=TRUE)
 allmodelvars<-c(modelvars_ex_conti,modelvars_ex_catg,modelvars_latentrelated,modelvars_clustervars,modelvars_controllclustervars,"respondopinion")
-allmodelvars_catg<-custom_pickcolnames_accordingtoclass(overall_nonagenda_df,needclass="factor") %>%
-  base::intersect(allmodelvars)
+allmodelvars_catg<-c(modelvars_ex_catg,modelvars_clustervars,modelvars_controllclustervars,"respondopinion")
 allmodelvars_catg_formula<-paste0(allmodelvars_catg,collapse="+") %>%
   paste0("~",.) %>% as.formula()
-allmodelvars_numeric<-custom_pickcolnames_accordingtoclass(overall_nonagenda_df,needclass="numeric") %>%
-  base::intersect(allmodelvars)
+allmodelvars_numeric<-c(modelvars_ex_conti,modelvars_latentrelated)
 allmodelvars_numeric_formula<-paste0(allmodelvars_numeric,collapse="+") %>%
   paste0("~",.) %>% as.formula()
 res.survey_summary_statistics<-list()
