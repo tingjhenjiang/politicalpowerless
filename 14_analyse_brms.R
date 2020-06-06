@@ -28,24 +28,42 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #第 60 章 隨機截距模型中加入共變量 random intercept model with covariates
 #https://wangcc.me/LSHTMlearningnote/%E9%9A%A8%E6%A9%9F%E6%88%AA%E8%B7%9D%E6%A8%A1%E5%9E%8B%E4%B8%AD%E5%8A%A0%E5%85%A5%E5%85%B1%E8%AE%8A%E9%87%8F-random-intercept-model-with-covariates.html
 #https://bookdown.org/wangminjie/R4SS/
+#R-Sessions 16: Multilevel Model Specification (lme4)
+#http://www.rensenieuwenhuis.nl/r-sessions-16-multilevel-model-specification-lme4/
+#Bayesian mixed effects (aka multi-level) ordinal regression models with brms
+#https://kevinstadler.github.io/blog/bayesian-ordinal-regression-with-random-effects-using-brms/
+#Building a Multilevel Model in BRMS Tutorial: Popularity Data
+#https://www.rensvandeschoot.com/tutorials/brms-started/
 
-if ({running_brms_model<-FALSE; running_brms_model & running_bigdata_computation}) {
+if ({running_brms_model<-TRUE; running_brms_model & running_bigdata_computation}) {
   
   # Ordinal regression modeling patient's rating of inhaler instructions
   # category specific effects are estimated for variable 'treat'
   #要把屆次加入群
-  modelformula<-c(modelvars_indo, modelvars_latentrelated, modelvars_clustervars[1], "myown_areakind") %>%
-    paste0(., collapse="+") %>%
-    paste0("respondopinion~",.)
-  brmmodelonrespondopinion <- dplyr::group_by(overall_nonagenda_df, imp) %>%
+  sample_n_for_df<-sample(1:nrow(overall_nonagenda_df),60000)
+  overall_nonagenda_df_sampled<-overall_nonagenda_df[sample_n_for_df,] %>%
+    dplyr::group_by(imp) %>%
     {
       targetfreq<-{as.data.frame(table(.$imp)) %>% .$Freq %>% min()}
       dplyr::slice(., 1:targetfreq)
-    } %>%
-    #lapply(., usinglib="lavaan") %>%
+    }
+  modelformula<-c(modelvars_ex_conti, modelvars_ex_catg, modelvars_latentrelated, modelvars_clustervars[1], modelvars_controllclustervars) %>%
+    paste0(., collapse="+") %>%
+    paste0("respondopinion~",.)
+  message(modelformula)
+  paste0(modelvars_clustervars,collapse="|") %>%
+    paste0("(",.,")") %>%
+    grep(pattern=., x=names(overall_nonagenda_df_sampled), value=TRUE) %>%
+    paste0(collapse="+")
+  modelformula<-"
+    respondopinion | weights(myown_wr)~(myown_age+myown_sex+myown_selfid+myown_marriage+myown_factoredses+myown_factoredefficacy+myown_factoredparticip|myown_areakind)+similarity_distance+days_diff_survey_bill+(party_pressure+seniority+adminparty+elec_dist_type+1|term)+issuefield+cluster_varsellcm2+cluster_varsellcm3+cluster_varsellcm4+cluster_varsellcm5+cluster_varsellcm6
+  " %>%
+    brms::brmsformula()
+  brmmodelonrespondopinion <- overall_nonagenda_df_sampled %>%
     brms::brm(modelformula,
-              data = ., family = brms::sratio("logit"), chains = 1)
-  summary(fit2)
-  plot(fit2, ask = FALSE)
-  WAIC(fit2)
+              data = ., family = brms::cumulative(link = "logit"),
+              chains = 2, cores = parallel::detectCores())
+  brms:::summary.brmsfit(brmmodelonrespondopinion)
+  #brms:::plot.brmsfit(brmmodelonrespondopinion, ask = FALSE)
+  #brms::WAIC(brmmodelonrespondopinion)
 }
