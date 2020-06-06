@@ -28,10 +28,10 @@ res.survey_summary_statistics[["catgvars_total"]]<-survey:::with.svyimputationLi
 #conti var
 res.survey_summary_statistics[["contivars_mean"]]<-survey:::with.svyimputationList(des,survey::svymean(allmodelvars_numeric_formula),multicore=TRUE)
 res.survey_summary_statistics[["contivars_quantile"]]<-survey:::with.svyimputationList(des,survey::svyquantile(allmodelvars_numeric_formula, quantiles=c(.25,.5,.75), ci=TRUE),multicore=TRUE)
-save(res.survey_summary_statistics, file=paste0(save_dataset_in_scriptsfile_directory, "survey_summary_statistics.RData"), verbose=TRUE)
+save(res.survey_summary_statistics, file=paste0(save_dataset_in_scriptsfile_directory, "survey_summary_statistics.RData"))
 
-for (plotvar in allmodelvars) {
-  message(plotvar)
-  custom_plot(overall_nonagenda_df, fvar=plotvar, weightvar="myown_wr") %>%
-    print()
-}
+# for (plotvar in allmodelvars) {
+#   message(plotvar)
+#   custom_plot(overall_nonagenda_df, fvar=plotvar, weightvar="myown_wr") %>%
+#     print()
+# }

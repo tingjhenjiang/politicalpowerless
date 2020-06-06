@@ -22,5 +22,5 @@ custom_vif<-function(df,vifcheckvars=c(),...) {
 res.custom_vif<-overall_nonagenda_df %>%
   overalldf_to_implist_func(usinglib="survey") %>%
   magrittr::use_series("imputations") %>%
-  custom_parallel_lapply(custom_vif, vifcheckvars=c(modelvars_latentrelated,modelvars_ex_conti,modelvars_ex_catg,modelvars_controllclustervars),method=parallel_method)
+  custom_parallel_lapply(custom_vif, vifcheckvars=c(modelvars_latentrelated,modelvars_ex_conti,modelvars_ex_catg,modelvars_controllclustervars), custom_vif=custom_vif, method=parallel_method)
 save(res.custom_vif, file = paste0(dataset_in_scriptsfile_directory,"res.custom_vif.RData"))
