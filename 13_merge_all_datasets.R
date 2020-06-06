@@ -148,6 +148,12 @@ if (running_bigdata_computation) {
   load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"), verbose=TRUE)
 }
 
+modelvars_ex_conti<-c("myown_age","similarity_distance","party_pressure","seniority","days_diff_survey_bill")
+modelvars_ex_catg<-c("myown_sex","myown_selfid","myown_marriage","adminparty","issuefield") %>%
+  c("elec_dist_type")
+modelvars_latentrelated<-c("myown_factoredses","myown_factoredefficacy","myown_factoredparticip")
+modelvars_clustervars<-c("cluster_varsellcm","cluster_kamila","cluster_clustrd")
+modelvars_controllclustervars<-c("term","myown_areakind")
 if (running_bigdata_computation) {
   #if(!is(overalldf, 'try-error')) {
   #  overalldf_to_implist_func() #34.2GB
@@ -172,12 +178,6 @@ if (running_bigdata_computation) {
   #save(overall_nonagenda_df_sampled, file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"))
   #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"), verbose=TRUE)
   #overall_nonagenda_df<-overall_nonagenda_df_sampled
-  modelvars_ex_conti<-c("myown_age","similarity_distance","party_pressure","seniority","days_diff_survey_bill")
-  modelvars_ex_catg<-c("myown_sex","myown_selfid","myown_marriage","adminparty","issuefield") %>%
-    c("elec_dist_type")
-  modelvars_latentrelated<-c("myown_factoredses","myown_factoredefficacy","myown_factoredparticip")
-  modelvars_clustervars<-c("cluster_varsellcm","cluster_kamila","cluster_clustrd")
-  modelvars_controllclustervars<-c("term","myown_areakind")
   dummyc_vars<-custom_pickcolnames_accordingtoclass(overall_nonagenda_df, needclass="factor") %>%
     base::intersect(c(modelvars_ex_catg,modelvars_clustervars,modelvars_controllclustervars))
 }
