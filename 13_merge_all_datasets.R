@@ -1,4 +1,5 @@
 # 第Ｏ部份：環境設定 --------------------------------
+# /pkg/rproject/R-latest/bin/R
 #setwd("/home/u4/dowbatw1133/Documents/vote_record")
 running_platform<-if (exists("running_platform")) running_platform else "guicluster"
 running_bigdata_computation<-if (exists("running_bigdata_computation")) running_bigdata_computation else FALSE
