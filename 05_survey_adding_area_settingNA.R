@@ -17,31 +17,35 @@ survey_imputation_and_measurement<-openxlsx::read.xlsx(path_to_survey_imputation
 
 # 第三部份：把問卷檔加上行政區、選區屬性  -------------------------------------------
 
-library(haven)
-library(labelled)
-load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"), verbose=TRUE)
+# library(haven)
+# library(labelled)
 
-##以下部分因為已有既存資料檔，讀取後略過不執行#
-#找出所有行政區對選區資料，並且找出同一鄉鎮市區有不同選區的部分
-#admin_dist_to_elect_dist <- distinct(elections_df, term, admincity, electionarea, admindistrict, adminvillage) %>%
-#  filter(!is.na(admincity))# %>%
-##  left_join(all_admin_dist_with_zip)
-#duplicated_area <- distinct(admin_dist_to_elect_dist,term,electionarea,admincity,admindistrict) %>% #,zip,zip3rocyear
-#  extract(duplicated(.[, c("term", "admincity", "admindistrict")]),)
-#把某些共用同一個郵遞區號的行政區合併
-#unique_dist_for_elect_dist <- anti_join(admin_dist_to_elect_dist, duplicated_area[, c("term", "admincity", "admindistrict")]) %>%
-#  group_by(term, electionarea, admincity) %>% #, zip, zip3rocyear
-#  summarise(admindistrict = paste0(admindistrict, collapse = "、"))
-#以下註解部分為找出多選區的樣本
-#duplicated_area[duplicated_area$term == 6, c("zip")] %>%
-#  intersect(survey_data[[4]]$zip) %>%
-#  unique() %>% 
-#  sort()
-#save(admin_dist_to_elect_dist,duplicated_area,unique_dist_for_elect_dist,file=paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
-#以上部分因為已有既存資料檔，讀取後略過不執行#
+#以下不處理的時候會直接跳到讀取rdata
+if ({processing_duplicated_area<-FALSE; processing_duplicated_area}) {
+  ##以下部分因為已有既存資料檔，讀取後略過不執行#
+  #找出所有行政區對選區資料，並且找出同一鄉鎮市區有不同選區的部分
+  #admin_dist_to_elect_dist <- distinct(elections_df, term, admincity, electionarea, admindistrict, adminvillage) %>%
+  #  filter(!is.na(admincity))# %>%
+  ##  left_join(all_admin_dist_with_zip)
+  #duplicated_area <- distinct(admin_dist_to_elect_dist,term,electionarea,admincity,admindistrict) %>% #,zip,zip3rocyear
+  #  extract(duplicated(.[, c("term", "admincity", "admindistrict")]),)
+  #把某些共用同一個郵遞區號的行政區合併
+  #unique_dist_for_elect_dist <- anti_join(admin_dist_to_elect_dist, duplicated_area[, c("term", "admincity", "admindistrict")]) %>%
+  #  group_by(term, electionarea, admincity) %>% #, zip, zip3rocyear
+  #  summarise(admindistrict = paste0(admindistrict, collapse = "、"))
+  #以下註解部分為找出多選區的樣本
+  #duplicated_area[duplicated_area$term == 6, c("zip")] %>%
+  #  intersect(survey_data[[4]]$zip) %>%
+  #  unique() %>% 
+  #  sort()
+  #save(admin_dist_to_elect_dist,duplicated_area,unique_dist_for_elect_dist,file=paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"))
+  #以上部分因為已有既存資料檔，讀取後略過不執行#
+} else {
+  load(paste0(dataset_file_directory,"rdata",slash,"duplicatedarea.RData"), verbose=TRUE)
+}
 
 #重要！2010環境的資料因為補選選區有改變，所以在一些鄉鎮市區村里會重複出現多筆紀錄，要先處理一下join的選舉資料
-#duplicated_area_just_one_electionarea <- group_by(duplicated_area, term, admincity, admindistrict, zip, zip3rocyear) %>%
+#duplicated_area_just_one_electionarea <- dplyr::group_by(duplicated_area, term, admincity, admindistrict, zip, zip3rocyear) %>%
 #  summarise(electionarea = paste0(electionarea, collapse = "、"))
 minus_electionarea <- as.data.frame(list(
   "term" = 7, 
@@ -71,7 +75,7 @@ survey_data<-paste0(survey_data_title,".sav") %>%
       dplyr::mutate_at(need_survey_measure_categorical,haven::as_factor,levels='both')#,only_labelled = TRUE
     return(X)
   },survey_imp_measure=survey_imputation_and_measurement) %>%
-  set_names(survey_data_title)
+  magrittr::set_names(survey_data_title)
 
 #設定遺漏值
 missing_value_labels<-lapply(survey_data,function(X) {

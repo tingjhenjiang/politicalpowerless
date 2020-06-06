@@ -472,7 +472,7 @@ insert.at <- function(vect, pos, elems){
 mutate_cond <- function(.data, condition, ..., envir = parent.frame()) {
   condition <- eval(substitute(condition), .data, envir)
   condition[is.na(condition)] = FALSE
-  .data[condition, ] <- .data[condition, ] %>% mutate(...)
+  .data[condition, ] <- .data[condition, ] %>% dplyr::mutate(...)
   .data
 }
 #DF %>% mutate_cond(measure == 'exit', qty.exit = qty, cf = 0, delta.watts = 13)

@@ -53,7 +53,7 @@ adminparty <- list(
 
 # （略過）把投票紀錄整理輸出成法案紀錄 -------------
 
-if (FALSE) {
+if ({writing_bill_record<-FALSE; writing_bill_record}) {
   load(paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df.RData"), verbose=TRUE)
   load(paste0(dataset_in_scriptsfile_directory, "myown_vote_record_detailed_part_df.RData"), verbose=TRUE)
   list( 
@@ -86,7 +86,7 @@ if (FALSE) {
 }
 
 # （通常略過）讀取投票紀錄資料(此處通常預處理好，直接load下面 mergedf_votes_bills_surveyanswer)  -------------------------------------------
-if (FALSE) {
+if ({merging_terms_56789<-FALSE; merging_terms_56789}) {
   load(paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df.RData"), verbose=TRUE)
   load(paste0(dataset_in_scriptsfile_directory, "myown_vote_record_detailed_part_df.RData"), verbose=TRUE)
   

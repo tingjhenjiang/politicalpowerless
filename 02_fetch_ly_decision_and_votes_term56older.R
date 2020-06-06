@@ -85,7 +85,7 @@ leavelegislators<-c("","","","","",
 
 #---- 開始掃過檔案迴圈執行 ----
 #pattern<-"[\n\r]{1,3}.+贊成者：.+[\n\r]{1,3}(.+)[\n\r]{1,3}.+反對者.+[\n\r]{1,3}(.+)[\n\r]{1,3}([一二三四五六七八九、棄權者：人]+[\n\r]{1,3}(.+)){0,1}"
-error_from_name<-read.xlsx(paste0(filespath, slash, "2004_meeting", slash, "errors_processing_data.xlsx"), sheet=1) #read_csv(paste0(filespath,"vote_record",slash,"2004_meeting",slash,"error_names_replace_complete_record.csv"))
+error_from_name<-openxlsx::read.xlsx(paste0(filespath, slash, "2004_meeting", slash, "errors_processing_data.xlsx"), sheet=1) #read_csv(paste0(filespath,"vote_record",slash,"2004_meeting",slash,"error_names_replace_complete_record.csv"))
 votepattern<-"[\n\r]{1,3}([贊成者一二三四五六七八九零○百十、：人。\\d]*贊成者[贊成者一二三四五六七八九零○百十、：人。\\d]+[\n\r]{1,3}([\u4e00-\u9fa5　．\\s]*))[\n\r]{1,3}([反對者一二三四五六七八九零○百十、：人。\\d]*反對者[反對者一二三四五六七八九零○百十、：人。\\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\\s]*)){0,1}[\n\r]{1,3}([棄權者一二三四五六七八九零○百十、：人。\\d]*棄權者[棄權者一二三四五六七八九零○百十、：人。\\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\\s]*)){0,1}[\n\r]{1}"
 #regular exp online check 用[\n\r]{1,3}([贊成者一二三四五六七八九零○百十、：人。\d]*贊成者[贊成者一二三四五六七八九零○百十、：人。\d]+[\n\r]{1,3}([\u4e00-\u9fa5　．\s]*))[\n\r]{1,3}([反對者一二三四五六七八九零○百十、：人。\d]*反對者[反對者一二三四五六七八九零○百十、：人。\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\s]*)){0,1}[\n\r]{1,3}([棄權者一二三四五六七八九零○百十、：人。\d]*棄權者[棄權者一二三四五六七八九零○百十、：人。\d]+[\n\r]{0,3}([\u4e00-\u9fa5　．\s]*)){0,1}[\n\r]{1}
 for (i in 1:length(filename)) {#length(filename) 1:length(filename)
@@ -124,10 +124,10 @@ for (i in 1:length(filename)) {#length(filename) 1:length(filename)
     setdiff(exact_onboard_legislators) %>%
     .[.!=""]
   content<-html[i]
-  doc <- read_html(content,encoding="UTF-8")
+  doc <- xml2::read_html(content,encoding="UTF-8")
   xpath<-"//p"
-  paragraph_list<-xml_find_all(doc, xpath) %>%
-    xml_text() %>%
+  paragraph_list <- xml2::xml_find_all(doc, xpath) %>%
+    xml2::xml_text() %>%
     customgsub("\\n\\r","") %>%
     customgsub("\\r\\n","") %>%
     customgsub("王雪.","王雪峰") %>%
