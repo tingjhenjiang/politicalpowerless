@@ -815,6 +815,9 @@ ret_std_legislators_data<-function(legislatorsxlsxpath = paste0(dataset_file_dir
     dplyr::group_by(name) %>%    #calculate overall service time in previous periods
     dplyr::mutate(seniority=cumsum(servingdayslong_in_this_term)-servingdayslong_in_this_term) %>%
     dplyr::ungroup() %>%
+    dplyr::group_by(term) %>%
+    dplyr::mutate_at("seniority", ~as.numeric(scale(.))) %>%
+    dplyr::ungroup() %>%
     dplyr::filter(term %in% terms) %>%
     dplyr::mutate_at(c("term"), as.character) %>%
     dplyr::inner_join(elections_df, by = c("name", "term", "sex"))  %>%

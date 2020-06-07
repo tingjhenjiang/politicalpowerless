@@ -34,14 +34,17 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #https://kevinstadler.github.io/blog/bayesian-ordinal-regression-with-random-effects-using-brms/
 #Building a Multilevel Model in BRMS Tutorial: Popularity Data
 #https://www.rensvandeschoot.com/tutorials/brms-started/
+#Advanced Bayesian Multilevel Modeling with the R Package brms
+#https://cran.r-project.org/web/packages/brms/vignettes/brms_multilevel.pdf
 
 if ({running_brms_model<-TRUE; running_brms_model & running_bigdata_computation}) {
-  
+  #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"), verbose=TRUE)
   # Ordinal regression modeling patient's rating of inhaler instructions
   # category specific effects are estimated for variable 'treat'
   #要把屆次加入群
   sample_n_for_df<-sample(1:nrow(overall_nonagenda_df),60000)
-  overall_nonagenda_df_sampled<-overall_nonagenda_df[sample_n_for_df,] %>%
+  #overall_nonagenda_df_sampled<-overall_nonagenda_df[sample_n_for_df,] %>%
+  overall_nonagenda_df_sampled<- overall_nonagenda_df_sampled %>%
     dplyr::group_by(imp) %>%
     {
       targetfreq<-{as.data.frame(table(.$imp)) %>% .$Freq %>% min()}
