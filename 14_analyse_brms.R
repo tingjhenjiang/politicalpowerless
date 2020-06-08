@@ -69,4 +69,5 @@ if ({running_brms_model<-TRUE; running_brms_model & running_bigdata_computation}
   brms:::summary.brmsfit(brmmodelonrespondopinion)
   #brms:::plot.brmsfit(brmmodelonrespondopinion, ask = FALSE)
   #brms::WAIC(brmmodelonrespondopinion)
+  save(brmmodelonrespondopinion, file=paste0(dataset_in_scriptsfile_directory, "brmmodelonrespondopinion.RData"))
 }

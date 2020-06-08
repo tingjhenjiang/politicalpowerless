@@ -15,6 +15,8 @@ imputation_sample_i_s <- imputation_sample_i_s
 #load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined.RData"))
 #load imputed survey
 load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_Ubuntu18.04.3LTSdf.RData"), verbose=TRUE)
+load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+
 
 # 第五-1部份：IRT latent variables 將職業社經地位、家庭收入、教育程度萃取成為階級  =================================
 #library(survey)
@@ -206,8 +208,10 @@ library(mirt)
 need_particip_var<-list(
   "2004citizen"=c("v28","v29","v30","v31","v32","v33","v34","v35","v36","v37","v38","v39","v40"), #,"v59",v88 v90
   "2010env"=c("v34","v35a","v35b","v35c"), #投票"v104",
-  "2010overall"=c("v79a","v79b","v79c","v79d"),
-  "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c")#h4 投票
+  "2010overall"=c("v79a","v79b","v79c","v79d") %>%
+    c("v82a","v82b","v82c","v82d","v83","v85"), #可能要補間接參與v82a,v82b,v82c,v82d;v83,v85 投票
+  "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c") %>%#h4 投票; 可能要補間接參與h1_01,h1_02,h1_03,h1_04,h1_05,h1_06,h1_07,h1_08,h1_09,h1_10,h1_11,h1_12,h1_13,h1_14,h1_15
+    c("h1_01","h1_02","h1_03","h1_04","h1_05","h1_06","h1_07","h1_08","h1_09","h1_10","h1_11","h1_12","h1_13","h1_14","h1_15")
 )
 survey_data_imputed <- lapply(survey_data_imputed,function(X,need_particip_var_assigned) {
   #X<-lapply(X,function(X,need_particip_var_assigned) {
@@ -215,12 +219,12 @@ survey_data_imputed <- lapply(survey_data_imputed,function(X,need_particip_var_a
   #X<-dummyremoved_imputed_survey_data[[1]][[1]]
   #need_particip_var_assigned<-need_particip_var
   need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
-    intersect(names(X))
+    base::intersect(names(X))
   customreordercatbylabelname<-function(X,desc=FALSE) {
     forcats::fct_reorder(X,as.character(X),.fun=unique,.desc=desc) %>%
       return()
   }
-  X <- mutate_at(X,need_particip_var_assigned, customreordercatbylabelname, desc=TRUE)
+  X <- dplyr::mutate_at(X,need_particip_var_assigned, customreordercatbylabelname, desc=TRUE)
   #forcats::fct_reorder(f,sort(levels(f),decreasing=FALSE))
   #forcats::fct_reorder(f,sort(levels(f),decreasing=TRUE))
   #recode_list<-list( #把越參與的答案改為數字越多，比較好解釋

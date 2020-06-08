@@ -19,12 +19,12 @@ library(VIM)
 library(parallel)
 #job_status暫時先刪掉，因為不同問卷概念與選項不一樣難以合併
 imputingcalculatebasiscolumn<-lapply(survey_data_title,function(X,df) {
-  dplyr::filter(df,SURVEY==X,IMPUTATION %in% c("basis","both")) %>%
+  dplyr::filter(df,SURVEY==!!X,IMPUTATION %in% c("basis","both")) %>%
     dplyr::select(ID) %>% unlist() %>% union(c("admincity")) %>% unname()
 },df=survey_imputation_and_measurement) %>%
   setNames(survey_data_title)
 imputedvaluecolumn<-lapply(survey_data_title,function(X,df) {
-  dplyr::filter(df,SURVEY==X,IMPUTATION %in% c("both")) %>%
+  dplyr::filter(df,SURVEY==!!X,IMPUTATION %in% c("both")) %>%
     dplyr::select(ID) %>% unlist() %>% unname()
 },df=survey_imputation_and_measurement) %>%
   setNames(survey_data_title)
@@ -95,86 +95,89 @@ propMissing <- lapply(survey_data, function(X) {
   print(round(propMissing,3))
 })
 
+myown_imp_function<-function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,imputation_sample_i_s,...) {
+  if (exists("debug_for_miceimputation")) {
+    if (debug_for_miceimputation==TRUE) {
+      i<-3
+      X<-survey_data[[i]]
+    }
+  }
+  #library(mice)
+  X<-droplevels(X)
+  
+  missing.indicator <- data.frame(is.na(X))
+  propMissing <- apply(missing.indicator,2,mean)
+  #create dummy missing value indicators
+  names(missing.indicator)[propMissing>0] <- paste(names(X)[propMissing>0],"NA",sep="")
+  #convert dummy missing indicators from logical to numeric variables 
+  for (var in 1:ncol(missing.indicator)) {
+    missing.indicator[,var] <- as.numeric(missing.indicator[,var])
+  }
+  #merge covariate names with missing indicator names
+  X %<>% cbind(missing.indicator[,propMissing>0])
+  
+  imputingcalculatebasiscolumn_assigned <-magrittr::extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
+    base::intersect(names(X))
+  imputedvaluecolumn_assigned <- magrittr::extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
+    base::intersect(names(X))
+  foundationvar<-base::union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
+  ini <- mice::mice(X[,foundationvar], maxit = 0)
+  sapply(c("----------------", X$SURVEY[1], "----------------"),print)
+  message("table ini nmis")
+  print(table(ini$nmis))
+  outlist4 <- as.character(ini$loggedEvents[, "out"])
+  message("ini logged events")
+  print(ini$loggedEvents, 2)
+  fx2 <- mice::flux(X[,foundationvar])
+  outlist2<-row.names(fx2)[fx2$outflux < 0.45]
+  outlist <- unique(c(outlist2, outlist4))
+  foundationvar %<>% dplyr::setdiff(outlist)
+  print(paste0(c("foundationvar are ",foundationvar), collapse=" "))
+  unusefulcolumns <- dplyr::setdiff(names(X),foundationvar)
+  #predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
+  predictor_matrix<-mice::quickpred(X[,foundationvar], mincor=0.1, include=c('myown_eduyr','myown_sex','myown_age','myown_selfid'))
+  #return(predictor_matrix)
+  #sol: https://stackoverflow.com/questions/13495041/random-forests-in-r-empty-classes-in-y-and-argument-legth-0
+  #sol: https://stackoverflow.com/questions/24239595/error-using-random-forest-mice-package-during-imputation
+  #The frequency distribution of the missing cases per variable can be obtained as:
+  #survey_data_imputed[[i]] <- mice::mice(X, maxit = 0)
+  #table(survey_data_imputed[[i]]$nmis)
+  #colSums(is.na(X))
+  #na_count[[i]] <- sapply(X, function(y) sum(length(which(is.na(y)))))
+  #analysisdfonmissingvalue<-X[,imputedvaluecolumn_assigned]
+  #missingvaluepattern[[i]]<-mice::md.pattern(analysisdfonmissingvalue,plot=FALSE)
+  #visdat::vis_miss(analysisdfonmissingvalue)
+  
+  
+  mice_parallel_imp_type <- switch(as.character(grepl("Windows", sessionInfo()$running)), "TRUE"="PSOCK", "FALSE"="FORK")
+  #also check: micemd::mice.par
+  data_to_mice_imp <- X[,foundationvar]
+  miceMod <- micemd::mice.par( #mice::mice #mice::parlmice
+    data_to_mice_imp,
+    predictorMatrix = predictor_matrix,
+    visitSequence="monotone",
+    m=imputation_sample_i_s,#1,#
+    method="rf",
+    maxit=5,
+    nnodes=parallel::detectCores()#,
+    #n.core=parallel::detectCores()#,
+    #cl.type=mice_parallel_imp_type
+  )  # perform mice imputation, based on random forests.
+  #linear imputation might have error message: system is computationally singular: reciprocal condition number
+  #https://stats.stackexchange.com/questions/214267/why-do-i-get-an-error-when-trying-to-impute-missing-data-using-pmm-in-mice-packa
+  #print(imputingcalculatebasiscolumn_assigned)
+  imputed_survey_data <- mice::complete(miceMod, action="long")  # generate the completed data.
+  imputed_survey_data$id <- X$id
+  complete_imputed_survey_data <- dplyr::left_join(imputed_survey_data, X[,unusefulcolumns], by=c("id"))
+  #complete_imputed_survey_data <- complete_imputed_survey_data[,names(X)]
+  complete_imputed_survey_data
+  return(complete_imputed_survey_data)
+}
+
+#1st imputation
 survey_data_imputed <- lapply( #custom_parallel_lapply
   X=survey_data,
-  FUN=function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,imputation_sample_i_s,...) {
-    if (exists("debug_for_miceimputation")) {
-      if (debug_for_miceimputation==TRUE) {
-        i<-3
-        X<-survey_data[[i]]
-      }
-    }
-    #library(mice)
-    X<-droplevels(X)
-    
-    missing.indicator <- data.frame(is.na(X))
-    propMissing <- apply(missing.indicator,2,mean)
-    #create dummy missing value indicators
-    names(missing.indicator)[propMissing>0] <- paste(names(X)[propMissing>0],"NA",sep="")
-    #convert dummy missing indicators from logical to numeric variables 
-    for (var in 1:ncol(missing.indicator)) {
-      missing.indicator[,var] <- as.numeric(missing.indicator[,var])
-    }
-    #merge covariate names with missing indicator names
-    X %<>% cbind(missing.indicator[,propMissing>0])
-    
-    imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
-      intersect(names(X))
-    imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
-      intersect(names(X))
-    foundationvar<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
-    ini <- mice::mice(X[,foundationvar], maxit = 0)
-    sapply(c("----------------", X$SURVEY[1], "----------------"),print)
-    message("table ini nmis")
-    print(table(ini$nmis))
-    outlist4 <- as.character(ini$loggedEvents[, "out"])
-    message("ini logged events")
-    print(ini$loggedEvents, 2)
-    fx2 <- flux(X[,foundationvar])
-    outlist2<-row.names(fx2)[fx2$outflux < 0.45]
-    outlist <- unique(c(outlist2, outlist4))
-    foundationvar %<>% dplyr::setdiff(outlist)
-    print(paste0(c("foundationvar are ",foundationvar), collapse=" "))
-    unusefulcolumns <- dplyr::setdiff(names(X),foundationvar)
-    #predictor_matrix<-generate_predictor_matrix(X,imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
-    predictor_matrix<-mice::quickpred(X[,foundationvar], mincor=0.1, include=c('myown_eduyr','myown_sex','myown_age','myown_selfid'))
-    #return(predictor_matrix)
-    #sol: https://stackoverflow.com/questions/13495041/random-forests-in-r-empty-classes-in-y-and-argument-legth-0
-    #sol: https://stackoverflow.com/questions/24239595/error-using-random-forest-mice-package-during-imputation
-    #The frequency distribution of the missing cases per variable can be obtained as:
-    #survey_data_imputed[[i]] <- mice::mice(X, maxit = 0)
-    #table(survey_data_imputed[[i]]$nmis)
-    #colSums(is.na(X))
-    #na_count[[i]] <- sapply(X, function(y) sum(length(which(is.na(y)))))
-    #analysisdfonmissingvalue<-X[,imputedvaluecolumn_assigned]
-    #missingvaluepattern[[i]]<-mice::md.pattern(analysisdfonmissingvalue,plot=FALSE)
-    #visdat::vis_miss(analysisdfonmissingvalue)
-    
-    
-    mice_parallel_imp_type <- switch(as.character(grepl("Windows", sessionInfo()$running)), "TRUE"="PSOCK", "FALSE"="FORK")
-    #also check: micemd::mice.par
-    data_to_mice_imp <- X[,foundationvar]
-    miceMod <- micemd::mice.par( #mice::mice #mice::parlmice
-      data_to_mice_imp,
-      predictorMatrix = predictor_matrix,
-      visitSequence="monotone",
-      m=imputation_sample_i_s,#1,#
-      method="rf",
-      maxit=5,
-      nnodes=parallel::detectCores()#,
-      #n.core=parallel::detectCores()#,
-      #cl.type=mice_parallel_imp_type
-    )  # perform mice imputation, based on random forests.
-    #linear imputation might have error message: system is computationally singular: reciprocal condition number
-    #https://stats.stackexchange.com/questions/214267/why-do-i-get-an-error-when-trying-to-impute-missing-data-using-pmm-in-mice-packa
-    #print(imputingcalculatebasiscolumn_assigned)
-    imputed_survey_data <- mice::complete(miceMod, action="long")  # generate the completed data.
-    imputed_survey_data$id <- X$id
-    complete_imputed_survey_data <- left_join(imputed_survey_data, X[,unusefulcolumns], by=c("id"))
-    #complete_imputed_survey_data <- complete_imputed_survey_data[,names(X)]
-    complete_imputed_survey_data
-    return(complete_imputed_survey_data)
-  },
+  FUN=myown_imp_function,
   imputedvaluecolumn=imputedvaluecolumn,
   imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
   imputation_sample_i_s=length(imputation_sample_i_s),
@@ -184,6 +187,53 @@ survey_data_imputed <- lapply( #custom_parallel_lapply
   mc.set.seed = TRUE,
   mc.cores=parallel::detectCores()
 )
+
+#further imputation
+if ({furtherimp<-FALSE;furtherimp}) {
+  furtherimp_argument_df<-data.frame("survey"=c("2010overall","2016citizen")) %>%
+    cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
+    dplyr::mutate(store_key=paste0(survey,"_imp",imp))
+  furtherimp_data<-magrittr::extract(survey_data_imputed,c("2010overall","2016citizen"))
+  furtherimp_data[["2010overall"]] %<>% mutate_cond(myown_age<22, v83="[2] 沒有(跳答85)") %>%
+    mutate_cond(myown_age<22, v85="[2] 沒有(跳答89)") %>%
+    dplyr::mutate_at(c("v83","v85"), as.ordered) %>%
+    dplyr::mutate_at(c("v83","v85"), ~forcats::fct_relevel(., function(s) {sort(s, decreasing = TRUE)}))
+  furtherimp_data[["2016citizen"]] %<>% dplyr::mutate(h4r=h4) %>%
+    mutate_cond(myown_age<20, h4r="[2] 沒有(跳答h8)" ) %>%
+    mutate_cond(h4r=="[3] 沒有投票權(跳答h6)", h4r="[2] 沒有(跳答h8)" ) %>%
+    dplyr::mutate_at("h4r",droplevels) %>%
+    dplyr::mutate_at("h4r",as.ordered) %>%
+    dplyr::mutate_at(c("h4r"), ~forcats::fct_relevel(., function(s) {sort(s, decreasing = TRUE)}))
+  furtherimp_data[["2016citizen"]]$h3c
+  furtherimp_data[["2016citizen"]]$h4r
+  
+  furtherimp_imputedvaluecolumn<-imputedvaluecolumn
+  furtherimp_imputingcalculatebasiscolumn<-imputingcalculatebasiscolumn
+  "v83" %in% furtherimp_imputedvaluecolumn[["2010overall"]]
+  "v83" %in% furtherimp_imputingcalculatebasiscolumn[["2010overall"]]
+  "h4r" %in% furtherimp_imputedvaluecolumn[["2016citizen"]]
+  "h4r" %in% furtherimp_imputingcalculatebasiscolumn[["2016citizen"]]
+    
+  furthurimplist<-furtherimp_argument_df$store_key %>%
+    {magrittr::set_names(custom_parallel_lapply(., function(storekey, ...) {
+      message(paste("now in",storekey))
+      needrow<-dplyr::filter(furtherimp_argument_df, store_key==!!storekey)
+      surveytitle<-needrow$survey
+      needimp <-needrow$imp
+      df<-magrittr::extract2(furtherimp_data, surveytitle) %>%
+        dplyr::filter(.imp==!!needimp)
+      myown_imp_function(df, imputedvaluecolumn=imputedvaluecolumn, imputingcalculatebasiscolumn=imputingcalculatebasiscolumn, imputation_sample_i_s=imputation_sample_i_s)
+    },myown_imp_function=myown_imp_function,
+    imputedvaluecolumn=furtherimp_imputedvaluecolumn,
+    imputingcalculatebasiscolumn=furtherimp_imputingcalculatebasiscolumn,
+    imputation_sample_i_s=1,
+    furtherimp_data=furtherimp_data,
+    furtherimp_argument_df=furtherimp_argument_df,
+    method=parallel_method,
+    mc.cores = 1), .)}
+}
+
+
 save(survey_data_imputed,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"))
 
 # 讀取已經填補完成的dataset -------------------------------------------
