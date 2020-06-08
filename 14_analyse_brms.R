@@ -36,6 +36,10 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #https://www.rensvandeschoot.com/tutorials/brms-started/
 #Advanced Bayesian Multilevel Modeling with the R Package brms
 #https://cran.r-project.org/web/packages/brms/vignettes/brms_multilevel.pdf
+# 58 for dependent data
+#https://wangcc.me/LSHTMlearningnote/Hierarchical.html
+
+#nests: id
 
 if ({running_brms_model<-TRUE; running_brms_model & running_bigdata_computation}) {
   #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"), verbose=TRUE)
