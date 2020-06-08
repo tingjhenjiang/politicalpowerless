@@ -240,7 +240,8 @@ parallelfa_n_factors_args_df <- data.frame(i=1:5, term=5:9) %>%
   cbind(., completecase = rep(c(0,1), each = nrow(.))) %>%
   cbind(., agenda = rep(c("agendavoting","notagendavoting"), each = nrow(.))) %>%
   dplyr::mutate(store_key=paste0("term",term,"_",fm,"_completecase",completecase,"_",agenda) ) %>%
-  dplyr::mutate_at(c("fm","store_key"), as.character)
+  dplyr::mutate_at(c("fm","store_key"), as.character) %>%
+  dplyr::arrange(match(fm, c("minres", "pa", "wls", "ml")))
 random.polychor.parallelfa_n_factors_file<-paste0(dataset_in_scriptsfile_directory, "random.polychor.parallelfa_n_factors.RData")
 parallelfa_n_factors_file<-paste0(dataset_in_scriptsfile_directory, "parallelfa_n_factors.RData")
 usingrandom.polychor.pa<-FALSE

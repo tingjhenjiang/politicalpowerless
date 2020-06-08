@@ -96,6 +96,7 @@ propMissing <- lapply(survey_data, function(X) {
 })
 
 myown_imp_function<-function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,imputation_sample_i_s,...) {
+  message("now step 1")
   if (exists("debug_for_miceimputation")) {
     if (debug_for_miceimputation==TRUE) {
       i<-3
@@ -115,7 +116,7 @@ myown_imp_function<-function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,i
   }
   #merge covariate names with missing indicator names
   X %<>% cbind(missing.indicator[,propMissing>0])
-  
+  message("now step 2")
   imputingcalculatebasiscolumn_assigned <-magrittr::extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
     base::intersect(names(X))
   imputedvaluecolumn_assigned <- magrittr::extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
@@ -123,12 +124,14 @@ myown_imp_function<-function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,i
   foundationvar<-base::union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
   ini <- mice::mice(X[,foundationvar], maxit = 0)
   sapply(c("----------------", X$SURVEY[1], "----------------"),print)
+  message("now step 3")
   message("table ini nmis")
   print(table(ini$nmis))
   outlist4 <- as.character(ini$loggedEvents[, "out"])
   message("ini logged events")
   print(ini$loggedEvents, 2)
   fx2 <- mice::flux(X[,foundationvar])
+  message("now step 4")
   outlist2<-row.names(fx2)[fx2$outflux < 0.45]
   outlist <- unique(c(outlist2, outlist4))
   foundationvar %<>% dplyr::setdiff(outlist)
@@ -147,8 +150,7 @@ myown_imp_function<-function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,i
   #analysisdfonmissingvalue<-X[,imputedvaluecolumn_assigned]
   #missingvaluepattern[[i]]<-mice::md.pattern(analysisdfonmissingvalue,plot=FALSE)
   #visdat::vis_miss(analysisdfonmissingvalue)
-  
-  
+  message("now step 5")
   mice_parallel_imp_type <- switch(as.character(grepl("Windows", sessionInfo()$running)), "TRUE"="PSOCK", "FALSE"="FORK")
   #also check: micemd::mice.par
   data_to_mice_imp <- X[,foundationvar]
@@ -166,7 +168,9 @@ myown_imp_function<-function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,i
   #linear imputation might have error message: system is computationally singular: reciprocal condition number
   #https://stats.stackexchange.com/questions/214267/why-do-i-get-an-error-when-trying-to-impute-missing-data-using-pmm-in-mice-packa
   #print(imputingcalculatebasiscolumn_assigned)
+  message("now step 6")
   imputed_survey_data <- mice::complete(miceMod, action="long")  # generate the completed data.
+  message("now step 7")
   imputed_survey_data$id <- X$id
   complete_imputed_survey_data <- dplyr::left_join(imputed_survey_data, X[,unusefulcolumns], by=c("id"))
   #complete_imputed_survey_data <- complete_imputed_survey_data[,names(X)]
@@ -190,6 +194,7 @@ survey_data_imputed <- lapply( #custom_parallel_lapply
 
 #further imputation
 if ({furtherimp<-FALSE;furtherimp}) {
+  load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"), verbose=TRUE)
   furtherimp_argument_df<-data.frame("survey"=c("2010overall","2016citizen")) %>%
     cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
     dplyr::mutate(store_key=paste0(survey,"_imp",imp))
@@ -221,18 +226,23 @@ if ({furtherimp<-FALSE;furtherimp}) {
       surveytitle<-needrow$survey
       needimp <-needrow$imp
       df<-magrittr::extract2(furtherimp_data, surveytitle) %>%
-        dplyr::filter(.imp==!!needimp)
-      myown_imp_function(df, imputedvaluecolumn=imputedvaluecolumn, imputingcalculatebasiscolumn=imputingcalculatebasiscolumn, imputation_sample_i_s=imputation_sample_i_s)
+        dplyr::filter(.imp==!!needimp) %>%
+        dplyr::select(-.id, -.imp)
+      myown_imp_function(df, imputedvaluecolumn=furtherimp_imputedvaluecolumn, imputingcalculatebasiscolumn=furtherimp_imputingcalculatebasiscolumn, imputation_sample_i_s=1) %>%
+        dplyr::mutate(.imp=!!needimp)
     },myown_imp_function=myown_imp_function,
-    imputedvaluecolumn=furtherimp_imputedvaluecolumn,
-    imputingcalculatebasiscolumn=furtherimp_imputingcalculatebasiscolumn,
+    furtherimp_imputedvaluecolumn=furtherimp_imputedvaluecolumn,
+    furtherimp_imputingcalculatebasiscolumn=furtherimp_imputingcalculatebasiscolumn,
     imputation_sample_i_s=1,
     furtherimp_data=furtherimp_data,
     furtherimp_argument_df=furtherimp_argument_df,
-    method=parallel_method,
-    mc.cores = 1), .)}
+    method=parallel_method, mc.cores=1), .)}
+  for (pattern in c("2010overall","2016citizen")) {
+    survey_data_imputed[[pattern]]<-grep(pattern=pattern, x=names(furthurimplist), value=TRUE) %>%
+      magrittr::extract(furthurimplist, .) %>%
+      dplyr::bind_rows()
+  } 
 }
-
 
 save(survey_data_imputed,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"))
 
