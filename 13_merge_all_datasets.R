@@ -72,8 +72,7 @@ if (TRUE) {
       dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
       dplyr::mutate_at("days_diff_survey_bill",~as.numeric(scale(.))) %>%
       dplyr::mutate_at(c("SURVEY","value_on_q_variable","legislator_name","term"),as.factor) %>%
-      dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","variablename_of_issuefield","value_on_q_variable")))#
-    
+      dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","variablename_of_issuefield","value_on_q_variable","fpc")))#
     targetdfcolnames<-colnames(targetdf)
     reserve_cols<-base::setdiff(targetdfcolnames,c("issue_field1","issue_field2"))
     data.table::melt(targetdf, id.vars=reserve_cols, variable.name = "variablename_of_issuefield", value.name="issuefield") %>%
@@ -138,8 +137,12 @@ if (mergingoverlldf & running_bigdata_computation) {
   overall_nonagenda_df %<>% dplyr::bind_rows() %>%
     dplyr::mutate_at("elec_dist_type",as.factor) %>%
     dplyr::mutate_at("elec_dist_type", droplevels) %>%
-    dplyr::mutate_at(c("cluster_clustrd","cluster_varsellcm","cluster_kamila"), as.ordered) #11.6GB
-  #save(overall_nonagenda_df, file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"))
+    dplyr::mutate_at(c("cluster_clustrd","cluster_varsellcm","cluster_kamila"), as.ordered) %>%
+    dplyr::mutate_at("issuefield", ~relevel(., ref = 7))
+  while (TRUE) {
+    savestatus<-try(save(overall_nonagenda_df, file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData")))
+    if(!is(savestatus, 'try-error')) break
+  }
 }
 
 # modeling data prepare when bigdata exists --------------------------------
