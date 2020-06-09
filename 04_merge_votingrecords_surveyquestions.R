@@ -290,13 +290,12 @@ if (FALSE) {
       tryn <- tryn+1
       if(!is(loadingstatus, 'try-error') | tryn>10) break
     }
-    if (class(res_n_factors)=="psych") {
+    if (tryn<=10 & class(res_n_factors)=="psych") {
       parallelfa_n_factors[[arg_row$store_key]]<-res_n_factors
-      tryn<-1
       while(TRUE){
         savingstatus<-try({save(parallelfa_n_factors, file=parallel_analysis_result_filename)})
         tryn <- tryn+1
-        if(!is(savingstatus, 'try-error') | tryn>10) break
+        if(!is(savingstatus, 'try-error') | tryn>20) break
       }
     }
     return(res_n_factors)
@@ -641,23 +640,8 @@ for (residx in names(res.mirtefas)) {
   legislator_names<-myown_vote_record_df_wide_billidascol[[fi]][,c("legislator_name",colname_billids)] %>%
     .[complete.cases(.),] %>%
     magrittr::use_series("legislator_name")
-  coefdf <- mirt::coef(res.mirtefas[[residx]], rotate="varimax", as.data.frame=TRUE) %>%
-    .[grepl("Group",rownames(.))==FALSE,] %>%
-    data.frame(term=term, attr={
-      stringr::str_replace_all(names(.),"\\.","-") %>%
-        stringr::str_replace_all(., "X", "") %>%
-        stringr::str_extract_all(., "\\w\\d$") %>%
-        unlist()
-    }, billid={
-      stringr::str_replace_all(names(.),"\\.","-") %>%
-        stringr::str_replace_all(., "X", "") %>%
-        stringr::str_extract_all(., "\\d{1,3}-\\d{1,3}-\\d{1,3}-\\d{1,3}-\\d{1,3}") %>%
-        unlist()
-    }, var=.) %>%
-    dplyr::mutate_all(as.character) %>%
-    dplyr::mutate_at("var",as.numeric) %>%
-    magrittr::set_rownames(NULL) %>%
-    reshape2::dcast(term + billid ~ attr, value.var="var")
+  coefdf <- custom_mirt_coef_to_df(res.mirtefas[[residx]]) %>%
+    dplyr::rename(billid=rowvar)
   openxlsx::write.xlsx(coefdf, "TMP.xlsx")
   readline(paste0("now in ", residx," coef, continue?"))
   fscoredf<-mirt::fscores(res.mirtefas[[residx]], method = "MAP", QMC=TRUE, rotate="varimax") %>%
@@ -926,16 +910,17 @@ mergedf_votes_bills_surveyanswer <- dplyr::distinct(legislators_with_elections,t
       dplyr::summarise(party_pressure=(max(samepartysamepositioncounts)-sum(samepartysamepositioncounts)+max(samepartysamepositioncounts))/sum(samepartysamepositioncounts)) 
   })  %>%
   dplyr::mutate_at("party_pressure", ~as.numeric(scale(.)) ) %>%
-  dplyr::left_join(adminparty, by=c("term"="term","legislator_party"="party"))
+  dplyr::left_join(adminparty, by=c("term"="term","legislator_party"="party")) %>%
+  dplyr::filter(!is.na(legislator_name))
 
 # 第四部分：合併投票紀錄與法案資料  -------------------------------------------
 
-mergedf_votes_bills_surveyanswer %<>%
-  dplyr::right_join(bills_billcontent, by = c("billid_myown","term","period","meetingno","temp_meeting_no","billn","billresult","date")) %>% ##,"url"
-  dplyr::right_join(bills_answer_to_bill, by = c("billid_myown")) %>% 
+mergedf_votes_bills_surveyanswer <- mergedf_votes_bills_surveyanswer %>%
+  dplyr::left_join(bills_billcontent, by = c("billid_myown","term","period","meetingno","temp_meeting_no","billn","billresult","date")) %>% ##,"url"
+  dplyr::right_join(bills_answer_to_bill, by = c("billid_myown")) %>%  #left 1419337 right 926609
   #篩選出研究範圍
-  dplyr::inner_join(distinct(survey_time_range_df,yrmonth)) %>%
-  dplyr::left_join(survey_time_range_df) %>%
+  #dplyr::inner_join(distinct(survey_time_range_df,yrmonth)) %>%
+  dplyr::filter(research_period==1) %>%
   dplyr::mutate(stdbilldate=as.Date(paste(
     as.integer(substr(date,0,3))+1911,
     substr(date,5,6),

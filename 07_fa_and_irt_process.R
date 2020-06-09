@@ -22,8 +22,7 @@ load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_
 #library(survey)
 library(lavaan)
 
-
-survey_data_imputed <- lapply(survey_data_imputed,function(X,imps) {
+lavaan_to_factor<-function(X,imps,returnv="df") {
   #need_ses_var_assigned %<>% extract2(X$SURVEY[1]) %>%
   #  intersect(names(X))
   need_ses_var_assigned<-c("myown_eduyr","myown_ses","myown_income","myown_family_income")
@@ -31,17 +30,20 @@ survey_data_imputed <- lapply(survey_data_imputed,function(X,imps) {
   for (checkvar in need_ses_var_assigned) {
     message("nrows of empty ", checkvar, " are ", sum(is.na(X$checkvar)) )
   }
+  fittingmodels<-list()
   for (impn in imps) {
+    storekey<-paste0(X$SURVEY[1],"_imp",impn)
     need_ses_var_assigned<-c("myown_eduyr","myown_ses","myown_income","myown_family_income")#
     dat<-data.frame(X[X$.imp==impn,c("myown_wr",need_ses_var_assigned)])
-    dat<-mutate_at(dat, need_ses_var_assigned, scale)
+    dat<-dplyr::mutate_at(dat, need_ses_var_assigned, scale)
     mod<-'myown_factoredses=~myown_eduyr+myown_ses+myown_income+myown_family_income'
-    lavaan.fit<-cfa(mod, data = dat, sampling.weights="myown_wr")
+    lavaan.fit<-lavaan::cfa(mod, data = dat, sampling.weights="myown_wr")
+    fittingmodels[[storekey]]<-lavaan.fit
     #summary(lavaan.fit)
     #df_svydesign <- svydesign(ids = ~1, data=dat, weights = X[X$.imp==impn,]$myown_wr)
     #survey.fit <- lavaan.survey(lavaan.fit=lavaan.fit, survey.design=df_svydesign)
     #summary(survey.fit)
-    X$myown_factoredses[X$.imp==impn]<-lavPredict(lavaan.fit)[,1]
+    X$myown_factoredses[X$.imp==impn]<-lavaan::lavPredict(lavaan.fit)[,1]
     
     
     #https://jiaxiangli.netlify.com/2018/10/21/factor-analysis/
@@ -66,10 +68,22 @@ survey_data_imputed <- lapply(survey_data_imputed,function(X,imps) {
       )
       X$myown_factoredses[X$.imp==impn]<-efa.results$scores[,1]      
     }
-
+    
   }
-  return(X)
-}, imps=imputation_sample_i_s)
+  if (returnv=="model") {
+    return(fittingmodels)
+  } else {
+    return(X)
+  }
+}
+survey_data_imputed <- lapply(survey_data_imputed, lavaan_to_factor, imps=imputation_sample_i_s)
+lavaan_cfa_ses_models <- lapply(survey_data_imputed, lavaan_to_factor, imps=imputation_sample_i_s, returnv="model")
+for (key in names(lavaan_cfa_ses_models)) {
+  message(paste("now in",key))
+  lavaan:::summary(lavaan_cfa_ses_models[[key]][[1]]) %>% print()
+  if (readline("continue?")=="N") break
+}
+
 
 #install.packages("psy")
 #library(psy)
@@ -211,14 +225,14 @@ need_particip_var<-list(
   "2010overall"=c("v79a","v79b","v79c","v79d") %>%
     c("v82a","v82b","v82c","v82d","v83","v85"), #可能要補間接參與v82a,v82b,v82c,v82d;v83,v85 投票
   "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c") %>%#h4 投票; 可能要補間接參與h1_01,h1_02,h1_03,h1_04,h1_05,h1_06,h1_07,h1_08,h1_09,h1_10,h1_11,h1_12,h1_13,h1_14,h1_15
-    c("h1_01","h1_02","h1_03","h1_04","h1_05","h1_06","h1_07","h1_08","h1_09","h1_10","h1_11","h1_12","h1_13","h1_14","h1_15")
+    c("h4r","h1_01","h1_02","h1_03","h1_04","h1_05","h1_06","h1_07","h1_08","h1_09","h1_10","h1_11","h1_12","h1_13","h1_14","h1_15")
 )
 survey_data_imputed <- lapply(survey_data_imputed,function(X,need_particip_var_assigned) {
   #X<-lapply(X,function(X,need_particip_var_assigned) {
   #for testng prupose
   #X<-dummyremoved_imputed_survey_data[[1]][[1]]
   #need_particip_var_assigned<-need_particip_var
-  need_particip_var_assigned %<>% extract2(X$SURVEY[1]) %>%
+  need_particip_var_assigned %<>% magrittr::extract2(X$SURVEY[1]) %>%
     base::intersect(names(X))
   customreordercatbylabelname<-function(X,desc=FALSE) {
     forcats::fct_reorder(X,as.character(X),.fun=unique,.desc=desc) %>%
@@ -243,24 +257,30 @@ survey_data_imputed <- lapply(survey_data_imputed,function(X,need_particip_var_a
 # 第五-3-1部份：parametric IRT non-Rasch models - GRM Model ####################
 # mirt::mirt by 'graded'
 # ltm:grm
-survey_data_imputed <- lapply(survey_data_imputed, function(X,need_particip_var_assigned,imps) {
+for (surveytitle in names(survey_data_imputed)) {
+  survey_data_imputed[[surveytitle]]$myown_factoredparticip<-NULL
+}
+mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="df") {
   #X<-survey_data_test[[4]]
   #need_particip_var_assigned<-need_particip_var
   needparticip_surveyi<-X$SURVEY[1]
-  need_detailed_particip_var<-extract2(need_particip_var_assigned,needparticip_surveyi)
+  need_detailed_particip_var<-magrittr::extract2(need_particip_var_assigned,needparticip_surveyi)
   irt_target_d<-X[,c(".imp",need_detailed_particip_var)] %>%
     dplyr::mutate_at(.vars=need_detailed_particip_var, .funs=function(f) {
       #return(as.numeric(levels(f))[f])
       (seq(from=1,to=length(f)))[f] %>% return()
     })
+  estimatemodels<-list()
   for (imp in imps) {
+    storekey<-paste0(needparticip_surveyi, "_imp", imp)
     estimatemodel<-mirt::mirt(
       data=irt_target_d[irt_target_d$.imp==imp,need_detailed_particip_var],
       model=1,
       itemtype = "graded",
       technical = list("NCYCLES"=40000),
       survey.weights = irt_target_d[irt_target_d$.imp==imp,c("myown_wr")]
-      )
+    )
+    estimatemodels[[storekey]]<-estimatemodel
     poliparticipt<-mirt::fscores(estimatemodel,method="EAP") %>%
       as.data.frame() %>%
       set_colnames(c("myown_factoredparticip"))
@@ -268,10 +288,35 @@ survey_data_imputed <- lapply(survey_data_imputed, function(X,need_particip_var_
   }
   #X<-estimatemodel
   #View(X[,c(need_detailed_particip_var,"myown_factoredparticip")])
-  return(X)
-},need_particip_var_assigned=need_particip_var,
-imps=imputation_sample_i_s)
+  if (returnv=="model") {
+    return(estimatemodels)
+  } else {
+    return(X) 
+  }
+}
 
+survey_data_imputed <- lapply(survey_data_imputed, mirt_to_model_particip, need_particip_var_assigned=need_particip_var,
+imps=imputation_sample_i_s)
+mirt_partcip_models<-lapply(survey_data_imputed, mirt_to_model_particip, need_particip_var_assigned=need_particip_var,
+                            imps=imputation_sample_i_s,returnv="model")
+for (surveytitle in names(survey_data_imputed)) {
+  for (imp in imputation_sample_i_s) {
+    message(paste("now in",surveytitle, imp))
+    coefdf <- custom_mirt_coef_to_df(mirt_partcip_models[[surveytitle]][[imp]]) %>%
+      dplyr::rename(item=rowvar)
+    View(coefdf)
+    if (readline("continue?")=="N") break
+  }
+}
+
+
+
+for (survey_title in names(survey_data_imputed)) {
+  c("myown_factoredparticip",need_particip_var[[survey_title]]) %>%
+    survey_data_imputed[[survey_title]][,.] %>%
+    View()
+  if (readline("continue?")=="N") break
+}
 
 if ({using_ltm_package <- FALSE;using_ltm_package}) {
   survey_data_with_particip <- lapply(survey_data_test,function(X,need_particip_var_assigned) {

@@ -28,11 +28,10 @@ message(myremoteip)
 dbtype <- RMariaDB::MariaDB() #RSQLite::SQLite()
 dbhost <- mysqldbhost
 dbname <- "thesis"
-dbusername <- "root"
+dbusername <- "j"
 dbpassword <- ifelse(exists("dbpassword"),dbpassword,askpass::askpass(prompt = "Please enter your password: "))#rstudioapi::askForPassword("input password")
 dbport <-  3306
-dbhost<-"0.tcp.ngrok.io"
-dbport<-17062
+dbhost<-"tjhome.crabdance.com"
 dbconnect_info <- list(
   "drv"=dbtype,
   "host"=dbhost,
@@ -101,7 +100,7 @@ poLCA_survey_results<-mclapply(needpoLCAsurveys_with_imp, function (survey_with_
   dplyr::filter(survey_data_imputed[[survey]], .imp==!!imp) %>%
     poLCA(formula=as.formula(singleargumentdf$modelformula), data=., nclass=singleargumentdf$nclass, nrep=35) %>%
     return()
-}, mc.cores = detectedcores) %>% set_names(needpoLCAsurveys_with_imp)
+}, mc.cores = detectedcores, poLCA_infodf=poLCA_infodf, survey_data_impute=survey_data_imputed) %>% set_names(needpoLCAsurveys_with_imp)
 #poLCA_survey_result_tables<-lapply(names(poLCA_infodf), function(survey) {
 #  extract2(lcaneed_independence_attitude,survey)[1] %>%
 #    paste0("~1") %>%
