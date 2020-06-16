@@ -9,7 +9,7 @@ source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding=
 load(file=paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory, "bills_answer_to_bill_bills_billcontent.RData"), verbose=TRUE)
 survey_codebook_file<-paste0(dataset_file_directory,"all_survey_questions_englished.xlsx")
-survey_keys <- c("2004citizen","2010env","2010overall","2016citizen")
+survey_keys <- c("2010overall","2016citizen")
 survey_question_category_df<-lapply(c(1,3), function(fi,...) {
   openxlsx::read.xlsx(survey_codebook_file,sheet = fi)
 },survey_codebook_file=survey_codebook_file) %>%
@@ -17,7 +17,7 @@ survey_question_category_df<-lapply(c(1,3), function(fi,...) {
   dplyr::filter(grepl(pattern="民主價值", x=CATEGORY, perl=TRUE) | CATEGORY=="議題") %>%
   dplyr::filter(SURVEY %in% !!survey_keys) %>%
   dplyr::filter(MEASUREMENT %in% c("nominal","ordinal")) %>%
-  dplyr::filter(IMPUTATION!="ignore") %>%
+  dplyr::filter(IMPUTATION!="ignore" & ID!="myown_indp_atti") %>%
   dplyr::mutate(itemtype=NA) %>%
   mutate_cond(MEASUREMENT=="nominal", itemtype="2PL") %>%
   mutate_cond((grepl(pattern=";3", x=ANSWER) & itemtype=="2PL"), itemtype="nominal") %>%

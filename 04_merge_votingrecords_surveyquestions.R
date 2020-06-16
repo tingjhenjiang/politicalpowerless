@@ -258,7 +258,7 @@ if (FALSE) {
   need_parallel_analysis_looprange<-sort(need_parallel_analysis_looprange, decreasing = TRUE)
   need_parallel_analysis_looprange<-parallelfa_n_factors_args_df[need_parallel_analysis_looprange,] %>%
     cbind(needi=need_parallel_analysis_looprange) %>%
-    dplyr::arrange(agenda, term, dplyr::desc(completecase)) %>%
+    dplyr::arrange(dplyr::desc(agenda), term, dplyr::desc(completecase)) %>%
     magrittr::use_series(needi)
   parallelfa_n_factors <-custom_parallel_lapply(need_parallel_analysis_looprange, function(fi, ...) {
     #for (i in 1:length(myown_vote_record_df_wide_billidascol)) { #
@@ -286,17 +286,13 @@ if (FALSE) {
     }
     tryn<-1
     while(TRUE){
-      loadingstatus<-try({load(file=parallel_analysis_result_filename, envir = .GlobalEnv, verbose=TRUE)})
+      loadingsavestatus<-try({
+        load(file=parallel_analysis_result_filename, verbose=TRUE)
+        parallelfa_n_factors[[arg_row$store_key]]<-res_n_factors
+        save(parallelfa_n_factors, file=parallel_analysis_result_filename)
+        })
       tryn <- tryn+1
-      if(!is(loadingstatus, 'try-error') | tryn>10) break
-    }
-    if (tryn<=10 & class(res_n_factors)=="psych") {
-      parallelfa_n_factors[[arg_row$store_key]]<-res_n_factors
-      while(TRUE){
-        savingstatus<-try({save(parallelfa_n_factors, file=parallel_analysis_result_filename)})
-        tryn <- tryn+1
-        if(!is(savingstatus, 'try-error') | tryn>20) break
-      }
+      if(!is(loadingsavestatus, 'try-error') | tryn>10) break
     }
     return(res_n_factors)
   }, terms=terms, myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol

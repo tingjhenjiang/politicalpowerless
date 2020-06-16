@@ -218,6 +218,8 @@ if ({furtherimp<-FALSE;furtherimp}) {
   "v83" %in% furtherimp_imputingcalculatebasiscolumn[["2010overall"]]
   "h4r" %in% furtherimp_imputedvaluecolumn[["2016citizen"]]
   "h4r" %in% furtherimp_imputingcalculatebasiscolumn[["2016citizen"]]
+  "b4" %in% furtherimp_imputingcalculatebasiscolumn[["2016citizen"]]
+  
     
   furthurimplist<-furtherimp_argument_df$store_key %>%
     {magrittr::set_names(custom_parallel_lapply(., function(storekey, ...) {
