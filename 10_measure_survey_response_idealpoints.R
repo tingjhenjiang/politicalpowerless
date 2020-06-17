@@ -29,6 +29,16 @@ survey_question_category_df<-lapply(c(1,3), function(fi,...) {
   }, data=.) %>%
   magrittr::set_names(survey_keys)
 
+reduce_levels_from_ten_to_seven <- function(X) {
+  if (length(unique(X)) %in% c(10,11)) {
+    newlist<- list(0,1,2,2,3,3,3,4,4,5,6) %>%
+      magrittr::set_names(1:11)
+    X<-dplyr::recode(X, !!!newlist)
+    #X<-dplyr::recode(X, `0`=,`1`=,`2`=,`3`=,``=,``=,``=,``=,``=,``=,``=,``=,``=,)
+  }
+  return(X)
+}
+
 # fa parallel探測因素數目 --------------------------------
 survey_parallelfa_arguments_df<-data.frame("survey"=survey_keys) %>%
   cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
@@ -39,8 +49,8 @@ survey_parallelfa_arguments_df<-data.frame("survey"=survey_keys) %>%
   cbind(., fm = rep(c("minres", "ml", "wls", "pa"), each = nrow(.))) %>%
   cbind(., needvars = rep(c("limited", "unlimited"), each = nrow(.))) %>%
   dplyr::mutate(store_key=paste0(survey, "_imp", imp, "_term", term, "_fm", fm, "_needvars", needvars)) %>%
-  dplyr::arrange(needvars) %>%
-  dplyr::filter(needvars=="limited")
+  dplyr::arrange(needvars, survey, imp) %>%
+  dplyr::filter(needvars=="unlimited", survey %in% c("2010overall","2016citizen"), term %in% c(7,9))
 survey_parallelfa_n_factors_file <- paste0(dataset_in_scriptsfile_directory, "survey_parallelfa_n_factors.RData")
 random.polychor.survey_parallelfa_n_factors_file <- paste0(dataset_in_scriptsfile_directory, "random.polychor.survey_parallelfa_n_factors.RData") 
 survey_parallelfa_n_factors <- survey_parallelfa_arguments_df$store_key %>%
@@ -49,18 +59,25 @@ survey_parallelfa_n_factors <- survey_parallelfa_arguments_df$store_key %>%
     message(paste("now in", survey_parallelfa_arguments_df[fi,"store_key"],"and fi is",fi))
     argument_imp<-survey_parallelfa_arguments_df$imp[fi]
     parallel_fa_method_fm<-as.character(survey_parallelfa_arguments_df$fm[fi])
-    surveyvars<-survey_question_category_df[[survey_parallelfa_arguments_df$survey[fi]]]$ID
+    surveyvars<-survey_question_category_df[[survey_parallelfa_arguments_df$survey[fi]]] %>%
+      dplyr::filter(SURVEY==!!survey_parallelfa_arguments_df$survey[fi]) %>%
+      magrittr::use_series("ID")
     ordinalsurveyvars<-dplyr::filter(survey_question_category_df[[survey_parallelfa_arguments_df$survey[fi]]], MEASUREMENT=="ordinal") %>%
       magrittr::use_series("ID") %>%
       c("myown_indp_atti")
-    targetsurveydf<-survey_data_imputed[[survey_parallelfa_arguments_df$survey[fi]]] %>%
-      .[magrittr::use_series(., ".imp")==argument_imp,surveyvars] %>% dplyr::mutate_all(unclass)
+    targetsurveydf<-as.character(survey_parallelfa_arguments_df$survey[fi]) %>%
+      magrittr::extract2(survey_data_imputed, .) %>%
+      {.[.$.imp==argument_imp, surveyvars]} %>%
+      dplyr::mutate_all(unclass)
     notemptyvars<-sapply(targetsurveydf, is.na) %>% colSums() %>% .[.==0] %>% names()
     fewerthan8catgsvars<-sapply(targetsurveydf, function(X) {
       length(unique(X))
     }) %>% .[.<=8] %>% names()
     largerthan8catgsvars<-dplyr::setdiff(names(targetsurveydf), fewerthan8catgsvars)
-    finalneedvars<-dplyr::intersect(notemptyvars, fewerthan8catgsvars)
+    targetsurveydf <- dplyr::mutate_at(targetsurveydf, .vars=largerthan8catgsvars, .funs=~reduce_levels_from_ten_to_seven(.))
+    finalneedvars<-notemptyvars
+    #finalneedvars<-dplyr::intersect(notemptyvars, fewerthan8catgsvars)
+    #reduce_levels_from_ten_to_seven(targetsurveydf$d12)
     if (as.character(survey_parallelfa_arguments_df$needvars[fi])=="limited") {
       argdf_term <- as.character(survey_parallelfa_arguments_df$term[fi])
       if (grepl(pattern="&", x=argdf_term) ) {
@@ -80,7 +97,7 @@ survey_parallelfa_n_factors <- survey_parallelfa_arguments_df$store_key %>%
       psych::fa.parallel(targetsurveydf, fm=parallel_fa_method_fm, main="Parallel Analysis Scree Plots", cor="poly")
       #random.polychor.pa::random.polychor.pa(nrep=50, data.matrix = targetsurveydf, q.eigen=.99)
     })
-    if(!is(res_n_factors, 'try-error')) {
+    if(is(res_n_factors, 'try-error')) {
       message(paste0("error at ",survey_parallelfa_arguments_df[fi,"store_key"]))
     }
     while (TRUE) {
@@ -100,7 +117,8 @@ survey_parallelfa_n_factors <- survey_parallelfa_arguments_df$store_key %>%
   survey_question_category_df=survey_question_category_df,
   term_related_q=term_related_q,
   survey_parallelfa_n_factors_file=survey_parallelfa_n_factors_file,
-  method=parallel_method), .)
+  reduce_levels_from_ten_to_seven=reduce_levels_from_ten_to_seven,
+  method=parallel_method, mc.cores=1), .)
 
 save(survey_parallelfa_n_factors, file=survey_parallelfa_n_factors_file)
 ##save(random.polychor.survey_parallelfa_n_factors, file=random.polychor.survey_parallelfa_n_factors_file)
@@ -189,6 +207,7 @@ View(custom_mirt_coef_to_df(to_explor_mirt_model))
 
 # CFA IRT 驗證性因素分析 問卷因素結構 --------------------------------
 #mirt example https://philchalmers.github.io/mirt/html/mirt.html
+#https://www.yongxi-stat.com/explore-factor-analysis-introduction/
 
 #2010overall
 needimp<-1
@@ -196,15 +215,24 @@ surveydata<-dplyr::filter(survey_data_imputed$`2010overall`, .imp==!!needimp)
 testvars<-c("v39d","v39e","v40")
 testvars<-c("v27b")
 testvars<-c("v78a","v78b","v78c","v78d","v78e","v78f","v78g","v78h","v78i") #baseline 0.315 
-testmodel<-mirt::mirt(
-  data=dplyr::mutate_all(surveydata[,testvars, drop=FALSE], .funs=unclass) ,
-  model=1,
-  itemtype = "graded",
-  technical = list("NCYCLES"=40000),
-  survey.weights = surveydata[,c("myown_wr")],
-  SE=TRUE
-)
-mirt:::summary(testmodel)
+summaryofmirt_results<-list()
+for (i in 1:length(testvars)) {
+  needtestvars <- base::setdiff(testvars, testvars[i])
+  if (length(needtestvars))<3 next
+  testmodel<-mirt::mirt(
+    data=dplyr::mutate_all(surveydata[,needtestvars, drop=FALSE], .funs=unclass) ,
+    model=1,
+    itemtype = "graded",
+    technical = list("NCYCLES"=40000),
+    survey.weights = surveydata[,c("myown_wr")],
+    SE=TRUE
+  )
+  summaryofmirt_results[[i]]<-capture.output(mirt:::summary(testmodel)) %>%
+    grep(pattern="Proportion|SS loadings", x=., value=TRUE) %>%
+    {data.frame(drop=testvars[i],ss=.[1], prop=.[2])}
+}
+summaryofmirt_result<-dplyr::bind_rows(summaryofmirt_results)
+
 v40
 myown_indp_atti
 v80
