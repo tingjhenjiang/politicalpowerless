@@ -279,7 +279,8 @@ mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="df")
       model=1,
       itemtype = "graded",
       technical = list("NCYCLES"=40000),
-      survey.weights = irt_target_d[irt_target_d$.imp==imp,c("myown_wr")]
+      survey.weights = irt_target_d[irt_target_d$.imp==imp,c("myown_wr")],
+      SE=TRUE
     )
     estimatemodels[[storekey]]<-estimatemodel
     poliparticipt<-mirt::fscores(estimatemodel,method="EAP") %>%
@@ -300,13 +301,21 @@ survey_data_imputed <- lapply(survey_data_imputed, mirt_to_model_particip, need_
 imps=imputation_sample_i_s)
 mirt_partcip_models<-lapply(survey_data_imputed, mirt_to_model_particip, need_particip_var_assigned=need_particip_var,
                             imps=imputation_sample_i_s,returnv="model")
+#https://github.com/datacamp/tidymirt
+t<-lapply(mirt_partcip_models$`2010overall`,tidymirt:::glance.SingleGroupClass)
+t<-lapply(mirt_partcip_models$`2016citizen`,tidymirt:::glance.SingleGroupClass)
+mice::pool(t)
+
 for (surveytitle in names(survey_data_imputed)) {
   for (imp in imputation_sample_i_s) {
-    message(paste("now in",surveytitle, imp))
     coefdf <- custom_mirt_coef_to_df(mirt_partcip_models[[surveytitle]][[imp]]) %>%
-      dplyr::rename(item=rowvar)
+      dplyr::rename(item=rowvar) %>%
+      dplyr::arrange(par_type,item,variable) %>%
+      dplyr::filter(variable=="par")
     View(coefdf)
-    if (readline("continue?")=="N") break
+    write.csv(coefdf, "TMP.csv")
+    mirt:::summary(mirt_partcip_models[[surveytitle]][[imp]]) %>% print()
+    if (readline(paste("now in",surveytitle, imp, "continue?"))=="N") break
   }
 }
 
@@ -424,3 +433,5 @@ if ({usinggpcm <- FALSE;usinggpcm}) {
 
 
 save(survey_data_imputed, file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt.RData"))
+save(survey_data_imputed, file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"))
+

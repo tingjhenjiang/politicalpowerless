@@ -77,7 +77,7 @@ needpoLCAsurveys<-c("2004citizen","2010overall")
 needpoLCAsurveys_with_imp<-lapply(needpoLCAsurveys, function(survey) {
   paste0(rep.int(survey,times=length(imputation_sample_i_s)),"_imp",imputation_sample_i_s)
 }) %>% unlist()
-poLCA_infodf<-lapply(needpoLCAsurveys_with_imp, function (survey_with_imp) {
+poLCA_infodf_notshrink<-lapply(needpoLCAsurveys_with_imp, function (survey_with_imp) {
   survey_with_imp_list<-unlist(strsplit(survey_with_imp,split="_imp"))
   survey<-survey_with_imp_list[1]
   imp<-survey_with_imp_list[2]
@@ -86,21 +86,31 @@ poLCA_infodf<-lapply(needpoLCAsurveys_with_imp, function (survey_with_imp) {
   rs <- dbSendQuery(con, paste0("SELECT * FROM ",db_table_name," WHERE `residdf`>0 AND `nrep`>1 AND `.imp`=",imp))
   already_in_sqltable_polca_records<-dbFetch(rs) %>%
     dplyr::arrange(bic,aic) %>%
-    .[1,] %>%
-    dplyr::select(modelformula,nclass,.imp)
+    .[1:5,] %>%
+    dplyr::mutate(survey=!!survey, surveyimp=!!survey_with_imp)
   dbClearResult(rs)
   DBI::dbDisconnect(con)
   return(already_in_sqltable_polca_records)
-}) %>% set_names(needpoLCAsurveys_with_imp)
-poLCA_survey_results<-mclapply(needpoLCAsurveys_with_imp, function (survey_with_imp) {
+}) %>% magrittr::set_names(needpoLCAsurveys_with_imp)
+dplyr::bind_rows(poLCA_infodf_notshrink) %>% write.csv(file="TMP.csv")
+poLCA_infodf<-dplyr::bind_rows(poLCA_infodf_notshrink) %>%
+  dplyr::group_by(surveyimp) %>%
+  dplyr::arrange(bic) %>%
+  dplyr::slice(1) %>%
+  dplyr::ungroup()
+
+
+load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+
+poLCA_survey_results<-custom_parallel_lapply(needpoLCAsurveys_with_imp, function (survey_with_imp, ...) {
   survey_with_imp_list<-unlist(strsplit(survey_with_imp,split="_imp"))
   survey<-survey_with_imp_list[1]
   imp<-survey_with_imp_list[2]
-  singleargumentdf <- extract2(poLCA_infodf,survey_with_imp)
+  singleargumentdf <- dplyr::filter(poLCA_infodf, surveyimp==!!survey_with_imp) #magrittr::extract2(poLCA_infodf,survey_with_imp)
   dplyr::filter(survey_data_imputed[[survey]], .imp==!!imp) %>%
     poLCA(formula=as.formula(singleargumentdf$modelformula), data=., nclass=singleargumentdf$nclass, nrep=35) %>%
     return()
-}, mc.cores = detectedcores, poLCA_infodf=poLCA_infodf, survey_data_impute=survey_data_imputed) %>% set_names(needpoLCAsurveys_with_imp)
+}, method=parallel_method, poLCA_infodf=poLCA_infodf, survey_data_impute=survey_data_imputed) %>% magrittr::set_names(needpoLCAsurveys_with_imp)
 #poLCA_survey_result_tables<-lapply(names(poLCA_infodf), function(survey) {
 #  extract2(lcaneed_independence_attitude,survey)[1] %>%
 #    paste0("~1") %>%

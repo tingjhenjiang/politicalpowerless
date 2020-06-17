@@ -28,6 +28,7 @@ survey_question_category_df<-lapply(c(1,3), function(fi,...) {
     return(dplyr::filter(data, SURVEY==!!k))
   }, data=.) %>%
   magrittr::set_names(survey_keys)
+
 # fa parallel探測因素數目 --------------------------------
 survey_parallelfa_arguments_df<-data.frame("survey"=survey_keys) %>%
   cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
@@ -186,12 +187,25 @@ survey_idealpoints_mirt_models<-distincted_survey_parallelfa_arguments_df_runonl
 
 View(custom_mirt_coef_to_df(to_explor_mirt_model))
 
-# CFA 驗證性因素分析 問卷因素結構 --------------------------------
+# CFA IRT 驗證性因素分析 問卷因素結構 --------------------------------
+#mirt example https://philchalmers.github.io/mirt/html/mirt.html
 
 #2010overall
-v39c+v39d+v39e
+needimp<-1
+surveydata<-dplyr::filter(survey_data_imputed$`2010overall`, .imp==!!needimp)
+testvars<-c("v39d","v39e","v40")
+testvars<-c("v27b")
+testvars<-c("v78a","v78b","v78c","v78d","v78e","v78f","v78g","v78h","v78i") #baseline 0.315 
+testmodel<-mirt::mirt(
+  data=dplyr::mutate_all(surveydata[,testvars, drop=FALSE], .funs=unclass) ,
+  model=1,
+  itemtype = "graded",
+  technical = list("NCYCLES"=40000),
+  survey.weights = surveydata[,c("myown_wr")],
+  SE=TRUE
+)
+mirt:::summary(testmodel)
 v40
-v78a+v78b+v78c+v78d+v78e+v78f+v78g+v78h+v78i
 myown_indp_atti
 v80
 v68g
