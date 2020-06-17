@@ -833,7 +833,8 @@ ret_std_legislators_data<-function(legislatorsxlsxpath = paste0(dataset_file_dir
 }
 
 custom_mirt_coef_to_df <- function(mirtmodel) {
-  coefdf <- mirt::coef(mirtmodel, rotate="varimax", as.data.frame=TRUE) %>%
+  coefdf <- mirt::coef(mirtmodel, rotate="varimax", as.data.frame=TRUE)
+  firsttry <- try({coefdf %>%
     .[grepl("Group",rownames(.))==FALSE,] %>%
     data.frame(value=., attr={
       #names(.)
@@ -845,7 +846,20 @@ custom_mirt_coef_to_df <- function(mirtmodel) {
         unlist() %>%
         gsub(pattern="\\.",replacement="",x=.)
     }) %>%
-    reshape2::dcast(rowvar ~ attr, value.var="value")
+    reshape2::dcast(rowvar ~ attr, value.var="value")})
+  if(!is(firsttry, 'try-error')) {coefdf<-firsttry} else {
+    coefdf <- data.frame(coefdf,
+      par_type=rownames(coefdf) %>%
+        stringr::str_extract_all(pattern="\\..+$") %>%
+        unlist() %>%
+        gsub(pattern="\\.",replacement="",x=.),
+      rowvar=rownames(coefdf) %>%
+        stringr::str_extract_all(pattern=".+\\.") %>%
+        unlist() %>%
+        gsub(pattern="\\.",replacement="",x=.)
+    ) %>%
+      reshape2::melt(id.vars=c("rowvar","par_type"))
+  }
   return(coefdf)
 }
 
