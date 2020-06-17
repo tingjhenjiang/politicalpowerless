@@ -185,3 +185,26 @@ survey_idealpoints_mirt_models<-distincted_survey_parallelfa_arguments_df_runonl
   ), .) 
 
 View(custom_mirt_coef_to_df(to_explor_mirt_model))
+
+# CFA 驗證性因素分析 問卷因素結構 --------------------------------
+
+#2010overall
+v39c+v39d+v39e
+v40
+v78a+v78b+v78c+v78d+v78e+v78f+v78g+v78h+v78i
+myown_indp_atti
+v80
+v68g
+v27b
+
+#2016citizen
+c1a+c1b+c1c+c1d+c1e
+c2+c3+c4+c5+c6
+? c10+c11+c12+c13+c14
+d1+d2a+d2b+d3a+d3b+d4
+d5a+d5b+d5c+d5d+d5e+d5f
+d7a+d7b+d7c+d7d+d7e+d7f+d7g+d7h+d7i+d7j+d7k+d8a+d8b+d8c  +f9
+d11a+d11b+d12+d13a+d13b+d14a+d14b+d14c
+d17a+d17b+d17c
+f3+f4+f5
+myown_indp_atti

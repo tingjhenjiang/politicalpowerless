@@ -225,7 +225,8 @@ need_particip_var<-list(
   "2010overall"=c("v79a","v79b","v79c","v79d") %>%
     c("v82a","v82b","v82c","v82d","v83","v85"), #可能要補間接參與v82a,v82b,v82c,v82d;v83,v85 投票
   "2016citizen"=c("h2a","h2b","h2c","h2d","h2e","h2f","h2g","h2h","h3a","h3b","h3c") %>%#h4 投票; 可能要補間接參與h1_01,h1_02,h1_03,h1_04,h1_05,h1_06,h1_07,h1_08,h1_09,h1_10,h1_11,h1_12,h1_13,h1_14,h1_15
-    c("h4r","h1_01","h1_02","h1_03","h1_04","h1_05","h1_06","h1_07","h1_08","h1_09","h1_10","h1_11","h1_12","h1_13","h1_14","h1_15")
+    c("h4r","h1_01","h1_02","h1_03","h1_04","h1_05","h1_06","h1_07","h1_08","h1_09","h1_10","h1_11","h1_12","h1_13","h1_14","h1_15") %>%
+    c("b4") #談論社會上發生的事情
 )
 survey_data_imputed <- lapply(survey_data_imputed,function(X,need_particip_var_assigned) {
   #X<-lapply(X,function(X,need_particip_var_assigned) {
