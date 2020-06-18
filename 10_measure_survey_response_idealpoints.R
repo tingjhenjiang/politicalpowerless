@@ -201,14 +201,14 @@ survey_idealpoints_mirt_models<-distincted_survey_parallelfa_arguments_df_runonl
       {.[.$.imp==needrow$imp,]}
     to_explor_IRT_data<-needsurveydatadf[,to_explor_IRT_itemtypes$ID] %>%
       dplyr::mutate_all(unclass)
-    mirtmethod<-if (as.integer(needrow$ncomp)>=3) "MCEM" else "EM"
+    mirtmethod<-if (as.integer(needrow$ncomp)>=3) "QMCEM" else "EM"
     explor_mirt_model<-mirt::mirt(
       to_explor_IRT_data,
       model=as.integer(needrow$ncomp),
       itemtype=to_explor_IRT_itemtypes$itemtype,
       technical=list(NCYCLES=250,MAXQUAD=40000),
       survey.weights = needsurveydatadf[,c("myown_wr")],
-      method=mirtmethod, SE=TRUE
+      method=mirtmethod , SE=TRUE
     )
     while (TRUE) {
       tryloadsaveresult<-try({
@@ -220,7 +220,7 @@ survey_idealpoints_mirt_models<-distincted_survey_parallelfa_arguments_df_runonl
         break
       }
     }
-    return(to_explor_mirt_model)
+    return(explor_mirt_model)
   }, survey_question_category_df=survey_question_category_df,
   survey_data_imputed=survey_data_imputed,
   survey_parallelfa_arguments_df=survey_parallelfa_arguments_df,
@@ -228,11 +228,25 @@ survey_idealpoints_mirt_models<-distincted_survey_parallelfa_arguments_df_runonl
   term_related_q=term_related_q,
   distincted_survey_parallelfa_arguments_df_runonly=distincted_survey_parallelfa_arguments_df_runonly,
   survey_idealpoints_mirt_models_file=survey_idealpoints_mirt_models_file,
-  method=parallel_method, mc.cores=6
+  method=parallel_method, mc.cores=8
   ), .) 
 
-save(survey_idealpoints_mirt_models, file=survey_idealpoints_mirt_models_file)
-#View(custom_mirt_coef_to_df(to_explor_mirt_model))
+#save(survey_idealpoints_mirt_models, file=survey_idealpoints_mirt_models_file)
+
+# Checking factor scores and factor structure --------------------------------
+
+load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
+
+for (mirt_model_on_survey_key in names(survey_idealpoints_mirt_models)) {
+  mirtsurveyresult<-custom_mirt_coef_to_df(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], printSE = TRUE)
+  write.csv(mirtsurveyresult, file="TMP.csv")
+  View(mirtsurveyresult)
+  mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="varimax") %>% print()
+  if (readline(paste("now in",mirt_model_on_survey_key,"continue?"))=="N") break
+}
+
+# Testing Multivariate Normality using R --------------------------------
+#MVN package
 
 # CFA IRT 驗證性因素分析 問卷因素結構 --------------------------------
 #mirt example https://philchalmers.github.io/mirt/html/mirt.html

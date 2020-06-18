@@ -832,8 +832,8 @@ ret_std_legislators_data<-function(legislatorsxlsxpath = paste0(dataset_file_dir
     return()
 }
 
-custom_mirt_coef_to_df <- function(mirtmodel) {
-  coefdf <- mirt::coef(mirtmodel, rotate="varimax", as.data.frame=TRUE)
+custom_mirt_coef_to_df <- function(mirtmodel, rotate="varimax", printSE = FALSE, ...) {
+  coefdf <- mirt::coef(mirtmodel, rotate=rotate, as.data.frame=TRUE, printSE=printSE)
   firsttry <- try({coefdf %>%
     .[grepl("Group",rownames(.))==FALSE,] %>%
     data.frame(value=., attr={
