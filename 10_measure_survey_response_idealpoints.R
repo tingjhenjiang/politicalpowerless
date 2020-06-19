@@ -153,6 +153,20 @@ distincted_survey_parallelfa_arguments_df<-survey_parallelfa_arguments_df %>%
   #dplyr::filter(needvars=="limited")  %>%
   #dplyr::filter(!(term %in% c(5,6,7,8))) %>%
 
+distincted_survey_parallelfa_arguments_df %<>% dplyr::bind_rows(
+  data.frame("survey"="2016citizen", "term"="9") %>%
+    cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
+    cbind(., ncompnfact = rep(21:23, each = nrow(.))) %>%
+    cbind(., reduct_type = rep(c("nfact"), each = nrow(.)))
+) %>%
+  dplyr::bind_rows(
+    data.frame("survey"="2010overall", "term"="7") %>%
+      cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
+      cbind(., ncompnfact = rep(5:8, each = nrow(.))) %>%
+      cbind(., reduct_type = rep(c("nfact"), each = nrow(.)))
+  ) %>%
+  dplyr::distinct_all()
+
 # explore data distributions on issues --------------------------------
 
 if (FALSE) {
@@ -174,76 +188,144 @@ distincted_survey_parallelfa_arguments_df_runonly<- distincted_survey_parallelfa
   dplyr::distinct(survey, imp, term, ncompnfact) %>%
   dplyr::mutate(runmirt_store_key=paste0(survey,"_imp",imp,"_ncompnfact",ncompnfact)) #%>%
   #dplyr::filter(imp==1)
+
 survey_idealpoints_mirt_models_file <- paste0(dataset_in_scriptsfile_directory, "survey_idealpoints_mirt_models.RData")
-survey_idealpoints_mirt_models<-distincted_survey_parallelfa_arguments_df_runonly$runmirt_store_key %>%
-  magrittr::set_names(custom_parallel_lapply(., function(fikey, ...) {
-    needrow<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, runmirt_store_key==!!fikey)
-    argdf_term <- as.character(needrow$term)
-    if (grepl(pattern="&", x=argdf_term) ) {
-      argdf_term <- unlist(stringr::str_split(argdf_term, pattern="&"))
-    }
-    if (FALSE) {
-      extractedneedvars <- magrittr::extract(term_related_q, argdf_term) %>%
-        unlist() %>%
-        unique() %>%
-        sort()
-      extractedneedvars_without_survey <- gsub(pattern=paste0(as.character(needrow$survey),"@"), replacement="", x=extractedneedvars)
-    } else {
-      extractedneedvars <- magrittr::extract2(survey_question_category_df, needrow$survey) %>%
-        magrittr::use_series("SURVEYCOMPLETEID")
-      extractedneedvars_without_survey <- magrittr::extract2(survey_question_category_df, needrow$survey) %>%
-        magrittr::use_series("ID")
-    }
-    to_explor_IRT_itemtypes<-data.frame(SURVEYCOMPLETEID=extractedneedvars, ID=extractedneedvars_without_survey, SURVEY=needrow$survey) %>%
-      dplyr::left_join(survey_question_category_df[[needrow$survey]]) %>%
-      mutate_cond(grepl(pattern="myown_indp_atti", x=SURVEYCOMPLETEID), itemtype="graded")
-    needsurveydatadf <- survey_data_imputed[[as.character(needrow$survey)]] %>%
-      {.[.$.imp==needrow$imp,]}
-    to_explor_IRT_data<-needsurveydatadf[,to_explor_IRT_itemtypes$ID] %>%
-      dplyr::mutate_all(unclass)
-    mirtmethod<-if (as.integer(needrow$ncomp)>=3) "QMCEM" else "EM"
-    explor_mirt_model<-mirt::mirt(
-      to_explor_IRT_data,
-      model=as.integer(needrow$ncomp),
-      itemtype=to_explor_IRT_itemtypes$itemtype,
-      technical=list(NCYCLES=250,MAXQUAD=40000),
-      survey.weights = needsurveydatadf[,c("myown_wr")],
-      method=mirtmethod , SE=TRUE
-    )
-    while (TRUE) {
-      tryloadsaveresult<-try({
-        load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
-        survey_idealpoints_mirt_models[[fikey]]<-explor_mirt_model
-        save(survey_idealpoints_mirt_models, file=survey_idealpoints_mirt_models_file)
-      }) #, envir = .GlobalEnv
-      if(!is(tryloadsaveresult, 'try-error')) {
-        break
+if ({avoid_run_duplicated_models<-TRUE;avoid_run_duplicated_models}) {
+  load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
+  distincted_survey_parallelfa_arguments_df_runonly<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, !(runmirt_store_key %in% !!names(survey_idealpoints_mirt_models)) )
+}
+if (FALSE) {
+  survey_idealpoints_mirt_models<-distincted_survey_parallelfa_arguments_df_runonly$runmirt_store_key %>%
+    magrittr::set_names(custom_parallel_lapply(., function(fikey, ...) {
+      needrow<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, runmirt_store_key==!!fikey)
+      argdf_term <- as.character(needrow$term)
+      if (grepl(pattern="&", x=argdf_term) ) {
+        argdf_term <- unlist(stringr::str_split(argdf_term, pattern="&"))
       }
-    }
-    return(explor_mirt_model)
-  }, survey_question_category_df=survey_question_category_df,
-  survey_data_imputed=survey_data_imputed,
-  survey_parallelfa_arguments_df=survey_parallelfa_arguments_df,
-  survey_question_category_df=survey_question_category_df,
-  term_related_q=term_related_q,
-  distincted_survey_parallelfa_arguments_df_runonly=distincted_survey_parallelfa_arguments_df_runonly,
-  survey_idealpoints_mirt_models_file=survey_idealpoints_mirt_models_file,
-  method=parallel_method, mc.cores=8
-  ), .) 
+      if (FALSE) {
+        extractedneedvars <- magrittr::extract(term_related_q, argdf_term) %>%
+          unlist() %>%
+          unique() %>%
+          sort()
+        extractedneedvars_without_survey <- gsub(pattern=paste0(as.character(needrow$survey),"@"), replacement="", x=extractedneedvars)
+      } else {
+        extractedneedvars <- magrittr::extract2(survey_question_category_df, needrow$survey) %>%
+          magrittr::use_series("SURVEYCOMPLETEID")
+        extractedneedvars_without_survey <- magrittr::extract2(survey_question_category_df, needrow$survey) %>%
+          magrittr::use_series("ID")
+      }
+      to_explor_IRT_itemtypes<-data.frame(SURVEYCOMPLETEID=extractedneedvars, ID=extractedneedvars_without_survey, SURVEY=needrow$survey) %>%
+        dplyr::left_join(survey_question_category_df[[needrow$survey]]) %>%
+        mutate_cond(grepl(pattern="myown_indp_atti", x=SURVEYCOMPLETEID), itemtype="graded")
+      needsurveydatadf <- survey_data_imputed[[as.character(needrow$survey)]] %>%
+        {.[.$.imp==needrow$imp,]}
+      to_explor_IRT_data<-needsurveydatadf[,to_explor_IRT_itemtypes$ID] %>%
+        dplyr::mutate_all(unclass)
+      mirtmethod<-if (as.integer(needrow$ncomp)>=3) "QMCEM" else "EM"
+      explor_mirt_model<-mirt::mirt(
+        to_explor_IRT_data,
+        model=as.integer(needrow$ncomp),
+        itemtype=to_explor_IRT_itemtypes$itemtype,
+        technical=list(NCYCLES=250,MAXQUAD=40000),
+        survey.weights = needsurveydatadf[,c("myown_wr")],
+        method=mirtmethod , SE=TRUE
+      )
+      while (TRUE) {
+        tryloadsaveresult<-try({
+          load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
+          survey_idealpoints_mirt_models[[fikey]]<-explor_mirt_model
+          save(survey_idealpoints_mirt_models, file=survey_idealpoints_mirt_models_file)
+        }) #, envir = .GlobalEnv
+        if(!is(tryloadsaveresult, 'try-error')) {
+          break
+        }
+      }
+      return(explor_mirt_model)
+    }, survey_question_category_df=survey_question_category_df,
+    survey_data_imputed=survey_data_imputed,
+    survey_parallelfa_arguments_df=survey_parallelfa_arguments_df,
+    survey_question_category_df=survey_question_category_df,
+    term_related_q=term_related_q,
+    distincted_survey_parallelfa_arguments_df_runonly=distincted_survey_parallelfa_arguments_df_runonly,
+    survey_idealpoints_mirt_models_file=survey_idealpoints_mirt_models_file,
+    method=parallel_method, mc.cores=9
+    ), .) 
+}
 
 #save(survey_idealpoints_mirt_models, file=survey_idealpoints_mirt_models_file)
 
-# Checking factor scores and factor structure --------------------------------
+# Checking factor scores and factor structure and goodness of fit --------------------------------
 
 load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
 
-for (mirt_model_on_survey_key in names(survey_idealpoints_mirt_models)) {
+complete_inf_mirt_models<-lapply(survey_idealpoints_mirt_models,tidymirt:::glance.SingleGroupClass) %>%
+  dplyr::bind_rows() %>%
+  data.frame(runmirt_store_key=names(survey_idealpoints_mirt_models)) %>%
+  dplyr::left_join(distincted_survey_parallelfa_arguments_df_runonly, .) %>%
+  dplyr::arrange(survey, SABIC, BIC, AIC)
+write.csv(complete_inf_mirt_models, "TMP.csv")
+
+mirtmodelinfindicators<-c("AIC","AICc","SABIC","HQ","BIC")
+for (survey_title in as.character(unique(complete_inf_mirt_models$survey))) {
+  for (needimp in 1:5) {
+    mirtcomparei_df<-dplyr::filter(complete_inf_mirt_models, survey==!!survey_title, imp==!!needimp)
+    for (baseline_key in 1:nrow(mirtcomparei_df)) {
+      baselinerow<-mirtcomparei_df[baseline_key, ]
+      mirtcomparei_a<-baselinerow$runmirt_store_key
+      othercomparemodel_keys<-dplyr::filter(mirtcomparei_df, runmirt_store_key!=!!mirtcomparei_a) %>%
+        magrittr::use_series("runmirt_store_key")
+      for (mirtcomparei_b in othercomparemodel_keys) {
+        modela<-survey_idealpoints_mirt_models[[mirtcomparei_a]]
+        modela_bic<-mirt::extract.mirt(modela, "BIC")
+        modelb<-survey_idealpoints_mirt_models[[mirtcomparei_b]]
+        bettermodel_text<-data.frame(modela_ind=sapply(mirtmodelinfindicators, function (X,m) {mirt::extract.mirt(m,X)}, m=modela),
+                                     modelb_ind=sapply(mirtmodelinfindicators, function (X,m) {mirt::extract.mirt(m,X)}, m=modelb)) %>%
+          dplyr::mutate(smaller=magrittr::is_less_than(modela_ind,modelb_ind)) %>%
+          magrittr::use_series("smaller") %>%
+          sum() %>%
+          {if (.>=3) mirtcomparei_a else mirtcomparei_b}
+        mirt::anova(modela,modelb) %>%
+          print()
+        message(paste("better model is",bettermodel_text))
+        if (readline(paste("now in",mirtcomparei_b,"and basis is",mirtcomparei_a,"(whose BIC is",modela_bic,") continue?"))=="N") break
+      }
+    }
+  }
+}
+
+#merge fscore data
+loopmirtmodellist_keys<-dplyr::filter(complete_inf_mirt_models, ncompnfact %in% c(6,22)) %>%
+  dplyr::arrange(survey,imp) %>%
+  magrittr::use_series("runmirt_store_key")
+policy_idealpoint_colname_header<-"policyidealpoint"
+for (mirt_model_on_survey_key in loopmirtmodellist_keys) {
+  #mirt_model_on_survey_key <- loopmirtmodellist_keys[1]
+  message(paste("now in",mirt_model_on_survey_key))
+  needrow<-dplyr::filter(complete_inf_mirt_models, runmirt_store_key==!!mirt_model_on_survey_key)
+  needsurvey<-as.character(needrow$survey) 
+  surveydataids<-dplyr::filter(survey_data_imputed[[needsurvey]], .imp==!!needrow$imp) %>%
+    dplyr::select(SURVEY, id, .imp)
   mirtsurveyresult<-custom_mirt_coef_to_df(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], printSE = TRUE)
   write.csv(mirtsurveyresult, file="TMP.csv")
-  View(mirtsurveyresult)
-  mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="varimax") %>% print()
-  if (readline(paste("now in",mirt_model_on_survey_key,"continue?"))=="N") break
+  #View(mirtsurveyresult)
+  #mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="varimax") %>% print()
+  #mirt::itemfit(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>% print()
+  mirtfscoresdf<- mirt::fscores(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>%
+    {magrittr::set_colnames(., paste0(policy_idealpoint_colname_header, colnames(.)))} %>%
+    data.frame() %>%
+    dplyr::bind_cols(surveydataids, .)
+  survey_data_imputed[[needsurvey]] <- dplyr::bind_rows(
+    dplyr::semi_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY")) %>%
+      dplyr::select(-dplyr::starts_with(policy_idealpoint_colname_header)) %>%
+      dplyr::left_join(mirtfscoresdf, by = c(".imp", "id", "SURVEY")),
+    dplyr::anti_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY") )  
+  )
+  #if (readline(paste("now in",mirt_model_on_survey_key,"continue?"))=="N") break
 }
+
+survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
+#save(survey_data_imputed, file=survey_with_idealpoint_name)
+load(file=survey_with_idealpoint_name, verbose=TRUE)
 
 # Testing Multivariate Normality using R --------------------------------
 #MVN package
