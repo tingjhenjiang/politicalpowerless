@@ -55,5 +55,6 @@ if ({running_ordinal_logistic_model<-TRUE; running_ordinal_logistic_model & runn
 if (running_bigdata_computation==FALSE) {
   load(file=paste0(save_dataset_in_scriptsfile_directory, "ordinallogisticmodelonrespondopinion.RData"), verbose=TRUE)
   poolresult<-micombineresult(ordinallogisticmodelonrespondopinion)
+  write.csv(poolresult,file=paste0(save_dataset_in_scriptsfile_directory, "ordinallogisticmodelresult.csv"),row.names = FALSE)
   View(poolresult)
 }

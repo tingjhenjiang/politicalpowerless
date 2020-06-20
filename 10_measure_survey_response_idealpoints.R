@@ -329,6 +329,35 @@ load(file=survey_with_idealpoint_name, verbose=TRUE)
 
 # Testing Multivariate Normality using R --------------------------------
 #MVN package
+#mvnormtest::mshapiro.test()
+multivariate_test_args <- data.frame(survey_key=survey_keys) %>%
+  cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
+  cbind(., testm = rep(c("mardia", "hz", "royston", "dh","energy"), each = nrow(.))) %>%
+  dplyr::mutate_at(c("survey_key","testm"), as.character) %>%
+  dplyr::arrange(survey_key, imp, testm)
+multivariate_test_res <- custom_parallel_lapply(1:nrow(multivariate_test_args), function(rowi, ...) {
+  needrow<-multivariate_test_args[rowi,]
+  t<-dplyr::filter(survey_data_imputed[[needrow$survey_key]], .imp==!!needrow$imp) %>%
+    dplyr::select(dplyr::starts_with("policy"))
+  res<-MVN::mvn(t,mvnTest=as.character(needrow$testm))
+  dplyr::bind_cols(needrow, res$multivariateNormality) %>%
+    return()
+}, multivariate_test_args=multivariate_test_args, survey_data_imputed=survey_data_imputed,
+method=parallel_method) %>%
+  plyr::rbind.fill()
+write.csv(multivariate_test_res, "TMP.csv")
+
+for (n in names(t)) {
+  custom_plot(t,n) %>% print()
+}
+custom_plot(t,"policyidealpointF1")
+# ANOVA, mixed ANOVA, ANCOVA and MANOVA, Kruskal-Wallis test and Friedman test
+# Nonparametric Inference for Multivariate Data:
+#   The R Package npmv
+#https://cran.r-project.org/web/packages/MultNonParam/MultNonParam.pdf
+# Testing Mean Differences among Groups: Multivariate and Repeated Measures Analysis with Minimal Assumptions
+#MNM https://cran.r-project.org/web/packages/MNM/index.html
+#SpatialNP https://cran.r-project.org/web/packages/SpatialNP/index.html
 
 # CFA IRT 驗證性因素分析 問卷因素結構 --------------------------------
 #mirt example https://philchalmers.github.io/mirt/html/mirt.html

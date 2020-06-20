@@ -11,7 +11,7 @@ t_sessioninfo_running_with_cpu_locale<-try(gsub(pattern=" ",replacement = "", x=
 source_sharedfuncs_r_path<-try(here::here())
 if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
 source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
-save_dataset_in_scriptsfile_directory<-if (running_platform=="guicluster") dataset_in_scriptsfile_directory else "/work1/dowbatw1133/"
+save_dataset_in_scriptsfile_directory<-if (myremoteip=="140.110.148.17") "/work1/dowbatw1133/" else dataset_in_scriptsfile_directory
 
 #選舉資料
 # terms<-c(5,6,7,8,9)
@@ -35,10 +35,11 @@ gc(verbose=TRUE)
 
 if (TRUE) {
   micombineresult<-function(mimodel) {
-    poolresult<-mitools:::summary.MIresult(mitools::MIcombine(mimodel)) %>%
-      dplyr::select(missInfo) %>%
-      dplyr::bind_cols( mice::pool(mimodel) %>%
-                          mice:::summary.mipo(conf.int=TRUE),.)
+    poolresult1<-mitools:::summary.MIresult(mitools::MIcombine(mimodel)) %>%
+      dplyr::select(missInfo)
+    pooresult2<-mice::pool(mimodel) %>%
+      mice:::summary.mipo(conf.int=TRUE)
+    poolresult<-dplyr::bind_cols(poolresult1,pooresult2)
     return(poolresult)
   }
   dummycode_of_a_dataframe<-function(df,catgvars=c()) {

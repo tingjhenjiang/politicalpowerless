@@ -14,6 +14,8 @@ if (!file.exists(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mi
     paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"))
 }
 load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"), verbose=TRUE)
+load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+
 imps<-imputation_sample_i_s
 
 #"myown_dad_ethgroup","myown_mom_ethgroup","myown_working_status","myown_occp","myown_ses","myown_income","myown_family_income",
@@ -669,6 +671,21 @@ for (survey_imp_key in names(kamila_results)) {
     }) %>% as.character() %>% as.integer()
   survey_data_imputed[[surveykey]][survey_data_imputed[[surveykey]]$.imp==imp, "cluster_kamila"]<-kamilaclusterres
 }
+
+# * model-based clustering by mixtools and pdfCluster----------------
+#https://tinyheero.github.io/2015/10/13/mixture-model.html
+mixtools_args<-data.frame("survey"=survey_data_title) %>%
+  cbind(., imp = rep(imps, each = nrow(.))) %>%
+  dplyr::mutate(store_key=paste0(survey,"_",imp)) %>%
+  dplyr::filter(survey %in% !!c("2010overall","2016citizen")) %>%
+  dplyr::mutate_at("survey", as.character) %>%
+  dplyr::mutate_at("imp", as.integer) %>%
+  dplyr::arrange(survey, imp)
+needrow<-mixtools_args[1,]
+t<-survey_data_imputed[[needrow$survey]] %>%
+  dplyr::filter(.imp==!!needrow$imp) %>%
+  dplyr::select(!!clustering_var[[needrow$survey]])
+
 # * model-based clustering by clustMD ----------------
 load_lib_or_install(c("clustMD"))
 
