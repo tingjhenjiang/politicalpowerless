@@ -292,11 +292,11 @@ if (FALSE) {
             print()
           message(paste("better model is",bettermodel_text))
           if (readline(paste("now in",mirtcomparei_b,"and basis is",mirtcomparei_a,"(whose BIC is",modela_bic,") continue?"))=="N") break
-        }
-      }
-    }
-  }
-  
+        } #end othercomparemodel_keys
+      } #end baseline key
+    } #end needimp
+  } #end survey title
+
   #merge fscore data
   loopmirtmodellist_keys<-dplyr::filter(complete_inf_mirt_models, ncompnfact %in% c(6,22)) %>%
     dplyr::arrange(survey,imp) %>%
@@ -314,23 +314,24 @@ if (FALSE) {
     #View(mirtsurveyresult)
     #mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="varimax") %>% print()
     #mirt::itemfit(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>% print()
-    mirtfscoresdf<- mirt::fscores(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>%
-    {magrittr::set_colnames(., paste0(policy_idealpoint_colname_header, colnames(.)))} %>%
-      data.frame() %>%
-      dplyr::bind_cols(surveydataids, .)
-    survey_data_imputed[[needsurvey]] <- dplyr::bind_rows(
-      dplyr::semi_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY")) %>%
-        dplyr::select(-dplyr::starts_with(policy_idealpoint_colname_header)) %>%
-        dplyr::left_join(mirtfscoresdf, by = c(".imp", "id", "SURVEY")),
-      dplyr::anti_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY") )  
-    )
-    #if (readline(paste("now in",mirt_model_on_survey_key,"continue?"))=="N") break
+    if (FALSE) {
+      mirtfscoresdf<- mirt::fscores(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>%
+      {magrittr::set_colnames(., paste0(policy_idealpoint_colname_header, colnames(.)))} %>%
+        data.frame() %>%
+        dplyr::bind_cols(surveydataids, .)
+      survey_data_imputed[[needsurvey]] <- dplyr::bind_rows(
+        dplyr::semi_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY")) %>%
+          dplyr::select(-dplyr::starts_with(policy_idealpoint_colname_header)) %>%
+          dplyr::left_join(mirtfscoresdf, by = c(".imp", "id", "SURVEY")),
+        dplyr::anti_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY") )  
+      )
+      #if (readline(paste("now in",mirt_model_on_survey_key,"continue?"))=="N") break
+    }
   }
-  
   survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
   #save(survey_data_imputed, file=survey_with_idealpoint_name)
   load(file=survey_with_idealpoint_name, verbose=TRUE)
-  
+  if (readline(paste("now in",mirt_model_on_survey_key,"continue?"))=="N") break
 }
 
 # Testing Multivariate Normality of policy preference using R --------------------------------
