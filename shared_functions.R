@@ -99,7 +99,6 @@ dataset_in_scriptsfile_directory <- switch(
     if (returnhere==TRUE) paste0(here::here(),slash,"data",slash) else NA
   }
   #{ifelse((gtools::invalid(.) | !dir.exists(.) | !file.exists(paste0(., "shared_functions.R") )), paste0(here::here(),slash,"data",slash), .)}
-save_dataset_in_scriptsfile_directory<-if (grepl(pattern="140.110.148", myremoteip)) "/work1/dowbatw1133/" else dataset_in_scriptsfile_directory
 
 #dataset_file_directory <- switch(
 #  t_sessioninfo_running_with_cpu,
@@ -126,6 +125,8 @@ myremoteip <- tryCatch({xml2::read_html('https://www.myip.com/') %>%
         rvest::html_nodes(xpath = "//body/b/span//text()") %>%
         rvest::html_text())
       })
+save_dataset_in_scriptsfile_directory<-if (grepl(pattern="140.110.148", myremoteip)) "/work1/dowbatw1133/" else dataset_in_scriptsfile_directory
+
 mysqldbhost <- if (t_sessioninfo_running_with_cpu_locale=="Ubuntu18.04.3LTSIntel(R)Core(TM)i7-9750HCPU@2.60GHzzh_TW.UTF-8") {
   "tjhome.crabdance.com" #gsub("nameserver ","", x=system("cat /etc/resolv.conf", intern=TRUE)[4])
 } else if (t_sessioninfo_running_with_cpu_locale=="Ubuntu18.04.3LTSIntel(R)Core(TM)i5-7400CPU@3.00GHzzh_TW.UTF-8") {
