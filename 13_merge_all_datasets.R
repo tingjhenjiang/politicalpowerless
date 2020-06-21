@@ -11,7 +11,6 @@ t_sessioninfo_running_with_cpu_locale<-try(gsub(pattern=" ",replacement = "", x=
 source_sharedfuncs_r_path<-try(here::here())
 if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
 source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
-save_dataset_in_scriptsfile_directory<-if (myremoteip=="140.110.148.17") "/work1/dowbatw1133/" else dataset_in_scriptsfile_directory
 
 #選舉資料
 # terms<-c(5,6,7,8,9)

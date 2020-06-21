@@ -98,6 +98,10 @@ if (FALSE) {
         psych::fa.parallel(targetsurveydf, fm=parallel_fa_method_fm, main="Parallel Analysis Scree Plots", cor="poly")
         #random.polychor.pa::random.polychor.pa(nrep=50, data.matrix = targetsurveydf, q.eigen=.99)
       })
+      res_n_factors <- hullEFA(X=dplyr::mutate_all(targetsurveydf, as.numeric),
+        extr="ML", index_hull="CAF")
+      res_n_factors <- try({ dplyr::mutate_all(targetsurveydf, as.numeric) %>%
+          EFA.MRFA::parallelMRFA(corr="Polychoric")})
       if(is(res_n_factors, 'try-error')) {
         message(paste0("error at ",survey_parallelfa_arguments_df[fi,"store_key"]))
       }
@@ -156,7 +160,7 @@ distincted_survey_parallelfa_arguments_df<-survey_parallelfa_arguments_df %>%
 distincted_survey_parallelfa_arguments_df %<>% dplyr::bind_rows(
   data.frame("survey"="2016citizen", "term"="9") %>%
     cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
-    cbind(., ncompnfact = rep(21:23, each = nrow(.))) %>%
+    cbind(., ncompnfact = rep(c(12,21:23), each = nrow(.))) %>%
     cbind(., reduct_type = rep(c("nfact"), each = nrow(.)))
 ) %>%
   dplyr::bind_rows(
@@ -189,7 +193,7 @@ distincted_survey_parallelfa_arguments_df_runonly<- distincted_survey_parallelfa
   dplyr::mutate(runmirt_store_key=paste0(survey,"_imp",imp,"_ncompnfact",ncompnfact)) #%>%
   #dplyr::filter(imp==1)
 
-survey_idealpoints_mirt_models_file <- paste0(dataset_in_scriptsfile_directory, "survey_idealpoints_mirt_models.RData")
+survey_idealpoints_mirt_models_file <- paste0(save_dataset_in_scriptsfile_directory, "survey_idealpoints_mirt_models.RData")
 if ({avoid_run_duplicated_models<-TRUE;avoid_run_duplicated_models}) {
   load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
   distincted_survey_parallelfa_arguments_df_runonly<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, !(runmirt_store_key %in% !!names(survey_idealpoints_mirt_models)) )
@@ -248,116 +252,155 @@ if (FALSE) {
     term_related_q=term_related_q,
     distincted_survey_parallelfa_arguments_df_runonly=distincted_survey_parallelfa_arguments_df_runonly,
     survey_idealpoints_mirt_models_file=survey_idealpoints_mirt_models_file,
-    method=parallel_method, mc.cores=9
+    method=parallel_method, mc.cores=5
     ), .) 
 }
 
 #save(survey_idealpoints_mirt_models, file=survey_idealpoints_mirt_models_file)
 
 # Checking factor scores and factor structure and goodness of fit --------------------------------
-
-load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
-
-complete_inf_mirt_models<-lapply(survey_idealpoints_mirt_models,tidymirt:::glance.SingleGroupClass) %>%
-  dplyr::bind_rows() %>%
-  data.frame(runmirt_store_key=names(survey_idealpoints_mirt_models)) %>%
-  dplyr::left_join(distincted_survey_parallelfa_arguments_df_runonly, .) %>%
-  dplyr::arrange(survey, SABIC, BIC, AIC)
-write.csv(complete_inf_mirt_models, "TMP.csv")
-
-mirtmodelinfindicators<-c("AIC","AICc","SABIC","HQ","BIC")
-for (survey_title in as.character(unique(complete_inf_mirt_models$survey))) {
-  for (needimp in 1:5) {
-    mirtcomparei_df<-dplyr::filter(complete_inf_mirt_models, survey==!!survey_title, imp==!!needimp)
-    for (baseline_key in 1:nrow(mirtcomparei_df)) {
-      baselinerow<-mirtcomparei_df[baseline_key, ]
-      mirtcomparei_a<-baselinerow$runmirt_store_key
-      othercomparemodel_keys<-dplyr::filter(mirtcomparei_df, runmirt_store_key!=!!mirtcomparei_a) %>%
-        magrittr::use_series("runmirt_store_key")
-      for (mirtcomparei_b in othercomparemodel_keys) {
-        modela<-survey_idealpoints_mirt_models[[mirtcomparei_a]]
-        modela_bic<-mirt::extract.mirt(modela, "BIC")
-        modelb<-survey_idealpoints_mirt_models[[mirtcomparei_b]]
-        bettermodel_text<-data.frame(modela_ind=sapply(mirtmodelinfindicators, function (X,m) {mirt::extract.mirt(m,X)}, m=modela),
-                                     modelb_ind=sapply(mirtmodelinfindicators, function (X,m) {mirt::extract.mirt(m,X)}, m=modelb)) %>%
-          dplyr::mutate(smaller=magrittr::is_less_than(modela_ind,modelb_ind)) %>%
-          magrittr::use_series("smaller") %>%
-          sum() %>%
-          {if (.>=3) mirtcomparei_a else mirtcomparei_b}
-        mirt::anova(modela,modelb) %>%
-          print()
-        message(paste("better model is",bettermodel_text))
-        if (readline(paste("now in",mirtcomparei_b,"and basis is",mirtcomparei_a,"(whose BIC is",modela_bic,") continue?"))=="N") break
+if (FALSE) {
+  load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
+  
+  complete_inf_mirt_models<-lapply(survey_idealpoints_mirt_models,tidymirt:::glance.SingleGroupClass) %>%
+    dplyr::bind_rows() %>%
+    data.frame(runmirt_store_key=names(survey_idealpoints_mirt_models)) %>%
+    dplyr::left_join(distincted_survey_parallelfa_arguments_df_runonly, .) %>%
+    dplyr::arrange(survey, SABIC, BIC, AIC)
+  write.csv(complete_inf_mirt_models, "TMP.csv")
+  
+  mirtmodelinfindicators<-c("AIC","AICc","SABIC","HQ","BIC")
+  for (survey_title in as.character(unique(complete_inf_mirt_models$survey))) {
+    for (needimp in 1:5) {
+      mirtcomparei_df<-dplyr::filter(complete_inf_mirt_models, survey==!!survey_title, imp==!!needimp)
+      for (baseline_key in 1:nrow(mirtcomparei_df)) {
+        baselinerow<-mirtcomparei_df[baseline_key, ]
+        mirtcomparei_a<-baselinerow$runmirt_store_key
+        othercomparemodel_keys<-dplyr::filter(mirtcomparei_df, runmirt_store_key!=!!mirtcomparei_a) %>%
+          magrittr::use_series("runmirt_store_key")
+        for (mirtcomparei_b in othercomparemodel_keys) {
+          modela<-survey_idealpoints_mirt_models[[mirtcomparei_a]]
+          modela_bic<-mirt::extract.mirt(modela, "BIC")
+          modelb<-survey_idealpoints_mirt_models[[mirtcomparei_b]]
+          bettermodel_text<-data.frame(modela_ind=sapply(mirtmodelinfindicators, function (X,m) {mirt::extract.mirt(m,X)}, m=modela),
+                                       modelb_ind=sapply(mirtmodelinfindicators, function (X,m) {mirt::extract.mirt(m,X)}, m=modelb)) %>%
+            dplyr::mutate(smaller=magrittr::is_less_than(modela_ind,modelb_ind)) %>%
+            magrittr::use_series("smaller") %>%
+            sum() %>%
+            {if (.>=3) mirtcomparei_a else mirtcomparei_b}
+          mirt::anova(modela,modelb) %>%
+            print()
+          message(paste("better model is",bettermodel_text))
+          if (readline(paste("now in",mirtcomparei_b,"and basis is",mirtcomparei_a,"(whose BIC is",modela_bic,") continue?"))=="N") break
+        }
       }
     }
   }
-}
-
-#merge fscore data
-loopmirtmodellist_keys<-dplyr::filter(complete_inf_mirt_models, ncompnfact %in% c(6,22)) %>%
-  dplyr::arrange(survey,imp) %>%
-  magrittr::use_series("runmirt_store_key")
-policy_idealpoint_colname_header<-"policyidealpoint"
-for (mirt_model_on_survey_key in loopmirtmodellist_keys) {
-  #mirt_model_on_survey_key <- loopmirtmodellist_keys[1]
-  message(paste("now in",mirt_model_on_survey_key))
-  needrow<-dplyr::filter(complete_inf_mirt_models, runmirt_store_key==!!mirt_model_on_survey_key)
-  needsurvey<-as.character(needrow$survey) 
-  surveydataids<-dplyr::filter(survey_data_imputed[[needsurvey]], .imp==!!needrow$imp) %>%
-    dplyr::select(SURVEY, id, .imp)
-  mirtsurveyresult<-custom_mirt_coef_to_df(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], printSE = TRUE)
-  write.csv(mirtsurveyresult, file="TMP.csv")
-  #View(mirtsurveyresult)
-  #mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="varimax") %>% print()
-  #mirt::itemfit(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>% print()
-  mirtfscoresdf<- mirt::fscores(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>%
+  
+  #merge fscore data
+  loopmirtmodellist_keys<-dplyr::filter(complete_inf_mirt_models, ncompnfact %in% c(6,22)) %>%
+    dplyr::arrange(survey,imp) %>%
+    magrittr::use_series("runmirt_store_key")
+  policy_idealpoint_colname_header<-"policyidealpoint"
+  for (mirt_model_on_survey_key in loopmirtmodellist_keys) {
+    #mirt_model_on_survey_key <- loopmirtmodellist_keys[1]
+    message(paste("now in",mirt_model_on_survey_key))
+    needrow<-dplyr::filter(complete_inf_mirt_models, runmirt_store_key==!!mirt_model_on_survey_key)
+    needsurvey<-as.character(needrow$survey) 
+    surveydataids<-dplyr::filter(survey_data_imputed[[needsurvey]], .imp==!!needrow$imp) %>%
+      dplyr::select(SURVEY, id, .imp)
+    mirtsurveyresult<-custom_mirt_coef_to_df(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], printSE = TRUE)
+    write.csv(mirtsurveyresult, file="TMP.csv")
+    #View(mirtsurveyresult)
+    #mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="varimax") %>% print()
+    #mirt::itemfit(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>% print()
+    mirtfscoresdf<- mirt::fscores(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>%
     {magrittr::set_colnames(., paste0(policy_idealpoint_colname_header, colnames(.)))} %>%
-    data.frame() %>%
-    dplyr::bind_cols(surveydataids, .)
-  survey_data_imputed[[needsurvey]] <- dplyr::bind_rows(
-    dplyr::semi_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY")) %>%
-      dplyr::select(-dplyr::starts_with(policy_idealpoint_colname_header)) %>%
-      dplyr::left_join(mirtfscoresdf, by = c(".imp", "id", "SURVEY")),
-    dplyr::anti_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY") )  
-  )
-  #if (readline(paste("now in",mirt_model_on_survey_key,"continue?"))=="N") break
+      data.frame() %>%
+      dplyr::bind_cols(surveydataids, .)
+    survey_data_imputed[[needsurvey]] <- dplyr::bind_rows(
+      dplyr::semi_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY")) %>%
+        dplyr::select(-dplyr::starts_with(policy_idealpoint_colname_header)) %>%
+        dplyr::left_join(mirtfscoresdf, by = c(".imp", "id", "SURVEY")),
+      dplyr::anti_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY") )  
+    )
+    #if (readline(paste("now in",mirt_model_on_survey_key,"continue?"))=="N") break
+  }
+  
+  survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
+  #save(survey_data_imputed, file=survey_with_idealpoint_name)
+  load(file=survey_with_idealpoint_name, verbose=TRUE)
+  
 }
 
-survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
-#save(survey_data_imputed, file=survey_with_idealpoint_name)
-load(file=survey_with_idealpoint_name, verbose=TRUE)
-
-# Testing Multivariate Normality using R --------------------------------
+# Testing Multivariate Normality of policy preference using R --------------------------------
 #MVN package
 #mvnormtest::mshapiro.test()
-multivariate_test_args <- data.frame(survey_key=survey_keys) %>%
-  cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
-  cbind(., testm = rep(c("mardia", "hz", "royston", "dh","energy"), each = nrow(.))) %>%
-  dplyr::mutate_at(c("survey_key","testm"), as.character) %>%
-  dplyr::arrange(survey_key, imp, testm)
-multivariate_test_res <- custom_parallel_lapply(1:nrow(multivariate_test_args), function(rowi, ...) {
-  needrow<-multivariate_test_args[rowi,]
-  t<-dplyr::filter(survey_data_imputed[[needrow$survey_key]], .imp==!!needrow$imp) %>%
-    dplyr::select(dplyr::starts_with("policy"))
-  res<-MVN::mvn(t,mvnTest=as.character(needrow$testm))
-  dplyr::bind_cols(needrow, res$multivariateNormality) %>%
-    return()
-}, multivariate_test_args=multivariate_test_args, survey_data_imputed=survey_data_imputed,
-method=parallel_method) %>%
-  plyr::rbind.fill()
-write.csv(multivariate_test_res, "TMP.csv")
-
-for (n in names(t)) {
-  custom_plot(t,n) %>% print()
+if (FALSE) {
+  multivariate_test_args <- data.frame(survey_key=survey_keys) %>%
+    cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
+    cbind(., testm = rep(c("mardia", "hz", "royston", "dh","energy"), each = nrow(.))) %>%
+    dplyr::mutate_at(c("survey_key","testm"), as.character) %>%
+    dplyr::arrange(survey_key, imp, testm)
+  multivariate_test_res <- custom_parallel_lapply(1:nrow(multivariate_test_args), function(rowi, ...) {
+    needrow<-multivariate_test_args[rowi,]
+    t<-dplyr::filter(survey_data_imputed[[needrow$survey_key]], .imp==!!needrow$imp) %>%
+      dplyr::select(dplyr::starts_with("policy"))
+    res<-MVN::mvn(t,mvnTest=as.character(needrow$testm))
+    dplyr::bind_cols(needrow, res$multivariateNormality) %>%
+      return()
+  }, multivariate_test_args=multivariate_test_args, survey_data_imputed=survey_data_imputed,
+  method=parallel_method) %>%
+    plyr::rbind.fill()
+  write.csv(multivariate_test_res, "TMP.csv")
+  
+  for (n in names(t)) {
+    custom_plot(t,n) %>% print()
+  }
+  custom_plot(t,"policyidealpointF1")
+  # ANOVA, mixed ANOVA, ANCOVA and MANOVA, Kruskal-Wallis test and Friedman test
+  # Nonparametric Inference for Multivariate Data:
+  #   The R Package npmv
+  #https://cran.r-project.org/web/packages/MultNonParam/MultNonParam.pdf
+  # Testing Mean Differences among Groups: Multivariate and Repeated Measures Analysis with Minimal Assumptions
+  #MNM https://cran.r-project.org/web/packages/MNM/index.html
+  #SpatialNP https://cran.r-project.org/web/packages/SpatialNP/index.html
 }
-custom_plot(t,"policyidealpointF1")
-# ANOVA, mixed ANOVA, ANCOVA and MANOVA, Kruskal-Wallis test and Friedman test
-# Nonparametric Inference for Multivariate Data:
-#   The R Package npmv
-#https://cran.r-project.org/web/packages/MultNonParam/MultNonParam.pdf
-# Testing Mean Differences among Groups: Multivariate and Repeated Measures Analysis with Minimal Assumptions
-#MNM https://cran.r-project.org/web/packages/MNM/index.html
-#SpatialNP https://cran.r-project.org/web/packages/SpatialNP/index.html
+
+# Testing Normality of political participation using R --------------------------------
+
+if (FALSE) {
+  pp_normality_test_args <- data.frame(survey_key=survey_keys) %>%
+    cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
+    cbind(., testm = rep(c("Shapiro-Wilk", "Anderson-Darling", "Cramer-vonMises", "Lilliefors","PearsonChi-Squared","Shapiro-Francia"), each = nrow(.))) %>%
+    dplyr::mutate(store_key=paste0(survey_key,"_imp",imp,"_",testm)) %>%
+    dplyr::mutate_at(c("survey_key","testm","store_key"), as.character) %>%
+    dplyr::mutate_at(c("imp"), as.integer) %>%
+    dplyr::arrange(survey_key, imp, testm)
+  pp_normality_test_res<-custom_parallel_lapply(1:nrow(pp_normality_test_args), function(rowi, ...) {
+    needrow<-pp_normality_test_args[rowi,]
+    needv<-survey_data_imputed[[needrow$survey_key]] %>%
+      dplyr::filter(.imp==!!needrow$imp) %>%
+      magrittr::use_series("myown_factoredparticip")
+    switch(needrow$testm, 
+           "Shapiro-Wilk"=shapiro.test(needv),
+           "Anderson-Darling"=nortest::ad.test(needv),
+           "Cramer-vonMises"=nortest::cvm.test(needv),
+           "Lilliefors"=nortest::lillie.test(needv),
+           "PearsonChi-Squared"=nortest::pearson.test(needv),
+           "Shapiro-Francia"=nortest::sf.test(needv)
+    ) %>%
+      magrittr::use_series("p.value") %>%
+      data.frame("pvalue"=.) %>%
+      dplyr::bind_cols(needrow, .)
+  },pp_normality_test_args=pp_normality_test_args,survey_data_imputed=survey_data_imputed,
+  method=parallel_method) %>%
+    dplyr::bind_rows() %>%
+    dplyr::select(-store_key) %>%
+    dplyr::mutate(TF=pvalue<=0.05)
+  write.csv(pp_normality_test_res,"TMP.csv")
+}
+
 
 # CFA IRT 驗證性因素分析 問卷因素結構 --------------------------------
 #mirt example https://philchalmers.github.io/mirt/html/mirt.html
