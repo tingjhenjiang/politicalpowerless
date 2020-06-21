@@ -624,38 +624,45 @@ for (varsellcm_results_key in unique(sort(varsellcm_arguments_df$keyprefix))) {
 kamila_results<-list()
 kamila_arguments_df<-data.frame("survey"=survey_data_title) %>%
   cbind(., imp = rep(imps, each = nrow(.))) %>%
-  dplyr::mutate(store_key=paste0(survey,"_",imp))
+  dplyr::mutate(store_key=paste0(survey,"_",imp)) %>%
+  dplyr::mutate_at(c("survey","store_key"),as.character) %>%
+  dplyr::mutate_at("imp", as.integer) %>%
+  dplyr::filter(survey %in% c("2010overall","2016citizen")) %>%
+  dplyr::arrange(survey, imp)
 reskamilaclusterfile <- paste0(dataset_in_scriptsfile_directory, "kamilacluster.Rdata")
-kamila_results<-custom_parallel_lapply(1:nrow(kamila_arguments_df), function (fi, kamila_arguments_df, survey_data_imputed, clustering_var, reskamilaclusterfile) {
-  survey_key <- kamila_arguments_df$survey[fi]#iterx$needsurvey
-  needimp <- kamila_arguments_df$imp[fi]
-  if (TRUE) {
+if (FALSE) {
+  kamila_results<-custom_parallel_lapply(1:nrow(kamila_arguments_df), function (fi, ...) {
+    survey_key <- kamila_arguments_df$survey[fi]#iterx$needsurvey
+    needimp <- kamila_arguments_df$imp[fi]
     needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
       dplyr::mutate_at("myown_age",scale) %>%
       dplyr::mutate_at("myown_age",function (X) {X[,1]}) %>%
       dplyr::mutate_at("myown_age",as.numeric)
     surveyweight<-needdf$myown_wr
     inputData<-dplyr::select(needdf, !!clustering_var[[survey_key]])
-    n_select_components<-2:12
     resmodel <- kamila::kamila(conVar=inputData[,c("myown_age","myown_factoredses")],
                                catFactor=inputData[c("myown_sex","myown_selfid","myown_marriage", "myown_areakind")],
-                               numClust = n_select_components, numInit = 10, calcNumClust = "ps", numPredStrCvRun = 10, predStrThresh = 0.5, verbose=TRUE)
+                               numClust = 2:12, numInit = 10, calcNumClust = "ps", numPredStrCvRun = 10,
+                               predStrThresh = 0.5, maxIter=10000, verbose=TRUE)
     #load(file=reskamilaclusterfile, verbose=TRUE)
     #kamila_results[[store_key]]<-resmodel
     #save(kamila_results, file=reskamilaclusterfile)
     return(resmodel)
-  }
-  if (FALSE) {
-    store_key <- paste0(survey_key, "_", needimp)
-    load(file=reskamilaclusterfile, verbose=TRUE)
-    return(kamila_results[[store_key]]$nClust$bestNClust)
-  }
-}, kamila_arguments_df=kamila_arguments_df,
-survey_data_imputed=survey_data_imputed,
-clustering_var=clustering_var,
-reskamilaclusterfile=reskamilaclusterfile,method="fork", mc.cores=parallel::detectCores()) %>%
-  magrittr::set_names(kamila_arguments_df$store_key)
-save(kamila_results, file=reskamilaclusterfile)
+    if (FALSE) {
+      store_key <- paste0(survey_key, "_", needimp)
+      load(file=reskamilaclusterfile, verbose=TRUE)
+      return(kamila_results[[store_key]]$nClust$bestNClust)
+    }
+  }, kamila_arguments_df=kamila_arguments_df,
+  nclusrange=base::setdiff(nclusrange,1),
+  survey_data_imputed=survey_data_imputed,
+  clustering_var=clustering_var,
+  reskamilaclusterfile=reskamilaclusterfile,
+  method=parallel_method) %>%
+    magrittr::set_names(kamila_arguments_df$store_key)
+}
+
+#save(kamila_results, file=reskamilaclusterfile)
 load(file=reskamilaclusterfile, verbose=TRUE)
 for (survey_imp_key in names(kamila_results)) {
   message(paste("now in",survey_imp_key))
@@ -671,6 +678,8 @@ for (survey_imp_key in names(kamila_results)) {
     }) %>% as.character() %>% as.integer()
   survey_data_imputed[[surveykey]][survey_data_imputed[[surveykey]]$.imp==imp, "cluster_kamila"]<-kamilaclusterres
 }
+
+
 
 # * model-based clustering by mixtools and pdfCluster----------------
 #https://tinyheero.github.io/2015/10/13/mixture-model.html
