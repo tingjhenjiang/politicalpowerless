@@ -268,7 +268,7 @@ complete_inf_mirt_models<-lapply(survey_idealpoints_mirt_models,tidymirt:::glanc
 write.csv(complete_inf_mirt_models, "TMP.csv")
 mirtmodelinfindicators<-c("AIC","AICc","SABIC","HQ","BIC")
 
-#check which model is better among different dimensions
+# checking which model is better among different dimensions --------------------------------
 if (FALSE) {
   for (survey_title in as.character(unique(complete_inf_mirt_models$survey))) {
     for (needimp in 1:5) {
@@ -298,7 +298,7 @@ if (FALSE) {
   } #end survey title
 }
 
-#merge fscore data
+# merge fscore data --------------------------------
 if (FALSE) {
   loopmirtmodellist_keys<-dplyr::filter(complete_inf_mirt_models, ncompnfact %in% c(6,12)) %>%
     dplyr::arrange(survey,imp) %>%
@@ -322,8 +322,12 @@ if (FALSE) {
         data.frame()
       median_policy_idealpoint<-SpatialNP::spatial.location(mirtfscoresdf, shape=TRUE,score="signrank") %>%
         as.numeric()
-      cos_similarity_to_median_policy_idealpoint<-apply(mirtfscoresdf, 1, FUN=lsa::cosine, y=median_policy_idealpoint)
-      euclid_distance_to_median_policy_idealpoint<-apply(mirtfscoresdf, 1, FUN=custom_eucli_similarity, y=median_policy_idealpoint)
+      cos_similarity_to_median_policy_idealpoint<-apply(mirtfscoresdf, 1, FUN=lsa::cosine, y=median_policy_idealpoint) %>%
+        scale() %>%
+        as.numeric()
+      euclid_distance_to_median_policy_idealpoint<-apply(mirtfscoresdf, 1, FUN=custom_eucli_similarity, y=median_policy_idealpoint) %>%
+        scale() %>%
+        as.numeric()
       more_similar_cos<-quantile(cos_similarity_to_median_policy_idealpoint)[4] %>%
         magrittr::is_weakly_greater_than(cos_similarity_to_median_policy_idealpoint,.) %>%
         as.numeric()
