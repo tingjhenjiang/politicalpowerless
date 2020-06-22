@@ -870,6 +870,14 @@ custom_pickcolnames_accordingtoclass<-function(df,needclass="factor") {
     return()
 }
 
+custom_eucli_similarity<-function(x, y, method="euclidean", ...) {
+  matrix(as.numeric(x),nrow=1) %>%
+    rbind(as.numeric(y)) %>%
+    dist(method=method) %>%
+    as.numeric() %>%
+    return()
+}
+
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"
 #research_odbc_ch <- odbcConnect(research_odbc, believeNRows = FALSE, rows_at_time = 1, DBMSencoding="UTF-8")
