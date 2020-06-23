@@ -320,7 +320,7 @@ if (FALSE) {
       mirtfscoresdf<- mirt::fscores(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>%
         {magrittr::set_colnames(., paste0(policy_idealpoint_colname_header, colnames(.)))} %>%
         data.frame()
-      median_policy_idealpoint<-SpatialNP::spatial.location(mirtfscoresdf, shape=TRUE,score="signrank") %>%
+      median_policy_idealpoint<-SpatialNP::spatial.location(mirtfscoresdf, shape=TRUE, score="sign") %>%
         as.numeric()
       cos_similarity_to_median_policy_idealpoint<-apply(mirtfscoresdf, 1, FUN=lsa::cosine, y=median_policy_idealpoint) %>%
         scale() %>%
