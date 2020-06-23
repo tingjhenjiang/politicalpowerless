@@ -43,16 +43,38 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #nests: id
 survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
 load(file=survey_with_idealpoint_name, verbose=TRUE)
+
+custom_plot(survey_data_imputed$`2010overall`,"policyidealpoint_cos_similarity_to_median","myown_wr")
+custom_plot(survey_data_imputed$`2016citizen`,"policyidealpoint_eucli_distance_to_median","myown_wr")
+
+need_svytitle<-c("2010overall","2016citizen")
 analysis_idealpoint_to_median_args<-data.frame("survey"=survey_data_title) %>%
   cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
   dplyr::mutate(store_key=paste0(survey,"_imp",imp)) %>%
-  dplyr::filter(survey %in% !!c("2010overall","2016citizen")) %>%
+  dplyr::filter(survey %in% !!need_svytitle) %>%
   dplyr::mutate_at("survey", as.character) %>%
   dplyr::mutate_at("imp", as.integer) %>%
   dplyr::arrange(survey, imp)
 
 #brm_multiple
-analysis_idealpoint_to_median_args$store_key[1] %>%
+common_names <- survey_data_imputed[need_svytitle] %>%
+  lapply(FUN=names) %>%
+  purrr::reduce(base::intersect)
+merged_acrossed_surveys<-lapply(imputation_sample_i_s, function(imp, ...) {
+  survey_data_imputed[need_svytitle] %>%
+    lapply(FUN=function(X,nimp) {dplyr::filter(X, .imp==!!nimp) %>% dplyr::select(-myown_indp_atti)}, nimp=imp) %>%
+    dplyr::bind_rows()
+}, survey_data_imputed=survey_data_imputed, need_svytitle=need_svytitle)
+
+mod_robust <- brms::brm_multiple(
+  brms::bf(policyidealpoint_cos_similarity_to_median ~ cluster_kamila, sigma ~ cluster_kamila),
+  family=brms::student,
+  data = needdf, 
+  cores=parallel::detectCores(),
+  file = here::here("data/policyidealpoint_cos_similarity_to_median_to_kamila-robust")
+)
+
+s<-analysis_idealpoint_to_median_args$store_key[1:10] %>%
   magrittr::set_names(., lapply(., function(fikey, ...) {
     needrow<-dplyr::filter(analysis_idealpoint_to_median_args, store_key==!!fikey)
     svytitle<-needrow$survey
@@ -61,9 +83,18 @@ analysis_idealpoint_to_median_args$store_key[1] %>%
       magrittr::extract2(svytitle) %>%
       dplyr::filter(.imp==!!imp) %>%
       mutate(new_policyidealpoint_cos_similarity_to_median=policyidealpoint_cos_similarity_to_median+10)
-    magrittr::use_series("policyidealpoint_cos_similarity_to_median") %>%
-      magrittr::add(10)
+    t<-magrittr::use_series(needdf, "policyidealpoint_cos_similarity_to_median") %>%
+      bestNormalize::bestNormalize()
+    mod_robust <- brms::brm(
+      brms::bf(policyidealpoint_cos_similarity_to_median ~ cluster_kamila, sigma ~ cluster_kamila),
+      family=brms::student,
+      data = needdf, 
+      cores=parallel::detectCores(),
+      file = here::here("data/iqgroup-robust")
+    )
     
+    return(t$chosen_transform)
+    #shapiro.test(t$x.t)
     if ({boxcox<-FALSE;boxcox}) {
       r<-MASS::boxcox(new_policyidealpoint_cos_similarity_to_median~cluster_kamila, data=needdf)
       bestpower <- cbind("lambda"=r$x, "lik"=r$y) %>%
@@ -72,7 +103,7 @@ analysis_idealpoint_to_median_args$store_key[1] %>%
       f1 <- lm(new_policyidealpoint_cos_similarity_to_median^1.030303 ~ cluster_kamila, data=needdf)
       summary(f1)
       shapiro.test(f1$res)
-      data.frame(t=t^bestpower) %>%
+      data.frame(t=t$x.t) %>%
         custom_plot("t")
     }
     
@@ -81,9 +112,9 @@ analysis_idealpoint_to_median_args$store_key[1] %>%
     #r<-car::powerTransform(t)
     #shapiro.test(r)
     #r<-MASS::boxcox(policyidealpoint_cos_similarity_to_median~)
-    brms::brm(modelformula,
-              data = ., family = brms::cumulative(link = "logit"),
-              chains = 2, cores = parallel::detectCores())
+    # brms::brm(modelformula,
+    #           data = ., family = brms::cumulative(link = "logit"),
+    #           chains = 2, cores = parallel::detectCores())
   }, survey_data_imputed=survey_data_imputed,
     analysis_idealpoint_to_median_args=analysis_idealpoint_to_median_args)
   )
