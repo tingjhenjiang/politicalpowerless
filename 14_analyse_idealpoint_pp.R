@@ -69,7 +69,7 @@ merged_acrossed_surveys<-lapply(imputation_sample_i_s, function(imp, ...) {
 mod_robust <- brms::brm_multiple(
   brms::bf(policyidealpoint_cos_similarity_to_median ~ cluster_kamila, sigma ~ cluster_kamila),
   family=brms::student,
-  data = needdf, 
+  data = merged_acrossed_surveys, 
   cores=parallel::detectCores(),
   file = here::here("data/policyidealpoint_cos_similarity_to_median_to_kamila-robust")
 )
