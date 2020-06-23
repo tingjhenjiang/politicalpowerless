@@ -878,6 +878,46 @@ custom_eucli_similarity<-function(x, y, method="euclidean", ...) {
     return()
 }
 
+#from https://wangcc.me/LSHTMlearningnote/assumptions.html
+Ladder.x <- function(x){
+  data <- data.frame(x^3,x^2,x,sqrt(x),log(x),1/sqrt(x),1/x,1/(x^2),1/(x^3))
+  names(data) <- c("cubic","square","identity","square root","log","1/(square root)",
+                   "inverse","1/square","1/cubic")
+  # options(scipen=5)
+  test1 <- shapiro.test(data$cubic)
+  test2 <- shapiro.test(data$square)
+  test3 <- shapiro.test(data$identity)
+  test4 <- shapiro.test(data$`square root`)
+  test5 <- shapiro.test(data$log)
+  test6 <- shapiro.test(data$`1/(square root)`)
+  test7 <- shapiro.test(data$inverse)
+  test8 <- shapiro.test(data$`1/square`)
+  test9 <- shapiro.test(data$`1/cubic`)
+  W.statistic <- c(test1$statistic,
+                   test2$statistic,
+                   test3$statistic,
+                   test4$statistic,
+                   test5$statistic,
+                   test6$statistic,
+                   test7$statistic,
+                   test8$statistic,
+                   test9$statistic)
+  p.value <- c(test1$p.value,
+               test2$p.value,
+               test3$p.value,
+               test4$p.value,
+               test5$p.value,
+               test6$p.value,
+               test7$p.value,
+               test8$p.value,
+               test9$p.value)
+  Hmisc::format.pval(p.value ,digits=5, eps = 0.00001, scientific = FALSE)
+  Transformation <- c("cubic","square","identity","square root","log","1/(square root)",
+                      "inverse","1/square","1/cubic")
+  Formula <- c("x^3","x^2","x","sqrt(x)","log(x)","1/sqrt(x)","1/x","1/(x^2)","1/(x^3)")
+  (results <- data.frame(Transformation, Formula, W.statistic, p.value))
+}
+
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"
 #research_odbc_ch <- odbcConnect(research_odbc, believeNRows = FALSE, rows_at_time = 1, DBMSencoding="UTF-8")

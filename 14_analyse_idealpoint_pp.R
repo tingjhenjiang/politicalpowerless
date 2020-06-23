@@ -1,7 +1,7 @@
 running_platform<-"guicluster"
 running_platform<-"computecluster"
 running_bigdata_computation<-FALSE
-running_bigdata_computation<-TRUE
+#running_bigdata_computation<-TRUE
 
 source_sharedfuncs_r_path<-try(here::here())
 if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
@@ -41,3 +41,51 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #https://wangcc.me/LSHTMlearningnote/Hierarchical.html
 
 #nests: id
+survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
+load(file=survey_with_idealpoint_name, verbose=TRUE)
+analysis_idealpoint_to_median_args<-data.frame("survey"=survey_data_title) %>%
+  cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
+  dplyr::mutate(store_key=paste0(survey,"_imp",imp)) %>%
+  dplyr::filter(survey %in% !!c("2010overall","2016citizen")) %>%
+  dplyr::mutate_at("survey", as.character) %>%
+  dplyr::mutate_at("imp", as.integer) %>%
+  dplyr::arrange(survey, imp)
+
+#brm_multiple
+analysis_idealpoint_to_median_args$store_key[1] %>%
+  magrittr::set_names(., lapply(., function(fikey, ...) {
+    needrow<-dplyr::filter(analysis_idealpoint_to_median_args, store_key==!!fikey)
+    svytitle<-needrow$survey
+    imp<-needrow$imp
+    needdf<-survey_data_imputed %>%
+      magrittr::extract2(svytitle) %>%
+      dplyr::filter(.imp==!!imp) %>%
+      mutate(new_policyidealpoint_cos_similarity_to_median=policyidealpoint_cos_similarity_to_median+10)
+    magrittr::use_series("policyidealpoint_cos_similarity_to_median") %>%
+      magrittr::add(10)
+    
+    if ({boxcox<-FALSE;boxcox}) {
+      r<-MASS::boxcox(new_policyidealpoint_cos_similarity_to_median~cluster_kamila, data=needdf)
+      bestpower <- cbind("lambda"=r$x, "lik"=r$y) %>%
+        .[order(-lik),] %>%
+        .[1,1]
+      f1 <- lm(new_policyidealpoint_cos_similarity_to_median^1.030303 ~ cluster_kamila, data=needdf)
+      summary(f1)
+      shapiro.test(f1$res)
+      data.frame(t=t^bestpower) %>%
+        custom_plot("t")
+    }
+    
+    #Ladder.x(t)
+    #r<-car::boxCoxVariable(t)
+    #r<-car::powerTransform(t)
+    #shapiro.test(r)
+    #r<-MASS::boxcox(policyidealpoint_cos_similarity_to_median~)
+    brms::brm(modelformula,
+              data = ., family = brms::cumulative(link = "logit"),
+              chains = 2, cores = parallel::detectCores())
+  }, survey_data_imputed=survey_data_imputed,
+    analysis_idealpoint_to_median_args=analysis_idealpoint_to_median_args)
+  )
+
+

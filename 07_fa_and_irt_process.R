@@ -43,7 +43,8 @@ lavaan_to_factor<-function(X,imps,returnv="df") {
     #df_svydesign <- svydesign(ids = ~1, data=dat, weights = X[X$.imp==impn,]$myown_wr)
     #survey.fit <- lavaan.survey(lavaan.fit=lavaan.fit, survey.design=df_svydesign)
     #summary(survey.fit)
-    X$myown_factoredses[X$.imp==impn]<-lavaan::lavPredict(lavaan.fit)[,1]
+    X$myown_factoredses[X$.imp==impn]<-lavaan::lavPredict(lavaan.fit)[,1] %>%
+      {as.numeric(scale(.))}
     
     
     #https://jiaxiangli.netlify.com/2018/10/21/factor-analysis/
@@ -152,7 +153,8 @@ if ({analysingefficacy <- TRUE;analysingefficacy}) {
       poliefficacy<-mirt::fscores(estimatemodel,method="EAP") %>%
         as.data.frame() %>%
         set_colnames(c("myown_factoredefficacy"))
-      X[irt_target_d$.imp==imp,c("myown_factoredefficacy")]<-poliefficacy$myown_factoredefficacy#bind_cols(X,poliefficacy)
+      X[irt_target_d$.imp==imp,c("myown_factoredefficacy")]<-poliefficacy$myown_factoredefficacy %>% #bind_cols(X,poliefficacy)
+        {as.numeric(scale(.))}
       
     }
     #need_efficacy_var<-list(
@@ -286,7 +288,8 @@ mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="df")
     poliparticipt<-mirt::fscores(estimatemodel,method="EAP") %>%
       as.data.frame() %>%
       set_colnames(c("myown_factoredparticip"))
-    X[X$.imp==imp,c("myown_factoredparticip")]<-poliparticipt$myown_factoredparticip #bind_cols(X,poliparticipt)
+    X[X$.imp==imp,c("myown_factoredparticip")]<-poliparticipt$myown_factoredparticip %>% #bind_cols(X,poliparticipt)
+      {as.numeric(scale(.))}
   }
   #X<-estimatemodel
   #View(X[,c(need_detailed_particip_var,"myown_factoredparticip")])
