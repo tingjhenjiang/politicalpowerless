@@ -160,7 +160,7 @@ myown_imp_function<-function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,i
     visitSequence="monotone",
     m=imputation_sample_i_s,#1,#
     method="rf",
-    maxit=5,
+    maxit=15,
     nnodes=parallel::detectCores()#,
     #n.core=parallel::detectCores()#,
     #cl.type=mice_parallel_imp_type
@@ -180,7 +180,7 @@ myown_imp_function<-function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,i
 
 #1st imputation
 survey_data_imputed <- lapply( #custom_parallel_lapply
-  X=survey_data,
+  X=survey_data[c("2010overall","2016citizen")],
   FUN=myown_imp_function,
   imputedvaluecolumn=imputedvaluecolumn,
   imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
@@ -249,30 +249,22 @@ if ({furtherimp<-FALSE;furtherimp}) {
 save(survey_data_imputed,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"))
 
 # 讀取已經填補完成的dataset -------------------------------------------
-
-load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"), verbose=TRUE)
-
-#survey_data_imputed[[3]]<-t_survey_data_imputed[[1]]
-#kNN imputation
-#survey_data_imputed[[i]]<-VIM::kNN(X,variable=imputedvaluecolumn_assigned,k=5,dist_var=imputingcalculatebasiscolumn_assigned)
-#}
-#conditional random field
-
-#write.xlsx(as.data.frame(furtherusefulpredictor),file="furtherusefulpredictor.xlsx")
-lapply(survey_data_imputed,View)
-View(survey_data$`2010env.sav`[1:20,union(imputedvaluecolumn$`2010env`,imputingcalculatebasiscolumn$`2010env`)])
-
-#checking imputed df
-lapply(survey_data_imputed,function(X,need_particip_var,need_ses_var_assigned,imputedvaluecolumn) {
-  survey<-X$SURVEY[1]
-  checkdf<-extract(X,dplyr::intersect(names(X),unique(c(
-    getElement(need_particip_var,survey),
-    need_ses_var_assigned,
-    getElement(imputedvaluecolumn,survey)
-  )))) %>%
-    {colSums(is.na(.))}
-  return(checkdf)
-},need_particip_var=need_particip_var,need_ses_var_assigned=need_ses_var_assigned,imputedvaluecolumn=imputedvaluecolumn)
+if (FALSE) {
+  load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"), verbose=TRUE)
+  
+  #checking imputed df
+  lapply(survey_data_imputed,function(X,need_particip_var,need_ses_var_assigned,imputedvaluecolumn) {
+    survey<-X$SURVEY[1]
+    checkdf<-extract(X,dplyr::intersect(names(X),unique(c(
+      getElement(need_particip_var,survey),
+      need_ses_var_assigned,
+      getElement(imputedvaluecolumn,survey)
+    )))) %>%
+      {colSums(is.na(.))}
+    return(checkdf)
+  },need_particip_var=need_particip_var,need_ses_var_assigned=need_ses_var_assigned,imputedvaluecolumn=imputedvaluecolumn)
+  
+}
 
 if ({oldimputationmethod<-FALSE; oldimputationmethod}) { #此部分屬於舊code，僅保留參考用
   #1) numeric data
