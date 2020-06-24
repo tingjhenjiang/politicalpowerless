@@ -26,12 +26,12 @@ imputingcalculatebasiscolumn<-lapply(survey_data_title,function(X,df) {
   dplyr::filter(df,SURVEY==!!X,IMPUTATION %in% c("basis","both")) %>%
     dplyr::select(ID) %>% unlist() %>% union(c("admincity")) %>% unname()
 },df=survey_imputation_and_measurement) %>%
-  setNames(survey_data_title)
+  magrittr::set_names(survey_data_title)
 imputedvaluecolumn<-lapply(survey_data_title,function(X,df) {
   dplyr::filter(df,SURVEY==!!X,IMPUTATION %in% c("both")) %>%
     dplyr::select(ID) %>% unlist() %>% unname()
 },df=survey_imputation_and_measurement) %>%
-  setNames(survey_data_title)
+  magrittr::set_names(survey_data_title)
 
 generate_predictor_matrix<-function(df,calculationbasisvar=c(),imputedOnlyVars=c()) {
   #calculationbasisvar<-imputingcalculatebasiscolumn_assigned
@@ -58,8 +58,18 @@ generate_predictor_matrix<-function(df,calculationbasisvar=c(),imputedOnlyVars=c
   return(predictorMatrix)
 }
 
+if ({some_mcar_test<-FALSE;some_mcar_test}) {
+  #lapply(survey_data, BaylorEdPsych::LittleMCAR) #mlest cannot handle more than 50 variables.
+  lapply(survey_data, FUN=function(X) {try(MissMech::TestMCARNormality(
+    dplyr::select_if(X, dplyr::funs(!is.character(.))) %>%
+      dplyr::mutate_if(is.factor, .funs=~as.numeric(as.character(.)))
+    ))})
+  mice::md.pattern(survey_data[[3]])
+}
 
 if ({VIMtestplot<-FALSE;VIMtestplot}) {
+  #https://statistics.ohlsen-web.de/multiple-imputation-with-mice/
+  #https://bookdown.org/mwheymans/bookmi/missing-data-evaluation.html
   survey_data_imputed<-survey_data
   #survey_data_imputed <- lapply(survey_data,function(X) {
   #  dplyr::mutate_at(X,setdiff(colnames(X),c("myown_age","myown_occp","myown_ses")),dplyr::funs(replace(.,. %in% c(93:99,996:999,9996:9999),NA ) )  )
@@ -67,14 +77,24 @@ if ({VIMtestplot<-FALSE;VIMtestplot}) {
   #})
   survey_data_imputed <- lapply(survey_data_imputed,function(X,imputedvaluecolumn,imputingcalculatebasiscolumn) {
     X<-droplevels(X)
-    imputingcalculatebasiscolumn_assigned <- extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
-      intersect(names(X))
-    imputedvaluecolumn_assigned <- extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
-      intersect(names(X))
-    needcols<-union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)[1:50]
+    imputingcalculatebasiscolumn_assigned <-magrittr::extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
+      base::intersect(names(X))
+    imputedvaluecolumn_assigned <- magrittr::extract2(imputedvaluecolumn,X$SURVEY[1]) %>%
+      base::intersect(names(X))
+    allcols<-base::union(imputingcalculatebasiscolumn_assigned,imputedvaluecolumn_assigned)
+    allcolx<-1:length(allcols)
+    splits_of_allcols<-split(allcolx, sort(allcolx%%5))
+    for (splits_of_allcol in splits_of_allcols) {
+      needcols<-allcols[splits_of_allcol]
+      testresult<-BaylorEdPsych::LittleMCAR(X[,needcols])
+      MissMech::TestMCARNormality(X[,needcols]) %>% print()
+      print(testresult$p.value)
+      readline("continue?")
+    }
+    VIM::aggr(X[,allcols], col=c('white','red'), numbers=TRUE, sortVars=TRUE, cex.axis=.7, gap=3, ylab=c("Percentage of missing data","Missing Data Pattern"))
+    mice::md.pattern(X[,allcols])
     #testresult<-fastDummies::dummy_cols(X[,needcols]) %>% dplyr::select_if(is.numeric) %>% 
-    #  MissMech::TestMCARNormality()
-    testresult<-BaylorEdPsych::LittleMCAR(X[,needcols])
+    #  
     #testresult<-X[,needcols]
     return(testresult)
   },imputedvaluecolumn=imputedvaluecolumn,imputingcalculatebasiscolumn=imputingcalculatebasiscolumn)
@@ -83,6 +103,21 @@ if ({VIMtestplot<-FALSE;VIMtestplot}) {
 survey_data_imputed <- na_count <- missingvaluepattern <- imputed_survey_data <- list()
 #Package ‘MissMech’
 #To test whether the missing data mechanism, in a set of incompletely ob-served data, is one of missing completely at random (MCAR).For detailed description see Jamshidian, M. Jalal, S., and Jansen, C. (2014). ``Miss-Mech: An R Package for Testing Homoscedasticity, Multivariate Normality, and Missing Com-pletely at Random (MCAR),'' Journal of Statistical Software,  56(6), 1-31. URL http://www.jstatsoft.org/v56/i06/.
+
+custom_edit_survey_data<-function(surveydatadflist) {
+  surveydatadflist[["2010overall"]] %<>% mutate_cond(myown_age<22, v83="[2] 沒有(跳答85)") %>%
+    mutate_cond(myown_age<22, v85="[2] 沒有(跳答89)") %>%
+    dplyr::mutate_at(c("v83","v85"), as.ordered) %>%
+    dplyr::mutate_at(c("v83","v85"), ~forcats::fct_relevel(., function(s) {sort(s, decreasing = TRUE)}))
+  surveydatadflist[["2016citizen"]] %<>% dplyr::mutate(h4r=h4) %>%
+    mutate_cond(myown_age<20, h4r="[2] 沒有(跳答h8)" ) %>%
+    mutate_cond(h4r=="[3] 沒有投票權(跳答h6)", h4r="[2] 沒有(跳答h8)" ) %>%
+    dplyr::mutate_at("h4r",droplevels) %>%
+    dplyr::mutate_at("h4r",as.ordered) %>%
+    dplyr::mutate_at(c("h4r"), ~forcats::fct_relevel(., function(s) {sort(s, decreasing = TRUE)}))
+  return(surveydatadflist)
+}
+survey_data %<>% custom_edit_survey_data()
 
 propMissing <- lapply(survey_data, function(X) {
   missing.indicator <- data.frame(is.na(X))
@@ -192,7 +227,7 @@ survey_data_imputed <- lapply( #custom_parallel_lapply
   FUN=myown_imp_function,
   imputedvaluecolumn=imputedvaluecolumn,
   imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
-  imputation_sample_i_s=15, #length(imputation_sample_i_s)
+  imputation_sample_i_s=16, #length(imputation_sample_i_s)
   exportvar=c("imputedvaluecolumn","parlMICE","imputingcalculatebasiscolumn"),
   exportlib=c("dplyr","base","magrittr","parallel","mice","micemd","randomForest"), #,"MissMech","fastDummies"
   outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
@@ -203,20 +238,12 @@ survey_data_imputed <- lapply( #custom_parallel_lapply
 #further imputation
 if ({furtherimp<-FALSE;furtherimp}) {
   load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly.RData"), verbose=TRUE)
   furtherimp_argument_df<-data.frame("survey"=c("2010overall","2016citizen")) %>%
     cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
     dplyr::mutate(store_key=paste0(survey,"_imp",imp))
-  furtherimp_data<-magrittr::extract(survey_data_imputed,c("2010overall","2016citizen"))
-  furtherimp_data[["2010overall"]] %<>% mutate_cond(myown_age<22, v83="[2] 沒有(跳答85)") %>%
-    mutate_cond(myown_age<22, v85="[2] 沒有(跳答89)") %>%
-    dplyr::mutate_at(c("v83","v85"), as.ordered) %>%
-    dplyr::mutate_at(c("v83","v85"), ~forcats::fct_relevel(., function(s) {sort(s, decreasing = TRUE)}))
-  furtherimp_data[["2016citizen"]] %<>% dplyr::mutate(h4r=h4) %>%
-    mutate_cond(myown_age<20, h4r="[2] 沒有(跳答h8)" ) %>%
-    mutate_cond(h4r=="[3] 沒有投票權(跳答h6)", h4r="[2] 沒有(跳答h8)" ) %>%
-    dplyr::mutate_at("h4r",droplevels) %>%
-    dplyr::mutate_at("h4r",as.ordered) %>%
-    dplyr::mutate_at(c("h4r"), ~forcats::fct_relevel(., function(s) {sort(s, decreasing = TRUE)}))
+  furtherimp_data<-magrittr::extract(survey_data_imputed,c("2010overall","2016citizen")) %>%
+    custom_edit_survey_data()
   furtherimp_data[["2016citizen"]]$h3c
   furtherimp_data[["2016citizen"]]$h4r
   
@@ -235,10 +262,10 @@ if ({furtherimp<-FALSE;furtherimp}) {
       needrow<-dplyr::filter(furtherimp_argument_df, store_key==!!storekey)
       surveytitle<-needrow$survey
       needimp <-needrow$imp
-      df<-magrittr::extract2(furtherimp_data, surveytitle) %>%
+      impsrcdf<-magrittr::extract2(furtherimp_data, surveytitle) %>%
         dplyr::filter(.imp==!!needimp) %>%
         dplyr::select(-.id, -.imp)
-      myown_imp_function(df, imputedvaluecolumn=furtherimp_imputedvaluecolumn, imputingcalculatebasiscolumn=furtherimp_imputingcalculatebasiscolumn, imputation_sample_i_s=1) %>%
+      myown_imp_function(impsrcdf, imputedvaluecolumn=furtherimp_imputedvaluecolumn, imputingcalculatebasiscolumn=furtherimp_imputingcalculatebasiscolumn, imputation_sample_i_s=1) %>%
         dplyr::mutate(.imp=!!needimp)
     },myown_imp_function=myown_imp_function,
     furtherimp_imputedvaluecolumn=furtherimp_imputedvaluecolumn,
@@ -255,7 +282,7 @@ if ({furtherimp<-FALSE;furtherimp}) {
 }
 
 #save(survey_data_imputed,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"))
-save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly.RData"))
+save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"))
 
 # 讀取已經填補完成的dataset -------------------------------------------
 if (FALSE) {

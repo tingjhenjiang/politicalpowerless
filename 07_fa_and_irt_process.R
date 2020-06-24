@@ -9,23 +9,25 @@ source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding=
 gc(verbose=TRUE)
 
 imputation_sample_i_s <- imputation_sample_i_s
+imputation_sample_i_s <- 1:15
 
 # 第五部份：factor analysis 環境設定 -------------------------------------------
 #reset
 #load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined.RData"))
 #load imputed survey
-load(paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_Ubuntu18.04.3LTSdf.RData"), verbose=TRUE)
+load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_Ubuntu18.04.3LTSdf.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
-
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly.RData"), verbose=TRUE)
 
 # 第五-1部份：IRT latent variables 將職業社經地位、家庭收入、教育程度萃取成為階級  =================================
 #library(survey)
 library(lavaan)
-
-lavaan_to_factor<-function(X,imps,returnv="df") {
+need_ses_var_assigned<-c("myown_eduyr","myown_ses","myown_income","myown_family_income")
+needsesmod<-'myown_factoredses=~myown_eduyr+myown_ses+myown_income+myown_family_income'
+lavaan_to_factor<-function(X,imps,returnv="df",need_ses_var_assigned=c("myown_eduyr","myown_ses","myown_income","myown_family_income"), needsesmod='myown_factoredses=~myown_eduyr+myown_ses+myown_income+myown_family_income') {
   #need_ses_var_assigned %<>% extract2(X$SURVEY[1]) %>%
   #  intersect(names(X))
-  need_ses_var_assigned<-c("myown_eduyr","myown_ses","myown_income","myown_family_income")
+  
   message("need ses var is ", X$SURVEY[1], " ", need_ses_var_assigned)
   for (checkvar in need_ses_var_assigned) {
     message("nrows of empty ", checkvar, " are ", sum(is.na(X$checkvar)) )
@@ -33,11 +35,9 @@ lavaan_to_factor<-function(X,imps,returnv="df") {
   fittingmodels<-list()
   for (impn in imps) {
     storekey<-paste0(X$SURVEY[1],"_imp",impn)
-    need_ses_var_assigned<-c("myown_eduyr","myown_ses","myown_income","myown_family_income")#
-    dat<-data.frame(X[X$.imp==impn,c("myown_wr",need_ses_var_assigned)])
-    dat<-dplyr::mutate_at(dat, need_ses_var_assigned, scale)
-    mod<-'myown_factoredses=~myown_eduyr+myown_ses+myown_income+myown_family_income'
-    lavaan.fit<-lavaan::cfa(mod, data = dat, sampling.weights="myown_wr")
+    dat<-data.frame(X[X$.imp==impn,c("myown_wr",need_ses_var_assigned)]) %>%
+      dplyr::mutate_at(need_ses_var_assigned, ~as.numeric(scale(.)))
+    lavaan.fit<-lavaan::cfa(needsesmod, data = dat, sampling.weights="myown_wr")
     fittingmodels[[storekey]]<-lavaan.fit
     #summary(lavaan.fit)
     #df_svydesign <- svydesign(ids = ~1, data=dat, weights = X[X$.imp==impn,]$myown_wr)
@@ -81,7 +81,16 @@ survey_data_imputed <- lapply(survey_data_imputed, lavaan_to_factor, imps=imputa
 lavaan_cfa_ses_models <- lapply(survey_data_imputed, lavaan_to_factor, imps=imputation_sample_i_s, returnv="model")
 for (key in names(lavaan_cfa_ses_models)) {
   message(paste("now in",key))
-  lavaan:::summary(lavaan_cfa_ses_models[[key]][[1]]) %>% print()
+  build_svydata<-survey_data_imputed[[key]] %>%
+    dplyr::mutate_at(need_ses_var_assigned, ~as.numeric(scale(.)))
+  mice.imp2<-split(build_svydata, build_svydata$.imp) %>%
+    mitools::imputationList()
+  svy.df_imp<-survey::svydesign(ids=~1, weights=~myown_wr,data=mice.imp2)
+  lavaan_fit_ses.model<-lavaan::cfa(needsesmod) #,do.fit = FALSE
+  out3<-lavaan.survey::lavaan.survey(lavaan_fit_ses.model,survey.design=svy.df_imp)
+  #lavaan:::summary(lavaan_cfa_ses_models[[key]][[1]]) %>% print
+  lavaan::summary(out3)
+  lavaan::fitMeasures(out3, "chisq") %>% print()
   if (readline("continue?")=="N") break
 }
 
@@ -131,7 +140,7 @@ if ({analysingefficacy <- TRUE;analysingefficacy}) {
     needvars <- names(needlist) %>%
       sapply(customgsub,paste0(X$SURVEY[1],"@"),"") %>%
       unname()
-    needlist %<>% setNames(needvars)
+    needlist %<>% magrittr::set_names(needvars)
     irt_target_d <- X[,c(".imp",needvars)]
     for (needvar in needvars) {
       #needvar<-"v49"
@@ -268,6 +277,7 @@ mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="df")
   #need_particip_var_assigned<-need_particip_var
   needparticip_surveyi<-X$SURVEY[1]
   need_detailed_particip_var<-magrittr::extract2(need_particip_var_assigned,needparticip_surveyi)
+  base::setdiff(magrittr::extract2(need_particip_var_assigned,needparticip_surveyi),names(X)) #"h4r" ???
   irt_target_d<-X[,c(".imp",need_detailed_particip_var)] %>%
     dplyr::mutate_at(.vars=need_detailed_particip_var, .funs=function(f) {
       #return(as.numeric(levels(f))[f])
@@ -275,6 +285,7 @@ mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="df")
     })
   estimatemodels<-list()
   for (imp in imps) {
+    message(paste("now in imp",imp))
     storekey<-paste0(needparticip_surveyi, "_imp", imp)
     estimatemodel<-mirt::mirt(
       data=irt_target_d[irt_target_d$.imp==imp,need_detailed_particip_var],

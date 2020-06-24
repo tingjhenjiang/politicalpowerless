@@ -39,17 +39,27 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #https://cran.r-project.org/web/packages/brms/vignettes/brms_multilevel.pdf
 # 58 for dependent data
 #https://wangcc.me/LSHTMlearningnote/Hierarchical.html
+#Advanced Bayesian Multilevel Modelingwith the R Package brms (syntax)
+#https://arxiv.org/pdf/1705.11123.pdf
 
 #nests: id
 survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
 load(file=survey_with_idealpoint_name, verbose=TRUE)
 
-custom_plot(survey_data_imputed$`2010overall`,"policyidealpoint_cos_similarity_to_median","myown_wr")
-custom_plot(survey_data_imputed$`2016citizen`,"policyidealpoint_eucli_distance_to_median","myown_wr")
+# custom_plot(survey_data_imputed$`2010overall`,"policyidealpoint_cos_similarity_to_median","myown_wr")
+# custom_plot(survey_data_imputed$`2016citizen`,"policyidealpoint_eucli_distance_to_median","myown_wr")
+
+# > kamila_results$`2010overall_1`$nClust$bestNClust
+# 4 4 4 4 3
+# > kamila_results$`2016citizen_1`$nClust$bestNClust
+# 3 3 4 4 3
+matched_pairs_id<-3:4
+
+
 
 need_svytitle<-c("2010overall","2016citizen")
 analysis_idealpoint_to_median_args<-data.frame("survey"=survey_data_title) %>%
-  cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
+  cbind(., imp = rep(matched_pairs_id, each = nrow(.))) %>%
   dplyr::mutate(store_key=paste0(survey,"_imp",imp)) %>%
   dplyr::filter(survey %in% !!need_svytitle) %>%
   dplyr::mutate_at("survey", as.character) %>%
@@ -60,24 +70,27 @@ analysis_idealpoint_to_median_args<-data.frame("survey"=survey_data_title) %>%
 common_names <- survey_data_imputed[need_svytitle] %>%
   lapply(FUN=names) %>%
   purrr::reduce(base::intersect)
-merged_acrossed_surveys<-lapply(imputation_sample_i_s, function(imp, ...) {
+merged_acrossed_surveys<-lapply(matched_pairs_id, function(imp, ...) {
   needdf<-survey_data_imputed[need_svytitle] %>%
     lapply(FUN=function(X,nimp) {dplyr::filter(X, .imp==!!nimp) %>% dplyr::select(-myown_indp_atti)}, nimp=imp) %>%
-    dplyr::bind_rows()
-  needdf$cluster_kamila<-as.ordered(needdf$cluster_kamila)
-  levels(needdf$cluster_kamila)<-c(levels(needdf$cluster_kamila), 4)
+    dplyr::bind_rows() %>%
+    dplyr::mutate_at("SURVEY", as.factor) %>%
+    dplyr::mutate_at("cluster_kamila", as.ordered)
+  #levels(needdf$cluster_kamila)<-c(levels(needdf$cluster_kamila), 4)
   return(needdf)
 }, survey_data_imputed=survey_data_imputed, need_svytitle=need_svytitle)
 
-mod_robusts <- lapply(imputation_sample_i_s, function(imp,...) {
-  brms::brm(#_multiple
-    brms::bf(policyidealpoint_cos_similarity_to_median | weights(myown_wr) ~ cluster_kamila, sigma ~ cluster_kamila),
+cossim_to_cluster_mod_robusts <- #lapply(1:length(merged_acrossed_surveys), function(imp,...) {
+  brms::brm_multiple(#
+    brms::bf(policyidealpoint_cos_similarity_to_median | weights(myown_wr) ~ cluster_kamila + SURVEY + (1 | cluster_kamila), sigma ~ cluster_kamila),
     family=brms::student,
-    data = merged_acrossed_surveys[[imp]],
-    cores=parallel::detectCores()
+    data = merged_acrossed_surveys,
+    cores=parallel::detectCores(),
+    iter = 2000
     #,file = here::here("data/policyidealpoint_cos_similarity_to_median_to_kamila-robust")
   )
-}, merged_acrossed_surveys=merged_acrossed_surveys)
+#}, merged_acrossed_surveys=merged_acrossed_surveys)
+brms:::summary.brmsfit(cossim_to_cluster_mod_robusts)
 save(mod_robusts, file=here::here("data/mod_robusts.RData"))
 load(file=here::here("data/policyidealpoint_cos_similarity_to_median_to_kamila-robust"), verbose=TRUE)
 unique(merged_acrossed_surveys[[1]]$cluster_kamila)
