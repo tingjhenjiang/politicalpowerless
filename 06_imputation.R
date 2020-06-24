@@ -9,14 +9,18 @@ source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding=
 gc(verbose=TRUE)
 
 load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined_after_settingNA.RData"), verbose=TRUE)
-survey_imputation_and_measurement<-openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1)
+survey_imputation_and_measurement<-try(openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1))
+if(is(survey_imputation_and_measurement, 'try-error')) {
+  survey_imputation_and_measurement<- paste0(dataset_in_scriptsfile_directory,"imputationcomputingbasis.xlsx") %>%
+    openxlsx::read.xlsx(sheet = 1)
+}
 
 # 第四部份：清理資料：填補遺漏值 -------------------------------------------
 
 #assinging missing value
-library(mice)
-library(VIM)
-library(parallel)
+# library(mice)
+# library(VIM)
+# library(parallel)
 #job_status暫時先刪掉，因為不同問卷概念與選項不一樣難以合併
 imputingcalculatebasiscolumn<-lapply(survey_data_title,function(X,df) {
   dplyr::filter(df,SURVEY==!!X,IMPUTATION %in% c("basis","both")) %>%
@@ -154,27 +158,31 @@ myown_imp_function<-function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,i
   mice_parallel_imp_type <- switch(as.character(grepl("Windows", sessionInfo()$running)), "TRUE"="PSOCK", "FALSE"="FORK")
   #also check: micemd::mice.par
   data_to_mice_imp <- X[,foundationvar]
-  miceMod <- micemd::mice.par( #mice::mice #mice::parlmice
-    data_to_mice_imp,
-    predictorMatrix = predictor_matrix,
-    visitSequence="monotone",
-    m=imputation_sample_i_s,#1,#
-    method="rf",
-    maxit=15,
-    nnodes=parallel::detectCores()#,
-    #n.core=parallel::detectCores()#,
-    #cl.type=mice_parallel_imp_type
-  )  # perform mice imputation, based on random forests.
-  #linear imputation might have error message: system is computationally singular: reciprocal condition number
-  #https://stats.stackexchange.com/questions/214267/why-do-i-get-an-error-when-trying-to-impute-missing-data-using-pmm-in-mice-packa
-  #print(imputingcalculatebasiscolumn_assigned)
-  message("now step 6")
-  imputed_survey_data <- mice::complete(miceMod, action="long")  # generate the completed data.
-  message("now step 7")
-  imputed_survey_data$id <- X$id
-  complete_imputed_survey_data <- dplyr::left_join(imputed_survey_data, X[,unusefulcolumns], by=c("id"))
-  #complete_imputed_survey_data <- complete_imputed_survey_data[,names(X)]
-  complete_imputed_survey_data
+  while (TRUE) {
+    complete_imputed_survey_data <- try({
+      miceMod <- micemd::mice.par( #mice::mice #mice::parlmice
+        data_to_mice_imp,
+        predictorMatrix = predictor_matrix,
+        visitSequence="monotone",
+        m=imputation_sample_i_s,#1,#
+        method="rf",
+        maxit=7,
+        nnodes=parallel::detectCores()#,
+        #n.core=parallel::detectCores()#,
+        #cl.type=mice_parallel_imp_type
+      )  # perform mice imputation, based on random forests.
+      #linear imputation might have error message: system is computationally singular: reciprocal condition number
+      #https://stats.stackexchange.com/questions/214267/why-do-i-get-an-error-when-trying-to-impute-missing-data-using-pmm-in-mice-packa
+      #print(imputingcalculatebasiscolumn_assigned)
+      message("now step 6")
+      imputed_survey_data <- mice::complete(miceMod, action="long")  # generate the completed data.
+      message("now step 7")
+      imputed_survey_data$id <- X$id
+      dplyr::left_join(imputed_survey_data, X[,unusefulcolumns], by=c("id"))
+      #complete_imputed_survey_data <- complete_imputed_survey_data[,names(X)]
+    })
+    if(!is(complete_imputed_survey_data, 'try-error')) break
+  }
   return(complete_imputed_survey_data)
 }
 
@@ -184,7 +192,7 @@ survey_data_imputed <- lapply( #custom_parallel_lapply
   FUN=myown_imp_function,
   imputedvaluecolumn=imputedvaluecolumn,
   imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
-  imputation_sample_i_s=length(imputation_sample_i_s),
+  imputation_sample_i_s=15, #length(imputation_sample_i_s)
   exportvar=c("imputedvaluecolumn","parlMICE","imputingcalculatebasiscolumn"),
   exportlib=c("dplyr","base","magrittr","parallel","mice","micemd","randomForest"), #,"MissMech","fastDummies"
   outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
@@ -246,7 +254,8 @@ if ({furtherimp<-FALSE;furtherimp}) {
   } 
 }
 
-save(survey_data_imputed,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"))
+#save(survey_data_imputed,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"))
+save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly.RData"))
 
 # 讀取已經填補完成的dataset -------------------------------------------
 if (FALSE) {
