@@ -79,10 +79,12 @@ survey_data<-paste0(survey_data_title,".sav") %>%
 
 #設定遺漏值
 missing_value_labels<-lapply(survey_data,function(X) {
-  missingvaluepattern<-paste0("\\[",c(92:99,992:999,9992:9999),"\\]",collapse="|")
+  missingvaluepattern<-paste0("\\[",c(92:99,992:999,9992:9999),"\\]",collapse="|") %>%
+    c("沒有投票權") %>%
+    paste0(collapse="|")
   labelsofdf<-sapply(X,levels) %>% unlist() %>% unique() %>%
     customgrep(pattern=missingvaluepattern,value=TRUE) %>%
-    {extract(.,which(!customgrepl(.,pattern="(不固定|人或以上|到處跑|業|機構|學術|國外|從不聽|新雲林|竹塹|台北勞工|新農|草嶺|濁水溪|蘭潭|飛揚|11個或更多)",perl=TRUE)))}
+    {magrittr::extract(.,which(!customgrepl(.,pattern="(不固定|人或以上|到處跑|業|機構|學術|國外|從不聽|新雲林|竹塹|台北勞工|新農|草嶺|濁水溪|蘭潭|飛揚|11個或更多)",perl=TRUE)))}
   #(拒答|遺漏值|忘記|不適用|不知道|跳答|無法選擇|忘記了|拒答）|不知道）|缺漏|不記得)
   return(labelsofdf)
 })
@@ -103,7 +105,7 @@ survey_data <- mapply(function(X,Y) {
 },X=survey_data,Y=missing_value_labels) %>%
   {.[order(names(.))]} %>%
   lapply(dplyr::left_join,{
-    read.xlsx(paste0(dataset_file_directory, "basic_social_survey_restricted_data.xlsx"), sheet = 1)
+    openxlsx::read.xlsx(paste0(dataset_file_directory, "basic_social_survey_restricted_data.xlsx"), sheet = 1)
   }) %>%
   lapply(dplyr::mutate_at,c("myown_job","admincity","admindistrict"),.funs=as.factor)#%>%
 #lapply(function (X) { #較早的串連方式，區分會期
@@ -112,7 +114,8 @@ survey_data <- mapply(function(X,Y) {
 #    dplyr::filter(!is.na(term))
 #})  %>%
 survey_data[["2016citizen"]] %<>% mutate_cond(customgrepl(myown_selfid, "[6]"), myown_selfid=NA) %>%
-  dplyr::mutate_at("myown_selfid", droplevels)
+  dplyr::mutate_at(c("myown_selfid","h4"), droplevels)
+survey_data[["2010overall"]] %<>% dplyr::mutate_at(c("myown_selfid","v85","v83"), droplevels)
 save(survey_data,file=paste0(dataset_in_scriptsfile_directory, "all_survey_combined_after_settingNA.RData"))
 
 
