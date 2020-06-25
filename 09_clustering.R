@@ -13,9 +13,10 @@ if (!file.exists(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mi
     "http://homepage.ntu.edu.tw/~r03a21033/voterecord/miced_survey_9_with_mirt_lca.RData",
     paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"))
 }
-load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"), verbose=TRUE)
-load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
-load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"), verbose=TRUE)
+load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"), verbose=TRUE)
+load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"), verbose=TRUE)
+
 
 
 imps<-imputation_sample_i_s

@@ -78,8 +78,16 @@ stop()
 
 needpoLCAsurveys<-c("2004citizen","2010overall")
 needpoLCAsurveys_with_imp<-lapply(needpoLCAsurveys, function(survey) {
-  paste0(rep.int(survey,times=length(imputation_sample_i_s)),"_imp",imputation_sample_i_s)
+  paste0(rep.int(survey,times=length(imps)),"_imp",imps)
 }) %>% unlist()
+needpoLCAsurveys_arguments_df<-data.frame("survey"=needpoLCAsurveys) %>%
+  cbind(., imp = rep(imps, each = nrow(.))) %>%
+  dplyr::mutate(store_key=paste0(survey,"_",imp)) %>%
+  dplyr::mutate_at(c("survey","store_key"),as.character) %>%
+  dplyr::mutate_at("imp", as.integer) %>%
+  dplyr::filter(survey %in% c("2010overall")) %>%
+  dplyr::arrange(survey, imp)
+
 poLCA_infodf_notshrink<-lapply(needpoLCAsurveys_with_imp, function (survey_with_imp) {
   survey_with_imp_list<-unlist(strsplit(survey_with_imp,split="_imp"))
   survey<-survey_with_imp_list[1]
@@ -100,20 +108,23 @@ poLCA_infodf<-dplyr::bind_rows(poLCA_infodf_notshrink) %>%
   dplyr::group_by(surveyimp) %>%
   dplyr::arrange(bic) %>%
   dplyr::slice(1) %>%
-  dplyr::ungroup()
+  dplyr::ungroup() %>%
+  dplyr::filter(!is.na(residdf), survey %in% !!names(survey_data_imputed))
 
 
 #load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
 
-poLCA_survey_results<-custom_parallel_lapply(needpoLCAsurveys_with_imp, function (survey_with_imp, ...) {
-  survey_with_imp_list<-unlist(strsplit(survey_with_imp,split="_imp"))
-  survey<-survey_with_imp_list[1]
-  imp<-survey_with_imp_list[2]
-  singleargumentdf <- dplyr::filter(poLCA_infodf, surveyimp==!!survey_with_imp) #magrittr::extract2(poLCA_infodf,survey_with_imp)
-  dplyr::filter(survey_data_imputed[[survey]], .imp==!!imp) %>%
-    poLCA(formula=as.formula(singleargumentdf$modelformula), data=., nclass=singleargumentdf$nclass, nrep=35) %>%
-    return()
-}, method=parallel_method, poLCA_infodf=poLCA_infodf, survey_data_impute=survey_data_imputed) %>% magrittr::set_names(needpoLCAsurveys_with_imp)
+poLCA_survey_results<-needpoLCAsurveys_arguments_df$store_key %>% #poLCA_infodf$surveyimp
+  magrittr::set_names(custom_parallel_lapply(., function (survey_with_imp, ...) {
+    needrow<-dplyr::filter(needpoLCAsurveys_arguments_df, store_key==!!survey_with_imp)
+    #survey_with_imp_list<-unlist(strsplit(survey_with_imp,split="_imp"))
+    survey<-needrow$survey #survey_with_imp_list[1]
+    imp<-needrow$imp #survey_with_imp_list[2]
+    singleargumentdf <- poLCA_infodf[1,] #dplyr::filter(poLCA_infodf, surveyimp==!!survey_with_imp) #magrittr::extract2(poLCA_infodf,survey_with_imp)
+    dplyr::filter(survey_data_imputed[[survey]], .imp==!!imp) %>%
+      poLCA(formula=as.formula(singleargumentdf$modelformula), data=., nclass=singleargumentdf$nclass, nrep=35) %>%
+      return()
+  }, method=parallel_method, poLCA_infodf=poLCA_infodf, needpoLCAsurveys_arguments_df=needpoLCAsurveys_arguments_df, survey_data_impute=survey_data_imputed), .) 
 #poLCA_survey_result_tables<-lapply(names(poLCA_infodf), function(survey) {
 #  extract2(lcaneed_independence_attitude,survey)[1] %>%
 #    paste0("~1") %>%
@@ -129,9 +140,12 @@ openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1) %>
   dplyr::distinct(SURVEY,ID,QUESTION,ANSWER) %>%
   View()
 
+#v90 就兩岸關係而言,請問您覺得台灣獨立,統一,維持現狀何者比較好?
+#v91 請問您同不同意若台灣宣佈獨立,仍可和中共維持和平關係,則台灣應成為一個新國家?
+#v92 請問您同不同意若大陸和台灣在經濟,社會,政治各方面的條件相當,則兩岸應該統一?
 recode_indp_list<-list()
-for (survey_with_imp in needpoLCAsurveys_with_imp) {
-  model<-extract2(poLCA_survey_results, survey_with_imp)
+for (survey_with_imp in needpoLCAsurveys_arguments_df$store_key) { #needpoLCAsurveys_with_imp
+  model<-magrittr::extract2(poLCA_survey_results, survey_with_imp)
   survey_with_imp_list<-unlist(strsplit(survey_with_imp,split="_imp"))
   survey<-survey_with_imp_list[1]
   imp<-survey_with_imp_list[2]
@@ -170,10 +184,13 @@ if ({using_poLCA_reorder<-FALSE;using_poLCA_reorder}) {
 }
 
 myown_indp_atti_array_order<-sort(unlist(recode_indp_list[[1]]))
-for (survey_with_imp in needpoLCAsurveys_with_imp) {
-  survey_with_imp_list<-unlist(strsplit(survey_with_imp,split="_imp"))
-  survey<-survey_with_imp_list[1]
-  imp<-survey_with_imp_list[2]
+for (survey_with_imp in needpoLCAsurveys_arguments_df$store_key) { #needpoLCAsurveys_with_imp
+  #survey_with_imp_list<-unlist(strsplit(survey_with_imp,split="_imp"))
+  #survey<-survey_with_imp_list[1]
+  #imp<-survey_with_imp_list[2]
+  needrow<-dplyr::filter(needpoLCAsurveys_arguments_df, store_key==!!survey_with_imp)
+  survey<-needrow$survey
+  imp<-needrow$imp
   tp_check_df_imppos<-which(survey_data_imputed[[survey]]$.imp==imp)
   survey_data_imputed[[survey]]$myown_indp_atti[tp_check_df_imppos]<-dplyr::recode(poLCA_survey_results[[survey_with_imp]]$predclass, !!!recode_indp_list[[survey_with_imp]]) #, .ordered=TRUE
   #dplyr::recode_factor
@@ -270,6 +287,7 @@ if ({record_myown_religion<-FALSE; record_myown_religion}) {
 
 
 
-save(survey_data_imputed,file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"))
+#save(survey_data_imputed,file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"))
+save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"))
 
 
