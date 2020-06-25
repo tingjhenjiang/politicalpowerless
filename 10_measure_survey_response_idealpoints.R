@@ -6,7 +6,7 @@ t_sessioninfo_running_with_cpu_locale<-try(gsub(pattern=" ",replacement = "", x=
 source_sharedfuncs_r_path<-try(here::here())
 if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
 source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
-load(file=paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+#load(file=paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory, "bills_answer_to_bill_bills_billcontent.RData"), verbose=TRUE)
 survey_codebook_file<-paste0(dataset_file_directory,"all_survey_questions_englished.xlsx")
 survey_keys <- c("2010overall","2016citizen")

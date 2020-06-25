@@ -7,6 +7,7 @@ source_sharedfuncs_r_path<-try(here::here())
 if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
 source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
 gc(verbose=TRUE)
+imputation_sample_i_s<-1:15
 
 load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined_after_settingNA.RData"), verbose=TRUE)
 survey_imputation_and_measurement<-try(openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1))
@@ -227,7 +228,7 @@ survey_data_imputed <- lapply( #custom_parallel_lapply
   FUN=myown_imp_function,
   imputedvaluecolumn=imputedvaluecolumn,
   imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
-  imputation_sample_i_s=16, #length(imputation_sample_i_s)
+  imputation_sample_i_s=15, #length(imputation_sample_i_s)
   exportvar=c("imputedvaluecolumn","parlMICE","imputingcalculatebasiscolumn"),
   exportlib=c("dplyr","base","magrittr","parallel","mice","micemd","randomForest"), #,"MissMech","fastDummies"
   outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
@@ -282,7 +283,7 @@ if ({furtherimp<-FALSE;furtherimp}) {
 }
 
 #save(survey_data_imputed,file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_",t_sessioninfo_running,"df.RData"))
-save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"))
+save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly.RData"))
 
 # 讀取已經填補完成的dataset -------------------------------------------
 if (FALSE) {

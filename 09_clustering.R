@@ -15,8 +15,11 @@ if (!file.exists(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mi
 }
 load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"), verbose=TRUE)
 load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"), verbose=TRUE)
+
 
 imps<-imputation_sample_i_s
+imps<-1:15
 
 #"myown_dad_ethgroup","myown_mom_ethgroup","myown_working_status","myown_occp","myown_ses","myown_income","myown_family_income",
 
@@ -679,7 +682,11 @@ for (survey_imp_key in names(kamila_results)) {
   survey_data_imputed[[surveykey]][survey_data_imputed[[surveykey]]$.imp==imp, "cluster_kamila"]<-kamilaclusterres
 }
 
-
+for (survey_imp_key in names(kamila_results)) {
+  needrow<-dplyr::filter(kamila_arguments_df, store_key==survey_imp_key)
+  message(paste("now in", survey_imp_key))
+  unique(kamila_results[[needrow$store_key]]$finalMemb) %>% print()
+}
 
 # * model-based clustering by mixtools and pdfCluster----------------
 #https://tinyheero.github.io/2015/10/13/mixture-model.html

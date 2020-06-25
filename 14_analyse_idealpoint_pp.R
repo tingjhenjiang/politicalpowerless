@@ -41,6 +41,8 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #https://wangcc.me/LSHTMlearningnote/Hierarchical.html
 #Advanced Bayesian Multilevel Modelingwith the R Package brms (syntax)
 #https://arxiv.org/pdf/1705.11123.pdf
+#fixed effect v. random effect
+#https://zhuanlan.zhihu.com/p/60528092
 
 #nests: id
 survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")

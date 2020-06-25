@@ -43,8 +43,10 @@ lavaan_to_factor<-function(X,imps,returnv="df",need_ses_var_assigned=c("myown_ed
     #df_svydesign <- svydesign(ids = ~1, data=dat, weights = X[X$.imp==impn,]$myown_wr)
     #survey.fit <- lavaan.survey(lavaan.fit=lavaan.fit, survey.design=df_svydesign)
     #summary(survey.fit)
-    X$myown_factoredses[X$.imp==impn]<-lavaan::lavPredict(lavaan.fit)[,1] %>%
+    predicted_ses<-lavaan::lavPredict(lavaan.fit)[,1]
+    X$myown_factoredses[X$.imp==impn]<- predicted_ses %>%
       {as.numeric(scale(.))}
+    X$myown_factoredses_mean[X$.imp==impn]<- mean(predicted_ses)
     
     
     #https://jiaxiangli.netlify.com/2018/10/21/factor-analysis/
@@ -162,9 +164,10 @@ if ({analysingefficacy <- TRUE;analysingefficacy}) {
       poliefficacy<-mirt::fscores(estimatemodel,method="EAP") %>%
         as.data.frame() %>%
         set_colnames(c("myown_factoredefficacy"))
+      avgpoliefficacy<-mean(poliefficacy$myown_factoredefficacy)
       X[irt_target_d$.imp==imp,c("myown_factoredefficacy")]<-poliefficacy$myown_factoredefficacy %>% #bind_cols(X,poliefficacy)
         {as.numeric(scale(.))}
-      
+      X[irt_target_d$.imp==imp,c("myown_factoredefficacy_mean")]<-avgpoliefficacy
     }
     #need_efficacy_var<-list(
     #  "2004citizen"=c("v47","v48","v49","v50","v51","v52"),
@@ -271,6 +274,7 @@ survey_data_imputed <- lapply(survey_data_imputed,function(X,need_particip_var_a
 # ltm:grm
 for (surveytitle in names(survey_data_imputed)) {
   survey_data_imputed[[surveytitle]]$myown_factoredparticip<-NULL
+  survey_data_imputed[[surveytitle]]$myown_factoredparticip_mean<-NULL
 }
 mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="df") {
   #X<-survey_data_test[[4]]
@@ -299,8 +303,10 @@ mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="df")
     poliparticipt<-mirt::fscores(estimatemodel,method="EAP") %>%
       as.data.frame() %>%
       set_colnames(c("myown_factoredparticip"))
+    meanpp<-mean(poliparticipt$myown_factoredparticip)
     X[X$.imp==imp,c("myown_factoredparticip")]<-poliparticipt$myown_factoredparticip %>% #bind_cols(X,poliparticipt)
       {as.numeric(scale(.))}
+    X[X$.imp==imp,c("myown_factoredparticip_mean")]<-meanpp
   }
   #X<-estimatemodel
   #View(X[,c(need_detailed_particip_var,"myown_factoredparticip")])
@@ -446,6 +452,7 @@ if ({usinggpcm <- FALSE;usinggpcm}) {
 #margins(fit1)
 
 
-save(survey_data_imputed, file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt.RData"))
-save(survey_data_imputed, file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"))
+#save(survey_data_imputed, file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt.RData"))
+#save(survey_data_imputed, file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"))
+save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"))
 

@@ -18,7 +18,10 @@ if (!file.exists(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mi
     paste0(dataset_in_scriptsfile_directory,"miced_survey_9_mirt.RData"))
 }
 load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt.RData"), verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"))
+
 imps <- imputation_sample_i_s
+imps <- 1:15
 detectedcores <- ifelse(check_if_windows(),1,parallel::detectCores())
 load_lib_or_install(c("magrittr","parallel","rvest","dplyr","RMariaDB","poLCA","parallel","LCAvarsel","mitools","gtools","future","future.apply"))
 
@@ -83,12 +86,12 @@ poLCA_infodf_notshrink<-lapply(needpoLCAsurveys_with_imp, function (survey_with_
   imp<-survey_with_imp_list[2]
   db_table_name<-paste0("list_of_degree_of_freedom","_",survey)
   con <- do.call(DBI::dbConnect, dbconnect_info)
-  rs <- dbSendQuery(con, paste0("SELECT * FROM ",db_table_name," WHERE `residdf`>0 AND `nrep`>1 AND `.imp`=",imp))
-  already_in_sqltable_polca_records<-dbFetch(rs) %>%
+  rs <- DBI::dbSendQuery(con, paste0("SELECT * FROM ",db_table_name," WHERE `residdf`>0 AND `nrep`>1 AND `.imp`=",imp))
+  already_in_sqltable_polca_records<-DBI::dbFetch(rs) %>%
     dplyr::arrange(bic,aic) %>%
     .[1:5,] %>%
     dplyr::mutate(survey=!!survey, surveyimp=!!survey_with_imp)
-  dbClearResult(rs)
+  DBI::dbClearResult(rs)
   DBI::dbDisconnect(con)
   return(already_in_sqltable_polca_records)
 }) %>% magrittr::set_names(needpoLCAsurveys_with_imp)
@@ -100,7 +103,7 @@ poLCA_infodf<-dplyr::bind_rows(poLCA_infodf_notshrink) %>%
   dplyr::ungroup()
 
 
-load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+#load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
 
 poLCA_survey_results<-custom_parallel_lapply(needpoLCAsurveys_with_imp, function (survey_with_imp, ...) {
   survey_with_imp_list<-unlist(strsplit(survey_with_imp,split="_imp"))
