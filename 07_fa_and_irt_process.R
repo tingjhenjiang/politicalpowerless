@@ -17,6 +17,7 @@ imputation_sample_i_s <- 1:15
 #load imputed survey
 load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_Ubuntu18.04.3LTSdf.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"), verbose=TRUE)
 load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly.RData"), verbose=TRUE)
 
 # 第五-1部份：IRT latent variables 將職業社經地位、家庭收入、教育程度萃取成為階級  =================================
@@ -44,7 +45,8 @@ lavaan_to_factor<-function(X,imps,returnv="df",need_ses_var_assigned=c("myown_ed
     #survey.fit <- lavaan.survey(lavaan.fit=lavaan.fit, survey.design=df_svydesign)
     #summary(survey.fit)
     predicted_ses<-lavaan::lavPredict(lavaan.fit)[,1]
-    X$myown_factoredses[X$.imp==impn]<- predicted_ses %>%
+    X$myown_factoredses[X$.imp==impn]<- predicted_ses
+    X$myown_factoredses_scaled[X$.imp==impn]<- predicted_ses %>%
       {as.numeric(scale(.))}
     X$myown_factoredses_mean[X$.imp==impn]<- mean(predicted_ses)
     
@@ -165,7 +167,8 @@ if ({analysingefficacy <- TRUE;analysingefficacy}) {
         as.data.frame() %>%
         set_colnames(c("myown_factoredefficacy"))
       avgpoliefficacy<-mean(poliefficacy$myown_factoredefficacy)
-      X[irt_target_d$.imp==imp,c("myown_factoredefficacy")]<-poliefficacy$myown_factoredefficacy %>% #bind_cols(X,poliefficacy)
+      X[irt_target_d$.imp==imp,c("myown_factoredefficacy")]<-poliefficacy$myown_factoredefficacy
+      X[irt_target_d$.imp==imp,c("myown_factoredefficacy_scaled")]<-poliefficacy$myown_factoredefficacy %>% #bind_cols(X,poliefficacy)
         {as.numeric(scale(.))}
       X[irt_target_d$.imp==imp,c("myown_factoredefficacy_mean")]<-avgpoliefficacy
     }
@@ -274,6 +277,7 @@ survey_data_imputed <- lapply(survey_data_imputed,function(X,need_particip_var_a
 # ltm:grm
 for (surveytitle in names(survey_data_imputed)) {
   survey_data_imputed[[surveytitle]]$myown_factoredparticip<-NULL
+  survey_data_imputed[[surveytitle]]$myown_factoredparticip_scaled<-NULL
   survey_data_imputed[[surveytitle]]$myown_factoredparticip_mean<-NULL
 }
 mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="df") {
@@ -304,7 +308,8 @@ mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="df")
       as.data.frame() %>%
       set_colnames(c("myown_factoredparticip"))
     meanpp<-mean(poliparticipt$myown_factoredparticip)
-    X[X$.imp==imp,c("myown_factoredparticip")]<-poliparticipt$myown_factoredparticip %>% #bind_cols(X,poliparticipt)
+    X[X$.imp==imp,c("myown_factoredparticip")]<-poliparticipt$myown_factoredparticip
+    X[X$.imp==imp,c("myown_factoredparticip_scaled")]<-poliparticipt$myown_factoredparticip %>% #bind_cols(X,poliparticipt)
       {as.numeric(scale(.))}
     X[X$.imp==imp,c("myown_factoredparticip_mean")]<-meanpp
   }
@@ -455,4 +460,5 @@ if ({usinggpcm <- FALSE;usinggpcm}) {
 #save(survey_data_imputed, file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt.RData"))
 #save(survey_data_imputed, file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"))
 save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"))
+save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"))
 

@@ -31,6 +31,18 @@ imps<-1:15
 #https://www.jamleecute.com/hierarchical-clustering-%E9%9A%8E%E5%B1%A4%E5%BC%8F%E5%88%86%E7%BE%A4/
 #weight https://sdaza.com/blog/2012/raking/
 
+
+
+clustering_var <- list(
+  "2004citizen"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_religion"),
+  "2010env"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_religion"),
+  "2010overall"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_religion"),
+  "2016citizen"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_religion")
+)
+
+nclusrange<-2:12
+ndimrange<-1:6
+
 if (FALSE) {
   load_lib_or_install(c("rvest","rlist","parallel")) #,"future","future.apply"
   load_lib_or_install(c("itertools","ggplot2")) #,"future","future.apply"
@@ -38,36 +50,43 @@ if (FALSE) {
 }
 
 ## Establishing connections --------------------------------
-db_table_name<-"demographic_clusters"
-message(myremoteip)
-dbtype <- RMariaDB::MariaDB() #RSQLite::SQLite()
-dbname <- "thesis"
-dbhost <- mysqldbhost
-dbusername <- "j"
-dbpassword <- ifelse(exists("dbpassword"),dbpassword,getPass::getPass("Please enter your password: ")) #rstudioapi::askForPassword("input password")
-dbport <- 3306
-dbconnect_info <- list(
-  "drv"=dbtype,
-  "host"=dbhost,
-  "dbname"=dbname,
-  "username"=dbusername,
-  "password"=dbpassword,
-  "port"=dbport
-)
-con <- do.call(DBI::dbConnect, dbconnect_info)
-DBI::dbDisconnect(con)
+if (FALSE) {
+  db_table_name<-"demographic_clusters"
+  message(myremoteip)
+  dbtype <- RMariaDB::MariaDB() #RSQLite::SQLite()
+  dbname <- "thesis"
+  dbhost <- mysqldbhost
+  dbusername <- "j"
+  dbpassword <- ifelse(exists("dbpassword"),dbpassword,getPass::getPass("Please enter your password: ")) #rstudioapi::askForPassword("input password")
+  dbport <- 3306
+  dbconnect_info <- list(
+    "drv"=dbtype,
+    "host"=dbhost,
+    "dbname"=dbname,
+    "username"=dbusername,
+    "password"=dbpassword,
+    "port"=dbport
+  )
+  con <- do.call(DBI::dbConnect, dbconnect_info)
+  DBI::dbDisconnect(con)
+  
+  
+  
+  
+  tryCatch({
+    con <- do.call(DBI::dbConnect, dbconnect_info)
+    clustering_result_to_infotable() %>%
+      DBI::dbWriteTable(con, db_table_name, .)
+    DBI::dbDisconnect(con)}, error=function(e) {
+      cat("Failed on dbWriteTable")
+      cat(str(e))
+    }
+  )
+}
+
+
 
 # 第九部份：clustering  =================================
-
-clustering_var <- list(
-  "2004citizen"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses"),
-  "2010env"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses"),
-  "2010overall"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses"),
-  "2016citizen"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses")
-)
-
-nclusrange<-2:12
-ndimrange<-1:6
 clustrd_arguments_df<-data.frame("survey"=names(survey_data_imputed)) %>%
   cbind(., imp = rep(imps, each = nrow(.))) %>%
   cbind(., nclus = rep(nclusrange, each = nrow(.))) %>%
@@ -85,18 +104,8 @@ weight_reptimes_n_integer<-1
 weight_reptimes_n_integer<-0.15
 
 
-
 # * clustrd clustering single result --------------------------------
 
-tryCatch({
-  con <- do.call(DBI::dbConnect, dbconnect_info)
-  clustering_result_to_infotable() %>%
-    DBI::dbWriteTable(con, db_table_name, .)
-  DBI::dbDisconnect(con)}, error=function(e) {
-    cat("Failed on dbWriteTable")
-    cat(str(e))
-  }
-)
 
 load_lib_or_install(c("clustrd")) #,"future","future.apply"
 idx_process_ratio<-8
@@ -552,77 +561,84 @@ varsellcm_arguments_df<-data.frame("survey"=survey_data_title) %>%
   #dplyr::filter(survey %in% c("2010overall","2016citizen")) %>%
   #dplyr::filter(!(store_key %in% !!names(varsellcm_results)) )
 resvarselclusterfile <- paste0(dataset_in_scriptsfile_directory, "varselcluster.Rdata")
-varsellcm_results<- varsellcm_arguments_df$store_key %>%
-  magrittr::set_names( custom_parallel_lapply(., function (fikey, varsellcm_arguments_df, ...) {
-    needrow <- dplyr::filter(varsellcm_arguments_df, store_key==!!fikey)
-    survey_key <- needrow$survey #iterx$needsurvey
-    needimp <- needrow$imp
-    needvarsel <- needrow$varsel
-    if (TRUE) {
-      needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
-        dplyr::mutate_at("myown_age",scale) %>%
-        dplyr::mutate_at("myown_age",function (X) {X[,1]}) %>%
-        dplyr::mutate_at("myown_age",as.numeric)
-      surveyweight<-needdf$myown_wr
-      inputData<-dplyr::select(needdf, !!clustering_var[[survey_key]])
-      n_select_components<-2:12
-      
-      resmod <- if (needvarsel=="wtho") {
-        # Cluster analysis without variable selection
-        VarSelLCM::VarSelCluster(inputData, gvals = n_select_components, nbcores = parallel::detectCores(), vbleSelec = FALSE, crit.varsel = "BIC")
-      } else {
-        # Cluster analysis with variable selection (with parallelisation)
-        VarSelLCM::VarSelCluster(inputData, gvals = n_select_components, nbcores = parallel::detectCores(), crit.varsel = "BIC")
+if (FALSE) {
+  
+  
+  varsellcm_results<- varsellcm_arguments_df$store_key %>%
+    magrittr::set_names( custom_parallel_lapply(., function (fikey, varsellcm_arguments_df, ...) {
+      needrow <- dplyr::filter(varsellcm_arguments_df, store_key==!!fikey)
+      survey_key <- needrow$survey #iterx$needsurvey
+      needimp <- needrow$imp
+      needvarsel <- needrow$varsel
+      if (TRUE) {
+        needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
+          dplyr::mutate_at("myown_age",scale) %>%
+          dplyr::mutate_at("myown_age",function (X) {X[,1]}) %>%
+          dplyr::mutate_at("myown_age",as.numeric)
+        surveyweight<-needdf$myown_wr
+        inputData<-dplyr::select(needdf, !!clustering_var[[survey_key]])
+        n_select_components<-2:12
+        
+        resmod <- if (needvarsel=="wtho") {
+          # Cluster analysis without variable selection
+          VarSelLCM::VarSelCluster(inputData, gvals = n_select_components, nbcores = parallel::detectCores(), vbleSelec = FALSE, crit.varsel = "BIC")
+        } else {
+          # Cluster analysis with variable selection (with parallelisation)
+          VarSelLCM::VarSelCluster(inputData, gvals = n_select_components, nbcores = parallel::detectCores(), crit.varsel = "BIC")
+        }
+        while (TRUE) {
+          loadsavestatus<-try({
+            load(file=resvarselclusterfile, verbose=TRUE)
+            varsellcm_results[[needrow$store_key]] <- resmod
+            save(varsellcm_results, file=resvarselclusterfile)
+          })
+          if(!is(loadsavestatus, 'try-error')) break
+        }
+        return(resmod)
       }
-      while (TRUE) {
-        loadsavestatus<-try({
-          load(file=resvarselclusterfile, verbose=TRUE)
-          varsellcm_results[[needrow$store_key]] <- resmod
-          save(varsellcm_results, file=resvarselclusterfile)
-        })
-        if(!is(loadsavestatus, 'try-error')) break
-      }
-      return(resmod)
+    }, varsellcm_arguments_df=varsellcm_arguments_df,
+    survey_data_imputed=survey_data_imputed,
+    clustering_var=clustering_var,
+    resvarselclusterfile=resvarselclusterfile, method=parallel_method), . )
+  
+  save(varsellcm_results, file=resvarselclusterfile)
+  load(file=resvarselclusterfile, verbose=TRUE)
+  for (varsellcm_results_key in unique(sort(varsellcm_arguments_df$keyprefix))) {
+    needrow<-dplyr::filter(varsellcm_arguments_df, keyprefix==!!varsellcm_results_key)
+    imp <- needrow$imp[1] %>% as.integer()
+    res_with <- paste0(varsellcm_results_key, "_wth") %>%
+      magrittr::extract2(varsellcm_results, .)
+    res_without <- paste0(varsellcm_results_key, "_wtho") %>%
+      magrittr::extract2(varsellcm_results, .)
+    resmodel<-if ( abs(VarSelLCM::BIC(res_without)) > abs(VarSelLCM::BIC(res_with)) ) res_with else res_without
+    
+    #VarSelLCM::BIC(resmodel) %>% print()
+    #VarSelLCM::summary(resmodel) %>% print()
+    # Estimated probabilities of classification
+    #head(VarSelLCM::fitted(resmodel, type="probability")) %>% print()
+    #print(resmodel)
+    #VarSelLCM::coef(resmodel) %>% print()
+    table_of_cluster_dist_orig<-table(VarSelLCM::fitted(resmodel))
+    for (interpretvar in clustering_var[[needrow$survey[1]]]) {
+      #if (readline("next var:")=="N") break
+      #VarSelLCM::plot(x=resmodel, y=interpretvar)
     }
-  }, varsellcm_arguments_df=varsellcm_arguments_df,
-  survey_data_imputed=survey_data_imputed,
-  clustering_var=clustering_var,
-  resvarselclusterfile=resvarselclusterfile, method=parallel_method), . )
-  
-save(varsellcm_results, file=resvarselclusterfile)
-load(file=resvarselclusterfile, verbose=TRUE)
-for (varsellcm_results_key in unique(sort(varsellcm_arguments_df$keyprefix))) {
-  needrow<-dplyr::filter(varsellcm_arguments_df, keyprefix==!!varsellcm_results_key)
-  imp <- needrow$imp[1] %>% as.integer()
-  res_with <- paste0(varsellcm_results_key, "_wth") %>%
-    magrittr::extract2(varsellcm_results, .)
-  res_without <- paste0(varsellcm_results_key, "_wtho") %>%
-    magrittr::extract2(varsellcm_results, .)
-  resmodel<-if ( abs(VarSelLCM::BIC(res_without)) > abs(VarSelLCM::BIC(res_with)) ) res_with else res_without
-  
-  #VarSelLCM::BIC(resmodel) %>% print()
-  #VarSelLCM::summary(resmodel) %>% print()
-  # Estimated probabilities of classification
-  #head(VarSelLCM::fitted(resmodel, type="probability")) %>% print()
-  #print(resmodel)
-  #VarSelLCM::coef(resmodel) %>% print()
-  table_of_cluster_dist_orig<-table(VarSelLCM::fitted(resmodel))
-  for (interpretvar in clustering_var[[needrow$survey[1]]]) {
-    #if (readline("next var:")=="N") break
-    #VarSelLCM::plot(x=resmodel, y=interpretvar)
+    #factorlevelseq <- as.character(sort(unique(VarSelLCM::fitted(resmodel))))
+    factored_cluster<-VarSelLCM::fitted(resmodel) %>%
+      as.factor() %>%
+      forcats::fct_infreq() %>%
+      forcats::fct_recode(., !!!{
+        set_names(levels(.), as.list(sort(unique(.))))
+      })
+    table_of_cluster_dist<-table(factored_cluster)
+    message(paste0("distribution of cluster of ",varsellcm_results_key," is:"))
+    print(table_of_cluster_dist)
+    survey_data_imputed[[needrow$survey[1]]][survey_data_imputed[[needrow$survey[1]]]$.imp==imp,"cluster_varsellcm"] <- as.integer(as.character(factored_cluster))
   }
-  #factorlevelseq <- as.character(sort(unique(VarSelLCM::fitted(resmodel))))
-  factored_cluster<-VarSelLCM::fitted(resmodel) %>%
-    as.factor() %>%
-    forcats::fct_infreq() %>%
-    forcats::fct_recode(., !!!{
-      set_names(levels(.), as.list(sort(unique(.))))
-    })
-  table_of_cluster_dist<-table(factored_cluster)
-  message(paste0("distribution of cluster of ",varsellcm_results_key," is:"))
-  print(table_of_cluster_dist)
-  survey_data_imputed[[needrow$survey[1]]][survey_data_imputed[[needrow$survey[1]]]$.imp==imp,"cluster_varsellcm"] <- as.integer(as.character(factored_cluster))
+  
+  
 }
+
 
 # * model-based clustering by KAMILA ----------------
 kamila_results<-list()
@@ -639,13 +655,12 @@ if (FALSE) {
     survey_key <- kamila_arguments_df$survey[fi]#iterx$needsurvey
     needimp <- kamila_arguments_df$imp[fi]
     needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
-      dplyr::mutate_at("myown_age",scale) %>%
-      dplyr::mutate_at("myown_age",function (X) {X[,1]}) %>%
-      dplyr::mutate_at("myown_age",as.numeric)
+      dplyr::mutate(myown_age=as.numeric(scale(myown_age))) %>%
+      dplyr::mutate(myown_factoredses=myown_factoredses_scaled)
     surveyweight<-needdf$myown_wr
     inputData<-dplyr::select(needdf, !!clustering_var[[survey_key]])
     resmodel <- kamila::kamila(conVar=inputData[,c("myown_age","myown_factoredses")],
-                               catFactor=inputData[c("myown_sex","myown_selfid","myown_marriage", "myown_areakind")],
+                               catFactor=inputData[c("myown_sex","myown_selfid","myown_marriage","myown_areakind","myown_religion")],
                                numClust = 2:12, numInit = 10, calcNumClust = "ps", numPredStrCvRun = 10,
                                predStrThresh = 0.5, maxIter=10000, verbose=TRUE)
     #load(file=reskamilaclusterfile, verbose=TRUE)
@@ -691,62 +706,68 @@ for (survey_imp_key in names(kamila_results)) {
 
 # * model-based clustering by mixtools and pdfCluster----------------
 #https://tinyheero.github.io/2015/10/13/mixture-model.html
-mixtools_args<-data.frame("survey"=survey_data_title) %>%
-  cbind(., imp = rep(imps, each = nrow(.))) %>%
-  dplyr::mutate(store_key=paste0(survey,"_",imp)) %>%
-  dplyr::filter(survey %in% !!c("2010overall","2016citizen")) %>%
-  dplyr::mutate_at("survey", as.character) %>%
-  dplyr::mutate_at("imp", as.integer) %>%
-  dplyr::arrange(survey, imp)
-needrow<-mixtools_args[1,]
-t<-survey_data_imputed[[needrow$survey]] %>%
-  dplyr::filter(.imp==!!needrow$imp) %>%
-  dplyr::select(!!clustering_var[[needrow$survey]])
+if (FALSE) {
+  mixtools_args<-data.frame("survey"=survey_data_title) %>%
+    cbind(., imp = rep(imps, each = nrow(.))) %>%
+    dplyr::mutate(store_key=paste0(survey,"_",imp)) %>%
+    dplyr::filter(survey %in% !!c("2010overall","2016citizen")) %>%
+    dplyr::mutate_at("survey", as.character) %>%
+    dplyr::mutate_at("imp", as.integer) %>%
+    dplyr::arrange(survey, imp)
+  needrow<-mixtools_args[1,]
+  t<-survey_data_imputed[[needrow$survey]] %>%
+    dplyr::filter(.imp==!!needrow$imp) %>%
+    dplyr::select(!!clustering_var[[needrow$survey]])
+}
+
 
 # * model-based clustering by clustMD ----------------
-load_lib_or_install(c("clustMD"))
+#load_lib_or_install(c("clustMD"))
 
-clustrd_results_with_best_argument<-list()
-it <- ihasNext(product(needsurvey = survey_data_title[1], needimp = 1))
-while(hasNext(it)) {
-  iterx <- nextElem(it)
-  needdf<-dplyr::filter(survey_data_imputed[[iterx$needsurvey]], .imp==!!iterx$needimp)
-  surveyweight<-needdf$myown_wr
-  needdf<-dplyr::select(needdf, !!clustering_var[[iterx$needsurvey]])
-  inputData <- dplyr::bind_cols(dplyr::select_if(needdf, is.numeric),dplyr::select_if(needdf, is.factor))
-  #measure skewness
-  #If skewness value lies above +1 or below -1, data is highly skewed. If it lies between +0.5 to -0.5, it is moderately skewed. If the value is 0, then the data is symmetric
-  numericvars<-lapply(inputData, is.numeric) %>%
-    .[.==TRUE] %>%
-    names()
-  to_skew_num_var<-lapply(dplyr::select_if(inputData, is.numeric), e1071::skewness) %>%
+if (FALSE) {
+  clustrd_results_with_best_argument<-list()
+  it <- ihasNext(product(needsurvey = survey_data_title[1], needimp = 1))
+  while(hasNext(it)) {
+    iterx <- nextElem(it)
+    needdf<-dplyr::filter(survey_data_imputed[[iterx$needsurvey]], .imp==!!iterx$needimp)
+    surveyweight<-needdf$myown_wr
+    needdf<-dplyr::select(needdf, !!clustering_var[[iterx$needsurvey]])
+    inputData <- dplyr::bind_cols(dplyr::select_if(needdf, is.numeric),dplyr::select_if(needdf, is.factor))
+    #measure skewness
+    #If skewness value lies above +1 or below -1, data is highly skewed. If it lies between +0.5 to -0.5, it is moderately skewed. If the value is 0, then the data is symmetric
+    numericvars<-lapply(inputData, is.numeric) %>%
+      .[.==TRUE] %>%
+      names()
+    to_skew_num_var<-lapply(dplyr::select_if(inputData, is.numeric), e1071::skewness) %>%
     {is_greater_than(.,0.05) | is_less_than(.,-0.05)} %>%
-    .[.==TRUE] %>%
-    names()
-  inputData %<>% dplyr::mutate_at(to_skew_num_var,custom_shift_sqrt) %>%
-    dplyr::mutate_at(numericvars,scale) %>%
-    dplyr::mutate_at(numericvars,function (X) {X[,1]})
-  #ploting var to check the skewness
-  for (numericvar in numericvars) {
-    custom_plot(cbind(inputData,surveyweight), numericvar, weightvar="surveyweight") %>% print()
-    readline("wait")
+      .[.==TRUE] %>%
+      names()
+    inputData %<>% dplyr::mutate_at(to_skew_num_var,custom_shift_sqrt) %>%
+      dplyr::mutate_at(numericvars,scale) %>%
+      dplyr::mutate_at(numericvars,function (X) {X[,1]})
+    #ploting var to check the skewness
+    for (numericvar in numericvars) {
+      custom_plot(cbind(inputData,surveyweight), numericvar, weightvar="surveyweight") %>% print()
+      readline("wait")
+    }
+    factorvars<-sapply(inputData, class) %>%
+      .[.=="factor"] %>%
+      names()
+    previous_levellables<-lapply(inputData[,factorvars],levels) %>%
+      lapply(sort)
+    afterward_levellables<-lapply(previous_levellables, function(x) {
+      x<-gsub("]\\s{1}.+","",x,perl=TRUE)
+      x<-gsub("\\[{1}","",x,perl=TRUE)
+      return(x)
+    })
+    recode_factorvar_levellabels<-lapply(names(previous_levellables), function(factorvar) {
+      to_labels<- previous_levellables[[factorvar]] %>%
+        set_names(afterward_levellables[[factorvar]])
+      return(to_labels)
+    }) %>% unlist()
+    inputData <- dplyr::mutate_if(inputData, is.factor, forcats::fct_recode, !!!recode_factorvar_levellabels)
   }
-  factorvars<-sapply(inputData, class) %>%
-    .[.=="factor"] %>%
-    names()
-  previous_levellables<-lapply(inputData[,factorvars],levels) %>%
-    lapply(sort)
-  afterward_levellables<-lapply(previous_levellables, function(x) {
-    x<-gsub("]\\s{1}.+","",x,perl=TRUE)
-    x<-gsub("\\[{1}","",x,perl=TRUE)
-    return(x)
-  })
-  recode_factorvar_levellabels<-lapply(names(previous_levellables), function(factorvar) {
-    to_labels<- previous_levellables[[factorvar]] %>%
-      set_names(afterward_levellables[[factorvar]])
-    return(to_labels)
-  }) %>% unlist()
-  inputData <- dplyr::mutate_if(inputData, is.factor, forcats::fct_recode, !!!recode_factorvar_levellabels)
+  
 }
 
 # Assessing Cluster clustrd Stability --------------------------------
@@ -783,188 +804,201 @@ for (i in 1:length(detect_best_results)) {
 
 
 # Apply Clustrd results according to previously retrieved information db--------------------------------
-con <- do.call(DBI::dbConnect, dbconnect_info)
-already_in_sqltable_clustrd_records<-DBI::dbReadTable(con, db_table_name)
-DBI::dbDisconnect(con)
 
-nclusbest_threshold<-3
-comparing_appro_clustrd_result<-lapply(names(clustering_var), function(survey) {
-  dplyr::filter(already_in_sqltable_clustrd_records, survey==!!survey, criterion=="asw") %>% #, imp==needimp
-    dplyr::filter(nclusbest>=!!nclusbest_threshold) %>%
-    dplyr::filter(critbest==max(critbest)) %>%
-    dplyr::distinct(alpha, method, rotation, dst, nclusbest, ndimbest) %>%
-    dplyr::arrange(nclusbest, ndimbest, alpha, method, rotation, dst) %>%
-    return()
-}) %>% set_names(names(clustering_var))
-#try finding common clustrd argument
-for (i in 2:3) {
-  if (i==2) common_argument_for_clustrd_results<-comparing_appro_clustrd_result[[i]]
-  common_argument_for_clustrd_results %<>% dplyr::semi_join(comparing_appro_clustrd_result[[i+1]])
-}
-#if no common clustrd argument, using single best argument
-if (nrow(common_argument_for_clustrd_results)>0) {
-  common_argument_for_clustrd_results<-common_argument_for_clustrd_results[1,]
-  bestarguments_for_clustrd<-list(
-    "2004citizen"=comparing_appro_clustrd_result$`2004citizen`,
-    "2010env"=common_argument_for_clustrd_results,
-    "2010overall"=common_argument_for_clustrd_results,
-    "2016citizen"=common_argument_for_clustrd_results
-  )
-} else {
-  bestarguments_for_clustrd<-lapply(names(clustering_var), function(survey) {
-    extract2(comparing_appro_clustrd_result,survey) %>%
-      .[1,]
+if (FALSE) {
+  con <- do.call(DBI::dbConnect, dbconnect_info)
+  already_in_sqltable_clustrd_records<-DBI::dbReadTable(con, db_table_name)
+  DBI::dbDisconnect(con)
+  
+  nclusbest_threshold<-3
+  comparing_appro_clustrd_result<-lapply(names(clustering_var), function(survey) {
+    dplyr::filter(already_in_sqltable_clustrd_records, survey==!!survey, criterion=="asw") %>% #, imp==needimp
+      dplyr::filter(nclusbest>=!!nclusbest_threshold) %>%
+      dplyr::filter(critbest==max(critbest)) %>%
+      dplyr::distinct(alpha, method, rotation, dst, nclusbest, ndimbest) %>%
+      dplyr::arrange(nclusbest, ndimbest, alpha, method, rotation, dst) %>%
+      return()
   }) %>% set_names(names(clustering_var))
+  #try finding common clustrd argument
+  for (i in 2:3) {
+    if (i==2) common_argument_for_clustrd_results<-comparing_appro_clustrd_result[[i]]
+    common_argument_for_clustrd_results %<>% dplyr::semi_join(comparing_appro_clustrd_result[[i+1]])
+  }
+  #if no common clustrd argument, using single best argument
+  if (nrow(common_argument_for_clustrd_results)>0) {
+    common_argument_for_clustrd_results<-common_argument_for_clustrd_results[1,]
+    bestarguments_for_clustrd<-list(
+      "2004citizen"=comparing_appro_clustrd_result$`2004citizen`,
+      "2010env"=common_argument_for_clustrd_results,
+      "2010overall"=common_argument_for_clustrd_results,
+      "2016citizen"=common_argument_for_clustrd_results
+    )
+  } else {
+    bestarguments_for_clustrd<-lapply(names(clustering_var), function(survey) {
+      extract2(comparing_appro_clustrd_result,survey) %>%
+        .[1,]
+    }) %>% set_names(names(clustering_var))
+  }
+  
+  #for (survey in names(bestarguments_for_clustrd)) {
+  clustrd_results_with_best_argument<-parallel::mclapply(names(bestarguments_for_clustrd), function(survey) {
+    needdata<-extract2(survey_data_imputed,survey) %>%
+      dplyr::filter(.imp==1)
+    surveyweight<-needdata$myown_wr
+    needdata<-needdata %>%
+      extract(clustering_var[[survey]]) %>%
+      dplyr::mutate_at("myown_age",scale) %>%
+      dplyr::mutate_at("myown_age",function (X) {X[,1]})
+    extract2(bestarguments_for_clustrd,survey) %>%
+      dplyr::rename(nclus=nclusbest, ndim=ndimbest) %>%
+      dplyr::select(-dst) %>%
+      as.list() %>%
+      rlist::list.append(data=needdata, center=TRUE, scale=TRUE, smartStart=surveyweight) %>%
+      {
+        if (clustrd_using_surveyweight) {
+          rlist::list.append(smartStart=surveyweight)
+        } else {
+          .
+        }
+      } %>%
+      do.call(clustrd::cluspcamix,.) %>%
+      return()
+  }) %>%
+    set_names(names(clustering_var))
+  save(clustrd_results_with_best_argument,file=paste0(dataset_in_scriptsfile_directory,"clustrd_results_with_best_argument_nclus-threshold-",nclusbest_threshold,"_with_weight.RData"))
+  
+  load(file=paste0(dataset_in_scriptsfile_directory,"clustrd_results_with_best_argument_nclus-threshold-",nclusbest_threshold,".RData"), verbose=TRUE)
+  # for using in plotting
+  it <- ihasNext(product(needsurveykey = survey_data_title, needimp = 1))
+  while(hasNext(it)) {
+    iterx <- nextElem(it)
+    clustrd_results_with_best_argument[[iterx$needsurveykey]]$cluster<-clustrd_results_with_best_argument[[iterx$needsurveykey]]$cluster
+    needdf<-dplyr::filter(survey_data_imputed[[iterx$needsurvey]], .imp==!!iterx$needimp)
+    surveyweight<-needdf$myown_wr
+    inputData<-dplyr::select(needdf, !!clustering_var[[iterx$needsurvey]]) %>%
+      dplyr::mutate_at("myown_age",scale) %>%
+      dplyr::mutate_at("myown_age",function (X) {X[,1]})
+    G.dist <- cluster::daisy(x = inputData, metric = "gower")
+    gower_mat <- as.matrix(G.dist)
+    silhouetteresult<-cluster::silhouette(clustrd_results_with_best_argument[[iterx$needsurveykey]]$cluster, dmatrix=gower_mat)
+    message(iterx$needsurveykey)
+    print(summary(silhouetteresult))
+  }
 }
 
-#for (survey in names(bestarguments_for_clustrd)) {
-clustrd_results_with_best_argument<-parallel::mclapply(names(bestarguments_for_clustrd), function(survey) {
-  needdata<-extract2(survey_data_imputed,survey) %>%
-    dplyr::filter(.imp==1)
-  surveyweight<-needdata$myown_wr
-  needdata<-needdata %>%
-    extract(clustering_var[[survey]]) %>%
-    dplyr::mutate_at("myown_age",scale) %>%
-    dplyr::mutate_at("myown_age",function (X) {X[,1]})
-  extract2(bestarguments_for_clustrd,survey) %>%
-    dplyr::rename(nclus=nclusbest, ndim=ndimbest) %>%
-    dplyr::select(-dst) %>%
-    as.list() %>%
-    rlist::list.append(data=needdata, center=TRUE, scale=TRUE, smartStart=surveyweight) %>%
-    {
-      if (clustrd_using_surveyweight) {
-        rlist::list.append(smartStart=surveyweight)
-      } else {
-        .
-      }
-    } %>%
-    do.call(clustrd::cluspcamix,.) %>%
-    return()
-}) %>%
-  set_names(names(clustering_var))
-save(clustrd_results_with_best_argument,file=paste0(dataset_in_scriptsfile_directory,"clustrd_results_with_best_argument_nclus-threshold-",nclusbest_threshold,"_with_weight.RData"))
 
-load(file=paste0(dataset_in_scriptsfile_directory,"clustrd_results_with_best_argument_nclus-threshold-",nclusbest_threshold,".RData"), verbose=TRUE)
-# for using in plotting
-it <- ihasNext(product(needsurveykey = survey_data_title, needimp = 1))
-while(hasNext(it)) {
-  iterx <- nextElem(it)
-  clustrd_results_with_best_argument[[iterx$needsurveykey]]$cluster<-clustrd_results_with_best_argument[[iterx$needsurveykey]]$cluster
-  needdf<-dplyr::filter(survey_data_imputed[[iterx$needsurvey]], .imp==!!iterx$needimp)
-  surveyweight<-needdf$myown_wr
-  inputData<-dplyr::select(needdf, !!clustering_var[[iterx$needsurvey]]) %>%
-    dplyr::mutate_at("myown_age",scale) %>%
-    dplyr::mutate_at("myown_age",function (X) {X[,1]})
-  G.dist <- cluster::daisy(x = inputData, metric = "gower")
-  gower_mat <- as.matrix(G.dist)
-  silhouetteresult<-cluster::silhouette(clustrd_results_with_best_argument[[iterx$needsurveykey]]$cluster, dmatrix=gower_mat)
-  message(iterx$needsurveykey)
-  print(summary(silhouetteresult))
-}
 
 # Factor analysis of mixed data and Graphing cluster result --------------------------------
-load_lib_or_install(c("FactoMineR","factoextra","parallel","magrittr"))
+#load_lib_or_install(c("FactoMineR","factoextra","parallel","magrittr"))
 
-it <- ihasNext(product(needsurveykey = 1:4, needimp = 1))
-while(hasNext(it)) {
-  iterx <- nextElem(it)
-  if (readline(paste0("Continue to next imputation where imp=",iterx$needimp," ? (Y/N)"))=="N") {
-    next
-  }
-  df<-survey_data_imputed[[iterx$needsurveykey]] %>%
-    .[.$.imp==iterx$needimp,]
-  survey<-df$SURVEY[1]
-  surveyweight<-df$myown_wr
-  df<-df[,extract2(clustering_var,iterx$needsurveykey)]
-  df$myown_age %<>% scale() %>% .[,1]
-  res.famd <- FAMD(df, graph = FALSE, row.w=surveyweight)
-  summary.FAMD(res.famd)
-  eig.val <- get_eigenvalue(res.famd)
-  head(eig.val) #要選擇特徵值大於一的
-  fviz_screeplot(res.famd)
-  if ({usingpamresult<-exists("cluster_quality_resultsdf");usingpamresult}) {
-    needclusteringmethod<-dplyr::arrange(cluster_quality_resultsdf, survey, imp, by, indicator, desc(stats), hmethod) %>%
-      dplyr::filter(!is.na(pmethod)) %>%
-      dplyr::distinct(survey, imp, by, indicator, stats, hmethod, k, cor, pmethod, title) %>%
-      dplyr::filter(survey==!!survey) %>%
-      head() %>%
-      extract2("title") %>%
-      .[1] %>%
-      extract2(combine_hclust_pam_results, .)
-  }
-  clusterf<-switch(as.character(exists("clustrd_results_with_best_argument")),
-                   "TRUE"=clustrd_results_with_best_argument[[iterx$needsurveykey]]$cluster,
-                   "FALSE"=needclusteringmethod$clustering) %>%
-    as.factor() %>%
-    forcats::fct_infreq()
-  table(clusterf)
-  var <- get_famd_var(res.famd)
-  #weired: 2010env dim 4
-  for(dim in combn(1:5,2,simplify = FALSE)) {#ucscgb #simpsons
-    fviz_famd_ind(res.famd, axes=dim, geom = "point", ggtheme = theme_classic(), legend = "bottom",
-                  title = paste0("FAMD ", survey, " imp ", iterx$needimp," dim ", dim),
-                  habillage=clusterf,
-                  palette = "jco") %>%
-      print()
-    # Coordinates of variables
-    print("Coordinates")
-    head(var$coord[,dim]) %>% print()
-    # Cos2: quality of representation on the factore map
-    print("quality")
-    head(var$cos2[,dim]) %>% print()
-    # Contributions to the dimensions
-    print("Contributions")
-    head(var$contrib[,dim]) %>% print()
-    if (iterx$needimp==1) {
-      if (readline("Continue to show dim contribution graph? (Y/N)")=="Y") {
-        # Plot of variables
-        fviz_famd_var(res.famd, axes=dim, repel = TRUE)
-        # Contribution to the ?th dimension
-        print(fviz_contrib(res.famd, "var", axes = dim))
+if (FALSE) {
+  it <- ihasNext(product(needsurveykey = 1:4, needimp = 1))
+  while(hasNext(it)) {
+    iterx <- nextElem(it)
+    if (readline(paste0("Continue to next imputation where imp=",iterx$needimp," ? (Y/N)"))=="N") {
+      next
+    }
+    df<-survey_data_imputed[[iterx$needsurveykey]] %>%
+      .[.$.imp==iterx$needimp,]
+    survey<-df$SURVEY[1]
+    surveyweight<-df$myown_wr
+    df<-df[,extract2(clustering_var,iterx$needsurveykey)]
+    df$myown_age %<>% scale() %>% .[,1]
+    res.famd <- FAMD(df, graph = FALSE, row.w=surveyweight)
+    summary.FAMD(res.famd)
+    eig.val <- get_eigenvalue(res.famd)
+    head(eig.val) #要選擇特徵值大於一的
+    fviz_screeplot(res.famd)
+    if ({usingpamresult<-exists("cluster_quality_resultsdf");usingpamresult}) {
+      needclusteringmethod<-dplyr::arrange(cluster_quality_resultsdf, survey, imp, by, indicator, desc(stats), hmethod) %>%
+        dplyr::filter(!is.na(pmethod)) %>%
+        dplyr::distinct(survey, imp, by, indicator, stats, hmethod, k, cor, pmethod, title) %>%
+        dplyr::filter(survey==!!survey) %>%
+        head() %>%
+        extract2("title") %>%
+        .[1] %>%
+        extract2(combine_hclust_pam_results, .)
+    }
+    clusterf<-switch(as.character(exists("clustrd_results_with_best_argument")),
+                     "TRUE"=clustrd_results_with_best_argument[[iterx$needsurveykey]]$cluster,
+                     "FALSE"=needclusteringmethod$clustering) %>%
+      as.factor() %>%
+      forcats::fct_infreq()
+    table(clusterf)
+    var <- get_famd_var(res.famd)
+    #weired: 2010env dim 4
+    for(dim in combn(1:5,2,simplify = FALSE)) {#ucscgb #simpsons
+      fviz_famd_ind(res.famd, axes=dim, geom = "point", ggtheme = theme_classic(), legend = "bottom",
+                    title = paste0("FAMD ", survey, " imp ", iterx$needimp," dim ", dim),
+                    habillage=clusterf,
+                    palette = "jco") %>%
+        print()
+      # Coordinates of variables
+      print("Coordinates")
+      head(var$coord[,dim]) %>% print()
+      # Cos2: quality of representation on the factore map
+      print("quality")
+      head(var$cos2[,dim]) %>% print()
+      # Contributions to the dimensions
+      print("Contributions")
+      head(var$contrib[,dim]) %>% print()
+      if (iterx$needimp==1) {
+        if (readline("Continue to show dim contribution graph? (Y/N)")=="Y") {
+          # Plot of variables
+          fviz_famd_var(res.famd, axes=dim, repel = TRUE)
+          # Contribution to the ?th dimension
+          print(fviz_contrib(res.famd, "var", axes = dim))
+        }
+      }
+      if (readline("Continue to next dim graph? (Y/N)")=="N") {
+        break
       }
     }
-    if (readline("Continue to next dim graph? (Y/N)")=="N") {
+    #break
+  }
+}
+
+
+
+# VAT (Visual Assessment of Tendency) assessing clustering tendency --------------------------------
+if (FALSE) {
+  load_lib_or_install(c("itertools","cluster","factoextra","dendextend","clustertend","factoextra","NbClust"))
+  it <- ihasNext(product(needsurveykey = 1:4, needimp = 1)) #:5
+  while(hasNext(it)) {
+    iterx <- nextElem(it)
+    inputData<-survey_data_imputed[[iterx$needsurveykey]]
+    survey<-inputData$SURVEY[1]
+    surveyweight<-inputData$myown_wr[inputData$.imp==iterx$needimp]
+    inputData<-inputData[inputData$.imp==iterx$needimp,clustering_var[[iterx$needsurveykey]]]
+    inputData$myown_age %<>% scale() %>%
+      .[,1]
+    #hopkins(inputData, n = nrow(inputData)-1)
+    #get_clust_tendency(inputData, n = nrow(inputData)-1)
+    G.dist <- cluster::daisy(x = inputData, metric = "gower")
+    gower_mat <- as.matrix(G.dist)
+    print(
+      fviz_dist(G.dist, show_labels = FALSE)+
+        labs(title = survey)
+    )
+    if (readline("Continue to next VAT? (Y/N)")=="N") {
       break
     }
   }
-  #break
-}
-
-# VAT (Visual Assessment of Tendency) assessing clustering tendency --------------------------------
-
-load_lib_or_install(c("itertools","cluster","factoextra","dendextend","clustertend","factoextra","NbClust"))
-it <- ihasNext(product(needsurveykey = 1:4, needimp = 1)) #:5
-while(hasNext(it)) {
-  iterx <- nextElem(it)
-  inputData<-survey_data_imputed[[iterx$needsurveykey]]
-  survey<-inputData$SURVEY[1]
-  surveyweight<-inputData$myown_wr[inputData$.imp==iterx$needimp]
-  inputData<-inputData[inputData$.imp==iterx$needimp,clustering_var[[iterx$needsurveykey]]]
-  inputData$myown_age %<>% scale() %>%
-    .[,1]
-  #hopkins(inputData, n = nrow(inputData)-1)
-  #get_clust_tendency(inputData, n = nrow(inputData)-1)
-  G.dist <- cluster::daisy(x = inputData, metric = "gower")
-  gower_mat <- as.matrix(G.dist)
-  print(
-  fviz_dist(G.dist, show_labels = FALSE)+
-    labs(title = survey)
-  )
-  if (readline("Continue to next VAT? (Y/N)")=="N") {
-    break
+  
+  
+  for (s in names(survey_data_imputed)) {
+    for (imp in imps) {  #"cluster_varsellcm" "cluster_clustrd" "cluster_kamila"
+      message(paste0("SURVEY is ",s," and imp is",imp))
+      dplyr::filter(survey_data_imputed[[s]], .imp==!!imp) %>%
+        magrittr::use_series("cluster_kamila") %>%
+        table() %>%
+        print()
+    }
   }
 }
 
-
-for (s in names(survey_data_imputed)) {
-  for (imp in imps) {  #"cluster_varsellcm" "cluster_clustrd" "cluster_kamila"
-    message(paste0("SURVEY is ",s," and imp is",imp))
-    dplyr::filter(survey_data_imputed[[s]], .imp==!!imp) %>%
-      magrittr::use_series("cluster_kamila") %>%
-      table() %>%
-      print()
-  }
-}
 
 #save(survey_data_imputed,file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"))
-load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"), verbose=TRUE)
+save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
+
+#load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"), verbose=TRUE)

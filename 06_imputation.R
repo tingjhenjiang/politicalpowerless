@@ -18,6 +18,12 @@ if(is(survey_imputation_and_measurement, 'try-error')) {
 
 # 第四部份：清理資料：填補遺漏值 -------------------------------------------
 
+#dplyr::filter(survey_data[["2016citizen"]], customgrepl(myown_selfid, pattern="[6]"))
+#dplyr::filter(survey_data[["2016citizen"]], id %in% c(116213,220130,234140,806123)) %>% View()
+survey_data[["2016citizen"]] %<>% mutate_cond(customgrepl(myown_selfid, "[6]"), myown_selfid=NA) %>%
+  dplyr::mutate_at("myown_selfid", droplevels)
+
+
 #assinging missing value
 # library(mice)
 # library(VIM)
@@ -228,7 +234,7 @@ survey_data_imputed <- lapply( #custom_parallel_lapply
   FUN=myown_imp_function,
   imputedvaluecolumn=imputedvaluecolumn,
   imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
-  imputation_sample_i_s=15, #length(imputation_sample_i_s)
+  imputation_sample_i_s=24, #length(imputation_sample_i_s)
   exportvar=c("imputedvaluecolumn","parlMICE","imputingcalculatebasiscolumn"),
   exportlib=c("dplyr","base","magrittr","parallel","mice","micemd","randomForest"), #,"MissMech","fastDummies"
   outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),

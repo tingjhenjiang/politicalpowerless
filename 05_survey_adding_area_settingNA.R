@@ -111,7 +111,8 @@ survey_data <- mapply(function(X,Y) {
 #  reshape2::melt(X,id.vars = othervar, variable.name = "variable_on_term", value.name = "term") %>%
 #    dplyr::filter(!is.na(term))
 #})  %>%
-
+survey_data[["2016citizen"]] %<>% mutate_cond(customgrepl(myown_selfid, "[6]"), myown_selfid=NA) %>%
+  dplyr::mutate_at("myown_selfid", droplevels)
 save(survey_data,file=paste0(dataset_in_scriptsfile_directory, "all_survey_combined_after_settingNA.RData"))
 
 
