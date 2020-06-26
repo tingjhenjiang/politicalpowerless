@@ -204,7 +204,7 @@ if ({avoid_run_duplicated_models<-TRUE;avoid_run_duplicated_models}) {
     names()
   distincted_survey_parallelfa_arguments_df_runonly<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, !(runmirt_store_key %in% !!processed_idealpoint_mirt_keys) )
 }
-if (TRUE) {
+if (FALSE) {
   survey_idealpoints_mirt_models<-distincted_survey_parallelfa_arguments_df_runonly$runmirt_store_key %>%
     magrittr::set_names(custom_parallel_lapply(., function(fikey, ...) {
       needrow<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, runmirt_store_key==!!fikey)
@@ -324,7 +324,8 @@ if (FALSE) {
 
 # merge fscore data --------------------------------
 if (FALSE) {
-  loopmirtmodellist_keys<-dplyr::filter(complete_inf_mirt_models, ncompnfact %in% c(6,12)) %>%
+  loopmirtmodellist_keys<- dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, runmirt_store_key %in% !!names(survey_idealpoints_mirt_models))
+     #dplyr::filter(complete_inf_mirt_models, ncompnfact %in% c(6,12)) %>%
     dplyr::arrange(survey,imp) %>%
     magrittr::use_series("runmirt_store_key")
   policy_idealpoint_colname_header<-"policyidealpoint"

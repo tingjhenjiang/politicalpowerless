@@ -44,139 +44,65 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #fixed effect v. random effect
 #https://zhuanlan.zhihu.com/p/60528092
 
+
+
 #nests: id
+
+# * check kamila result ----------------------------------------------
 reskamilaclusterfile <- paste0(dataset_in_scriptsfile_directory, "kamilacluster.Rdata")
 load(file=reskamilaclusterfile, verbose=TRUE)
-load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
-survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
-load(file=survey_with_idealpoint_name, verbose=TRUE)
+if ({display_kamila_clustering_probtable<-FALSE;display_kamila_clustering_probtable}) {
+  kamila_clustering_parameters<-custom_parallel_lapply(names(kamila_results), function(fikey, ...) {
+    needkamilamodel<-kamila_results[[fikey]]
+    needargrow<-dplyr::filter(kamila_arguments_df, store_key==!!fikey)
+    baseinfdo<-dplyr::filter(survey_data_imputed[[needargrow$survey]], .imp==!!needargrow$imp) %>%
+      dplyr::select(myown_wr) %>% data.frame(., "memb"=needkamilamodel$finalMemb) %>% dplyr::mutate_at("memb", as.factor)
+    syvdes <- survey::svydesign(id=~1, weights=~myown_wr, data=baseinfdo)
+    ratiotable<-survey::svymean(~memb, syvdes) %>%
+      as.data.frame() %>%
+      dplyr::arrange(dplyr::desc(mean)) %>%
+      dplyr::mutate(clustn=row.names(.)) %>%
+      dplyr::mutate_at("clustn", ~as.numeric(customgsub(clustn,"memb",""))) %>%
+      cbind(., clustsize = seq(1,nrow(.)))
+    catgnames<-colnames(needkamilamodel$input$catFactor) %>%
+      magrittr::set_names(names(needkamilamodel$finalProbs))
+    catglevels<-lapply(needkamilamodel$input$catFactor,levels)
+    continames<-colnames(needkamilamodel$input$conVar)
+    probtable<-lapply(names(needkamilamodel$finalProbs), function(X, ...) {
+      matchcatgvarname<-catgnames[[X]]
+      catgprob<-needkamilamodel$finalProbs[[X]] %>%
+        magrittr::set_colnames(catglevels[[matchcatgvarname]])
+    },needkamilamodel=needkamilamodel, catgnames=catgnames, catglevels=catglevels, continames=continames) %>%
+      do.call(cbind,.) %>%
+      cbind(needkamilamodel$finalCenters %>%
+              magrittr::set_colnames(continames), .)
+    data.frame("totlclusters"=needkamilamodel$nClust$bestNClust,"clustn"=1:needkamilamodel$nClust$bestNClust) %>%
+      cbind(needargrow,.) %>%
+      cbind(probtable) %>%
+      dplyr::left_join(ratiotable, .) %>%
+      dplyr::select(survey, imp, store_key, totlclusters, clustsize, mean, SE, dplyr::everything(), -clustn) %>%
+      return()
+  }, kamila_results=kamila_results, kamila_arguments_df=kamila_arguments_df, method=parallel_method) %>%
+    dplyr::bind_rows() %>%
+    dplyr::arrange(survey, imp)
+}
+dplyr::distinct(kamila_clustering_parameters,survey,imp,totlclusters) %>%
+  dplyr::filter(totlclusters==4)
 
-kamila_clustering_parameters<-lapply(names(kamila_results), function(fikey, ...) {
-  needkamilamodel<-kamila_results[[fikey]]
-  catgnames<-colnames(needkamilamodel$input$catFactor) %>%
-    magrittr::set_names(names(needkamilamodel$finalProbs))
-  catglevels<-lapply(needkamilamodel$input$catFactor,levels)
-  continames<-colnames(needkamilamodel$input$conVar)
-  probtable<-lapply(names(needkamilamodel$finalProbs), function(X, ...) {
-    matchcatgvarname<-catgnames[[X]]
-    catgprob<-needkamilamodel$finalProbs[[X]] %>%
-      magrittr::set_colnames(catglevels[[matchcatgvarname]])
-  },needkamilamodel=needkamilamodel, catgnames=catgnames, catglevels=catglevels, continames=continames) %>%
-    do.call(cbind,.) %>%
-    cbind(needkamilamodel$finalCenters %>%
-            magrittr::set_colnames(continames), .)
-  data.frame("fikey"=fikey,"totlclusters"=needkamilamodel$nClust$bestNClust,"clustn"=1:needkamilamodel$nClust$bestNClust) %>%
-    cbind(probtable) %>%
-    return()
-}, kamila_results=kamila_results) %>%
-  dplyr::bind_rows()
+# * try analysing ----------------------------
+matched_pairs_of_same_amount_clustern<-c(2,5,8,9,11,15,19)
+#survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
+#load(file=survey_with_idealpoint_name, verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
+#survey_data_imputed$`2010overall`$cluster_kamila %<>% as.factor()
+#survey_data_imputed$`2016citizen`$cluster_kamila %<>% as.factor()
 
 # custom_plot(survey_data_imputed$`2010overall`,"policyidealpoint_cos_similarity_to_median","myown_wr")
 # custom_plot(survey_data_imputed$`2016citizen`,"policyidealpoint_eucli_distance_to_median","myown_wr")
 
-# now in 2010overall_1
-# [1] 1 3 4 2
-# now in 2010overall_2
-# [1] 1 2 3 4
-# now in 2010overall_3
-# [1] 3 4 1 2
-# now in 2010overall_4
-# [1] 2 4 1 3
-# now in 2010overall_5
-# [1] 3 2 4 1
-# now in 2010overall_6
-# [1] 4 2 1 3
-# now in 2010overall_7
-# [1] 3 4 2 1
-# now in 2010overall_8
-# [1] 4 3 1 2
-# now in 2010overall_9
-# [1] 3 2 4 1
-# now in 2010overall_10
-# [1] 3 4 1 2
-# now in 2010overall_11
-# [1] 2 3 1 4
-# now in 2010overall_12
-# [1] 4 3 1 2
-# now in 2010overall_13
-# [1] 2 1 3 4
-# now in 2010overall_14
-# [1] 3 2 1 4
-# now in 2010overall_15
-# [1] 2 4 3 1
-# now in 2010overall_16
-# [1] 1 3 2 4
-# now in 2010overall_17
-# [1] 4 2 3 1
-# now in 2010overall_18
-# [1] 1 2 3 4
-# now in 2010overall_19
-# [1] 2 1 3 4
-# now in 2010overall_20
-# [1] 4 2 1 3
-# now in 2010overall_21
-# [1] 1 4 2 3
-# now in 2010overall_22
-# [1] 1 3 2 4
-# now in 2010overall_23
-# [1] 1 4 5 3 2
-# now in 2010overall_24
-# [1] 3 4 2 1
-# now in 2016citizen_1
-# [1] 2 1 3 5 4
-# now in 2016citizen_2
-# [1] 4 1 3 2 5
-# now in 2016citizen_3
-# [1] 2 1 4 3
-# now in 2016citizen_4
-# [1] 3 5 1 4 2
-# now in 2016citizen_5
-# [1] 2 4 1 3 5
-# now in 2016citizen_6
-# [1] 3 1 2 4
-# now in 2016citizen_7
-# [1] 1 5 4 2 3
-# now in 2016citizen_8
-# [1] 4 2 5 1 3
-# now in 2016citizen_9
-# [1] 2 5 3 1 4
-# now in 2016citizen_10
-# [1] 2 1 3 4
-# now in 2016citizen_11
-# [1] 3 4 1 2
-# now in 2016citizen_12
-# [1] 3 4 1 5 2
-# now in 2016citizen_13
-# [1] 3 2 1 4
-# now in 2016citizen_14
-# [1] 3 2 1 4
-# now in 2016citizen_15
-# [1] 2 1 3 4
-# now in 2016citizen_16
-# [1] 4 2 3 5 1
-# now in 2016citizen_17
-# [1] 5 4 2 3 1
-# now in 2016citizen_18
-# [1] 3 1 2 4
-# now in 2016citizen_19
-# [1] 1 3 4 2
-# now in 2016citizen_20
-# [1] 2 5 4 3 1
-# now in 2016citizen_21
-# [1] 3 4 1 2 5
-# now in 2016citizen_22
-# [1] 2 4 3 1 5
-# now in 2016citizen_23
-# [1] 4 1 2 5 3
-# now in 2016citizen_24
-# [1] 2 5 3 1 4
-matched_pairs_id<-3:4
-
-
-
 need_svytitle<-c("2010overall","2016citizen")
 analysis_idealpoint_to_median_args<-data.frame("survey"=survey_data_title) %>%
-  cbind(., imp = rep(matched_pairs_id, each = nrow(.))) %>%
+  cbind(., imp = rep(matched_pairs_of_same_amount_clustern, each = nrow(.))) %>%
   dplyr::mutate(store_key=paste0(survey,"_imp",imp)) %>%
   dplyr::filter(survey %in% !!need_svytitle) %>%
   dplyr::mutate_at("survey", as.character) %>%
@@ -187,7 +113,7 @@ analysis_idealpoint_to_median_args<-data.frame("survey"=survey_data_title) %>%
 common_names <- survey_data_imputed[need_svytitle] %>%
   lapply(FUN=names) %>%
   purrr::reduce(base::intersect)
-merged_acrossed_surveys<-lapply(matched_pairs_id, function(imp, ...) {
+merged_acrossed_surveys<-lapply(matched_pairs_of_same_amount_clustern, function(imp, ...) {
   needdf<-survey_data_imputed[need_svytitle] %>%
     lapply(FUN=function(X,nimp) {dplyr::filter(X, .imp==!!nimp) %>% dplyr::select(-myown_indp_atti)}, nimp=imp) %>%
     dplyr::bind_rows() %>%
