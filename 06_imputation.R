@@ -7,7 +7,6 @@ source_sharedfuncs_r_path<-try(here::here())
 if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
 source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
 gc(verbose=TRUE)
-imputation_sample_i_s<-1:15
 
 load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined_after_settingNA.RData"), verbose=TRUE)
 survey_imputation_and_measurement<-try(openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1))
@@ -242,7 +241,8 @@ survey_data_imputed <- lapply( #custom_parallel_lapply
   mc.cores=parallel::detectCores()
 )
 
-#further imputation
+# further imputation -------------------------------------------
+
 if ({furtherimp<-FALSE;furtherimp}) {
   load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"), verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly.RData"), verbose=TRUE)
@@ -263,7 +263,8 @@ if ({furtherimp<-FALSE;furtherimp}) {
   "b4" %in% furtherimp_imputingcalculatebasiscolumn[["2016citizen"]]
   
     
-  furthurimplist<-furtherimp_argument_df$store_key %>%
+  furthurimplist<-dplyr::filter(furtherimp_argument_df, survey=="2016citizen") %>%
+    .$store_key %>%
     {magrittr::set_names(custom_parallel_lapply(., function(storekey, ...) {
       message(paste("now in",storekey))
       needrow<-dplyr::filter(furtherimp_argument_df, store_key==!!storekey)
@@ -280,7 +281,7 @@ if ({furtherimp<-FALSE;furtherimp}) {
     imputation_sample_i_s=1,
     furtherimp_data=furtherimp_data,
     furtherimp_argument_df=furtherimp_argument_df,
-    method=parallel_method, mc.cores=1), .)}
+    method=parallel_method, mc.cores=3), .)}
   for (pattern in c("2010overall","2016citizen")) {
     survey_data_imputed[[pattern]]<-grep(pattern=pattern, x=names(furthurimplist), value=TRUE) %>%
       magrittr::extract(furthurimplist, .) %>%

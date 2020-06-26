@@ -45,16 +45,131 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #https://zhuanlan.zhihu.com/p/60528092
 
 #nests: id
+reskamilaclusterfile <- paste0(dataset_in_scriptsfile_directory, "kamilacluster.Rdata")
+load(file=reskamilaclusterfile, verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
 survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
 load(file=survey_with_idealpoint_name, verbose=TRUE)
+
+kamila_clustering_parameters<-lapply(names(kamila_results), function(fikey, ...) {
+  needkamilamodel<-kamila_results[[fikey]]
+  catgnames<-colnames(needkamilamodel$input$catFactor) %>%
+    magrittr::set_names(names(needkamilamodel$finalProbs))
+  catglevels<-lapply(needkamilamodel$input$catFactor,levels)
+  continames<-colnames(needkamilamodel$input$conVar)
+  probtable<-lapply(names(needkamilamodel$finalProbs), function(X, ...) {
+    matchcatgvarname<-catgnames[[X]]
+    catgprob<-needkamilamodel$finalProbs[[X]] %>%
+      magrittr::set_colnames(catglevels[[matchcatgvarname]])
+  },needkamilamodel=needkamilamodel, catgnames=catgnames, catglevels=catglevels, continames=continames) %>%
+    do.call(cbind,.) %>%
+    cbind(needkamilamodel$finalCenters %>%
+            magrittr::set_colnames(continames), .)
+  data.frame("fikey"=fikey,"totlclusters"=needkamilamodel$nClust$bestNClust,"clustn"=1:needkamilamodel$nClust$bestNClust) %>%
+    cbind(probtable) %>%
+    return()
+}, kamila_results=kamila_results) %>%
+  dplyr::bind_rows()
 
 # custom_plot(survey_data_imputed$`2010overall`,"policyidealpoint_cos_similarity_to_median","myown_wr")
 # custom_plot(survey_data_imputed$`2016citizen`,"policyidealpoint_eucli_distance_to_median","myown_wr")
 
-# > kamila_results$`2010overall_1`$nClust$bestNClust
-# 4 4 4 4 3
-# > kamila_results$`2016citizen_1`$nClust$bestNClust
-# 3 3 4 4 3
+# now in 2010overall_1
+# [1] 1 3 4 2
+# now in 2010overall_2
+# [1] 1 2 3 4
+# now in 2010overall_3
+# [1] 3 4 1 2
+# now in 2010overall_4
+# [1] 2 4 1 3
+# now in 2010overall_5
+# [1] 3 2 4 1
+# now in 2010overall_6
+# [1] 4 2 1 3
+# now in 2010overall_7
+# [1] 3 4 2 1
+# now in 2010overall_8
+# [1] 4 3 1 2
+# now in 2010overall_9
+# [1] 3 2 4 1
+# now in 2010overall_10
+# [1] 3 4 1 2
+# now in 2010overall_11
+# [1] 2 3 1 4
+# now in 2010overall_12
+# [1] 4 3 1 2
+# now in 2010overall_13
+# [1] 2 1 3 4
+# now in 2010overall_14
+# [1] 3 2 1 4
+# now in 2010overall_15
+# [1] 2 4 3 1
+# now in 2010overall_16
+# [1] 1 3 2 4
+# now in 2010overall_17
+# [1] 4 2 3 1
+# now in 2010overall_18
+# [1] 1 2 3 4
+# now in 2010overall_19
+# [1] 2 1 3 4
+# now in 2010overall_20
+# [1] 4 2 1 3
+# now in 2010overall_21
+# [1] 1 4 2 3
+# now in 2010overall_22
+# [1] 1 3 2 4
+# now in 2010overall_23
+# [1] 1 4 5 3 2
+# now in 2010overall_24
+# [1] 3 4 2 1
+# now in 2016citizen_1
+# [1] 2 1 3 5 4
+# now in 2016citizen_2
+# [1] 4 1 3 2 5
+# now in 2016citizen_3
+# [1] 2 1 4 3
+# now in 2016citizen_4
+# [1] 3 5 1 4 2
+# now in 2016citizen_5
+# [1] 2 4 1 3 5
+# now in 2016citizen_6
+# [1] 3 1 2 4
+# now in 2016citizen_7
+# [1] 1 5 4 2 3
+# now in 2016citizen_8
+# [1] 4 2 5 1 3
+# now in 2016citizen_9
+# [1] 2 5 3 1 4
+# now in 2016citizen_10
+# [1] 2 1 3 4
+# now in 2016citizen_11
+# [1] 3 4 1 2
+# now in 2016citizen_12
+# [1] 3 4 1 5 2
+# now in 2016citizen_13
+# [1] 3 2 1 4
+# now in 2016citizen_14
+# [1] 3 2 1 4
+# now in 2016citizen_15
+# [1] 2 1 3 4
+# now in 2016citizen_16
+# [1] 4 2 3 5 1
+# now in 2016citizen_17
+# [1] 5 4 2 3 1
+# now in 2016citizen_18
+# [1] 3 1 2 4
+# now in 2016citizen_19
+# [1] 1 3 4 2
+# now in 2016citizen_20
+# [1] 2 5 4 3 1
+# now in 2016citizen_21
+# [1] 3 4 1 2 5
+# now in 2016citizen_22
+# [1] 2 4 3 1 5
+# now in 2016citizen_23
+# [1] 4 1 2 5 3
+# now in 2016citizen_24
+# [1] 2 5 3 1 4
 matched_pairs_id<-3:4
 
 
