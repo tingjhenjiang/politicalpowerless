@@ -7,6 +7,8 @@ source_sharedfuncs_r_path<-try(here::here())
 if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
 source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
 #load(file=paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"), verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory, "bills_answer_to_bill_bills_billcontent.RData"), verbose=TRUE)
 survey_codebook_file<-paste0(dataset_file_directory,"all_survey_questions_englished.xlsx")
 survey_keys <- c("2010overall","2016citizen")
@@ -190,15 +192,19 @@ if (FALSE) {
 
 distincted_survey_parallelfa_arguments_df_runonly<- distincted_survey_parallelfa_arguments_df %>%
   dplyr::distinct(survey, imp, term, ncompnfact) %>%
-  dplyr::mutate(runmirt_store_key=paste0(survey,"_imp",imp,"_ncompnfact",ncompnfact)) #%>%
-  #dplyr::filter(imp==1)
+  dplyr::mutate(runmirt_store_key=paste0(survey,"_imp",imp,"_ncompnfact",ncompnfact)) %>%
+  dplyr::filter(ncompnfact %in% c(6,12)) %>%
+  dplyr::arrange(survey, imp, ncompnfact)
 
 survey_idealpoints_mirt_models_file <- paste0(save_dataset_in_scriptsfile_directory, "survey_idealpoints_mirt_models.RData")
 if ({avoid_run_duplicated_models<-TRUE;avoid_run_duplicated_models}) {
   load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
-  distincted_survey_parallelfa_arguments_df_runonly<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, !(runmirt_store_key %in% !!names(survey_idealpoints_mirt_models)) )
+  processed_idealpoint_mirt_keys<-sapply(survey_idealpoints_mirt_models, class) %>%
+    .[.=="SingleGroupClass"] %>%
+    names()
+  distincted_survey_parallelfa_arguments_df_runonly<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, !(runmirt_store_key %in% !!processed_idealpoint_mirt_keys) )
 }
-if (FALSE) {
+if (TRUE) {
   survey_idealpoints_mirt_models<-distincted_survey_parallelfa_arguments_df_runonly$runmirt_store_key %>%
     magrittr::set_names(custom_parallel_lapply(., function(fikey, ...) {
       needrow<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, runmirt_store_key==!!fikey)
@@ -226,13 +232,28 @@ if (FALSE) {
       to_explor_IRT_data<-needsurveydatadf[,to_explor_IRT_itemtypes$ID] %>%
         dplyr::mutate_all(unclass)
       mirtmethod<-if (as.integer(needrow$ncomp)>=3) "QMCEM" else "EM"
+      tryparsv_n<-1
+      while (TRUE) {
+        parsv <- try({
+          load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
+          mirt::mod2values(survey_idealpoints_mirt_models[[fikey]])
+        })
+        if(!is(parsv, 'try-error') | tryparsv_n>10) {
+          break
+        }
+        tryparsv_n<-tryparsv_n+1
+      }
+      if(is(parsv, 'try-error')) {
+        parsv<-NULL
+      }
       explor_mirt_model<-mirt::mirt(
         to_explor_IRT_data,
         model=as.integer(needrow$ncomp),
         itemtype=to_explor_IRT_itemtypes$itemtype,
         technical=list(NCYCLES=250,MAXQUAD=40000),
         survey.weights = needsurveydatadf[,c("myown_wr")],
-        method=mirtmethod , SE=TRUE
+        method=mirtmethod , SE=TRUE,
+        pars=parsv
       )
       while (TRUE) {
         tryloadsaveresult<-try({
@@ -252,21 +273,24 @@ if (FALSE) {
     term_related_q=term_related_q,
     distincted_survey_parallelfa_arguments_df_runonly=distincted_survey_parallelfa_arguments_df_runonly,
     survey_idealpoints_mirt_models_file=survey_idealpoints_mirt_models_file,
-    method=parallel_method, mc.cores=5
+    method=parallel_method, mc.cores=9
     ), .) 
 }
 
 #save(survey_idealpoints_mirt_models, file=survey_idealpoints_mirt_models_file)
 
 # Checking factor scores and factor structure and goodness of fit --------------------------------
-load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
-complete_inf_mirt_models<-lapply(survey_idealpoints_mirt_models,tidymirt:::glance.SingleGroupClass) %>%
-  dplyr::bind_rows() %>%
-  data.frame(runmirt_store_key=names(survey_idealpoints_mirt_models)) %>%
-  dplyr::left_join(distincted_survey_parallelfa_arguments_df_runonly, .) %>%
-  dplyr::arrange(survey, SABIC, BIC, AIC, imp)
-write.csv(complete_inf_mirt_models, "TMP.csv")
-mirtmodelinfindicators<-c("AIC","AICc","SABIC","HQ","BIC")
+if (FALSE) {
+  load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
+  complete_inf_mirt_models<-lapply(survey_idealpoints_mirt_models,tidymirt:::glance.SingleGroupClass) %>%
+    dplyr::bind_rows() %>%
+    data.frame(runmirt_store_key=names(survey_idealpoints_mirt_models)) %>%
+    dplyr::left_join(distincted_survey_parallelfa_arguments_df_runonly, .) %>%
+    dplyr::arrange(survey, SABIC, BIC, AIC, imp)
+  write.csv(complete_inf_mirt_models, "TMP.csv")
+  mirtmodelinfindicators<-c("AIC","AICc","SABIC","HQ","BIC")
+}
+
 
 # checking which model is better among different dimensions --------------------------------
 if (FALSE) {

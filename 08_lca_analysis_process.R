@@ -18,7 +18,7 @@ if (!file.exists(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mi
     paste0(dataset_in_scriptsfile_directory,"miced_survey_9_mirt.RData"))
 }
 load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt.RData"), verbose=TRUE)
-load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"))
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"), verbose=TRUE)
 
 imps <- imputation_sample_i_s
 detectedcores <- ifelse(check_if_windows(),1,parallel::detectCores())
@@ -84,24 +84,26 @@ needpoLCAsurveys_arguments_df<-data.frame("survey"=needpoLCAsurveys) %>%
   dplyr::filter(survey %in% c("2010overall")) %>%
   dplyr::arrange(survey, imp)
 
-poLCA_infodf_notshrink<-lapply(needpoLCAsurveys_with_imp, function (survey_with_imp) {
-  survey_with_imp_list<-unlist(strsplit(survey_with_imp,split="_imp"))
-  survey<-survey_with_imp_list[1]
-  imp<-survey_with_imp_list[2]
-  db_table_name<-paste0("list_of_degree_of_freedom","_",survey)
-  con <- do.call(DBI::dbConnect, dbconnect_info)
-  rs <- DBI::dbSendQuery(con, paste0("SELECT * FROM ",db_table_name," WHERE `residdf`>0 AND `nrep`>1 AND `.imp`=",imp))
-  already_in_sqltable_polca_records<-DBI::dbFetch(rs) %>%
-    dplyr::arrange(bic,aic) %>%
-    .[1:5,] %>%
-    dplyr::mutate(survey=!!survey, surveyimp=!!survey_with_imp)
-  DBI::dbClearResult(rs)
-  DBI::dbDisconnect(con)
-  return(already_in_sqltable_polca_records)
-}) %>% magrittr::set_names(needpoLCAsurveys_with_imp)
+poLCA_infodf_notshrink<-needpoLCAsurveys_arguments_df$store_key %>%
+  magrittr::set_names(lapply(., function (fikey, ...) {
+    needrow<-dplyr::filter(needpoLCAsurveys_arguments_df, store_key==!!fikey)
+    survey<-needrow$survey
+    imp<-needrow$imp
+    db_table_name<-paste0("list_of_degree_of_freedom","_",survey)
+    con <- do.call(DBI::dbConnect, dbconnect_info)
+    rs <- DBI::dbSendQuery(con, paste0("SELECT * FROM ",db_table_name," WHERE `residdf`>0 AND `nrep`>1 AND `.imp`=",imp))
+    already_in_sqltable_polca_records<-DBI::dbFetch(rs) %>%
+      dplyr::arrange(bic,aic) %>%
+      .[1:5,] %>%
+      dplyr::mutate(survey=!!survey, store_key=!!fikey)
+    DBI::dbClearResult(rs)
+    DBI::dbDisconnect(con)
+    return(already_in_sqltable_polca_records)
+  }, needpoLCAsurveys_arguments_df=needpoLCAsurveys_arguments_df), .)
+  
 dplyr::bind_rows(poLCA_infodf_notshrink) %>% write.csv(file="TMP.csv")
 poLCA_infodf<-dplyr::bind_rows(poLCA_infodf_notshrink) %>%
-  dplyr::group_by(surveyimp) %>%
+  dplyr::group_by(store_key) %>%
   dplyr::arrange(bic) %>%
   dplyr::slice(1) %>%
   dplyr::ungroup() %>%
@@ -194,7 +196,7 @@ for (survey_with_imp in needpoLCAsurveys_arguments_df$store_key) { #needpoLCAsur
   #dplyr::recode_factor
 }
 
-for (survey in needpoLCAsurveys) {
+for (survey in unique(needpoLCAsurveys_arguments_df$survey)) {
   survey_data_imputed[[survey]]$myown_indp_atti %<>% as.ordered() %>%
     forcats::fct_relevel(myown_indp_atti_array_order)
 }
@@ -287,5 +289,3 @@ if ({record_myown_religion<-FALSE; record_myown_religion}) {
 
 #save(survey_data_imputed,file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"))
 save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"))
-
-

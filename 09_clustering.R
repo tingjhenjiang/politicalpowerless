@@ -15,12 +15,12 @@ if (!file.exists(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mi
 }
 load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"), verbose=TRUE)
 load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"), verbose=TRUE)
 
 
 
 imps<-imputation_sample_i_s
-imps<-1:15
 
 #"myown_dad_ethgroup","myown_mom_ethgroup","myown_working_status","myown_occp","myown_ses","myown_income","myown_family_income",
 
@@ -106,110 +106,119 @@ weight_reptimes_n_integer<-0.15
 
 # * clustrd clustering single result --------------------------------
 
+if (FALSE) {
+  load_lib_or_install(c("clustrd")) #,"future","future.apply"
+  idx_process_ratio<-8
+  idx_process_ratio<-9.2
+  source("09_clustering_clustrd_commonpart_smallrange.R")
+  stop() #setwd('/mnt/e/Software/scripts/R/vote_record')
+}
 
-load_lib_or_install(c("clustrd")) #,"future","future.apply"
-idx_process_ratio<-8
-idx_process_ratio<-9.2
-source("09_clustering_clustrd_commonpart_smallrange.R")
-stop() #setwd('/mnt/e/Software/scripts/R/vote_record')
 
 # * loading clustrd cluster assement and applying --------------------------------
-
-con <- do.call(DBI::dbConnect, dbconnect_info)
-clustrd_assesment_result_argu_df_basis<-RMariaDB::dbReadTable(con, "demographic_clusters") %>%
-  dplyr::filter(dst=="low", criterion=="asw") %>%
-  dplyr::inner_join({
-    dplyr::group_by(., survey, imp, weight) %>%
-      dplyr::summarise(critbest = max(critbest))
-  }) %>%
-  dplyr::inner_join({
-    dplyr::group_by(., survey, imp, weight) %>%
-      dplyr::summarise(nclusbest = max(nclusbest))
-  }) %>%
-  dplyr::inner_join({
-    dplyr::group_by(., survey, imp, weight) %>%
-      dplyr::summarise(criterion_in_obj = max(criterion_in_obj))
-  }) %>%
-  dplyr::arrange(survey, imp, weight) %>%
-  mutate_cond(is.na(scale), scale=1) %>%
-  mutate_cond(is.na(center), center=1) %>%
-  mutate_cond(is.na(nstart), nstart=100) %>%
-  dplyr::mutate(title2=paste0(survey,"_imp",imp))
-DBI::dbDisconnect(con)
-
-
-i<-1
-clustrd_assesment_result_argu_df<-clustrd_assesment_result_argu_df_basis  %>%
-  dplyr::inner_join({
-    dplyr::group_by(., survey, imp, weight) %>%
-      dplyr::slice(!!i)
-  }) %>%
-  dplyr::filter(weight==0)
-clustrd_results_after_assesment_file<-paste0(dataset_in_scriptsfile_directory, "clustrd_results_after_assesment.RData")
-#re-model if error occurs; do not delete
-#errorkeys<-which(sapply(clustrd_results_after_assesment,class)=="try-error")
-#clustrd_assesment_result_argu_df %<>% .[errorkeys,]
-#clustrd_assesment_result_argu_df %<>% dplyr::filter(title2 %in% !!assign_results)
-clustrd_assesment_result_argu_df$title2 %>%
-  magrittr::set_names(custom_parallel_lapply(., function(fikey,...) {
-    needrow<-dplyr::filter(clustrd_assesment_result_argu_df, title2==!!fikey)
-    needsurvey<-needrow$survey
-    needdf<-survey_data_imputed[[needsurvey]] %>%
-      .[.$.imp==needrow$imp,magrittr::extract2(clustering_var,needsurvey)]
-    clustrd_model<-try({needdf %>%
-      clustrd::cluspcamix(nclus=needrow$nclusbest, ndim=needrow$ndimbest, method=needrow$method, 
-                         center=as.logical(needrow$center), scale=as.logical(needrow$scale), alpha=as.logical(needrow$alpha), rotation=needrow$rotation, 
-                         nstart=needrow$nstart)
-    })
-    if(is(clustrd_model, 'try-error')) {
+if (FALSE) {
+  con <- do.call(DBI::dbConnect, dbconnect_info)
+  clustrd_assesment_result_argu_df_basis<-RMariaDB::dbReadTable(con, "demographic_clusters") %>%
+    dplyr::filter(dst=="low", criterion=="asw") %>%
+    dplyr::inner_join({
+      dplyr::group_by(., survey, imp, weight) %>%
+        dplyr::summarise(critbest = max(critbest))
+    }) %>%
+    dplyr::inner_join({
+      dplyr::group_by(., survey, imp, weight) %>%
+        dplyr::summarise(nclusbest = max(nclusbest))
+    }) %>%
+    dplyr::inner_join({
+      dplyr::group_by(., survey, imp, weight) %>%
+        dplyr::summarise(criterion_in_obj = max(criterion_in_obj))
+    }) %>%
+    dplyr::arrange(survey, imp, weight) %>%
+    mutate_cond(is.na(scale), scale=1) %>%
+    mutate_cond(is.na(center), center=1) %>%
+    mutate_cond(is.na(nstart), nstart=100) %>%
+    dplyr::mutate(title2=paste0(survey,"_imp",imp))
+  DBI::dbDisconnect(con)
+  
+  
+  i<-1
+  clustrd_assesment_result_argu_df<-clustrd_assesment_result_argu_df_basis  %>%
+    dplyr::inner_join({
+      dplyr::group_by(., survey, imp, weight) %>%
+        dplyr::slice(!!i)
+    }) %>%
+    dplyr::filter(weight==0)
+  clustrd_results_after_assesment_file<-paste0(dataset_in_scriptsfile_directory, "clustrd_results_after_assesment.RData")
+  #re-model if error occurs; do not delete
+  #errorkeys<-which(sapply(clustrd_results_after_assesment,class)=="try-error")
+  #clustrd_assesment_result_argu_df %<>% .[errorkeys,]
+  #clustrd_assesment_result_argu_df %<>% dplyr::filter(title2 %in% !!assign_results)
+  clustrd_assesment_result_argu_df$title2 %>%
+    magrittr::set_names(custom_parallel_lapply(., function(fikey,...) {
+      needrow<-dplyr::filter(clustrd_assesment_result_argu_df, title2==!!fikey)
+      needsurvey<-needrow$survey
+      needdf<-survey_data_imputed[[needsurvey]] %>%
+        .[.$.imp==needrow$imp,magrittr::extract2(clustering_var,needsurvey)]
       clustrd_model<-try({needdf %>%
-          clustrd::tuneclus(nclusrange=needrow$nclusbest,ndimrange=needrow$ndimbest, method="mixedRKM", dst="low", criterion="asw",
-                            center=as.logical(needrow$center), scale=as.logical(needrow$scale), alpha=as.numeric(needrow$alpha), rotation=needrow$rotation,
-                            nstart=needrow$nstart)
-      } %>% magrittr::extract2("clusobjbest"))
-    }
-    if(!is(clustrd_model, 'try-error')) {
-      while(TRUE){
-        loadsavestatus<-try({
-          load(file=clustrd_results_after_assesment_file, verbose=TRUE)
-          clustrd_results_after_assesment[[fikey]]<-clustrd_model
-          save(clustrd_results_after_assesment, file=clustrd_results_after_assesment_file)
-        })
-        if(!is(loadsavestatus, 'try-error')) break
+          clustrd::cluspcamix(nclus=needrow$nclusbest, ndim=needrow$ndimbest, method=needrow$method, 
+                              center=as.logical(needrow$center), scale=as.logical(needrow$scale), alpha=as.logical(needrow$alpha), rotation=needrow$rotation, 
+                              nstart=needrow$nstart)
+      })
+      if(is(clustrd_model, 'try-error')) {
+        clustrd_model<-try({needdf %>%
+            clustrd::tuneclus(nclusrange=needrow$nclusbest,ndimrange=needrow$ndimbest, method="mixedRKM", dst="low", criterion="asw",
+                              center=as.logical(needrow$center), scale=as.logical(needrow$scale), alpha=as.numeric(needrow$alpha), rotation=needrow$rotation,
+                              nstart=needrow$nstart)
+        } %>% magrittr::extract2("clusobjbest"))
       }
-      return(clustrd_model)
-    } else {
-      return("ERROR")
+      if(!is(clustrd_model, 'try-error')) {
+        while(TRUE){
+          loadsavestatus<-try({
+            load(file=clustrd_results_after_assesment_file, verbose=TRUE)
+            clustrd_results_after_assesment[[fikey]]<-clustrd_model
+            save(clustrd_results_after_assesment, file=clustrd_results_after_assesment_file)
+          })
+          if(!is(loadsavestatus, 'try-error')) break
+        }
+        return(clustrd_model)
+      } else {
+        return("ERROR")
+      }
+    },survey_data_imputed=survey_data_imputed,
+    clustrd_assesment_result_argu_df=clustrd_assesment_result_argu_df,
+    clustering_var=clustering_var,
+    clustrd_results_after_assesment_file=clustrd_results_after_assesment_file,
+    method=parallel_method
+    ), .)
+  
+  
+  load(file=clustrd_results_after_assesment_file, verbose=TRUE)
+  assign_results<-c()
+  for (fi in 1:nrow(clustrd_assesment_result_argu_df)) {
+    needrow<-clustrd_assesment_result_argu_df[fi,]
+    clustrdmodel<-clustrd_results_after_assesment[[needrow$title2]]
+    message(paste("now in", needrow$title2))
+    table(clustrdmodel$cluster) %>% print()
+    tempdf_imppos<-which(survey_data_imputed[[needrow$survey]]$.imp==needrow$imp)
+    if (!("cluster_clustrd" %in% names(survey_data_imputed[[needrow$survey]]))) {
+      survey_data_imputed[[needrow$survey]] %<>% dplyr::mutate(cluster_clustrd=NA)
     }
-  },survey_data_imputed=survey_data_imputed,
-  clustrd_assesment_result_argu_df=clustrd_assesment_result_argu_df,
-  clustering_var=clustering_var,
-  clustrd_results_after_assesment_file=clustrd_results_after_assesment_file,
-  method=parallel_method
-  ), .)
-
-
-load(file=clustrd_results_after_assesment_file, verbose=TRUE)
-assign_results<-c()
-for (fi in 1:nrow(clustrd_assesment_result_argu_df)) {
-  needrow<-clustrd_assesment_result_argu_df[fi,]
-  clustrdmodel<-clustrd_results_after_assesment[[needrow$title2]]
-  message(paste("now in", needrow$title2))
-  table(clustrdmodel$cluster) %>% print()
-  tempdf_imppos<-which(survey_data_imputed[[needrow$survey]]$.imp==needrow$imp)
-  if (!("cluster_clustrd" %in% names(survey_data_imputed[[needrow$survey]]))) {
-    survey_data_imputed[[needrow$survey]] %<>% dplyr::mutate(cluster_clustrd=NA)
+    assign_result<-try({
+      survey_data_imputed[[needrow$survey]]$cluster_clustrd[tempdf_imppos]<-clustrdmodel$cluster
+    })
+    if(is(assign_result, 'try-error')) {
+      assign_results %<>% c(needrow$title2)
+    }
+    #assign_results[[fi]]<-assign_result
+    # #table(clustrdmodel$cluster)
   }
-  assign_result<-try({
-    survey_data_imputed[[needrow$survey]]$cluster_clustrd[tempdf_imppos]<-clustrdmodel$cluster
-  })
-  if(is(assign_result, 'try-error')) {
-    assign_results %<>% c(needrow$title2)
-  }
-  #assign_results[[fi]]<-assign_result
-  # #table(clustrdmodel$cluster)
+  if (length(assign_results)==0) message(assign_results)
+  
+  
 }
-if (length(assign_results)==0) message(assign_results)
+
+
+
+
 
 
 
@@ -217,339 +226,347 @@ if (length(assign_results)==0) message(assign_results)
 # * clustrd clustering ranging assement --------------------------------
 
 # * My own Using WeightedCluster Examples --------------------------------
-
-load_lib_or_install(c("rvest","rlist","parallel","itertools")) #,"future","future.apply"
-load_lib_or_install(c("RMariaDB","getPass"))
-load_lib_or_install(c("WeightedCluster","cluster","ggplot2"))
-
-
-k_range<-1:2#30
-hclustermethods<-c("single", "mcquitty", "complete", "ward.D", "ward.D2", "median", "centroid", "average")
-pclustermethods<-c("KMedoids", "PAMonce")
-needindicator<-c("ASWw", "HG", "PBC", "HC")
-cluster_quality_resultsdf<-data.frame()
-combine_hclust_pam_results<-list()
-hclustrange_detects<-list()
-pamrange_detects<-list()
-load(file=(paste0(dataset_in_scriptsfile_directory,"weightedclustering_detect_results.RData")), verbose=TRUE )
-it <- ihasNext(product(needsurveykey = 1:4, needimp = 1:5))
-while(hasNext(it)) {
-  iterx <- nextElem(it)
-  print(iterx)
-  if (iterx$needsurveykey %in% c(1,2)) {next}
-  inputData<-survey_data_imputed[[iterx$needsurveykey]]
-  survey<-inputData$SURVEY[1]
-  surveyweight<-inputData$myown_wr[inputData$.imp==iterx$needimp]
-  inputData<-inputData[inputData$.imp==iterx$needimp,clustering_var[[iterx$needsurveykey]]]
-  inputData$myown_age %<>% scale() %>% .[,1]
-  if ({plotingattr_distribution<-FALSE;plotingattr_distribution}) {
-    gplotd <- ggplot(inputData)
-    gplotd+geom_density(aes(myown_age),kernel = "gaussian")
-    gplotd+geom_density(aes(myown_factoredses),kernel = "gaussian")
-  }
-  G.dist <- cluster::daisy(x = inputData, metric = "gower")
-  gower_mat <- as.matrix(G.dist)
-  cluster_arguments_df<-data.frame("survey"=survey,"imp"=iterx$needimp,"hmethod"=hclustermethods) %>%
-    cbind(., k = rep(k_range, each = nrow(.))) %>%
-    cbind(., pmethod = rep(pclustermethods, each = nrow(.))) %>%
-    dplyr::mutate(title=paste0(survey,"_","imp",imp,"_",hmethod,"_",pmethod,"_",k)) %>%
-    dplyr::mutate_at(c("hmethod","pmethod"),.funs=as.character)
-  hclusterresults<-mclapply(hclustermethods, function(hclustermethod) {
-    signlehclustresult<-hclust(G.dist,method=hclustermethod,members=surveyweight)
-    return(signlehclustresult)
-  },mc.cores = parallel::detectCores()) %>%
-    set_names(hclustermethods)
-  hcluster_cor_results<-mclapply(names(hclusterresults), function(signlehclustresult_idx) {
-    signlehclustresult<-extract2(hclusterresults,signlehclustresult_idx)
-    #fviz_dend(hclusterresults[[hclustermethod]], cex = 0.5)
-    res.coph <- cophenetic(signlehclustresult)
-    cophentic_distance_relation<-cor(G.dist, res.coph)
-    #grp <- cutree(signlehclustresult, k = k)
-    #head(grp, n = k) %>% print()
-    #table(grp) %>% print()
-    return(data.frame(hmethod=as.character(signlehclustresult_idx),cor=as.numeric(cophentic_distance_relation)))
-  },mc.cores = parallel::detectCores()) %>% #
-    dplyr::bind_rows()
-  hcluster_quality_results<-mcmapply(function(hmethod,k,hclusterresults) {
-    singlehclusterresult<-extract2(hclusterresults, hmethod)
-    clust4 <- cutree(singlehclusterresult, k=k)
-    clustqual4 <- wcClusterQuality(G.dist, clust4, weights=surveyweight)
-    df1<-data.frame("survey"=survey,"imp"=iterx$needimp,"by"="hierarchical","indicator"=names(clustqual4$stats), "stats"=clustqual4$stats) %>%
-      cbind(., hmethod = rep(hmethod, each = nrow(.))) %>%
-      cbind(., k = rep(k, each = nrow(.)))
-    rownames(df1) <- NULL
-    return(df1)
-  }, hmethod=cluster_arguments_df$hmethod, k=cluster_arguments_df$k, SIMPLIFY = FALSE, MoreArgs = list(hclusterresults=hclusterresults),mc.cores = parallel::detectCores()) %>%
-    set_names(cluster_arguments_df$title) %>%
-    dplyr::bind_rows() %>%
-    dplyr::left_join(hcluster_cor_results)
-  new_combine_hclust_pam_results<-mcmapply(
-    function(hmethod, pmethod, k, hclusterresults) {
-      message("hmethod is ", hmethod, " and pmethod is ", pmethod, " and k is ", k)
-      singlehclusterresult<-extract2(hclusterresults, hmethod)
-      singlepamresult<-wcKMedoids(G.dist, k=k, weights=surveyweight, initialclust=singlehclusterresult, method=pmethod)
-      #return(clustqual4$stats)
-      #signleclustresult<-singlepamresult
-      signleclustresult<-singlepamresult
-      return(signleclustresult)
-    }, hmethod=cluster_arguments_df$hmethod, pmethod=cluster_arguments_df$pmethod, k=cluster_arguments_df$k, SIMPLIFY = FALSE, MoreArgs = list(hclusterresults=hclusterresults), mc.cores = parallel::detectCores()) %>%
-    set_names(cluster_arguments_df$title)
-  combine_hclust_pam_results<-c(combine_hclust_pam_results, new_combine_hclust_pam_results)
-  combine_hclust_pam_results_stats<-mclapply(names(new_combine_hclust_pam_results), function(idx) {
-    single_combine_hclust_pam_result<-extract2(combine_hclust_pam_results,idx)
-    title<-strsplit(idx,"_") %>% unlist()
-    survey<-title[1]
-    imp<-as.integer(stri_replace(str=title[2],replacement="",fixed="imp"))
-    hmethod<-title[3]
-    pmethod<-title[4]
-    kv<-as.integer(title[5])
-    data.frame(
-      "survey"=survey,
-      "imp"=imp,
-      "by"="Partition",
-      "indicator"=names(single_combine_hclust_pam_result$stats),
-      "stats"=unname(single_combine_hclust_pam_result$stats),
-      "hmethod"=hmethod,
-      "pmethod"=pmethod,
-      "k"=kv
-    ) %>%
-      return()
-  },mc.cores = parallel::detectCores()) %>%
-    dplyr::bind_rows()
+if (FALSE) {
+  load_lib_or_install(c("rvest","rlist","parallel","itertools")) #,"future","future.apply"
+  load_lib_or_install(c("RMariaDB","getPass"))
+  load_lib_or_install(c("WeightedCluster","cluster","ggplot2"))
   
-  cluster_quality_resultsdf<-dplyr::bind_rows(cluster_quality_resultsdf,{
-    dplyr::bind_rows(hcluster_quality_results,combine_hclust_pam_results_stats) %>%
-      dplyr::filter(indicator %in% needindicator) %>%
-      dplyr::arrange(by, indicator, stats)}
-  )
-  if ({using_default_range_detects<-FALSE;using_default_range_detects}) {
-    hclustrange_detects<-c(hclustrange_detects,mclapply(hclusterresults, function(single_hclusterresult) {
-      as.clustrange(single_hclusterresult, diss=G.dist, weights=surveyweight, ncluster=max(k_range))
-    },mc.cores = parallel::detectCores()) %>%
-      set_names(paste0(survey, "_", "imp", iterx$needimp, "_", names(.) ) ) )
-    pamrange_detects <- c(pamrange_detects,
-                          list(wcKMedRange(G.dist, kvals=k_range, weights=surveyweight)) %>% set_names(paste0(survey, "_imp", iterx$needimp))
-    )
-  }
-  if ({printingandsummary_detects<-FALSE;printingandsummary_detects}) {
-    for (idx in names(hclustrange_detects)) {
-      message(idx)
-      print(summary(hclustrange_detects[[idx]], max.rank=3))
-      plot(hclustrange_detects[[idx]], stat=needindicator, norm="zscore" , main=idx)
+  
+  k_range<-1:2#30
+  hclustermethods<-c("single", "mcquitty", "complete", "ward.D", "ward.D2", "median", "centroid", "average")
+  pclustermethods<-c("KMedoids", "PAMonce")
+  needindicator<-c("ASWw", "HG", "PBC", "HC")
+  cluster_quality_resultsdf<-data.frame()
+  combine_hclust_pam_results<-list()
+  hclustrange_detects<-list()
+  pamrange_detects<-list()
+  load(file=(paste0(dataset_in_scriptsfile_directory,"weightedclustering_detect_results.RData")), verbose=TRUE )
+  it <- ihasNext(product(needsurveykey = 1:4, needimp = 1:5))
+  while(hasNext(it)) {
+    iterx <- nextElem(it)
+    print(iterx)
+    if (iterx$needsurveykey %in% c(1,2)) {next}
+    inputData<-survey_data_imputed[[iterx$needsurveykey]]
+    survey<-inputData$SURVEY[1]
+    surveyweight<-inputData$myown_wr[inputData$.imp==iterx$needimp]
+    inputData<-inputData[inputData$.imp==iterx$needimp,clustering_var[[iterx$needsurveykey]]]
+    inputData$myown_age %<>% scale() %>% .[,1]
+    if ({plotingattr_distribution<-FALSE;plotingattr_distribution}) {
+      gplotd <- ggplot(inputData)
+      gplotd+geom_density(aes(myown_age),kernel = "gaussian")
+      gplotd+geom_density(aes(myown_factoredses),kernel = "gaussian")
     }
-    summary(pamrange_detects, max.rank=3)
-    plot(pamrange_detects, stat=needindicator, norm="zscore" , main="wcKMedRange")
-  }
-  tryCatch(save(
-    combine_hclust_pam_results, cluster_quality_resultsdf, file=paste0(dataset_in_scriptsfile_directory,"weightedclustering_detect_results.RData")
-  ), error=function(e) {
+    G.dist <- cluster::daisy(x = inputData, metric = "gower")
+    gower_mat <- as.matrix(G.dist)
+    cluster_arguments_df<-data.frame("survey"=survey,"imp"=iterx$needimp,"hmethod"=hclustermethods) %>%
+      cbind(., k = rep(k_range, each = nrow(.))) %>%
+      cbind(., pmethod = rep(pclustermethods, each = nrow(.))) %>%
+      dplyr::mutate(title=paste0(survey,"_","imp",imp,"_",hmethod,"_",pmethod,"_",k)) %>%
+      dplyr::mutate_at(c("hmethod","pmethod"),.funs=as.character)
+    hclusterresults<-mclapply(hclustermethods, function(hclustermethod) {
+      signlehclustresult<-hclust(G.dist,method=hclustermethod,members=surveyweight)
+      return(signlehclustresult)
+    },mc.cores = parallel::detectCores()) %>%
+      set_names(hclustermethods)
+    hcluster_cor_results<-mclapply(names(hclusterresults), function(signlehclustresult_idx) {
+      signlehclustresult<-extract2(hclusterresults,signlehclustresult_idx)
+      #fviz_dend(hclusterresults[[hclustermethod]], cex = 0.5)
+      res.coph <- cophenetic(signlehclustresult)
+      cophentic_distance_relation<-cor(G.dist, res.coph)
+      #grp <- cutree(signlehclustresult, k = k)
+      #head(grp, n = k) %>% print()
+      #table(grp) %>% print()
+      return(data.frame(hmethod=as.character(signlehclustresult_idx),cor=as.numeric(cophentic_distance_relation)))
+    },mc.cores = parallel::detectCores()) %>% #
+      dplyr::bind_rows()
+    hcluster_quality_results<-mcmapply(function(hmethod,k,hclusterresults) {
+      singlehclusterresult<-extract2(hclusterresults, hmethod)
+      clust4 <- cutree(singlehclusterresult, k=k)
+      clustqual4 <- wcClusterQuality(G.dist, clust4, weights=surveyweight)
+      df1<-data.frame("survey"=survey,"imp"=iterx$needimp,"by"="hierarchical","indicator"=names(clustqual4$stats), "stats"=clustqual4$stats) %>%
+        cbind(., hmethod = rep(hmethod, each = nrow(.))) %>%
+        cbind(., k = rep(k, each = nrow(.)))
+      rownames(df1) <- NULL
+      return(df1)
+    }, hmethod=cluster_arguments_df$hmethod, k=cluster_arguments_df$k, SIMPLIFY = FALSE, MoreArgs = list(hclusterresults=hclusterresults),mc.cores = parallel::detectCores()) %>%
+      set_names(cluster_arguments_df$title) %>%
+      dplyr::bind_rows() %>%
+      dplyr::left_join(hcluster_cor_results)
+    new_combine_hclust_pam_results<-mcmapply(
+      function(hmethod, pmethod, k, hclusterresults) {
+        message("hmethod is ", hmethod, " and pmethod is ", pmethod, " and k is ", k)
+        singlehclusterresult<-extract2(hclusterresults, hmethod)
+        singlepamresult<-wcKMedoids(G.dist, k=k, weights=surveyweight, initialclust=singlehclusterresult, method=pmethod)
+        #return(clustqual4$stats)
+        #signleclustresult<-singlepamresult
+        signleclustresult<-singlepamresult
+        return(signleclustresult)
+      }, hmethod=cluster_arguments_df$hmethod, pmethod=cluster_arguments_df$pmethod, k=cluster_arguments_df$k, SIMPLIFY = FALSE, MoreArgs = list(hclusterresults=hclusterresults), mc.cores = parallel::detectCores()) %>%
+      set_names(cluster_arguments_df$title)
+    combine_hclust_pam_results<-c(combine_hclust_pam_results, new_combine_hclust_pam_results)
+    combine_hclust_pam_results_stats<-mclapply(names(new_combine_hclust_pam_results), function(idx) {
+      single_combine_hclust_pam_result<-extract2(combine_hclust_pam_results,idx)
+      title<-strsplit(idx,"_") %>% unlist()
+      survey<-title[1]
+      imp<-as.integer(stri_replace(str=title[2],replacement="",fixed="imp"))
+      hmethod<-title[3]
+      pmethod<-title[4]
+      kv<-as.integer(title[5])
+      data.frame(
+        "survey"=survey,
+        "imp"=imp,
+        "by"="Partition",
+        "indicator"=names(single_combine_hclust_pam_result$stats),
+        "stats"=unname(single_combine_hclust_pam_result$stats),
+        "hmethod"=hmethod,
+        "pmethod"=pmethod,
+        "k"=kv
+      ) %>%
+        return()
+    },mc.cores = parallel::detectCores()) %>%
+      dplyr::bind_rows()
+    
+    cluster_quality_resultsdf<-dplyr::bind_rows(cluster_quality_resultsdf,{
+      dplyr::bind_rows(hcluster_quality_results,combine_hclust_pam_results_stats) %>%
+        dplyr::filter(indicator %in% needindicator) %>%
+        dplyr::arrange(by, indicator, stats)}
+    )
+    if ({using_default_range_detects<-FALSE;using_default_range_detects}) {
+      hclustrange_detects<-c(hclustrange_detects,mclapply(hclusterresults, function(single_hclusterresult) {
+        as.clustrange(single_hclusterresult, diss=G.dist, weights=surveyweight, ncluster=max(k_range))
+      },mc.cores = parallel::detectCores()) %>%
+        set_names(paste0(survey, "_", "imp", iterx$needimp, "_", names(.) ) ) )
+      pamrange_detects <- c(pamrange_detects,
+                            list(wcKMedRange(G.dist, kvals=k_range, weights=surveyweight)) %>% set_names(paste0(survey, "_imp", iterx$needimp))
+      )
+    }
+    if ({printingandsummary_detects<-FALSE;printingandsummary_detects}) {
+      for (idx in names(hclustrange_detects)) {
+        message(idx)
+        print(summary(hclustrange_detects[[idx]], max.rank=3))
+        plot(hclustrange_detects[[idx]], stat=needindicator, norm="zscore" , main=idx)
+      }
+      summary(pamrange_detects, max.rank=3)
+      plot(pamrange_detects, stat=needindicator, norm="zscore" , main="wcKMedRange")
+    }
+    tryCatch(save(
+      combine_hclust_pam_results, cluster_quality_resultsdf, file=paste0(dataset_in_scriptsfile_directory,"weightedclustering_detect_results.RData")
+    ), error=function(e) {
       message(e)
-  })
-  
+    })
+    
+  }
 }
+
 
 # http://fenyolab.org/presentations/Machine_Learning_2018/slides/2.%20Cluster%20Analysis.pdf
 
 # * loading processed hierarchical Kmed cluster quality examination ------------------------
-load(file=(paste0(dataset_in_scriptsfile_directory,"weightedclustering_detect_results.RData")), verbose=TRUE )
-cluster_quality_resultsdf %<>% dplyr::mutate(title=paste0(survey, "_", "imp", imp, "_", hmethod, "_", pmethod, "_", k))
-View(dplyr::distinct(dplyr::arrange(cluster_quality_resultsdf, survey, imp, by, indicator, desc(stats), hmethod),survey, imp, by, indicator, stats, hmethod, k, cor, pmethod))
-
-"
-1569	2004citizen	1	Partition	ASWw	0.6220064	ward.D	46	NA	PAMonce
-1570	2004citizen	1	Partition	ASWw	0.6185019	ward.D2	50	NA	KMedoids
-1571	2004citizen	1	Partition	ASWw	0.6168894	complete	45	NA	PAMonce
-1572	2004citizen	1	Partition	ASWw	0.6168894	ward.D	45	NA	PAMonce
-1573	2004citizen	1	Partition	ASWw	0.6167973	average	45	NA	PAMonce
-6273	2004citizen	2	Partition	ASWw	0.6228385	ward.D2	50	NA	KMedoids
-6274	2004citizen	2	Partition	ASWw	0.6187022	ward.D	44	NA	PAMonce
-6275	2004citizen	2	Partition	ASWw	0.6187022	ward.D2	44	NA	PAMonce
-6276	2004citizen	2	Partition	ASWw	0.6169955	ward.D2	49	NA	KMedoids
-6277	2004citizen	2	Partition	ASWw	0.6147430	ward.D	43	NA	PAMonce
-10977	2004citizen	3	Partition	ASWw	0.6215120	ward.D2	45	NA	PAMonce
-10978	2004citizen	3	Partition	ASWw	0.6214041	mcquitty	45	NA	PAMonce
-10979	2004citizen	3	Partition	ASWw	0.6209833	average	45	NA	PAMonce
-10980	2004citizen	3	Partition	ASWw	0.6204365	ward.D2	50	NA	KMedoids
-10981	2004citizen	3	Partition	ASWw	0.6180696	mcquitty	44	NA	PAMonce
-15681	2004citizen	4	Partition	ASWw	0.6225769	ward.D2	50	NA	KMedoids
-15682	2004citizen	4	Partition	ASWw	0.6187395	ward.D	44	NA	PAMonce
-15683	2004citizen	4	Partition	ASWw	0.6187395	ward.D2	44	NA	PAMonce
-15684	2004citizen	4	Partition	ASWw	0.6186682	average	44	NA	PAMonce
-15685	2004citizen	4	Partition	ASWw	0.6186682	median	44	NA	PAMonce
-20385	2004citizen	5	Partition	ASWw	0.6331580	average	47	NA	PAMonce
-20386	2004citizen	5	Partition	ASWw	0.6331580	ward.D2	47	NA	PAMonce
-20387	2004citizen	5	Partition	ASWw	0.6283608	ward.D	46	NA	PAMonce
-20388	2004citizen	5	Partition	ASWw	0.6283608	ward.D2	46	NA	PAMonce
-20389	2004citizen	5	Partition	ASWw	0.6280319	average	46	NA	PAMonce
-
-25089	2010env	1	Partition	ASWw	0.6204924	complete	50	NA	PAMonce
-25090	2010env	1	Partition	ASWw	0.6204924	mcquitty	50	NA	PAMonce
-25091	2010env	1	Partition	ASWw	0.6204924	ward.D	50	NA	PAMonce
-25092	2010env	1	Partition	ASWw	0.6204924	ward.D2	50	NA	PAMonce
-25093	2010env	1	Partition	ASWw	0.6167166	complete	49	NA	PAMonce
-29793	2010env	2	Partition	ASWw	0.6225807	complete	50	NA	PAMonce
-29794	2010env	2	Partition	ASWw	0.6225807	mcquitty	50	NA	PAMonce
-29795	2010env	2	Partition	ASWw	0.6225807	ward.D	50	NA	PAMonce
-29796	2010env	2	Partition	ASWw	0.6225807	ward.D2	50	NA	PAMonce
-29797	2010env	2	Partition	ASWw	0.6183137	complete	49	NA	PAMonce
-34497	2010env	3	Partition	ASWw	0.6213428	complete	50	NA	PAMonce
-34498	2010env	3	Partition	ASWw	0.6213428	mcquitty	50	NA	PAMonce
-34499	2010env	3	Partition	ASWw	0.6213428	ward.D	50	NA	PAMonce
-34500	2010env	3	Partition	ASWw	0.6213428	ward.D2	50	NA	PAMonce
-34501	2010env	3	Partition	ASWw	0.6174344	complete	49	NA	PAMonce
-39201	2010env	4	Partition	ASWw	0.6239977	ward.D	50	NA	PAMonce
-39202	2010env	4	Partition	ASWw	0.6239977	ward.D2	50	NA	PAMonce
-39203	2010env	4	Partition	ASWw	0.6238165	complete	50	NA	PAMonce
-39204	2010env	4	Partition	ASWw	0.6238165	mcquitty	50	NA	PAMonce
-39205	2010env	4	Partition	ASWw	0.6195707	average	49	NA	PAMonce
-43905	2010env	5	Partition	ASWw	0.6216690	complete	50	NA	PAMonce
-43906	2010env	5	Partition	ASWw	0.6216690	ward.D	50	NA	PAMonce
-43907	2010env	5	Partition	ASWw	0.6216690	ward.D2	50	NA	PAMonce
-43908	2010env	5	Partition	ASWw	0.6213576	mcquitty	50	NA	PAMonce
-43909	2010env	5	Partition	ASWw	0.6171964	complete	49	NA	PAMonce
-
-48609	2010overall	1	Partition	ASWw	0.5779079	average	50	NA	PAMonce
-48610	2010overall	1	Partition	ASWw	0.5779079	mcquitty	50	NA	PAMonce
-48611	2010overall	1	Partition	ASWw	0.5779079	ward.D	50	NA	PAMonce
-48612	2010overall	1	Partition	ASWw	0.5775569	complete	50	NA	PAMonce
-48613	2010overall	1	Partition	ASWw	0.5775569	ward.D2	50	NA	PAMonce
-53313	2010overall	2	Partition	ASWw	0.5799655	median	50	NA	PAMonce
-53314	2010overall	2	Partition	ASWw	0.5795645	average	50	NA	PAMonce
-53315	2010overall	2	Partition	ASWw	0.5795645	complete	50	NA	PAMonce
-53316	2010overall	2	Partition	ASWw	0.5795645	mcquitty	50	NA	PAMonce
-53317	2010overall	2	Partition	ASWw	0.5795645	ward.D	50	NA	PAMonce
-58017	2010overall	3	Partition	ASWw	0.5923895	median	50	NA	PAMonce
-58018	2010overall	3	Partition	ASWw	0.5923895	ward.D	50	NA	PAMonce
-58019	2010overall	3	Partition	ASWw	0.5923895	ward.D2	50	NA	PAMonce
-58020	2010overall	3	Partition	ASWw	0.5917583	average	50	NA	PAMonce
-58021	2010overall	3	Partition	ASWw	0.5917583	complete	50	NA	PAMonce
-62721	2010overall	4	Partition	ASWw	0.5775224	average	50	NA	PAMonce
-62722	2010overall	4	Partition	ASWw	0.5775224	complete	50	NA	PAMonce
-62723	2010overall	4	Partition	ASWw	0.5775224	mcquitty	50	NA	PAMonce
-62724	2010overall	4	Partition	ASWw	0.5775224	ward.D	50	NA	PAMonce
-62725	2010overall	4	Partition	ASWw	0.5775224	ward.D2	50	NA	PAMonce
-67425	2010overall	5	Partition	ASWw	0.5794807	ward.D	50	NA	PAMonce
-67426	2010overall	5	Partition	ASWw	0.5793507	average	50	NA	PAMonce
-67427	2010overall	5	Partition	ASWw	0.5793507	centroid	50	NA	PAMonce
-67428	2010overall	5	Partition	ASWw	0.5793507	complete	50	NA	PAMonce
-67429	2010overall	5	Partition	ASWw	0.5793507	mcquitty	50	NA	PAMonce
-
-72129	2016citizen	1	Partition	ASWw	0.5525072	complete	50	NA	PAMonce
-72130	2016citizen	1	Partition	ASWw	0.5525072	mcquitty	50	NA	PAMonce
-72131	2016citizen	1	Partition	ASWw	0.5509503	ward.D	50	NA	PAMonce
-72132	2016citizen	1	Partition	ASWw	0.5509503	ward.D2	50	NA	PAMonce
-72133	2016citizen	1	Partition	ASWw	0.5477929	complete	49	NA	PAMonce
-76833	2016citizen	2	Partition	ASWw	0.5521460	median	50	NA	PAMonce
-76834	2016citizen	2	Partition	ASWw	0.5499016	ward.D2	50	NA	PAMonce
-76835	2016citizen	2	Partition	ASWw	0.5494650	ward.D	50	NA	PAMonce
-76836	2016citizen	2	Partition	ASWw	0.5463512	median	49	NA	PAMonce
-76837	2016citizen	2	Partition	ASWw	0.5447200	ward.D2	49	NA	PAMonce
-81537	2016citizen	3	Partition	ASWw	0.5541979	complete	50	NA	PAMonce
-81538	2016citizen	3	Partition	ASWw	0.5541979	ward.D	50	NA	PAMonce
-81539	2016citizen	3	Partition	ASWw	0.5541979	ward.D2	50	NA	PAMonce
-81540	2016citizen	3	Partition	ASWw	0.5495602	ward.D2	49	NA	PAMonce
-81541	2016citizen	3	Partition	ASWw	0.5494957	complete	49	NA	PAMonce
-86241	2016citizen	4	Partition	ASWw	0.5530140	ward.D	50	NA	PAMonce
-86242	2016citizen	4	Partition	ASWw	0.5530140	ward.D2	50	NA	PAMonce
-86243	2016citizen	4	Partition	ASWw	0.5474496	ward.D	49	NA	PAMonce
-86244	2016citizen	4	Partition	ASWw	0.5474496	ward.D2	49	NA	PAMonce
-86245	2016citizen	4	Partition	ASWw	0.5426122	average	48	NA	PAMonce
-90945	2016citizen	5	Partition	ASWw	0.5524685	mcquitty	50	NA	PAMonce
-90946	2016citizen	5	Partition	ASWw	0.5512658	complete	50	NA	PAMonce
-90947	2016citizen	5	Partition	ASWw	0.5512658	ward.D	50	NA	PAMonce
-90948	2016citizen	5	Partition	ASWw	0.5512658	ward.D2	50	NA	PAMonce
-90949	2016citizen	5	Partition	ASWw	0.5472830	mcquitty	49	NA	PAMonce
-"
+if (FALSE) {
+  
+  load(file=(paste0(dataset_in_scriptsfile_directory,"weightedclustering_detect_results.RData")), verbose=TRUE )
+  cluster_quality_resultsdf %<>% dplyr::mutate(title=paste0(survey, "_", "imp", imp, "_", hmethod, "_", pmethod, "_", k))
+  View(dplyr::distinct(dplyr::arrange(cluster_quality_resultsdf, survey, imp, by, indicator, desc(stats), hmethod),survey, imp, by, indicator, stats, hmethod, k, cor, pmethod))
+  
+  "
+  1569	2004citizen	1	Partition	ASWw	0.6220064	ward.D	46	NA	PAMonce
+  1570	2004citizen	1	Partition	ASWw	0.6185019	ward.D2	50	NA	KMedoids
+  1571	2004citizen	1	Partition	ASWw	0.6168894	complete	45	NA	PAMonce
+  1572	2004citizen	1	Partition	ASWw	0.6168894	ward.D	45	NA	PAMonce
+  1573	2004citizen	1	Partition	ASWw	0.6167973	average	45	NA	PAMonce
+  6273	2004citizen	2	Partition	ASWw	0.6228385	ward.D2	50	NA	KMedoids
+  6274	2004citizen	2	Partition	ASWw	0.6187022	ward.D	44	NA	PAMonce
+  6275	2004citizen	2	Partition	ASWw	0.6187022	ward.D2	44	NA	PAMonce
+  6276	2004citizen	2	Partition	ASWw	0.6169955	ward.D2	49	NA	KMedoids
+  6277	2004citizen	2	Partition	ASWw	0.6147430	ward.D	43	NA	PAMonce
+  10977	2004citizen	3	Partition	ASWw	0.6215120	ward.D2	45	NA	PAMonce
+  10978	2004citizen	3	Partition	ASWw	0.6214041	mcquitty	45	NA	PAMonce
+  10979	2004citizen	3	Partition	ASWw	0.6209833	average	45	NA	PAMonce
+  10980	2004citizen	3	Partition	ASWw	0.6204365	ward.D2	50	NA	KMedoids
+  10981	2004citizen	3	Partition	ASWw	0.6180696	mcquitty	44	NA	PAMonce
+  15681	2004citizen	4	Partition	ASWw	0.6225769	ward.D2	50	NA	KMedoids
+  15682	2004citizen	4	Partition	ASWw	0.6187395	ward.D	44	NA	PAMonce
+  15683	2004citizen	4	Partition	ASWw	0.6187395	ward.D2	44	NA	PAMonce
+  15684	2004citizen	4	Partition	ASWw	0.6186682	average	44	NA	PAMonce
+  15685	2004citizen	4	Partition	ASWw	0.6186682	median	44	NA	PAMonce
+  20385	2004citizen	5	Partition	ASWw	0.6331580	average	47	NA	PAMonce
+  20386	2004citizen	5	Partition	ASWw	0.6331580	ward.D2	47	NA	PAMonce
+  20387	2004citizen	5	Partition	ASWw	0.6283608	ward.D	46	NA	PAMonce
+  20388	2004citizen	5	Partition	ASWw	0.6283608	ward.D2	46	NA	PAMonce
+  20389	2004citizen	5	Partition	ASWw	0.6280319	average	46	NA	PAMonce
+  
+  25089	2010env	1	Partition	ASWw	0.6204924	complete	50	NA	PAMonce
+  25090	2010env	1	Partition	ASWw	0.6204924	mcquitty	50	NA	PAMonce
+  25091	2010env	1	Partition	ASWw	0.6204924	ward.D	50	NA	PAMonce
+  25092	2010env	1	Partition	ASWw	0.6204924	ward.D2	50	NA	PAMonce
+  25093	2010env	1	Partition	ASWw	0.6167166	complete	49	NA	PAMonce
+  29793	2010env	2	Partition	ASWw	0.6225807	complete	50	NA	PAMonce
+  29794	2010env	2	Partition	ASWw	0.6225807	mcquitty	50	NA	PAMonce
+  29795	2010env	2	Partition	ASWw	0.6225807	ward.D	50	NA	PAMonce
+  29796	2010env	2	Partition	ASWw	0.6225807	ward.D2	50	NA	PAMonce
+  29797	2010env	2	Partition	ASWw	0.6183137	complete	49	NA	PAMonce
+  34497	2010env	3	Partition	ASWw	0.6213428	complete	50	NA	PAMonce
+  34498	2010env	3	Partition	ASWw	0.6213428	mcquitty	50	NA	PAMonce
+  34499	2010env	3	Partition	ASWw	0.6213428	ward.D	50	NA	PAMonce
+  34500	2010env	3	Partition	ASWw	0.6213428	ward.D2	50	NA	PAMonce
+  34501	2010env	3	Partition	ASWw	0.6174344	complete	49	NA	PAMonce
+  39201	2010env	4	Partition	ASWw	0.6239977	ward.D	50	NA	PAMonce
+  39202	2010env	4	Partition	ASWw	0.6239977	ward.D2	50	NA	PAMonce
+  39203	2010env	4	Partition	ASWw	0.6238165	complete	50	NA	PAMonce
+  39204	2010env	4	Partition	ASWw	0.6238165	mcquitty	50	NA	PAMonce
+  39205	2010env	4	Partition	ASWw	0.6195707	average	49	NA	PAMonce
+  43905	2010env	5	Partition	ASWw	0.6216690	complete	50	NA	PAMonce
+  43906	2010env	5	Partition	ASWw	0.6216690	ward.D	50	NA	PAMonce
+  43907	2010env	5	Partition	ASWw	0.6216690	ward.D2	50	NA	PAMonce
+  43908	2010env	5	Partition	ASWw	0.6213576	mcquitty	50	NA	PAMonce
+  43909	2010env	5	Partition	ASWw	0.6171964	complete	49	NA	PAMonce
+  
+  48609	2010overall	1	Partition	ASWw	0.5779079	average	50	NA	PAMonce
+  48610	2010overall	1	Partition	ASWw	0.5779079	mcquitty	50	NA	PAMonce
+  48611	2010overall	1	Partition	ASWw	0.5779079	ward.D	50	NA	PAMonce
+  48612	2010overall	1	Partition	ASWw	0.5775569	complete	50	NA	PAMonce
+  48613	2010overall	1	Partition	ASWw	0.5775569	ward.D2	50	NA	PAMonce
+  53313	2010overall	2	Partition	ASWw	0.5799655	median	50	NA	PAMonce
+  53314	2010overall	2	Partition	ASWw	0.5795645	average	50	NA	PAMonce
+  53315	2010overall	2	Partition	ASWw	0.5795645	complete	50	NA	PAMonce
+  53316	2010overall	2	Partition	ASWw	0.5795645	mcquitty	50	NA	PAMonce
+  53317	2010overall	2	Partition	ASWw	0.5795645	ward.D	50	NA	PAMonce
+  58017	2010overall	3	Partition	ASWw	0.5923895	median	50	NA	PAMonce
+  58018	2010overall	3	Partition	ASWw	0.5923895	ward.D	50	NA	PAMonce
+  58019	2010overall	3	Partition	ASWw	0.5923895	ward.D2	50	NA	PAMonce
+  58020	2010overall	3	Partition	ASWw	0.5917583	average	50	NA	PAMonce
+  58021	2010overall	3	Partition	ASWw	0.5917583	complete	50	NA	PAMonce
+  62721	2010overall	4	Partition	ASWw	0.5775224	average	50	NA	PAMonce
+  62722	2010overall	4	Partition	ASWw	0.5775224	complete	50	NA	PAMonce
+  62723	2010overall	4	Partition	ASWw	0.5775224	mcquitty	50	NA	PAMonce
+  62724	2010overall	4	Partition	ASWw	0.5775224	ward.D	50	NA	PAMonce
+  62725	2010overall	4	Partition	ASWw	0.5775224	ward.D2	50	NA	PAMonce
+  67425	2010overall	5	Partition	ASWw	0.5794807	ward.D	50	NA	PAMonce
+  67426	2010overall	5	Partition	ASWw	0.5793507	average	50	NA	PAMonce
+  67427	2010overall	5	Partition	ASWw	0.5793507	centroid	50	NA	PAMonce
+  67428	2010overall	5	Partition	ASWw	0.5793507	complete	50	NA	PAMonce
+  67429	2010overall	5	Partition	ASWw	0.5793507	mcquitty	50	NA	PAMonce
+  
+  72129	2016citizen	1	Partition	ASWw	0.5525072	complete	50	NA	PAMonce
+  72130	2016citizen	1	Partition	ASWw	0.5525072	mcquitty	50	NA	PAMonce
+  72131	2016citizen	1	Partition	ASWw	0.5509503	ward.D	50	NA	PAMonce
+  72132	2016citizen	1	Partition	ASWw	0.5509503	ward.D2	50	NA	PAMonce
+  72133	2016citizen	1	Partition	ASWw	0.5477929	complete	49	NA	PAMonce
+  76833	2016citizen	2	Partition	ASWw	0.5521460	median	50	NA	PAMonce
+  76834	2016citizen	2	Partition	ASWw	0.5499016	ward.D2	50	NA	PAMonce
+  76835	2016citizen	2	Partition	ASWw	0.5494650	ward.D	50	NA	PAMonce
+  76836	2016citizen	2	Partition	ASWw	0.5463512	median	49	NA	PAMonce
+  76837	2016citizen	2	Partition	ASWw	0.5447200	ward.D2	49	NA	PAMonce
+  81537	2016citizen	3	Partition	ASWw	0.5541979	complete	50	NA	PAMonce
+  81538	2016citizen	3	Partition	ASWw	0.5541979	ward.D	50	NA	PAMonce
+  81539	2016citizen	3	Partition	ASWw	0.5541979	ward.D2	50	NA	PAMonce
+  81540	2016citizen	3	Partition	ASWw	0.5495602	ward.D2	49	NA	PAMonce
+  81541	2016citizen	3	Partition	ASWw	0.5494957	complete	49	NA	PAMonce
+  86241	2016citizen	4	Partition	ASWw	0.5530140	ward.D	50	NA	PAMonce
+  86242	2016citizen	4	Partition	ASWw	0.5530140	ward.D2	50	NA	PAMonce
+  86243	2016citizen	4	Partition	ASWw	0.5474496	ward.D	49	NA	PAMonce
+  86244	2016citizen	4	Partition	ASWw	0.5474496	ward.D2	49	NA	PAMonce
+  86245	2016citizen	4	Partition	ASWw	0.5426122	average	48	NA	PAMonce
+  90945	2016citizen	5	Partition	ASWw	0.5524685	mcquitty	50	NA	PAMonce
+  90946	2016citizen	5	Partition	ASWw	0.5512658	complete	50	NA	PAMonce
+  90947	2016citizen	5	Partition	ASWw	0.5512658	ward.D	50	NA	PAMonce
+  90948	2016citizen	5	Partition	ASWw	0.5512658	ward.D2	50	NA	PAMonce
+  90949	2016citizen	5	Partition	ASWw	0.5472830	mcquitty	49	NA	PAMonce
+  "
+  
+}
 
 # * DBSCAN ----------------
-
-load_lib_or_install(c("fpc","dbscan","factoextra"))
-#For more than 2 dimensions: minPts=2*dim (Sander et al., 1998)
-DBSCAN_arguments_df<-data.frame("survey"=survey_data_title) %>%
-  cbind(., imp = rep(imps, each = nrow(.))) %>%
-  cbind(., minpts = rep(12, each = nrow(.))) %>%
-  cbind(., minclusters = rep(2, each = nrow(.))) %>%
-  dplyr::mutate(dbscan_key=paste0(survey,"_imp",imp,"_minpts",minpts,"_minclusters",minclusters))
-DBSCAN_results<-list()
-DBSCANclusterfile <- paste0(dataset_in_scriptsfile_directory, "DBSCANcluster.Rdata")
-#OPTICS
-#DBSCAN_results<-lapply(1:nrow(DBSCAN_arguments_df), function(fi, ...)  {
-for (fi in 1:nrow(DBSCAN_arguments_df)) { #22
-  survey_key <- DBSCAN_arguments_df$survey[fi]
-  needimp <- DBSCAN_arguments_df$imp[fi]
-  need_minclusters<-DBSCAN_arguments_df$minclusters[fi]
-  store_key <- DBSCAN_arguments_df$dbscan_key[fi]
-  needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
-    dplyr::mutate_at("myown_age",scale) %>%
-    dplyr::mutate_at("myown_age",function (X) {X[,1]})
-  targetminpts <- DBSCAN_arguments_df$minpts[fi] %>%
-    as.integer() #readline(paste("assigning k value for detecting survey",survey_key, "imp", needimp, ":"))
-  surveyweight<-needdf$myown_wr
-  inputData<-dplyr::select(needdf, !!clustering_var[[survey_key]])
-  G.dist <- cluster::daisy(x = inputData, metric = "gower")
-  gower_mat <- as.matrix(G.dist)
-  #finding epsilon distance(eps)
-  dbscan::kNNdistplot(G.dist, k = targetminpts-1)
-  #dbscan::kNNdist(G.dist, k=targetminpts)
-  title(main = paste("survey",survey_key, "imp", needimp, "minpts", targetminpts))
-  iteri <- 1
-  repeat { #透過檢核有無dbscan分析出來的集群出現自動往上找eps參數
-    if (iteri==1) {
-      # repeat {
-      #   tryplotaxisylocation<-readline("where knee is at and try plot axis y location/or stop at:")
-      #   if (tryplotaxisylocation=="") {
-      #     break
-      #   }
-      # }
-      # tryplotaxisylocation<-.005
-      # assigned_dbscan_optimal_eps <- as.numeric(tryplotaxisylocation)
-    } else {
-      # assigned_dbscan_optimal_eps <- assigned_dbscan_optimal_eps + iteri*0.005
+if (FALSE) {
+  load_lib_or_install(c("fpc","dbscan","factoextra"))
+  #For more than 2 dimensions: minPts=2*dim (Sander et al., 1998)
+  DBSCAN_arguments_df<-data.frame("survey"=survey_data_title) %>%
+    cbind(., imp = rep(imps, each = nrow(.))) %>%
+    cbind(., minpts = rep(12, each = nrow(.))) %>%
+    cbind(., minclusters = rep(2, each = nrow(.))) %>%
+    dplyr::mutate(dbscan_key=paste0(survey,"_imp",imp,"_minpts",minpts,"_minclusters",minclusters))
+  DBSCAN_results<-list()
+  DBSCANclusterfile <- paste0(dataset_in_scriptsfile_directory, "DBSCANcluster.Rdata")
+  #OPTICS
+  #DBSCAN_results<-lapply(1:nrow(DBSCAN_arguments_df), function(fi, ...)  {
+  for (fi in 1:nrow(DBSCAN_arguments_df)) { #22
+    survey_key <- DBSCAN_arguments_df$survey[fi]
+    needimp <- DBSCAN_arguments_df$imp[fi]
+    need_minclusters<-DBSCAN_arguments_df$minclusters[fi]
+    store_key <- DBSCAN_arguments_df$dbscan_key[fi]
+    needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
+      dplyr::mutate_at("myown_age",scale) %>%
+      dplyr::mutate_at("myown_age",function (X) {X[,1]})
+    targetminpts <- DBSCAN_arguments_df$minpts[fi] %>%
+      as.integer() #readline(paste("assigning k value for detecting survey",survey_key, "imp", needimp, ":"))
+    surveyweight<-needdf$myown_wr
+    inputData<-dplyr::select(needdf, !!clustering_var[[survey_key]])
+    G.dist <- cluster::daisy(x = inputData, metric = "gower")
+    gower_mat <- as.matrix(G.dist)
+    #finding epsilon distance(eps)
+    dbscan::kNNdistplot(G.dist, k = targetminpts-1)
+    #dbscan::kNNdist(G.dist, k=targetminpts)
+    title(main = paste("survey",survey_key, "imp", needimp, "minpts", targetminpts))
+    iteri <- 1
+    repeat { #透過檢核有無dbscan分析出來的集群出現自動往上找eps參數
+      if (iteri==1) {
+        # repeat {
+        #   tryplotaxisylocation<-readline("where knee is at and try plot axis y location/or stop at:")
+        #   if (tryplotaxisylocation=="") {
+        #     break
+        #   }
+        # }
+        # tryplotaxisylocation<-.005
+        # assigned_dbscan_optimal_eps <- as.numeric(tryplotaxisylocation)
+      } else {
+        # assigned_dbscan_optimal_eps <- assigned_dbscan_optimal_eps + iteri*0.005
+      }
+      assigned_dbscan_optimal_eps <- 2+.0025*iteri
+      message(paste("now in iter", iteri,"of",store_key,"and try eps at",assigned_dbscan_optimal_eps))
+      abline(h = as.numeric(assigned_dbscan_optimal_eps), lty = 2)
+      #generating clusters
+      iteri <- iteri+1
+      #dbcluster_obj<-dbscan::dbscan(gower_mat, eps=assigned_dbscan_optimal_eps, minPts = targetminpts, weights=surveyweight)
+      optic_obj<-dbscan::optics(gower_mat, minPts = targetminpts)
+      dbcluster_obj<-dbscan::extractDBSCAN(optic_obj, eps_cl=assigned_dbscan_optimal_eps)
+      if (length(unique(dbcluster_obj$cluster))<need_minclusters) next
+      #print(unique(dbcluster_obj$cluster))
+      #print(table(dbcluster_obj$cluster))
+      silhouetteresult<-cluster::silhouette(dbcluster_obj$cluster, dmatrix=gower_mat)
+      sil_avg_width<-tryCatch(
+        summary(silhouetteresult)$avg.width,
+        error = function(e) {return("ERROR")}
+      )
+      if (sil_avg_width!="ERROR") {
+        DBSCAN_arguments_df[fi, "ncluster"]<-length(unique(dbcluster_obj$cluster))
+        DBSCAN_arguments_df[fi, "silhouetteresult"]<-sil_avg_width
+        DBSCAN_arguments_df[fi, "eps"]<-assigned_dbscan_optimal_eps
+        break
+      }
     }
-    assigned_dbscan_optimal_eps <- 2+.0025*iteri
-    message(paste("now in iter", iteri,"of",store_key,"and try eps at",assigned_dbscan_optimal_eps))
-    abline(h = as.numeric(assigned_dbscan_optimal_eps), lty = 2)
-    #generating clusters
-    iteri <- iteri+1
-    #dbcluster_obj<-dbscan::dbscan(gower_mat, eps=assigned_dbscan_optimal_eps, minPts = targetminpts, weights=surveyweight)
-    optic_obj<-dbscan::optics(gower_mat, minPts = targetminpts)
-    dbcluster_obj<-dbscan::extractDBSCAN(optic_obj, eps_cl=assigned_dbscan_optimal_eps)
-    if (length(unique(dbcluster_obj$cluster))<need_minclusters) next
-    #print(unique(dbcluster_obj$cluster))
-    #print(table(dbcluster_obj$cluster))
-    silhouetteresult<-cluster::silhouette(dbcluster_obj$cluster, dmatrix=gower_mat)
-    sil_avg_width<-tryCatch(
-      summary(silhouetteresult)$avg.width,
-      error = function(e) {return("ERROR")}
-    )
-    if (sil_avg_width!="ERROR") {
-      DBSCAN_arguments_df[fi, "ncluster"]<-length(unique(dbcluster_obj$cluster))
-      DBSCAN_arguments_df[fi, "silhouetteresult"]<-sil_avg_width
-      DBSCAN_arguments_df[fi, "eps"]<-assigned_dbscan_optimal_eps
-      break
+    #message("Silhouette is :")
+    #print(summary(silhouetteresult))
+    #if (readline("continue to change k-value?")=="N") break
+    DBSCAN_results[[store_key]]<-dbcluster_obj
+    #clustrd_results_with_best_argument[[iterx$needsurvey]]$cluster<-dbcluster_obj$cluster
+  }#, DBSCAN_arguments_df=DBSCAN_arguments_df, survey_data_imputed=survey_data_imputed, clustering_var=clustering_var,
+  #DBSCANclusterfile=DBSCANclusterfile, method="fork")
+  save(DBSCAN_results, DBSCAN_arguments_df, file=DBSCANclusterfile)
+  load(file=DBSCANclusterfile, verbose=TRUE)
+  for (fi in 1:nrow(DBSCAN_arguments_df)) {
+    survey_key <- DBSCAN_arguments_df$survey[fi]
+    needimp <- DBSCAN_arguments_df$imp[fi]
+    store_key <- DBSCAN_arguments_df$dbscan_key[fi]
+    if (grepl("minclusters3", store_key)==FALSE) next
+    dbcluster_obj <- DBSCAN_results[[store_key]]
+    for (cluster_i in unique(dbcluster_obj$cluster)) {
+      dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
+        .[dbcluster_obj$cluster==cluster_i,clustering_var[[survey_key]]] %>% View()
+      readline(paste("now in",store_key,"and cluster is",cluster_i,"continue? "))
     }
-  }
-  #message("Silhouette is :")
-  #print(summary(silhouetteresult))
-  #if (readline("continue to change k-value?")=="N") break
-  DBSCAN_results[[store_key]]<-dbcluster_obj
-  #clustrd_results_with_best_argument[[iterx$needsurvey]]$cluster<-dbcluster_obj$cluster
-}#, DBSCAN_arguments_df=DBSCAN_arguments_df, survey_data_imputed=survey_data_imputed, clustering_var=clustering_var,
-#DBSCANclusterfile=DBSCANclusterfile, method="fork")
-save(DBSCAN_results, DBSCAN_arguments_df, file=DBSCANclusterfile)
-load(file=DBSCANclusterfile, verbose=TRUE)
-for (fi in 1:nrow(DBSCAN_arguments_df)) {
-  survey_key <- DBSCAN_arguments_df$survey[fi]
-  needimp <- DBSCAN_arguments_df$imp[fi]
-  store_key <- DBSCAN_arguments_df$dbscan_key[fi]
-  if (grepl("minclusters3", store_key)==FALSE) next
-  dbcluster_obj <- DBSCAN_results[[store_key]]
-  for (cluster_i in unique(dbcluster_obj$cluster)) {
-    dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
-      .[dbcluster_obj$cluster==cluster_i,clustering_var[[survey_key]]] %>% View()
-    readline(paste("now in",store_key,"and cluster is",cluster_i,"continue? "))
   }
 }
+
 # * model-based clustering by VarSelLCM ----------------
 #load_lib_or_install(c("VarSelLCM"))
 varsellcm_results<-list()
@@ -650,35 +667,45 @@ kamila_arguments_df<-data.frame("survey"=survey_data_title) %>%
   dplyr::filter(survey %in% c("2010overall","2016citizen")) %>%
   dplyr::arrange(survey, imp)
 reskamilaclusterfile <- paste0(dataset_in_scriptsfile_directory, "kamilacluster.Rdata")
+if ({skip_processed_kamila<-TRUE;skip_processed_kamila}) {
+  load(file=reskamilaclusterfile, verbose=TRUE)
+  processed_kamila_key<-sapply(kamila_results, class) %>%
+    .[.=="list"] %>%
+    names()
+  kamila_arguments_df %<>% dplyr::filter(!(store_key %in% !!processed_kamila_key))
+}
 if (FALSE) {
-  kamila_results<-custom_parallel_lapply(1:nrow(kamila_arguments_df), function (fi, ...) {
-    survey_key <- kamila_arguments_df$survey[fi]#iterx$needsurvey
-    needimp <- kamila_arguments_df$imp[fi]
-    needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
-      dplyr::mutate(myown_age=as.numeric(scale(myown_age))) %>%
-      dplyr::mutate(myown_factoredses=myown_factoredses_scaled)
-    surveyweight<-needdf$myown_wr
-    inputData<-dplyr::select(needdf, !!clustering_var[[survey_key]])
-    resmodel <- kamila::kamila(conVar=inputData[,c("myown_age","myown_factoredses")],
-                               catFactor=inputData[c("myown_sex","myown_selfid","myown_marriage","myown_areakind","myown_religion")],
-                               numClust = 2:12, numInit = 10, calcNumClust = "ps", numPredStrCvRun = 10,
-                               predStrThresh = 0.5, maxIter=10000, verbose=TRUE)
-    #load(file=reskamilaclusterfile, verbose=TRUE)
-    #kamila_results[[store_key]]<-resmodel
-    #save(kamila_results, file=reskamilaclusterfile)
-    return(resmodel)
-    if (FALSE) {
-      store_key <- paste0(survey_key, "_", needimp)
-      load(file=reskamilaclusterfile, verbose=TRUE)
-      return(kamila_results[[store_key]]$nClust$bestNClust)
-    }
-  }, kamila_arguments_df=kamila_arguments_df,
-  nclusrange=base::setdiff(nclusrange,1),
-  survey_data_imputed=survey_data_imputed,
-  clustering_var=clustering_var,
-  reskamilaclusterfile=reskamilaclusterfile,
-  method=parallel_method) %>%
-    magrittr::set_names(kamila_arguments_df$store_key)
+  kamila_results<-kamila_arguments_df$store_key %>%
+    magrittr::set_names( custom_parallel_lapply(., function (fikey, ...) {
+      message(paste("now in",fikey))
+      needrow<-dplyr::filter(kamila_arguments_df, store_key==!!fikey)
+      survey_key <- needrow$survey
+      needimp <- needrow$imp
+      needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
+        dplyr::mutate(myown_age=as.numeric(scale(myown_age))) %>%
+        dplyr::mutate(myown_factoredses=myown_factoredses_scaled)
+      surveyweight<-needdf$myown_wr
+      inputData<-dplyr::select(needdf, !!clustering_var[[survey_key]])
+      resmodel <- kamila::kamila(conVar=inputData[,c("myown_age","myown_factoredses")],
+                                 catFactor=inputData[c("myown_sex","myown_selfid","myown_marriage","myown_areakind","myown_religion")],
+                                 numClust = 2:12, numInit = 10, calcNumClust = "ps", numPredStrCvRun = 10,
+                                 predStrThresh = 0.5, maxIter=10000, verbose=TRUE)
+      while (TRUE) {
+        loadsavestatus<-try({
+          load(file=reskamilaclusterfile, verbose=TRUE)
+          kamila_results[[fikey]]<-resmodel
+          save(kamila_results, file=reskamilaclusterfile)
+        })
+        if(!is(loadsavestatus, 'try-error')) break
+      }
+      return(resmodel)
+      #return(kamila_results[[store_key]]$nClust$bestNClust)
+    }, kamila_arguments_df=kamila_arguments_df,
+    nclusrange=base::setdiff(nclusrange,1),
+    survey_data_imputed=survey_data_imputed,
+    clustering_var=clustering_var,
+    reskamilaclusterfile=reskamilaclusterfile,
+    method=parallel_method)  , .)
 }
 
 #save(kamila_results, file=reskamilaclusterfile)
@@ -775,31 +802,35 @@ if (FALSE) {
 #https://www.cyut.edu.tw/~rcchen/research/html/ms/s8914617/cyut-8-324.pdf
 #load(file=paste0(dataset_in_scriptsfile_directory,"clustrd_results.RData"))
 #load(file=paste0(dataset_in_scriptsfile_directory,"small_clustrd_results.RData"))
-clustering_result_compare_table<-future_mapply(function(title,listelement) {
-  df1<-data.frame("title"=c(title))
-  df2<-stri_split_fixed(title, "_",simplify = TRUE) %>%
-    as.data.frame() %>%
-    set_colnames(c("survey","alpha","method","rotation","criterion","dst"))
-  df3<-listelement[c("nclusbest","ndimbest", "crit", "critbest")] %>%
-    as.data.frame()
-  df4<-listelement$clusobjbest[c("scale","center","nstart")] %>% #"criterion",
-    as.data.frame()
-  df5<-data.frame("criterion_in_obj"=as.character(listelement$clusobjbest$criterion))
-  cbind(df1,df2,df3,df4,df5)
-},title=names(tmpdetect_best_results), listelement=tmpdetect_best_results,SIMPLIFY = FALSE) %>%
-  dplyr::bind_rows() %>%
-  dplyr::arrange(survey, desc(critbest), crit, desc(criterion_in_obj))
-View(clustering_result_compare_table)
 
-#The ASW index, which ranges from −1 to 1, reflects the compactness of the clusters and indicates whether a cluster structure is well separated or not.
-#The CH index is the ratio of between-cluster variance to within-cluster variance, corrected according to the number of clusters, and takes values between 0 and infinity.
-#In general, the higher the ASW and CH values, the better the cluster separation.
-
-
-for (i in 1:length(detect_best_results)) {
-  message(names(detect_best_results)[[i]])
-  print(detect_best_results[[i]])
+if (FALSE) {
+  clustering_result_compare_table<-future_mapply(function(title,listelement) {
+    df1<-data.frame("title"=c(title))
+    df2<-stri_split_fixed(title, "_",simplify = TRUE) %>%
+      as.data.frame() %>%
+      set_colnames(c("survey","alpha","method","rotation","criterion","dst"))
+    df3<-listelement[c("nclusbest","ndimbest", "crit", "critbest")] %>%
+      as.data.frame()
+    df4<-listelement$clusobjbest[c("scale","center","nstart")] %>% #"criterion",
+      as.data.frame()
+    df5<-data.frame("criterion_in_obj"=as.character(listelement$clusobjbest$criterion))
+    cbind(df1,df2,df3,df4,df5)
+  },title=names(tmpdetect_best_results), listelement=tmpdetect_best_results,SIMPLIFY = FALSE) %>%
+    dplyr::bind_rows() %>%
+    dplyr::arrange(survey, desc(critbest), crit, desc(criterion_in_obj))
+  View(clustering_result_compare_table)
+  
+  #The ASW index, which ranges from −1 to 1, reflects the compactness of the clusters and indicates whether a cluster structure is well separated or not.
+  #The CH index is the ratio of between-cluster variance to within-cluster variance, corrected according to the number of clusters, and takes values between 0 and infinity.
+  #In general, the higher the ASW and CH values, the better the cluster separation.
+  
+  
+  for (i in 1:length(detect_best_results)) {
+    message(names(detect_best_results)[[i]])
+    print(detect_best_results[[i]])
+  }
 }
+
 
 
 
