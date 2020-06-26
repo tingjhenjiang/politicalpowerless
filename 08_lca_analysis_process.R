@@ -76,9 +76,6 @@ stop()
 # 第六-3部份：潛在類別分析：將分析結果整併入dataset Apply poLCA results --------------------------------
 
 needpoLCAsurveys<-c("2004citizen","2010overall")
-needpoLCAsurveys_with_imp<-lapply(needpoLCAsurveys, function(survey) {
-  paste0(rep.int(survey,times=length(imps)),"_imp",imps)
-}) %>% unlist()
 needpoLCAsurveys_arguments_df<-data.frame("survey"=needpoLCAsurveys) %>%
   cbind(., imp = rep(imps, each = nrow(.))) %>%
   dplyr::mutate(store_key=paste0(survey,"_",imp)) %>%
@@ -108,7 +105,9 @@ poLCA_infodf<-dplyr::bind_rows(poLCA_infodf_notshrink) %>%
   dplyr::arrange(bic) %>%
   dplyr::slice(1) %>%
   dplyr::ungroup() %>%
-  dplyr::filter(!is.na(residdf), survey %in% !!names(survey_data_imputed))
+  dplyr::filter(!is.na(residdf), survey %in% !!names(survey_data_imputed)) %>%
+  dplyr::distinct(modelformula, nclass)
+  
 
 
 #load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
