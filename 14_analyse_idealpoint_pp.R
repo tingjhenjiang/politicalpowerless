@@ -142,4 +142,6 @@ s<-analysis_idealpoint_to_median_args$store_key[1:10] %>%
     analysis_idealpoint_to_median_args=analysis_idealpoint_to_median_args)
   )
 
-
+#pick parameters
+#https://easystats.github.io/parameters/index.html
+#parameters::model_parameters(model)

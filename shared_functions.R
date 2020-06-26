@@ -118,6 +118,7 @@ if (nchar(Sys.getenv("SPARK_HOME")) < 1) {
 }
 survey_data_title<-c("2004citizen","2010env","2010overall","2016citizen") %>% sort()
 imputation_sample_i_s <- seq(1,5)
+imputation_sample_i_s <- 1:24
 myremoteip <- tryCatch({xml2::read_html('https://www.myip.com/') %>%
     rvest::html_nodes(xpath = "//span[@id='ip']//text()") %>%
     rvest::html_text()},error=function (e) {

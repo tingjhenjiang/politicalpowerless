@@ -9,7 +9,6 @@ source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding=
 gc(verbose=TRUE)
 
 imputation_sample_i_s <- imputation_sample_i_s
-imputation_sample_i_s <- 1:15
 
 # 第五部份：factor analysis 環境設定 -------------------------------------------
 #reset

@@ -21,7 +21,6 @@ load(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt.RData"), 
 load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"))
 
 imps <- imputation_sample_i_s
-imps <- 1:15
 detectedcores <- ifelse(check_if_windows(),1,parallel::detectCores())
 load_lib_or_install(c("magrittr","parallel","rvest","dplyr","RMariaDB","poLCA","parallel","LCAvarsel","mitools","gtools","future","future.apply"))
 
