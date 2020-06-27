@@ -950,7 +950,7 @@ inflate_df_from_weight<-function(needdf, weightvar="myown_wr", rate=10000, paral
     weight<-needrow[, weightvar]
     weight_times<-round(weight*rate)
     dplyr::slice(needrow, rep(1, each = weight_times))
-  }, needdf=needdf, method=parallel_method) %>% dplyr::bind_rows() %>%
+  }, needdf=needdf, weightvar=weightvar, rate=rate, method=parallel_method) %>% plyr::rbind.fill() %>%
     return()
 }
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"

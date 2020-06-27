@@ -49,44 +49,7 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #nests: id
 
 # * check kamila result ----------------------------------------------
-reskamilaclusterfile <- paste0(dataset_in_scriptsfile_directory, "kamilacluster.Rdata")
-load(file=reskamilaclusterfile, verbose=TRUE)
-if ({display_kamila_clustering_probtable<-FALSE;display_kamila_clustering_probtable}) {
-  kamila_clustering_parameters<-custom_parallel_lapply(names(kamila_results), function(fikey, ...) {
-    needkamilamodel<-kamila_results[[fikey]]
-    needargrow<-dplyr::filter(kamila_arguments_df, store_key==!!fikey)
-    baseinfdo<-dplyr::filter(survey_data_imputed[[needargrow$survey]], .imp==!!needargrow$imp) %>%
-      dplyr::select(myown_wr) %>% data.frame(., "memb"=needkamilamodel$finalMemb) %>% dplyr::mutate_at("memb", as.factor)
-    syvdes <- survey::svydesign(id=~1, weights=~myown_wr, data=baseinfdo)
-    ratiotable<-survey::svymean(~memb, syvdes) %>%
-      as.data.frame() %>%
-      dplyr::arrange(dplyr::desc(mean)) %>%
-      dplyr::mutate(clustn=row.names(.)) %>%
-      dplyr::mutate_at("clustn", ~as.numeric(customgsub(clustn,"memb",""))) %>%
-      cbind(., clustsize = seq(1,nrow(.)))
-    catgnames<-colnames(needkamilamodel$input$catFactor) %>%
-      magrittr::set_names(names(needkamilamodel$finalProbs))
-    catglevels<-lapply(needkamilamodel$input$catFactor,levels)
-    continames<-colnames(needkamilamodel$input$conVar)
-    probtable<-lapply(names(needkamilamodel$finalProbs), function(X, ...) {
-      matchcatgvarname<-catgnames[[X]]
-      catgprob<-needkamilamodel$finalProbs[[X]] %>%
-        magrittr::set_colnames(catglevels[[matchcatgvarname]])
-    },needkamilamodel=needkamilamodel, catgnames=catgnames, catglevels=catglevels, continames=continames) %>%
-      do.call(cbind,.) %>%
-      cbind(needkamilamodel$finalCenters %>%
-              magrittr::set_colnames(continames), .)
-    data.frame("totlclusters"=needkamilamodel$nClust$bestNClust,"clustn"=1:needkamilamodel$nClust$bestNClust) %>%
-      cbind(needargrow,.) %>%
-      cbind(probtable) %>%
-      dplyr::left_join(ratiotable, .) %>%
-      dplyr::select(survey, imp, store_key, totlclusters, clustsize, mean, SE, dplyr::everything(), -clustn) %>%
-      return()
-  }, kamila_results=kamila_results, kamila_arguments_df=kamila_arguments_df, method=parallel_method) %>%
-    dplyr::bind_rows() %>%
-    dplyr::arrange(survey, imp)
-  write.csv(kamila_clustering_parameters, file="TMP.csv")
-}
+load(file=paste0(dataset_in_scriptsfile_directory, "kamila_clustering_parameters.Rdata"), verbose=TRUE)
 dplyr::distinct(kamila_clustering_parameters,survey,imp,totlclusters) %>%
   dplyr::filter(totlclusters==4)
 

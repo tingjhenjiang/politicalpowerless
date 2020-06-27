@@ -17,9 +17,13 @@ load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.
 load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
 load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"), verbose=TRUE)
 load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"), verbose=TRUE)
-survey_data_imputed$`2016citizen` %<>% mutate_cond(myown_religion=="[5] 回教(伊斯蘭教)", myown_religion="[9] 其他,請說明") %>%
-  dplyr::mutate_at("myown_religion", droplevels)
-survey_data_imputed$`2010overall` %<>% dplyr::mutate_at("myown_religion", droplevels)
+change_survey_data_religion<-function(survey_data_imputed) {
+  survey_data_imputed$`2016citizen` %<>% mutate_cond(myown_religion=="[5] 回教(伊斯蘭教)", myown_religion="[9] 其他,請說明") %>%
+    dplyr::mutate_at("myown_religion", droplevels)
+  survey_data_imputed$`2010overall` %<>% dplyr::mutate_at("myown_religion", droplevels)
+  return(survey_data_imputed)
+}
+survey_data_imputed %<>% change_survey_data_religion()
 
 imps<-imputation_sample_i_s
 
@@ -678,7 +682,8 @@ if ({skip_processed_kamila<-FALSE;skip_processed_kamila}) {
   kamila_arguments_df %<>% dplyr::filter(!(store_key %in% !!processed_kamila_key))
 }
 if (TRUE) {
-  kamila_results<-kamila_arguments_df$store_key %>%
+  kamila_results<-dplyr::arrange(kamila_arguments_df, imp) %>% magrittr::use_series("store_key") %>% rev() %>%
+    #.[1:24] %>%
     magrittr::set_names( custom_parallel_lapply(., function (fikey, ...) {
       message(paste("now in",fikey))
       needrow<-dplyr::filter(kamila_arguments_df, store_key==!!fikey)
@@ -689,7 +694,7 @@ if (TRUE) {
         dplyr::mutate(myown_factoredses=myown_factoredses_scaled) %>%
         dplyr::select(tidyselect::any_of(c(".imp",".id","id","myown_wr",clustering_var[[survey_key]])))
       surveyweight<-needdf$myown_wr
-      resmodel <- inflate_df_from_weight(needdf) %>% dplyr::bind_rows() %>%
+      resmodel <- inflate_df_from_weight(needdf, rate=100) %>% plyr::rbind.fill() %>%# dplyr::bind_rows() %>%
         dplyr::select(!!clustering_var[[survey_key]]) %>%
         {kamila::kamila(conVar=.[,c("myown_age","myown_factoredses")],
                        catFactor=.[c("myown_sex","myown_selfid","myown_marriage","myown_areakind","myown_religion")],
@@ -712,27 +717,57 @@ if (TRUE) {
     survey_data_imputed=survey_data_imputed,
     clustering_var=clustering_var,
     reskamilaclusterfile=reskamilaclusterfile,
-    mc.cores=6,
+    mc.cores=24,
     method=parallel_method)  , .)
 }
 
 save(kamila_results, file=reskamilaclusterbackupfile)
-#applying kamila_results
+#save(kamila_results, file=reskamilaclusterfile)
+
+# * applying kamila_results to survey data ----------------------------------------------
+
+inflated_kamila_input_df_to_original_df<-function(one_kamila_model, distinctall=FALSE) {
+  t<-dplyr::bind_cols(one_kamila_model$input$conVar, one_kamila_model$input$catFactor) %>%
+    data.frame(., "memb"=one_kamila_model$finalMemb) 
+  if (distinctall==TRUE) {
+    t %<>% dplyr::distinct_all()
+  }
+  return(t)
+}
+
 if (FALSE) {
-  load(file=reskamilaclusterfile, verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"), verbose=TRUE)
+  survey_data_imputed %<>% change_survey_data_religion()
+  rate<-10
+  load(file=paste0(save_dataset_in_scriptsfile_directory,"kamilacluster_inflated_times",rate,".Rdata"), verbose=TRUE)
   for (survey_imp_key in names(kamila_results)) {
     message(paste("now in",survey_imp_key))
     survey_imp_key_i<-unlist(strsplit(survey_imp_key,"_"))
     surveykey<-survey_imp_key_i[1]
-    imp<-survey_imp_key_i[2]
+    imp<-as.integer(survey_imp_key_i[2])
     kamila_model<-kamila_results[[survey_imp_key]]
-    kamilaclusterres<-kamila_model$finalMemb %>%
-      as.factor() %>%
+    kamilasrcdf<-inflated_kamila_input_df_to_original_df(kamila_model) %>%
+      dplyr::select(memb) %>%
+      dplyr::bind_cols(dplyr::filter(survey_data_imputed[[surveykey]], .imp==!!imp) %>%
+                         dplyr::select(id,.imp,myown_wr) %>%
+                         inflate_df_from_weight(rate=rate) ) %>%
+      dplyr::rename(cluster_kamila=memb) %>%
+      dplyr::distinct_all()
+    kamilasrcdf$cluster_kamila %<>% as.factor() %>%
       forcats::fct_infreq() %>%
       forcats::fct_recode(., !!!{
-        set_names(levels(.), as.list(sort(unique(.))))
+        magrittr::set_names(levels(.), as.list(sort(unique(.))))
       }) %>% as.character() %>% as.integer()
-    survey_data_imputed[[surveykey]][survey_data_imputed[[surveykey]]$.imp==imp, "cluster_kamila"]<-kamilaclusterres
+    t<-dplyr::filter(survey_data_imputed[[surveykey]], .imp==!!imp) %>%
+      dplyr::select(-tidyselect::any_of(c("cluster_kamila"))) %>%
+      dplyr::left_join(kamilasrcdf)
+    survey_data_imputed[[surveykey]] %<>%
+      dplyr::filter(.imp!=!!imp) %>%
+      dplyr::bind_rows(t)
+    # merging_res<-try({survey_data_imputed[[surveykey]][survey_data_imputed[[surveykey]]$.imp==imp, "cluster_kamila"]<-kamilasrcdf$memb})
+    # if(!is(merging_res, 'try-error')) {
+    #   
+    # }
   }
   
   for (survey_imp_key in names(kamila_results)) {
@@ -742,7 +777,46 @@ if (FALSE) {
   }
 }
 
-
+# * check kamila prob result ----------------------------------------------
+if (FALSE) {
+  load(file=reskamilaclusterfile, verbose=TRUE)
+  kamila_clustering_parameters<-custom_parallel_lapply(names(kamila_results), function(fikey, ...) {
+    needkamilamodel<-kamila_results[[fikey]]
+    needargrow<-dplyr::filter(kamila_arguments_df, store_key==!!fikey)
+    baseinfdo<-dplyr::filter(survey_data_imputed[[needargrow$survey]], .imp==!!needargrow$imp) %>%
+      dplyr::select(myown_wr) %>% data.frame(., inflated_kamila_input_df_to_original_df(needkamilamodel) ) %>%
+      dplyr::mutate_at("memb", as.factor)
+    syvdes <- survey::svydesign(id=~1, weights=~myown_wr, data=baseinfdo)
+    ratiotable<-survey::svymean(~memb, syvdes) %>%
+      as.data.frame() %>%
+      dplyr::arrange(dplyr::desc(mean)) %>%
+      dplyr::mutate(clustn=row.names(.)) %>%
+      dplyr::mutate_at("clustn", ~as.numeric(customgsub(clustn,"memb",""))) %>%
+      cbind(., clustsize = seq(1,nrow(.)))
+    catgnames<-colnames(needkamilamodel$input$catFactor) %>%
+      magrittr::set_names(names(needkamilamodel$finalProbs))
+    catglevels<-lapply(needkamilamodel$input$catFactor,levels)
+    continames<-colnames(needkamilamodel$input$conVar)
+    probtable<-lapply(names(needkamilamodel$finalProbs), function(X, ...) {
+      matchcatgvarname<-catgnames[[X]]
+      catgprob<-needkamilamodel$finalProbs[[X]] %>%
+        magrittr::set_colnames(catglevels[[matchcatgvarname]])
+    },needkamilamodel=needkamilamodel, catgnames=catgnames, catglevels=catglevels, continames=continames) %>%
+      do.call(cbind,.) %>%
+      cbind(needkamilamodel$finalCenters %>%
+              magrittr::set_colnames(continames), .)
+    data.frame("totlclusters"=needkamilamodel$nClust$bestNClust,"clustn"=1:needkamilamodel$nClust$bestNClust) %>%
+      cbind(needargrow,.) %>%
+      cbind(probtable) %>%
+      dplyr::left_join(ratiotable, .) %>%
+      dplyr::select(survey, imp, store_key, totlclusters, clustsize, mean, SE, dplyr::everything(), -clustn) %>%
+      return()
+  }, kamila_results=kamila_results, kamila_arguments_df=kamila_arguments_df, method=parallel_method) %>%
+    dplyr::bind_rows() %>%
+    dplyr::arrange(survey, imp)
+  save(kamila_clustering_parameters, file=paste0(dataset_in_scriptsfile_directory, "kamila_clustering_parameters.Rdata"))
+  #write.csv(kamila_clustering_parameters, file="TMP.csv")
+}
 
 # * model-based clustering by mixtools and pdfCluster----------------
 #https://tinyheero.github.io/2015/10/13/mixture-model.html
