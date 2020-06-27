@@ -85,12 +85,13 @@ if ({display_kamila_clustering_probtable<-FALSE;display_kamila_clustering_probta
   }, kamila_results=kamila_results, kamila_arguments_df=kamila_arguments_df, method=parallel_method) %>%
     dplyr::bind_rows() %>%
     dplyr::arrange(survey, imp)
+  write.csv(kamila_clustering_parameters, file="TMP.csv")
 }
 dplyr::distinct(kamila_clustering_parameters,survey,imp,totlclusters) %>%
   dplyr::filter(totlclusters==4)
 
 # * try analysing ----------------------------
-matched_pairs_of_same_amount_clustern<-c(2,5,8,9,11,15,19)
+matched_pairs_of_same_amount_clustern<-c(1,2,22)
 #survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
 #load(file=survey_with_idealpoint_name, verbose=TRUE)
 load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)

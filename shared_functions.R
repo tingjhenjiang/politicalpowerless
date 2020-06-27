@@ -919,6 +919,40 @@ Ladder.x <- function(x){
   (results <- data.frame(Transformation, Formula, W.statistic, p.value))
 }
 
+
+micombineresult<-function(mimodel) {
+  poolresult1<-mitools:::summary.MIresult(mitools::MIcombine(mimodel)) %>%
+    dplyr::select(missInfo)
+  pooresult2<-mice::pool(mimodel) %>%
+    mice:::summary.mipo(conf.int=TRUE)
+  poolresult<-dplyr::bind_cols(poolresult1,pooresult2)
+  return(poolresult)
+}
+dummycode_of_a_dataframe<-function(df,catgvars=c()) {
+  detectedcatgvars<-custom_pickcolnames_accordingtoclass(df,needclass="factor")
+  detectedcatgvars<-detectedcatgvars[(sapply(dplyr::select(df,!!detectedcatgvars), nlevels ))>=2]
+  catgvars<-if (length(catgvars)==0) detectedcatgvars else base::intersect(catgvars, detectedcatgvars)
+  if (length(catgvars)==0) return(df)
+  dplyr::bind_cols(dplyr::select(df, -!!catgvars), custom_parallel_lapply(catgvars, function(factorvar,df,...) {
+    psych::dummy.code(dplyr::pull(df,!!factorvar)) %>%
+    {.[,gtools::mixedsort(colnames(.))]} %>%
+    {magrittr::set_colnames(., paste0(factorvar,colnames(.)))} %>%
+    {(.[,2:ncol(.),drop=FALSE])} %>%
+      return()
+  }, df=df, method=parallel_method) %>%
+    data.frame() ) %>%
+    return()
+}
+
+inflate_df_from_weight<-function(needdf, weightvar="myown_wr", rate=10000, parallel_method="fork") {
+  custom_parallel_lapply(1:nrow(needdf), function(fi, ...) {
+    needrow<-needdf[fi,]
+    weight<-needrow[, weightvar]
+    weight_times<-round(weight*rate)
+    dplyr::slice(needrow, rep(1, each = weight_times))
+  }, needdf=needdf, method=parallel_method) %>% dplyr::bind_rows() %>%
+    return()
+}
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"
 #research_odbc_ch <- odbcConnect(research_odbc, believeNRows = FALSE, rows_at_time = 1, DBMSencoding="UTF-8")

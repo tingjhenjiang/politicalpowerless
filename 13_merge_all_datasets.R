@@ -33,29 +33,6 @@ gc(verbose=TRUE)
 # 第八部份：大串連資料 ---------------------------------
 
 if (TRUE) {
-  micombineresult<-function(mimodel) {
-    poolresult1<-mitools:::summary.MIresult(mitools::MIcombine(mimodel)) %>%
-      dplyr::select(missInfo)
-    pooresult2<-mice::pool(mimodel) %>%
-      mice:::summary.mipo(conf.int=TRUE)
-    poolresult<-dplyr::bind_cols(poolresult1,pooresult2)
-    return(poolresult)
-  }
-  dummycode_of_a_dataframe<-function(df,catgvars=c()) {
-    detectedcatgvars<-custom_pickcolnames_accordingtoclass(df,needclass="factor")
-    detectedcatgvars<-detectedcatgvars[(sapply(dplyr::select(df,!!detectedcatgvars), nlevels ))>=2]
-    catgvars<-if (length(catgvars)==0) detectedcatgvars else base::intersect(catgvars, detectedcatgvars)
-    if (length(catgvars)==0) return(df)
-    dplyr::bind_cols(dplyr::select(df, -!!catgvars), custom_parallel_lapply(catgvars, function(factorvar,df,...) {
-      psych::dummy.code(dplyr::pull(df,!!factorvar)) %>%
-        {.[,gtools::mixedsort(colnames(.))]} %>%
-        {magrittr::set_colnames(., paste0(factorvar,colnames(.)))} %>%
-        {(.[,2:ncol(.),drop=FALSE])} %>%
-        return()
-    }, df=df, method=parallel_method) %>%
-      data.frame() ) %>%
-      return()
-  }
   overalldf_general_inter_func<-function(targetdf) {
     targetdf %>%
       dplyr::select(-tidyselect::any_of(c("admincity","admindistrict","adminvillage","legislator_sex","legislator_age","legislator_party","incumbent"))) %>%
