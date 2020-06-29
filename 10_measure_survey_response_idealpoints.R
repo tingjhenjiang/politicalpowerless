@@ -10,26 +10,8 @@ source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding=
 load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"), verbose=TRUE)
 load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory, "bills_answer_to_bill_bills_billcontent.RData"), verbose=TRUE)
-survey_codebook_file<-paste0(dataset_file_directory,"all_survey_questions_englished.xlsx")
 survey_keys <- c("2010overall","2016citizen")
-survey_question_category_df<-lapply(c(1,3), function(fi,...) {
-  openxlsx::read.xlsx(survey_codebook_file,sheet = fi)
-},survey_codebook_file=survey_codebook_file) %>%
-  dplyr::bind_rows() %>%
-  dplyr::filter(grepl(pattern="民主價值", x=CATEGORY, perl=TRUE) | CATEGORY=="議題") %>%
-  dplyr::filter(SURVEY %in% !!survey_keys) %>%
-  dplyr::filter(MEASUREMENT %in% c("nominal","ordinal")) %>%
-  dplyr::filter(IMPUTATION!="ignore" & ID!="myown_indp_atti") %>%
-  dplyr::mutate(itemtype=NA) %>%
-  mutate_cond(MEASUREMENT=="nominal", itemtype="2PL") %>%
-  mutate_cond((grepl(pattern=";3", x=ANSWER) & itemtype=="2PL"), itemtype="nominal") %>%
-  mutate_cond(MEASUREMENT=="ordinal", itemtype="graded") %>%
-  mutate_cond(grepl(pattern="(1分;22分|22分;33分)", x=ANSWER), itemtype="grsm") %>%
-  dplyr::arrange(SURVEYCOMPLETEID) %>%
-  lapply(survey_keys, function(k, data) {
-    return(dplyr::filter(data, SURVEY==!!k))
-  }, data=.) %>%
-  magrittr::set_names(survey_keys)
+survey_question_category_df<-custom_ret_survey_book_file(dataset_file_directory=dataset_file_directory)
 
 reduce_levels_from_ten_to_seven <- function(X) {
   if (length(unique(X)) %in% c(10,11)) {
@@ -319,18 +301,19 @@ if (FALSE) {
   } #end survey title
 }
 
+mirtfscores_similarity_scoresdf_file <- paste0(save_dataset_in_scriptsfile_directory, "mirtfscores_similarity_scoresdf.RData")
+mirtfscores_similarity_scoresdf_backupfile <- paste0(save_dataset_in_scriptsfile_directory, "mirtfscores_similarity_scoresdf_backupfile.RData")
+policy_idealpoint_colname_header<-"policyidealpoint"
+
 # median calculation: similarity to median --------------------------------
 if (FALSE) {
   load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
-  mirtfscores_similarity_scoresdf_file <- paste0(save_dataset_in_scriptsfile_directory, "mirtfscores_similarity_scoresdf.RData")
-  mirtfscores_similarity_scoresdf_backupfile <- paste0(save_dataset_in_scriptsfile_directory, "mirtfscores_similarity_scoresdf_backupfile.RData")
   load(file=mirtfscores_similarity_scoresdf_file, verbose=TRUE)
   #mirtfscores_similarity_scoresdf<-list()
   loopmirtmodellist_keys<- dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, runmirt_store_key %in% !!names(survey_idealpoints_mirt_models)) %>%
      #dplyr::filter(complete_inf_mirt_models, ncompnfact %in% c(6,12)) %>%
     dplyr::arrange(survey,imp) %>%
     magrittr::use_series("runmirt_store_key")# %>% base::setdiff(names(mirtfscores_similarity_scoresdf))
-  policy_idealpoint_colname_header<-"policyidealpoint"
   mirtfscores_similarity_scoresdf<-loopmirtmodellist_keys %>%
     magrittr::set_names( custom_parallel_lapply(., function(mirt_model_on_survey_key, ...) {
       #mirt_model_on_survey_key <- loopmirtmodellist_keys[1]
@@ -413,6 +396,7 @@ if (FALSE) {
     method=parallel_method), .) 
   save(mirtfscores_similarity_scoresdf, file=mirtfscores_similarity_scoresdf_backupfile)
 }
+survey_with_idealpoint_name<-paste0(save_dataset_in_scriptsfile_directory, "miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData")
 
 # merge fscore data --------------------------------
 if (FALSE) {
@@ -445,12 +429,27 @@ if (FALSE) {
   survey_data_imputed %<>% lapply(dplyr::semi_join, filterstddf) %>%
     lapply(dplyr::left_join, filterstddf) %>%
     lapply(function(X) {dplyr::select(X,-.imp) %>% dplyr::rename(.imp=newimp)})
-  survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData")
   #save(survey_data_imputed, file=survey_with_idealpoint_name)
   load(file=survey_with_idealpoint_name, verbose=TRUE)
   if (readline(paste("now in",mirt_model_on_survey_key,"continue?"))=="N") break
 }
 
+# extract previous result to merge into reset dataset --------------------------------
+if (FALSE) {
+  load(file=mirtfscores_similarity_scoresdf_file, verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
+  clustered_svydata<-survey_data_imputed
+  load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData"), verbose=TRUE)
+  t<-lapply(survey_data_imputed, function(X, policy_idealpoint_colname_header) {
+    dplyr::select(X, SURVEY, id, .id, .imp, tidyselect::contains(!!policy_idealpoint_colname_header))
+  }, policy_idealpoint_colname_header=policy_idealpoint_colname_header) %>%
+    lapply(function(X,Y) {
+      needsyv<-as.character(X$SURVEY[1])
+      dplyr::left_join(Y[[needsyv]],X)
+    },Y=clustered_svydata)
+  survey_data_imputed<-t
+  #save(survey_data_imputed, file=survey_with_idealpoint_name)
+}
 # Testing Multivariate Normality of policy preference using R --------------------------------
 #MVN package
 #mvnormtest::mshapiro.test()

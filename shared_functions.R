@@ -835,6 +835,34 @@ ret_std_legislators_data<-function(legislatorsxlsxpath = paste0(dataset_file_dir
     return()
 }
 
+custom_ret_survey_book_file<-function(dataset_file_directory, subject="issue") {
+  survey_codebook_file<-paste0(dataset_file_directory,"all_survey_questions_englished.xlsx")
+  survey_keys <- c("2010overall","2016citizen")
+  survey_question_category_df<-lapply(c(1,3), function(fi,...) {
+    openxlsx::read.xlsx(survey_codebook_file,sheet = fi)
+  },survey_codebook_file=survey_codebook_file) %>%
+    dplyr::bind_rows()
+  if (subject=="pp") {
+    survey_question_category_df %<>% dplyr::filter(grepl(pattern="參與", x=CATEGORY, perl=TRUE) | CATEGORY=="參與")
+  } else {
+    survey_question_category_df %<>% dplyr::filter(grepl(pattern="民主價值", x=CATEGORY, perl=TRUE) | CATEGORY=="議題")
+  }
+  survey_question_category_df %<>% dplyr::filter(SURVEY %in% !!survey_keys) %>%
+    dplyr::filter(MEASUREMENT %in% c("nominal","ordinal")) %>%
+    dplyr::filter(IMPUTATION!="ignore" & ID!="myown_indp_atti") %>%
+    dplyr::mutate(itemtype=NA) %>%
+    mutate_cond(MEASUREMENT=="nominal", itemtype="2PL") %>%
+    mutate_cond((grepl(pattern=";3", x=ANSWER) & itemtype=="2PL"), itemtype="nominal") %>%
+    mutate_cond(MEASUREMENT=="ordinal", itemtype="graded") %>%
+    mutate_cond(grepl(pattern="(1分;22分|22分;33分)", x=ANSWER), itemtype="grsm") %>%
+    dplyr::arrange(SURVEYCOMPLETEID) %>%
+    lapply(survey_keys, function(k, data) {
+      return(dplyr::filter(data, SURVEY==!!k))
+    }, data=.) %>%
+    magrittr::set_names(survey_keys)
+  return(survey_question_category_df)
+}
+
 custom_mirt_coef_to_df <- function(mirtmodel, rotate="varimax", printSE = FALSE, ...) {
   coefdf <- mirt::coef(mirtmodel, rotate=rotate, as.data.frame=TRUE, printSE=printSE)
   firsttry <- try({coefdf %>%
@@ -953,6 +981,24 @@ inflate_df_from_weight<-function(needdf, weightvar="myown_wr", rate=10000, paral
   }, needdf=needdf, weightvar=weightvar, rate=rate, method=parallel_method) %>% plyr::rbind.fill() %>%
     return()
 }
+
+custom_apply_thr_argdf <- function(argdf, loopstorekey, customfunc, method="fork", datadf=NA, ...) {
+  loopkeys<-as.character(argdf[,loopstorekey])
+  retlist<-custom_parallel_lapply(loopkeys, FUN=customfunc, loopargdf=argdf, method=method, datadf=datadf, ...)
+  retlist<-magrittr::set_names(retlist, loopkeys)
+  return(retlist)
+}
+
+##use
+# nullmodels<-custom_apply_thr_argdf(nullmodel_args, "formula", function(fikey, loopargdf, datadf, ...) {
+#   dplyr::filter(nullmodel_args, formula==!!fikey) %>%
+#     magrittr::use_series("formula") %>%
+#     as.character() %>%
+#     as.formula() %>%
+#     lme4::lmer(data=datadf) %>%
+#     return()
+# }, datadf=merged_acrossed_surveys_list[[1]])
+
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"
 #research_odbc_ch <- odbcConnect(research_odbc, believeNRows = FALSE, rows_at_time = 1, DBMSencoding="UTF-8")

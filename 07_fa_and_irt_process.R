@@ -17,6 +17,10 @@ imputation_sample_i_s <- imputation_sample_i_s
 load(file=paste0(dataset_file_directory,"rdata",slash,"miced_survey_9_Ubuntu18.04.3LTSdf.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
 load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly.RData"), verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"), verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData"), verbose=TRUE)
+survey_question_category_df<-custom_ret_survey_book_file(dataset_file_directory=dataset_file_directory, subject="pp")
 
 # 第五-1部份：IRT latent variables 將職業社經地位、家庭收入、教育程度萃取成為階級  =================================
 #library(survey)
@@ -161,7 +165,7 @@ if ({analysingefficacy <- TRUE;analysingefficacy}) {
         itemtype = "graded",
         technical = list("NCYCLES"=40000),
         survey.weights = irt_target_d[irt_target_d$.imp==imp,c("myown_wr")])
-      poliefficacy<-mirt::fscores(estimatemodel,method="EAP") %>%
+      poliefficacy<-mirt::fscores(estimatemodel,method="EAP",rotate="varimax") %>%
         as.data.frame() %>%
         set_colnames(c("myown_factoredefficacy"))
       avgpoliefficacy<-mean(poliefficacy$myown_factoredefficacy)
@@ -278,7 +282,7 @@ for (surveytitle in names(survey_data_imputed)) {
   survey_data_imputed[[surveytitle]]$myown_factoredparticip_scaled<-NULL
   survey_data_imputed[[surveytitle]]$myown_factoredparticip_mean<-NULL
 }
-mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="df") {
+mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="both",survey_question_category_df,...) {
   #X<-survey_data_test[[4]]
   #need_particip_var_assigned<-need_particip_var
   needparticip_surveyi<-X$SURVEY[1]
@@ -289,68 +293,95 @@ mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="df")
       #return(as.numeric(levels(f))[f])
       (seq(from=1,to=length(f)))[f] %>% return()
     })
-  estimatemodels<-list()
-  for (imp in imps) {
+  corresponding_item_type<-data.frame("ID"=need_detailed_particip_var) %>%
+    dplyr::left_join(survey_question_category_df[[needparticip_surveyi]]) %>%
+    magrittr::use_series("itemtype")
+  store_keys_df<-data.frame("store_key"=paste0(needparticip_surveyi, "_imp", imps),
+                         "imp"=imps, stringsAsFactors =FALSE)
+  estimatemodels<-custom_parallel_lapply(store_keys_df$imp, function(imp,...) {
     message(paste("now in imp",imp))
-    storekey<-paste0(needparticip_surveyi, "_imp", imp)
-    estimatemodel<-mirt::mirt(
+    mirtargs<-list(
       data=irt_target_d[irt_target_d$.imp==imp,need_detailed_particip_var],
       model=1,
-      itemtype = "graded",
-      technical = list("NCYCLES"=10000),
+      itemtype = corresponding_item_type,
+      technical = list("NCYCLES"=500),
       survey.weights = irt_target_d[irt_target_d$.imp==imp,c("myown_wr")],
-      dentype= "EHW", #Davidian-6
-      SE=TRUE
+      dentype= "Davidian-6", #"EHW"
+      SE=FALSE
     )
-    estimatemodels[[storekey]]<-estimatemodel
-    poliparticipt<-mirt::fscores(estimatemodel,method="EAP") %>%
+    mirtargs2<-mirtargs
+    mirtargs2[["itemtype"]]<-"graded"
+    estimatemodel<-try(do.call(mirt::mirt, mirtargs))
+    if (is(estimatemodel, 'try-error')) {
+      estimatemodel<-try(do.call(mirt::mirt, mirtargs2))
+    }
+    return(estimatemodel)
+  }, irt_target_d=irt_target_d, need_detailed_particip_var=need_detailed_particip_var, corresponding_item_type=corresponding_item_type,
+  method=method) %>%
+    magrittr::set_names(store_keys_df$store_key)
+  #storekey<-paste0(needparticip_surveyi, "_imp", imps)
+  for (storekey in store_keys_df$store_key) {
+    needimp<-dplyr::filter(store_keys_df, store_key==!!storekey) %>% magrittr::use_series("imp") %>% as.integer()
+    estimatemodel<-estimatemodels[[storekey]]
+    poliparticipt<-mirt::fscores(estimatemodel,method="EAP",rotate = "varimax") %>%
       as.data.frame() %>%
-      set_colnames(c("myown_factoredparticip"))
+      magrittr::set_colnames(c("myown_factoredparticip"))
     meanpp<-mean(poliparticipt$myown_factoredparticip)
-    X[X$.imp==imp,c("myown_factoredparticip")]<-poliparticipt$myown_factoredparticip
-    X[X$.imp==imp,c("myown_factoredparticip_scaled")]<-poliparticipt$myown_factoredparticip %>% #bind_cols(X,poliparticipt)
+    X[X$.imp==needimp,c("myown_factoredparticip")]<-poliparticipt$myown_factoredparticip
+    X[X$.imp==needimp,c("myown_factoredparticip_scaled")]<-poliparticipt$myown_factoredparticip %>% #bind_cols(X,poliparticipt)
       {as.numeric(scale(.))}
-    X[X$.imp==imp,c("myown_factoredparticip_mean")]<-meanpp
+    X[X$.imp==needimp,c("myown_factoredparticip_mean")]<-meanpp
   }
   #X<-estimatemodel
   #View(X[,c(need_detailed_particip_var,"myown_factoredparticip")])
   if (returnv=="model") {
     return(estimatemodels)
-  } else {
+  } else if (returnv=="dataframe") {
     return(X) 
+  } else {
+    return(list(X,estimatemodels))
   }
 }
 
-survey_data_imputed <- custom_parallel_lapply(survey_data_imputed, mirt_to_model_particip, need_particip_var_assigned=need_particip_var,
-imps=imputation_sample_i_s, method=parallel_method)
-dplyr::bind_rows(survey_data_imputed$`2010overall`) %>%
-  custom_plot("myown_factoredparticip", "myown_wr")
-mirt_partcip_models<-custom_parallel_lapply(survey_data_imputed, mirt_to_model_particip, need_particip_var_assigned=need_particip_var,
-                            imps=imputation_sample_i_s,returnv="model", method=parallel_method)
+survey_data_imputed_mirt_models_and_df <- lapply(survey_data_imputed, mirt_to_model_particip, need_particip_var_assigned=need_particip_var, survey_question_category_df=survey_question_category_df,
+                              imps=imputation_sample_i_s, method=parallel_method)
+survey_data_imputed<-lapply(survey_data_imputed_mirt_models_and_df, magrittr::extract2, 1) %>%
+  magrittr::set_names(names(survey_data_imputed_mirt_models_and_df))
+mirt_partcip_models<-lapply(survey_data_imputed_mirt_models_and_df, magrittr::extract2, 2) %>%
+  magrittr::set_names(names(survey_data_imputed_mirt_models_and_df))
 #https://github.com/datacamp/tidymirt
+t<-lapply(mirt_partcip_models$`2010overall`,mirt:::summary)
+t<-lapply(mirt_partcip_models$`2016citizen`,mirt:::summary)
+
 t<-lapply(mirt_partcip_models$`2010overall`,tidymirt:::glance.SingleGroupClass)
 t<-lapply(mirt_partcip_models$`2016citizen`,tidymirt:::glance.SingleGroupClass)
 
+#output factor loadings
 for (surveytitle in names(survey_data_imputed)) {
-  for (imp in imputation_sample_i_s) {
-    coefdf <- custom_mirt_coef_to_df(mirt_partcip_models[[surveytitle]][[imp]]) %>%
+  for (mirtmodelkey in names(mirt_partcip_models[[surveytitle]])) {
+    coefdf <- custom_mirt_coef_to_df(mirt_partcip_models[[surveytitle]][[mirtmodelkey]]) %>%
       dplyr::rename(item=rowvar) %>%
-      dplyr::arrange(par_type,item,variable) %>%
-      dplyr::filter(variable=="par")
+      dplyr::arrange(item) #,par_type,variable %>%  dplyr::filter(variable=="par")
     View(coefdf)
     write.csv(coefdf, "TMP.csv")
-    mirt:::summary(mirt_partcip_models[[surveytitle]][[imp]]) %>% print()
-    if (readline(paste("now in",surveytitle, imp, "continue?"))=="N") break
+    mirt:::summary(mirt_partcip_models[[surveytitle]][[imp]], rotate = "oblimin") %>% print()
+    if (readline(paste("now in",mirtmodelkey, imp, "continue?"))=="N") break
   }
 }
 
-
-
+#visualize and inspection
 for (survey_title in names(survey_data_imputed)) {
   c("myown_factoredparticip",need_particip_var[[survey_title]]) %>%
     survey_data_imputed[[survey_title]][,.] %>%
     View()
   if (readline("continue?")=="N") break
+  if (FALSE) {
+    dplyr::select(survey_data_imputed$`2010overall`, !!need_particip_var[["2010overall"]], myown_factoredparticip) %>%
+      View()
+    survey_data_imputed$`2010overall` %>%
+      #dplyr::filter(.imp==1) %>%
+      custom_plot("myown_factoredparticip", "myown_wr")
+  }
 }
 # other possible control vars ----------------
 
@@ -513,4 +544,6 @@ if ({usinggpcm <- FALSE;usinggpcm}) {
 #save(survey_data_imputed, file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"))
 save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"))
 save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"))
+save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"))
+save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData"))
 

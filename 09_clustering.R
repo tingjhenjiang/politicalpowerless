@@ -722,7 +722,7 @@ if (FALSE) {
     method=parallel_method)  , .)
 }
 
-save(kamila_results, file=reskamilaclusterbackupfile)
+#save(kamila_results, file=reskamilaclusterbackupfile)
 #save(kamila_results, file=reskamilaclusterfile)
 
 # * applying kamila_results to survey data ----------------------------------------------
@@ -741,36 +741,42 @@ if (FALSE) {
   survey_data_imputed %<>% change_survey_data_religion()
   rate<-10
   load(file=paste0(save_dataset_in_scriptsfile_directory,"kamilacluster_inflated_times",rate,".Rdata"), verbose=TRUE)
-  for (survey_imp_key in names(kamila_results)) {
-    message(paste("now in",survey_imp_key))
-    survey_imp_key_i<-unlist(strsplit(survey_imp_key,"_"))
-    surveykey<-survey_imp_key_i[1]
-    imp<-as.integer(survey_imp_key_i[2])
-    kamila_model<-kamila_results[[survey_imp_key]]
-    kamilasrcdf<-inflated_kamila_input_df_to_original_df(kamila_model) %>%
-      dplyr::select(memb) %>%
-      dplyr::bind_cols(dplyr::filter(survey_data_imputed[[surveykey]], .imp==!!imp) %>%
-                         dplyr::select(id,.imp,myown_wr) %>%
-                         inflate_df_from_weight(rate=rate) ) %>%
-      dplyr::rename(cluster_kamila=memb) %>%
-      dplyr::distinct_all()
-    kamilasrcdf$cluster_kamila %<>% as.factor() %>%
-      forcats::fct_infreq() %>%
-      forcats::fct_recode(., !!!{
-        magrittr::set_names(levels(.), as.list(sort(unique(.))))
-      }) %>% as.character() %>% as.integer()
-    t<-dplyr::filter(survey_data_imputed[[surveykey]], .imp==!!imp) %>%
-      dplyr::select(-tidyselect::any_of(c("cluster_kamila"))) %>%
-      dplyr::left_join(kamilasrcdf)
-    survey_data_imputed[[surveykey]] %<>%
-      dplyr::filter(.imp!=!!imp) %>%
-      dplyr::bind_rows(t)
-    # merging_res<-try({survey_data_imputed[[surveykey]][survey_data_imputed[[surveykey]]$.imp==imp, "cluster_kamila"]<-kamilasrcdf$memb})
-    # if(!is(merging_res, 'try-error')) {
-    #   
-    # }
-  }
-  
+  combine_kamila_df_lst<-names(kamila_results) %>%
+    magrittr::set_names(custom_parallel_lapply(., function(survey_imp_key, surveyd, ...) {
+      message(paste("now in",survey_imp_key))
+      survey_imp_key_i<-unlist(strsplit(survey_imp_key,"_"))
+      surveykey<-survey_imp_key_i[1]
+      imp<-as.integer(survey_imp_key_i[2])
+      kamila_model<-kamila_results[[survey_imp_key]]
+      kamilasrcdf<-inflated_kamila_input_df_to_original_df(kamila_model) %>%
+        dplyr::select(memb) %>%
+        dplyr::bind_cols(dplyr::filter(survey_data_imputed[[surveykey]], .imp==!!imp) %>%
+                           dplyr::select(id,.imp,myown_wr) %>%
+                           inflate_df_from_weight(rate=rate) ) %>%
+        dplyr::rename(cluster_kamila=memb) %>%
+        dplyr::distinct_all()
+      kamilasrcdf$cluster_kamila %<>% as.factor() %>%
+        forcats::fct_infreq() %>%
+        forcats::fct_recode(., !!!{
+          magrittr::set_names(levels(.), as.list(sort(unique(.))))
+        }) %>% as.character() %>% as.integer()
+      dplyr::filter(surveyd[[surveykey]], .imp==!!imp) %>%
+        dplyr::select(-tidyselect::any_of(c("cluster_kamila"))) %>%
+        dplyr::left_join(kamilasrcdf) %>%
+      # surveyd[[surveykey]] %>%
+      #   dplyr::filter(.imp!=!!imp) %>%
+      #   dplyr::bind_rows(t) %>%
+        return()
+      # merging_res<-try({survey_data_imputed[[surveykey]][survey_data_imputed[[surveykey]]$.imp==imp, "cluster_kamila"]<-kamilasrcdf$memb})
+      # if(!is(merging_res, 'try-error')) {
+      #   
+      # }
+    }, kamila_results=kamila_results, surveyd=survey_data_imputed, method=parallel_method),.)
+  survey_data_imputed<-lapply(names(survey_data_imputed), grep, x=names(combine_kamila_df_lst), value=TRUE) %>%
+    lapply(FUN=function(n,tdflist) {magrittr::extract(tdflist, n)}, tdflist=combine_kamila_df_lst)  %>%
+    lapply(dplyr::bind_rows) %>%
+    lapply(FUN=function(X) {dplyr::arrange(X, .imp, id)}) %>%
+    magrittr::set_names(names(survey_data_imputed))
   for (survey_imp_key in names(kamila_results)) {
     needrow<-dplyr::filter(kamila_arguments_df, store_key==survey_imp_key)
     message(paste("now in", survey_imp_key))
