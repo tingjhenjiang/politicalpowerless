@@ -160,7 +160,7 @@ myown_imp_function<-function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,i
     missing.indicator[,var] <- as.numeric(missing.indicator[,var])
   }
   #merge covariate names with missing indicator names
-  X %<>% cbind(missing.indicator[,propMissing>0])
+  #X %<>% cbind(missing.indicator[,propMissing>0])
   message("now step 2")
   imputingcalculatebasiscolumn_assigned <-magrittr::extract2(imputingcalculatebasiscolumn,X$SURVEY[1]) %>%
     base::intersect(names(X))
@@ -228,22 +228,25 @@ myown_imp_function<-function(X,imputedvaluecolumn,imputingcalculatebasiscolumn,i
 }
 
 #1st imputation
-survey_data_imputed <- lapply( #custom_parallel_lapply
-  X=survey_data[c("2010overall","2016citizen")],
-  FUN=myown_imp_function,
-  imputedvaluecolumn=imputedvaluecolumn,
-  imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
-  imputation_sample_i_s=24, #length(imputation_sample_i_s)
-  exportvar=c("imputedvaluecolumn","parlMICE","imputingcalculatebasiscolumn"),
-  exportlib=c("dplyr","base","magrittr","parallel","mice","micemd","randomForest"), #,"MissMech","fastDummies"
-  outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
-  mc.set.seed = TRUE,
-  mc.cores=parallel::detectCores()
-)
+if (FALSE) {
+  survey_data_imputed <- lapply( #custom_parallel_lapply
+    X=survey_data[c("2010overall","2016citizen")],
+    FUN=myown_imp_function,
+    imputedvaluecolumn=imputedvaluecolumn,
+    imputingcalculatebasiscolumn=imputingcalculatebasiscolumn,
+    imputation_sample_i_s=24, #length(imputation_sample_i_s)
+    exportvar=c("imputedvaluecolumn","parlMICE","imputingcalculatebasiscolumn"),
+    exportlib=c("dplyr","base","magrittr","parallel","mice","micemd","randomForest"), #,"MissMech","fastDummies"
+    outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
+    mc.set.seed = TRUE,
+    mc.cores=parallel::detectCores()
+  )
+}
+
 
 # further imputation -------------------------------------------
 
-if ({furtherimp<-FALSE;furtherimp}) {
+if ({furtherimp<-TRUE;furtherimp}) {
   load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"), verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly.RData"), verbose=TRUE)
   furtherimp_argument_df<-data.frame("survey"=c("2010overall","2016citizen")) %>%
@@ -263,7 +266,7 @@ if ({furtherimp<-FALSE;furtherimp}) {
   "b4" %in% furtherimp_imputingcalculatebasiscolumn[["2016citizen"]]
   
     
-  furthurimplist<-dplyr::filter(furtherimp_argument_df, survey=="2016citizen") %>%
+  furthurimplist<-dplyr::filter(furtherimp_argument_df, survey %in% c("2010overall","2016citizen")) %>%
     .$store_key %>%
     {magrittr::set_names(custom_parallel_lapply(., function(storekey, ...) {
       message(paste("now in",storekey))
@@ -281,7 +284,7 @@ if ({furtherimp<-FALSE;furtherimp}) {
     imputation_sample_i_s=1,
     furtherimp_data=furtherimp_data,
     furtherimp_argument_df=furtherimp_argument_df,
-    method=parallel_method, mc.cores=3), .)}
+    method=parallel_method, mc.cores=12), .)}
   for (pattern in c("2010overall","2016citizen")) {
     survey_data_imputed[[pattern]]<-grep(pattern=pattern, x=names(furthurimplist), value=TRUE) %>%
       magrittr::extract(furthurimplist, .) %>%

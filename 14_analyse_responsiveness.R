@@ -38,7 +38,7 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #https://cran.r-project.org/web/packages/brms/vignettes/brms_multilevel.pdf
 # 58 for dependent data
 #https://wangcc.me/LSHTMlearningnote/Hierarchical.html
-
+#the ordinal package, via the clmm and clmm2 functions (clmm = Cumulative Link Mixed Model)
 #nests: id
 
 if ({running_brms_model<-TRUE; running_brms_model & running_bigdata_computation}) {

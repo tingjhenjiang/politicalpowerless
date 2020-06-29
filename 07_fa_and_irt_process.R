@@ -297,8 +297,9 @@ mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="df")
       data=irt_target_d[irt_target_d$.imp==imp,need_detailed_particip_var],
       model=1,
       itemtype = "graded",
-      technical = list("NCYCLES"=40000),
+      technical = list("NCYCLES"=10000),
       survey.weights = irt_target_d[irt_target_d$.imp==imp,c("myown_wr")],
+      dentype= "EHW", #Davidian-6
       SE=TRUE
     )
     estimatemodels[[storekey]]<-estimatemodel
@@ -320,14 +321,15 @@ mirt_to_model_particip<-function(X,need_particip_var_assigned,imps,returnv="df")
   }
 }
 
-survey_data_imputed <- lapply(survey_data_imputed, mirt_to_model_particip, need_particip_var_assigned=need_particip_var,
-imps=imputation_sample_i_s)
-mirt_partcip_models<-lapply(survey_data_imputed, mirt_to_model_particip, need_particip_var_assigned=need_particip_var,
-                            imps=imputation_sample_i_s,returnv="model")
+survey_data_imputed <- custom_parallel_lapply(survey_data_imputed, mirt_to_model_particip, need_particip_var_assigned=need_particip_var,
+imps=imputation_sample_i_s, method=parallel_method)
+dplyr::bind_rows(survey_data_imputed$`2010overall`) %>%
+  custom_plot("myown_factoredparticip", "myown_wr")
+mirt_partcip_models<-custom_parallel_lapply(survey_data_imputed, mirt_to_model_particip, need_particip_var_assigned=need_particip_var,
+                            imps=imputation_sample_i_s,returnv="model", method=parallel_method)
 #https://github.com/datacamp/tidymirt
 t<-lapply(mirt_partcip_models$`2010overall`,tidymirt:::glance.SingleGroupClass)
 t<-lapply(mirt_partcip_models$`2016citizen`,tidymirt:::glance.SingleGroupClass)
-mice::pool(t)
 
 for (surveytitle in names(survey_data_imputed)) {
   for (imp in imputation_sample_i_s) {
@@ -350,6 +352,58 @@ for (survey_title in names(survey_data_imputed)) {
     View()
   if (readline("continue?")=="N") break
 }
+# other possible control vars ----------------
+
+#trust
+# 2016citizen@c15
+# 2016citizen@c16a
+# 2016citizen@c16b
+# 2016citizen@c16c
+# 2016citizen@d16e
+# 2016citizen@d16f
+# 2016citizen@d18a
+# 2016citizen@d18b
+# 2016citizen@d20
+# 2016citizen@d21
+# 2016citizen@d22
+# 2016citizen@d23
+# 2016citizen@f7
+
+
+#unsatisfication
+# 2016citizen@e1
+# 2016citizen@e2a
+# 2016citizen@e2b
+# 2016citizen@e2c
+# 2016citizen@e2d
+# 2016citizen@e2e
+# 2016citizen@e2f
+# 2016citizen@e2g
+# 2016citizen@e2h
+# 2016citizen@e2i
+# 2016citizen@f2
+# 2016citizen@f6
+
+#deprivation
+# 2016citizen@c8r
+# 2016citizen@c9r
+
+
+#social relation
+# 2016citizen@b1
+# 2016citizen@b2
+
+# political information
+# 2016citizen@myown_online_time
+
+#political knowledge
+# 2016citizen@g6a
+# 2016citizen@g6b
+# 2016citizen@g6c
+# 2016citizen@g6d
+
+
+# old method and skip ####################
 
 if ({using_ltm_package <- FALSE;using_ltm_package}) {
   survey_data_with_particip <- lapply(survey_data_test,function(X,need_particip_var_assigned) {

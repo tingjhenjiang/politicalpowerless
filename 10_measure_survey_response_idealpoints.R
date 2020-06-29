@@ -204,10 +204,12 @@ if ({avoid_run_duplicated_models<-FALSE;avoid_run_duplicated_models}) {
     names()
   distincted_survey_parallelfa_arguments_df_runonly<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, !(runmirt_store_key %in% !!processed_idealpoint_mirt_keys) )
 }
+
 if (FALSE) {
   load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
   survey_idealpoints_mirt_models<-distincted_survey_parallelfa_arguments_df_runonly$runmirt_store_key %>%
     magrittr::set_names(custom_parallel_lapply(., function(fikey, ...) {
+      message(paste("now in",fikey))
       needrow<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, runmirt_store_key==!!fikey)
       argdf_term <- as.character(needrow$term)
       if (grepl(pattern="&", x=argdf_term) ) {
@@ -236,9 +238,7 @@ if (FALSE) {
       parsv <- try({
         mirt::mod2values(survey_idealpoints_mirt_models[[fikey]])
       })
-      if(!is(parsv, 'try-error')) {
-        break
-      } else {
+      if(is(parsv, 'try-error')) {
         parsv<-NULL
       }
       explor_mirt_model<-mirt::mirt(
@@ -250,13 +250,15 @@ if (FALSE) {
         method=mirtmethod , SE=TRUE,
         pars=parsv
       )
+      tryn<-1
       while (TRUE) {
         tryloadsaveresult<-try({
           load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
           survey_idealpoints_mirt_models[[fikey]]<-explor_mirt_model
           save(survey_idealpoints_mirt_models, file=survey_idealpoints_mirt_models_file)
         }) #, envir = .GlobalEnv
-        if(!is(tryloadsaveresult, 'try-error')) {
+        tryn<-tryn+1
+        if(!is(tryloadsaveresult, 'try-error') | tryn>11) {
           break
         }
       }
@@ -268,11 +270,11 @@ if (FALSE) {
     term_related_q=term_related_q,
     distincted_survey_parallelfa_arguments_df_runonly=distincted_survey_parallelfa_arguments_df_runonly,
     survey_idealpoints_mirt_models_file=survey_idealpoints_mirt_models_file,
-    method=parallel_method, mc.cores=9
+    method=parallel_method, mc.cores=24
     ), .) 
+  save(survey_idealpoints_mirt_models, file=survey_idealpoints_mirt_models_file)
 }
 
-#save(survey_idealpoints_mirt_models, file=survey_idealpoints_mirt_models_file)
 
 # Checking factor scores and factor structure and goodness of fit --------------------------------
 if (FALSE) {
@@ -317,8 +319,8 @@ if (FALSE) {
   } #end survey title
 }
 
-# similarity to median calculation --------------------------------
-if (TRUE) {
+# median calculation: similarity to median --------------------------------
+if (FALSE) {
   load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
   mirtfscores_similarity_scoresdf_file <- paste0(save_dataset_in_scriptsfile_directory, "mirtfscores_similarity_scoresdf.RData")
   mirtfscores_similarity_scoresdf_backupfile <- paste0(save_dataset_in_scriptsfile_directory, "mirtfscores_similarity_scoresdf_backupfile.RData")
@@ -327,96 +329,123 @@ if (TRUE) {
   loopmirtmodellist_keys<- dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, runmirt_store_key %in% !!names(survey_idealpoints_mirt_models)) %>%
      #dplyr::filter(complete_inf_mirt_models, ncompnfact %in% c(6,12)) %>%
     dplyr::arrange(survey,imp) %>%
-    magrittr::use_series("runmirt_store_key") %>%
-    base::setdiff(names(mirtfscores_similarity_scoresdf))
+    magrittr::use_series("runmirt_store_key")# %>% base::setdiff(names(mirtfscores_similarity_scoresdf))
   policy_idealpoint_colname_header<-"policyidealpoint"
-  mirtfscores_similarity_scoresdf<-custom_parallel_lapply(loopmirtmodellist_keys, function(mirt_model_on_survey_key, ...) {
-    #mirt_model_on_survey_key <- loopmirtmodellist_keys[1]
-    message(paste("now in",mirt_model_on_survey_key))
-    needrow<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, runmirt_store_key==!!mirt_model_on_survey_key) #complete_inf_mirt_models
-    needsurvey<-as.character(needrow$survey) 
-    surveydataids<-dplyr::filter(survey_data_imputed[[needsurvey]], .imp==!!needrow$imp) %>%
-      dplyr::select(SURVEY, id, .imp, myown_wr)
-    mirtsurveyresult<-custom_mirt_coef_to_df(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], printSE = TRUE)
-    #write.csv(mirtsurveyresult, file="TMP.csv")
-    #View(mirtsurveyresult)
-    #mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="varimax") %>% print()
-    #mirt::itemfit(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>% print()
-    if (TRUE) {
-      mirtfscoresdf<- mirt::fscores(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>%
-      {magrittr::set_colnames(., paste0(policy_idealpoint_colname_header, colnames(.)))} %>%
-        data.frame(.)
-      median_policy_idealpoint<- data.frame(surveydataids, mirtfscoresdf) %>% 
-        inflate_df_from_weight() %>%
-        dplyr::select(dplyr::starts_with(!!policy_idealpoint_colname_header)) %>%
-        SpatialNP::spatial.location(shape=TRUE, score="sign") %>%
-        as.numeric()
-      cos_similarity_to_median_policy_idealpoint<-apply(mirtfscoresdf, 1, FUN=lsa::cosine, y=median_policy_idealpoint)
-      cos_similarity_to_median_policy_idealpoint_scaled<- cos_similarity_to_median_policy_idealpoint %>%
-        scale() %>%
-        as.numeric()
-      euclid_distance_to_median_policy_idealpoint<-apply(mirtfscoresdf, 1, FUN=custom_eucli_similarity, y=median_policy_idealpoint)
-      euclid_distance_to_median_policy_idealpoint_scaled<- euclid_distance_to_median_policy_idealpoint %>%
-        scale() %>%
-        as.numeric()
-      more_similar_cos<-quantile(cos_similarity_to_median_policy_idealpoint)[4] %>%
-        magrittr::is_weakly_greater_than(cos_similarity_to_median_policy_idealpoint,.) %>%
-        as.numeric()
-      more_similar_euclid<-quantile(euclid_distance_to_median_policy_idealpoint)[2] %>%
-        magrittr::is_weakly_less_than(euclid_distance_to_median_policy_idealpoint, .) %>%
-        as.numeric()
-      
-      mirtfscoresdf<-data.frame(
-        cos_similarity_to_median_policy_idealpoint,
-        euclid_distance_to_median_policy_idealpoint,
-        cos_similarity_to_median_policy_idealpoint_scaled,
-        euclid_distance_to_median_policy_idealpoint_scaled,
-        more_similar_cos,
-        more_similar_euclid) %>%
-        magrittr::set_colnames(c(
-          paste0(policy_idealpoint_colname_header,"_cos_similarity_to_median"),
-          paste0(policy_idealpoint_colname_header,"_eucli_distance_to_median"),
-          paste0(policy_idealpoint_colname_header,"_cos_similarity_to_median_scaled"),
-          paste0(policy_idealpoint_colname_header,"_eucli_distance_to_median_scaled"),
-          paste0(policy_idealpoint_colname_header,"_more_similar_cos"),
-          paste0(policy_idealpoint_colname_header,"_more_similar_eucli")
-        )) %>%
-        dplyr::bind_cols(mirtfscoresdf, .) %>%
-        dplyr::bind_cols(surveydataids, .)
-      
-      tryn<-1
-      while (TRUE) {
-        loadsavestatus<-try({
-          load(file=mirtfscores_similarity_scoresdf_file, verbose=TRUE)
-          mirtfscores_similarity_scoresdf[[mirt_model_on_survey_key]]<-mirtfscoresdf
-          save(mirtfscores_similarity_scoresdf, file=mirtfscores_similarity_scoresdf_file)
-        })
-        tryn<-tryn+1
-        if(!is(loadsavestatus, 'try-error') | tryn>11) break
+  mirtfscores_similarity_scoresdf<-loopmirtmodellist_keys %>%
+    magrittr::set_names( custom_parallel_lapply(., function(mirt_model_on_survey_key, ...) {
+      #mirt_model_on_survey_key <- loopmirtmodellist_keys[1]
+      message(paste("now in",mirt_model_on_survey_key))
+      needrow<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, runmirt_store_key==!!mirt_model_on_survey_key) #complete_inf_mirt_models
+      needsurvey<-as.character(needrow$survey) 
+      surveydataids<-dplyr::filter(survey_data_imputed[[needsurvey]], .imp==!!needrow$imp) %>%
+        dplyr::select(SURVEY, id, .imp, myown_wr)
+      mirtsurveyresult<-custom_mirt_coef_to_df(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], printSE = TRUE)
+      #write.csv(mirtsurveyresult, file="TMP.csv")
+      #View(mirtsurveyresult)
+      #mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="varimax") %>% print()
+      #mirt::itemfit(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>% print()
+      if (TRUE) {
+        mirtfscoresdf<- mirt::fscores(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>%
+        {magrittr::set_colnames(., paste0(policy_idealpoint_colname_header, colnames(.)))} %>%
+          data.frame(.)
+        median_policy_idealpoint<- data.frame(surveydataids, mirtfscoresdf) %>% 
+          inflate_df_from_weight() %>%
+          dplyr::select(dplyr::starts_with(!!policy_idealpoint_colname_header)) %>%
+          SpatialNP::spatial.location(shape=TRUE, score="sign") %>%
+          as.numeric()
+        cos_similarity_to_median_policy_idealpoint<-apply(mirtfscoresdf, 1, FUN=lsa::cosine, y=median_policy_idealpoint)
+        cos_similarity_to_median_policy_idealpoint_scaled<- cos_similarity_to_median_policy_idealpoint %>%
+          scale() %>%
+          as.numeric()
+        euclid_distance_to_median_policy_idealpoint<-apply(mirtfscoresdf, 1, FUN=custom_eucli_similarity, y=median_policy_idealpoint)
+        euclid_distance_to_median_policy_idealpoint_scaled<- euclid_distance_to_median_policy_idealpoint %>%
+          scale() %>%
+          as.numeric()
+        more_similar_cos<-quantile(cos_similarity_to_median_policy_idealpoint)[4] %>%
+          magrittr::is_weakly_greater_than(cos_similarity_to_median_policy_idealpoint,.) %>%
+          as.numeric()
+        more_similar_euclid<-quantile(euclid_distance_to_median_policy_idealpoint)[2] %>%
+          magrittr::is_weakly_less_than(euclid_distance_to_median_policy_idealpoint, .) %>%
+          as.numeric()
+        
+        mirtfscoresdf<-data.frame(
+          cos_similarity_to_median_policy_idealpoint,
+          euclid_distance_to_median_policy_idealpoint,
+          cos_similarity_to_median_policy_idealpoint_scaled,
+          euclid_distance_to_median_policy_idealpoint_scaled,
+          more_similar_cos,
+          more_similar_euclid) %>%
+          magrittr::set_colnames(c(
+            paste0(policy_idealpoint_colname_header,"_cos_similarity_to_median"),
+            paste0(policy_idealpoint_colname_header,"_eucli_distance_to_median"),
+            paste0(policy_idealpoint_colname_header,"_cos_similarity_to_median_scaled"),
+            paste0(policy_idealpoint_colname_header,"_eucli_distance_to_median_scaled"),
+            paste0(policy_idealpoint_colname_header,"_more_similar_cos"),
+            paste0(policy_idealpoint_colname_header,"_more_similar_eucli")
+          )) %>%
+          dplyr::bind_cols(mirtfscoresdf, .) %>%
+          dplyr::bind_cols(surveydataids, .)
+        
+        tryn<-1
+        while (TRUE) {
+          loadsavestatus<-try({
+            load(file=mirtfscores_similarity_scoresdf_file, verbose=TRUE)
+            mirtfscores_similarity_scoresdf[[mirt_model_on_survey_key]]<-mirtfscoresdf
+            save(mirtfscores_similarity_scoresdf, file=mirtfscores_similarity_scoresdf_file)
+          })
+          tryn<-tryn+1
+          if(!is(loadsavestatus, 'try-error') | tryn>11) break
+        }
+        return(mirtfscoresdf)
+        # survey_data_imputed[[needsurvey]] <- dplyr::bind_rows(
+        #   dplyr::semi_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY")) %>%
+        #     dplyr::select(-dplyr::starts_with(!!policy_idealpoint_colname_header)) %>%
+        #     dplyr::left_join(mirtfscoresdf, by = c(".imp", "id", "SURVEY")),
+        #   dplyr::anti_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY") )  
+        # )
       }
-      return(mirtfscoresdf)
-      # survey_data_imputed[[needsurvey]] <- dplyr::bind_rows(
-      #   dplyr::semi_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY")) %>%
-      #     dplyr::select(-dplyr::starts_with(!!policy_idealpoint_colname_header)) %>%
-      #     dplyr::left_join(mirtfscoresdf, by = c(".imp", "id", "SURVEY")),
-      #   dplyr::anti_join(survey_data_imputed[[needsurvey]], mirtfscoresdf, by = c(".imp", "id", "SURVEY") )  
-      # )
-    }
-    #if (readline(paste("now in",mirt_model_on_survey_key,"continue?"))=="N") break
-  }, distincted_survey_parallelfa_arguments_df_runonly=distincted_survey_parallelfa_arguments_df_runonly,
-  survey_idealpoints_mirt_models=survey_idealpoints_mirt_models,
-  survey_data_imputed=survey_data_imputed,
-  mirtfscores_similarity_scoresdf_file=mirtfscores_similarity_scoresdf_file,
-  mc.cores=11,
-  method=parallel_method)
+      #if (readline(paste("now in",mirt_model_on_survey_key,"continue?"))=="N") break
+    }, distincted_survey_parallelfa_arguments_df_runonly=distincted_survey_parallelfa_arguments_df_runonly,
+    survey_idealpoints_mirt_models=survey_idealpoints_mirt_models,
+    survey_data_imputed=survey_data_imputed,
+    mirtfscores_similarity_scoresdf_file=mirtfscores_similarity_scoresdf_file,
+    mc.cores=24,
+    method=parallel_method), .) 
   save(mirtfscores_similarity_scoresdf, file=mirtfscores_similarity_scoresdf_backupfile)
 }
+
 # merge fscore data --------------------------------
 if (FALSE) {
+  load(file=mirtfscores_similarity_scoresdf_file, verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
+  for (survey in names(survey_data_imputed)) {
+    needsvykeys<-grep(pattern=survey, x=names(mirtfscores_similarity_scoresdf), value=TRUE)
+    survey_idp_similarity<-magrittr::extract(mirtfscores_similarity_scoresdf, needsvykeys) %>%
+      dplyr::bind_rows()
+    survey_data_imputed[[survey]] %<>% dplyr::left_join(survey_idp_similarity)
+  }
   survey_data_imputed <- lapply(survey_data_imputed, function(X) {
     dplyr::mutate_at(X, dplyr::vars(dplyr::contains("_more_similar")), as.factor)
   })
-  survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
+  load(file=paste0(dataset_in_scriptsfile_directory, "kamila_clustering_parameters.Rdata"), verbose=TRUE)
+  filterstddf<-dplyr::distinct(kamila_clustering_parameters, survey, imp, store_key, totlclusters) %>%
+    dplyr::filter((survey=="2010overall" & totlclusters==4) | (survey=="2016citizen" & totlclusters==6)) %>%
+    dplyr::select(survey, imp) %>%
+    dplyr::rename(.imp=imp, SURVEY=survey) %>%
+    dplyr::group_by(SURVEY) %>%
+    {
+      nimp<-dplyr::summarise(., nimp=dplyr::n()) %>%
+        dplyr::ungroup() %>%
+        magrittr::use_series(nimp) %>%
+        min()
+      dplyr::slice(., 1:nimp) %>%
+        dplyr::ungroup() %>%
+        data.frame(., newimp = rep.int(1:nimp, times = 2))
+    }
+  survey_data_imputed %<>% lapply(dplyr::semi_join, filterstddf) %>%
+    lapply(dplyr::left_join, filterstddf) %>%
+    lapply(function(X) {dplyr::select(X,-.imp) %>% dplyr::rename(.imp=newimp)})
+  survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData")
   #save(survey_data_imputed, file=survey_with_idealpoint_name)
   load(file=survey_with_idealpoint_name, verbose=TRUE)
   if (readline(paste("now in",mirt_model_on_survey_key,"continue?"))=="N") break

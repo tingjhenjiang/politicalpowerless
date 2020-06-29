@@ -7,15 +7,15 @@ source_sharedfuncs_r_path<-try(here::here())
 if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
 source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
 gc(verbose=TRUE)
-if (!file.exists(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt.RData"))) {
-  dir.create(dataset_in_scriptsfile_directory,recursive=TRUE)
-  download.file(
-    "http://homepage.ntu.edu.tw/~r03a21033/voterecord/miced_survey_9_with_mirt_lca.RData",
-    paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"))
-}
-load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"), verbose=TRUE)
-load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
-load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"), verbose=TRUE)
+# if (!file.exists(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt.RData"))) {
+#   dir.create(dataset_in_scriptsfile_directory,recursive=TRUE)
+#   download.file(
+#     "http://homepage.ntu.edu.tw/~r03a21033/voterecord/miced_survey_9_with_mirt_lca.RData",
+#     paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"))
+# }
+# load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"), verbose=TRUE)
+# load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+# load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"), verbose=TRUE)
 load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"), verbose=TRUE)
 change_survey_data_religion<-function(survey_data_imputed) {
   survey_data_imputed$`2016citizen` %<>% mutate_cond(myown_religion=="[5] 回教(伊斯蘭教)", myown_religion="[9] 其他,請說明") %>%
@@ -681,25 +681,26 @@ if ({skip_processed_kamila<-FALSE;skip_processed_kamila}) {
     names()
   kamila_arguments_df %<>% dplyr::filter(!(store_key %in% !!processed_kamila_key))
 }
-if (TRUE) {
-  kamila_results<-dplyr::arrange(kamila_arguments_df, imp) %>% magrittr::use_series("store_key") %>% rev() %>%
+if (FALSE) {
+  kamila_results<-dplyr::arrange(kamila_arguments_df, imp) %>% magrittr::use_series("store_key") %>%
     #.[1:24] %>%
     magrittr::set_names( custom_parallel_lapply(., function (fikey, ...) {
       message(paste("now in",fikey))
       needrow<-dplyr::filter(kamila_arguments_df, store_key==!!fikey)
       survey_key <- needrow$survey
       needimp <- needrow$imp
-      needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
+      #needdf<-
+      #surveyweight<-needdf$myown_wr
+      resmodel <- dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
         dplyr::mutate(myown_age=as.numeric(scale(myown_age))) %>%
         dplyr::mutate(myown_factoredses=myown_factoredses_scaled) %>%
-        dplyr::select(tidyselect::any_of(c(".imp",".id","id","myown_wr",clustering_var[[survey_key]])))
-      surveyweight<-needdf$myown_wr
-      resmodel <- inflate_df_from_weight(needdf, rate=100) %>% plyr::rbind.fill() %>%# dplyr::bind_rows() %>%
+        dplyr::select(tidyselect::any_of(c("myown_wr",clustering_var[[survey_key]]))) %>% #".imp",".id","id",
+        inflate_df_from_weight(rate=30) %>%
         dplyr::select(!!clustering_var[[survey_key]]) %>%
         {kamila::kamila(conVar=.[,c("myown_age","myown_factoredses")],
                        catFactor=.[c("myown_sex","myown_selfid","myown_marriage","myown_areakind","myown_religion")],
-                       numClust = 2:8, numInit = 10, calcNumClust = "ps", numPredStrCvRun = 10,
-                       predStrThresh = 0.5, maxIter=50, verbose=TRUE)}
+                       numClust = 3:8, numInit = 10, calcNumClust = "ps", numPredStrCvRun = 10,
+                       predStrThresh = 0.5, maxIter=1000, verbose=TRUE)}
       tryn<-1
       while (TRUE) {
         loadsavestatus<-try({
@@ -779,20 +780,29 @@ if (FALSE) {
 
 # * check kamila prob result ----------------------------------------------
 if (FALSE) {
-  load(file=reskamilaclusterfile, verbose=TRUE)
+  #load(file=reskamilaclusterfile, verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory,"kamilacluster_inflated_times",rate,".Rdata"), verbose=TRUE)
   kamila_clustering_parameters<-custom_parallel_lapply(names(kamila_results), function(fikey, ...) {
     needkamilamodel<-kamila_results[[fikey]]
     needargrow<-dplyr::filter(kamila_arguments_df, store_key==!!fikey)
-    baseinfdo<-dplyr::filter(survey_data_imputed[[needargrow$survey]], .imp==!!needargrow$imp) %>%
-      dplyr::select(myown_wr) %>% data.frame(., inflated_kamila_input_df_to_original_df(needkamilamodel) ) %>%
-      dplyr::mutate_at("memb", as.factor)
-    syvdes <- survey::svydesign(id=~1, weights=~myown_wr, data=baseinfdo)
-    ratiotable<-survey::svymean(~memb, syvdes) %>%
-      as.data.frame() %>%
-      dplyr::arrange(dplyr::desc(mean)) %>%
-      dplyr::mutate(clustn=row.names(.)) %>%
-      dplyr::mutate_at("clustn", ~as.numeric(customgsub(clustn,"memb",""))) %>%
-      cbind(., clustsize = seq(1,nrow(.)))
+    # baseinfdo<-dplyr::filter(survey_data_imputed[[needargrow$survey]], .imp==!!needargrow$imp) %>%
+    #   dplyr::select(id,.imp,myown_wr) %>%
+    #   inflate_df_from_weight(rate=rate) %>%
+    #   data.frame(., inflated_kamila_input_df_to_original_df(needkamilamodel) ) %>%
+    #   dplyr::mutate_at("memb", as.factor) %>%
+    #   dplyr::distinct_all()
+    ratiotable<-table(inflated_kamila_input_df_to_original_df(needkamilamodel)$memb) %>% prop.table() %>% as.data.frame() %>%
+      dplyr::rename(clustn=Var1, ratio=Freq) %>%
+      dplyr::arrange(dplyr::desc(ratio)) %>%
+      data.frame(., populationsize=1:nrow(.)) %>%
+      dplyr::mutate_at("clustn", as.integer)
+    # syvdes <- survey::svydesign(id=~1, weights=~myown_wr, data=baseinfdo)
+    # ratiotable<-survey::svymean(~memb, syvdes) %>%
+    #   as.data.frame() %>%
+    #   dplyr::arrange(dplyr::desc(mean)) %>%
+    #   dplyr::mutate(clustn=row.names(.)) %>%
+    #   dplyr::mutate_at("clustn", ~as.numeric(customgsub(clustn,"memb",""))) %>%
+    #   cbind(., clustsize = seq(1,nrow(.)))
     catgnames<-colnames(needkamilamodel$input$catFactor) %>%
       magrittr::set_names(names(needkamilamodel$finalProbs))
     catglevels<-lapply(needkamilamodel$input$catFactor,levels)
@@ -809,9 +819,9 @@ if (FALSE) {
       cbind(needargrow,.) %>%
       cbind(probtable) %>%
       dplyr::left_join(ratiotable, .) %>%
-      dplyr::select(survey, imp, store_key, totlclusters, clustsize, mean, SE, dplyr::everything(), -clustn) %>%
+      dplyr::select(survey, imp, store_key, totlclusters, populationsize, dplyr::everything(), -clustn) %>%
       return()
-  }, kamila_results=kamila_results, kamila_arguments_df=kamila_arguments_df, method=parallel_method) %>%
+  }, kamila_results=kamila_results, kamila_arguments_df=kamila_arguments_df, method=parallel_method, rate=10) %>%
     dplyr::bind_rows() %>%
     dplyr::arrange(survey, imp)
   save(kamila_clustering_parameters, file=paste0(dataset_in_scriptsfile_directory, "kamila_clustering_parameters.Rdata"))
