@@ -179,6 +179,7 @@ distincted_survey_parallelfa_arguments_df_runonly<- distincted_survey_parallelfa
   dplyr::arrange(survey, imp, ncompnfact)
 
 survey_idealpoints_mirt_models_file <- paste0(save_dataset_in_scriptsfile_directory, "survey_idealpoints_mirt_models.RData")
+#survey_idealpoints_mirt_models_file <- paste0(save_dataset_in_scriptsfile_directory, "survey_idealpoints_mirt_models_Davidian.RData")
 if ({avoid_run_duplicated_models<-FALSE;avoid_run_duplicated_models}) {
   load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
   processed_idealpoint_mirt_keys<-sapply(survey_idealpoints_mirt_models, class) %>%
@@ -229,6 +230,7 @@ if (FALSE) {
         itemtype=to_explor_IRT_itemtypes$itemtype,
         technical=list(NCYCLES=250,MAXQUAD=40000),
         survey.weights = needsurveydatadf[,c("myown_wr")],
+        dentype = "Gaussian", #"Davidian-6",
         method=mirtmethod , SE=TRUE,
         pars=parsv
       )

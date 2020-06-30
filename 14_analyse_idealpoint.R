@@ -51,6 +51,7 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #calc p-value hypothesis testing
 #https://www.rensvandeschoot.com/tutorials/brms-started/
 #https://bookdown.org/content/4253/introducing-the-multilevel-model-for-change.html
+#not normal https://rdrr.io/cran/clubSandwich/f/vignettes/panel-data-CRVE.Rmd
 
 #nests: id
 
@@ -58,11 +59,11 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 if (FALSE) {
   load(file=paste0(dataset_in_scriptsfile_directory, "kamila_clustering_parameters.Rdata"), verbose=TRUE)
   dplyr::distinct(kamila_clustering_parameters,survey,imp,totlclusters) %>%
-    dplyr::filter(totlclusters==4)
+    dplyr::filter((survey=="2010overall" & totlclusters==4) | (survey=="2016citizen" & totlclusters==6))
 }
 
 # * try analysing ----------------------------
-survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData")
+survey_with_idealpoint_name<-paste0(save_dataset_in_scriptsfile_directory, "miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData")
 load(file=survey_with_idealpoint_name, verbose=TRUE)
 doneimps<-unique(survey_data_imputed$`2016citizen`$.imp)
 #survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
@@ -86,40 +87,74 @@ analysis_idealpoint_to_median_args<-data.frame("survey"=survey_data_title) %>%
 common_names <- survey_data_imputed[need_svytitle] %>%
   lapply(FUN=names) %>%
   purrr::reduce(base::intersect)
-merged_acrossed_surveys_list<-lapply(doneimps, function(imp, ...) {
-  needdf<-survey_data_imputed[need_svytitle] %>%
-    lapply(FUN=function(X,nimp) {dplyr::filter(X, .imp==!!nimp) %>% dplyr::select(-myown_indp_atti)}, nimp=imp) %>%
-    dplyr::bind_rows() %>%
-    dplyr::mutate_at("SURVEY", as.factor) %>%
-    dplyr::mutate_at("cluster_kamila", as.ordered)
-  #levels(needdf$cluster_kamila)<-c(levels(needdf$cluster_kamila), 4)
-  return(needdf)
-}, survey_data_imputed=survey_data_imputed, need_svytitle=need_svytitle)
 if (FALSE) {
+  transform_pp_data_to_normal<-FALSE
+  transform_pp_data_to_normal<-TRUE
+  merged_acrossed_surveys_list_with_normality<-lapply(doneimps, function(imp, normalize=FALSE, ...) {
+    needdf<-survey_data_imputed[need_svytitle] %>%
+      lapply(FUN=function(X,nimp) {dplyr::filter(X, .imp==!!nimp) %>% dplyr::select(-myown_indp_atti)}, nimp=imp) %>%
+      dplyr::bind_rows() %>%
+      dplyr::mutate_at("SURVEY", as.factor) %>%
+      dplyr::mutate_at("cluster_kamila", as.ordered)  %>%
+      dplyr::select(-dplyr::contains("policy")) %>%
+      dplyr::mutate(myown_factoredses_overallscaled=as.numeric(scale(myown_factoredses)) ) %>%
+      dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age)) )
+    #C L Q E4 E5
+    #dplyr::mutate_at("cluster_kamila", ~dplyr::recode_factor(., `1` = "A", `2` = "B", `3` = "C", `4` = "D", `5` = "E", `6` = "F", .ordered =TRUE) ) %>%
+    if (normalize==TRUE) {
+      transform_normality<-bestNormalize::bestNormalize(needdf$myown_factoredparticip)
+      needdf$original_pp<-needdf$myown_factoredparticip
+      needdf$myown_factoredparticip<-transform_normality$x.t
+    } else {
+      transform_normality<-NA
+    }
+    return(list(needdf, transform_normality))
+  }, survey_data_imputed=survey_data_imputed, need_svytitle=need_svytitle, normalize=transform_pp_data_to_normal)
+  merged_acrossed_surveys_list<-lapply(merged_acrossed_surveys_list_with_normality, function(X) {X[[1]]})
+  save(merged_acrossed_surveys_list, merged_acrossed_surveys_list_with_normality,file=merged_acrossed_surveys_list_with_normality_filepath)
+} else {
+  load(merged_acrossed_surveys_list_with_normality_filepath,verbose=TRUE)
+}
+
+if ({plotting_inspection<-FALSE;plotting_inspection}) {
   merged_acrossed_surveys_overall<-dplyr::bind_rows(merged_acrossed_surveys_list)
   dplyr::filter(merged_acrossed_surveys_overall, .imp==1) %>%
   {
     custom_plot(., "policyidealpoint_cos_similarity_to_median","myown_wr") %>% print()
     custom_plot(., "policyidealpoint_eucli_distance_to_median","myown_wr") %>% print()
   }
-  
+  for (svytitle in names(survey_data_imputed)) {
+    targetplotting_policy_idealpoint_colnames<-dplyr::filter(merged_acrossed_surveys_overall, SURVEY==!!svytitle) %>%
+      names() %>%
+      grep(pattern="policyidealpoint", x=., value=TRUE)
+    for (colname in targetplotting_policy_idealpoint_colnames) {
+      distplot<-dplyr::filter(merged_acrossed_surveys_overall, SURVEY==!!svytitle) %>%
+        custom_plot(colname, "myown_wr")
+      print(distplot)
+      targetsavefilename<-paste0(dataset_in_scriptsfile_directory,"plot/idealpoints/",svytitle,colname,".png")
+      #ggplot2::ggsave(filename=, plot=distplot)
+      readline(paste("now in ",targetsavefilename," continue?"))
+    }
+  }
   idealpoints_model_arguments_df<-data.frame(
     modelformula=c("policyidealpoint_cos_similarity_to_median|weights(myown_wr)~cluster_kamila+SURVEY+(1|cluster_kamila)"),
     responsefamily=c("gaussian","student")
   )
 }
 
+# * null model ------------------
 nullmodel_args<-data.frame("formula"=c(
   "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/admindistrict/admincity/myown_areakind/cluster_kamila/SURVEY)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|cluster_kamila/SURVEY)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|cluster_kamila)", #Adjusted ICC: 0.090 Conditional ICC: 0.090
+  "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/cluster_kamila)",
+  "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/admindistrict)",
+  "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage)",
   "policyidealpoint_cos_similarity_to_median~1+(1|SURVEY)",
+  "policyidealpoint_cos_similarity_to_median~1+(1|cluster_kamila)",
+  "policyidealpoint_cos_similarity_to_median~1+(1|myown_areakind)",
   "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage)",
   "policyidealpoint_cos_similarity_to_median~1+(1|admindistrict)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|admincity)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|myown_areakind)"
-)) %>%
-  cbind("t"=1)
+  "policyidealpoint_cos_similarity_to_median~1+(1|admincity)"
+))
 nullmodels<-custom_apply_thr_argdf(nullmodel_args, "formula", function(fikey, loopargdf, datadf, ...) {
   dplyr::filter(loopargdf, formula==!!fikey) %>%
     magrittr::use_series("formula") %>%
@@ -129,6 +164,52 @@ nullmodels<-custom_apply_thr_argdf(nullmodel_args, "formula", function(fikey, lo
     return()
 }, datadf=merged_acrossed_surveys_list[[1]])
 lapply(nullmodels, try(performance::icc))
+
+# * random intercept and slope model ------------------
+
+idealpoint_model_args<-data.frame("formula"=c(
+  "policyidealpoint_cos_similarity_to_median~cluster_kamila+1+(1|adminvillage)",
+  "policyidealpoint_cos_similarity_to_median~cluster_kamila+1+(1|adminvillage/cluster_kamila)",
+  "policyidealpoint_cos_similarity_to_median~cluster_kamila+SURVEY+cluster_kamila*SURVEY+1+(1|adminvillage/cluster_kamila)"#,
+  #"policyidealpoint_cos_similarity_to_median~cluster_kamila+1+(1|adminvillage/cluster_kamila)"#,
+  #"policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/admindistrict)",
+  #"policyidealpoint_cos_similarity_to_median~1+(1|adminvillage)" ,
+  #"policyidealpoint_cos_similarity_to_median~1+(1|cluster_kamila)",
+  # "policyidealpoint_cos_similarity_to_median~1+(1|myown_areakind)",
+  # "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage)",
+  # "policyidealpoint_cos_similarity_to_median~1+(1|admindistrict)",
+   #"policyidealpoint_cos_similarity_to_median~1+(1|admincity)"
+))
+idealpoint_models<-custom_apply_thr_argdf(idealpoint_model_args, "formula", function(fikey, loopargdf, datadf, ...) {
+  dplyr::filter(loopargdf, formula==!!fikey) %>%
+    magrittr::use_series("formula") %>%
+    as.character() %>%
+    as.formula() %>%
+    robustlmm::rlmer(data=datadf) %>%
+    #lmerTest::lmer(data=datadf) %>%
+    return()
+}, datadf=merged_acrossed_surveys_list[[1]])
+
+lapply(idealpoint_models, lmerTest:::summary.lmerModLmerTest)
+lapply(idealpoint_models, function(X) {sum(lme4:::residuals.merMod(X))} )
+lapply(idealpoint_models, function(X) {hist(lme4:::residuals.merMod(X), breaks = 100)} )
+lapply(idealpoint_models, function(X) {shapiro.test(lme4:::residuals.merMod(X))} )
+
+lapply(idealpoint_models, lme4:::summary.merMod, signif.stars=TRUE)
+lapply(idealpoint_models, summary, signif.stars=TRUE)
+lapply(idealpoint_models, lme4::confint.merMod)
+
+lapply(idealpoint_models, robustlmm:::summary.rlmerMod)
+lapply(idealpoint_models, robustlmm:::plot.rlmerMod)
+lapply(idealpoint_models, confint.rlmerMod)
+lapply(idealpoint_models, function(X) { sum(robustlmm:::residuals.rlmerMod(X))  } )
+lapply(idealpoint_models, function(X) { hist(robustlmm:::residuals.rlmerMod(X), breaks = 100)  } )
+lapply(idealpoint_models, function(X) { shapiro.test(robustlmm:::residuals.rlmerMod(X))  } )
+
+
+lapply(idealpoint_models, car::linearHypothesis)
+
+# * brms backup --------------
 
 if (FALSE) {
   cossim_to_cluster_mod_robusts2 <-

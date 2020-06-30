@@ -73,7 +73,7 @@ if (FALSE) {
 }
 
 # * try analysing ----------------------------
-survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData")
+survey_with_idealpoint_name<-paste0(save_dataset_in_scriptsfile_directory, "miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData")
 load(file=survey_with_idealpoint_name, verbose=TRUE)
 doneimps<-unique(survey_data_imputed$`2016citizen`$.imp)
 #survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
@@ -131,9 +131,9 @@ adopting_transformation_method<-try(lapply(merged_acrossed_surveys_list_with_nor
 
 if ({nullmodel_icc_test<-FALSE;nullmodel_icc_test}) {
   nullmodel_args<-data.frame("formula"=c(
-    "myown_factoredparticip~1+(1|adminvillage/admindistrict/admincity/myown_areakind/cluster_kamila/SURVEY)",
+    "myown_factoredparticip~1+(1|adminvillage/admindistrict/myown_areakind/cluster_kamila/SURVEY)",
     "myown_factoredparticip~1+(1|cluster_kamila/SURVEY)",
-    "myown_factoredparticip~1+(1|cluster_kamila)", #Adjusted ICC: 0.090 Conditional ICC: 0.090
+    "myown_factoredparticip~1+(1|cluster_kamila)",
     "myown_factoredparticip~1+(1|SURVEY)",
     "myown_factoredparticip~1+(1|adminvillage)",
     "myown_factoredparticip~1+(1|admindistrict)",
@@ -141,7 +141,7 @@ if ({nullmodel_icc_test<-FALSE;nullmodel_icc_test}) {
     "myown_factoredparticip~1+(1|myown_areakind)"
   )) %>%
     cbind("t"=1)
-  nullmodels<-custom_apply_thr_argdf(nullmodel_args, "formula", function(fikey, loopargdf, datadf, ...) {
+  nullmodels_n<-custom_apply_thr_argdf(nullmodel_args[1,], "formula", function(fikey, loopargdf, datadf, ...) {
     dplyr::filter(nullmodel_args, formula==!!fikey) %>%
       magrittr::use_series("formula") %>%
       as.character() %>%
@@ -157,7 +157,7 @@ if ({nullmodel_icc_test<-FALSE;nullmodel_icc_test}) {
 }
 
 
-if (FALSE) {
+if ({plotting_to_inspect_distribution<-FALSE;plotting_to_inspect_distribution}) {
   merged_acrossed_surveys_overall<-dplyr::bind_rows(merged_acrossed_surveys_list)
   plotsvykey<-"2016citizen"
   plotsvykey<-"2010overall"
