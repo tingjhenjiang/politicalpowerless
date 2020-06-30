@@ -271,7 +271,19 @@ if (FALSE) {
   write.csv(complete_inf_mirt_models, "TMP.csv")
   mirtmodelinfindicators<-c("AIC","AICc","SABIC","HQ","BIC")
 }
-
+if (FALSE) {
+  load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
+  for (mirt_model_on_survey_key in names(survey_idealpoints_mirt_models)) {
+    mirtsurveyresult<-custom_mirt_coef_to_df(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], printSE = TRUE)
+    write.csv(mirtsurveyresult, file="TMP.csv")
+    #View(mirtsurveyresult)
+    mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="none") %>% print()
+    readline(paste("now in",mirt_model_on_survey_key,"unrotated, continue?"))
+    mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="varimax") %>% print()
+    #mirt::itemfit(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>% print()
+    readline(paste("now in",mirt_model_on_survey_key,"rotated, continue?"))
+  }
+}
 
 # checking which model is better among different dimensions --------------------------------
 if (FALSE) {
@@ -324,11 +336,6 @@ if (FALSE) {
       needsurvey<-as.character(needrow$survey) 
       surveydataids<-dplyr::filter(survey_data_imputed[[needsurvey]], .imp==!!needrow$imp) %>%
         dplyr::select(SURVEY, id, .imp, myown_wr)
-      mirtsurveyresult<-custom_mirt_coef_to_df(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], printSE = TRUE)
-      #write.csv(mirtsurveyresult, file="TMP.csv")
-      #View(mirtsurveyresult)
-      #mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="varimax") %>% print()
-      #mirt::itemfit(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>% print()
       if (TRUE) {
         mirtfscoresdf<- mirt::fscores(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>%
         {magrittr::set_colnames(., paste0(policy_idealpoint_colname_header, colnames(.)))} %>%
