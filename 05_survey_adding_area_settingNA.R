@@ -8,7 +8,7 @@ if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
 source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
 gc(verbose=TRUE)
 
-survey_imputation_and_measurement<-openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1)
+survey_imputation_and_measurement<-custom_ret_survey_imputation_and_measurement(paths_to_survey_imputation_and_measurement_file)
 
 
 

@@ -56,11 +56,7 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #nests: id
 
 # * check kamila result ----------------------------------------------
-if (FALSE) {
-  load(file=paste0(dataset_in_scriptsfile_directory, "kamila_clustering_parameters.Rdata"), verbose=TRUE)
-  dplyr::distinct(kamila_clustering_parameters,survey,imp,totlclusters) %>%
-    dplyr::filter((survey=="2010overall" & totlclusters==4) | (survey=="2016citizen" & totlclusters==6))
-}
+needimps<-custom_ret_appro_kamila_clustering_parameters()
 
 # * try analysing ----------------------------
 survey_with_idealpoint_name<-paste0(save_dataset_in_scriptsfile_directory, "miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData")
@@ -87,16 +83,17 @@ analysis_idealpoint_to_median_args<-data.frame("survey"=survey_data_title) %>%
 common_names <- survey_data_imputed[need_svytitle] %>%
   lapply(FUN=names) %>%
   purrr::reduce(base::intersect)
+merged_acrossed_surveys_list_with_normality_filepath<-paste0(dataset_in_scriptsfile_directory,"merged_acrossed_surveys_list_with_normality.RData")
 if (FALSE) {
-  transform_pp_data_to_normal<-FALSE
   transform_pp_data_to_normal<-TRUE
+  transform_pp_data_to_normal<-FALSE
   merged_acrossed_surveys_list_with_normality<-lapply(doneimps, function(imp, normalize=FALSE, ...) {
     needdf<-survey_data_imputed[need_svytitle] %>%
       lapply(FUN=function(X,nimp) {dplyr::filter(X, .imp==!!nimp) %>% dplyr::select(-myown_indp_atti)}, nimp=imp) %>%
       dplyr::bind_rows() %>%
       dplyr::mutate_at("SURVEY", as.factor) %>%
       dplyr::mutate_at("cluster_kamila", as.ordered)  %>%
-      dplyr::select(-dplyr::contains("policy")) %>%
+      #dplyr::select(-dplyr::contains("policy")) %>%
       dplyr::mutate(myown_factoredses_overallscaled=as.numeric(scale(myown_factoredses)) ) %>%
       dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age)) )
     #C L Q E4 E5
@@ -128,11 +125,11 @@ if ({plotting_inspection<-FALSE;plotting_inspection}) {
       names() %>%
       grep(pattern="policyidealpoint", x=., value=TRUE)
     for (colname in targetplotting_policy_idealpoint_colnames) {
+      targetsavefilename<-here::here(paste0("plot/idealpoints/",svytitle,colname,".png"))
       distplot<-dplyr::filter(merged_acrossed_surveys_overall, SURVEY==!!svytitle) %>%
         custom_plot(colname, "myown_wr")
       print(distplot)
-      targetsavefilename<-paste0(dataset_in_scriptsfile_directory,"plot/idealpoints/",svytitle,colname,".png")
-      #ggplot2::ggsave(filename=, plot=distplot)
+      ggplot2::ggsave(filename=targetsavefilename, plot=distplot)
       readline(paste("now in ",targetsavefilename," continue?"))
     }
   }
@@ -142,35 +139,80 @@ if ({plotting_inspection<-FALSE;plotting_inspection}) {
   )
 }
 
+all_idealpoint_nullmodels_file<-paste0(save_dataset_in_scriptsfile_directory,"analyse_res/all_idealpoint_nullmodels.RData")
+load(file=all_idealpoint_nullmodels_file, verbose=TRUE)
 # * null model ------------------
-nullmodel_args<-data.frame("formula"=c(
-  "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/admindistrict/admincity/myown_areakind/cluster_kamila/SURVEY)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/cluster_kamila)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/admindistrict)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|SURVEY)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|cluster_kamila)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|myown_areakind)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|admindistrict)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|admincity)"
-))
-nullmodels<-custom_apply_thr_argdf(nullmodel_args, "formula", function(fikey, loopargdf, datadf, ...) {
+idealpoint_nullmodel_args<-data.frame("formula"=c(
+  #"policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/admindistrict/admincity/myown_areakind/cluster_kamila/SURVEY)",
+  #"policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/cluster_kamila)",
+  "policyidealpoint_cos_similarity_to_median~(1|SURVEY)",
+  "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)",
+  "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)+(1|SURVEY)",
+  "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)+(1|adminvillage)",
+  "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
+  "policyidealpoint_cos_similarity_to_median~(1|adminvillage/cluster_kamila)",
+  "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)",
+  "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)",
+  "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|adminvillage)",
+  "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
+  "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|adminvillage/cluster_kamila)",
+  "policyidealpoint_cos_similarity_to_median~(1|myown_areakind)",
+  "policyidealpoint_cos_similarity_to_median~(1|adminvillage)",
+  "policyidealpoint_cos_similarity_to_median~(1|admindistrict)",
+  "policyidealpoint_cos_similarity_to_median~(1|admincity)",
+  "policyidealpoint_eucli_distance_to_median~(1|SURVEY)",
+  "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)",
+  "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|SURVEY)",
+  "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|adminvillage)",
+  "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
+  "policyidealpoint_eucli_distance_to_median~(1|adminvillage/cluster_kamila)",
+  "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)",
+  "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)",
+  "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|adminvillage)",
+  "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
+  "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|adminvillage/cluster_kamila)",
+  "policyidealpoint_eucli_distance_to_median~(1|myown_areakind)",
+  "policyidealpoint_eucli_distance_to_median~(1|adminvillage)",
+  "policyidealpoint_eucli_distance_to_median~(1|admindistrict)",
+  "policyidealpoint_eucli_distance_to_median~(1|admincity)"#,
+)) %>%
+  dplyr::filter(!(formula %in% !!names(all_idealpoint_nullmodels)))
+idealpoint_nullmodels<-custom_apply_thr_argdf(idealpoint_nullmodel_args, "formula", function(fikey, loopargdf, datadf, ...) {
   dplyr::filter(loopargdf, formula==!!fikey) %>%
     magrittr::use_series("formula") %>%
     as.character() %>%
     as.formula() %>%
-    lme4::lmer(data=datadf) %>%
+    lmerTest::lmer(data=datadf) %>%
+    #lme4::lmer(data=datadf) %>%
     return()
 }, datadf=merged_acrossed_surveys_list[[1]])
-lapply(nullmodels, try(performance::icc))
+if (length(all_idealpoint_nullmodels)==0) {
+  all_idealpoint_nullmodels<-idealpoint_nullmodels
+} else {
+  all_idealpoint_nullmodels<-rlist::list.merge(all_idealpoint_nullmodels,idealpoint_nullmodels)
+}
+
+save(all_idealpoint_nullmodels, file=all_idealpoint_nullmodels_file)
+
+lapply(idealpoint_nullmodels, try(performance::icc))
+lapply(idealpoint_nullmodels, function(X) {try(lmerTest:::summary.lmerModLmerTest(X))})
+
+lapply(idealpoint_nullmodels, function(X) {try(lmerTest:::anova.lmerModLmerTest(X, type="I", ddf="Kenward-Roger"))})
+lapply(idealpoint_nullmodels, try(lme4:::summary.merMod))
+lapply(idealpoint_nullmodels, function(X) {X})
+lapply(idealpoint_nullmodels, try(lme4:::VarCorr.merMod))
+lapply(idealpoint_nullmodels, try(lme4:::anova.merMod))
+library(afex)
+lapply(idealpoint_nullmodels, try(afex:::lmerTest_anova))
+
 
 # * random intercept and slope model ------------------
 
 idealpoint_model_args<-data.frame("formula"=c(
-  "policyidealpoint_cos_similarity_to_median~cluster_kamila+1+(1|adminvillage)",
-  "policyidealpoint_cos_similarity_to_median~cluster_kamila+1+(1|adminvillage/cluster_kamila)",
-  "policyidealpoint_cos_similarity_to_median~cluster_kamila+SURVEY+cluster_kamila*SURVEY+1+(1|adminvillage/cluster_kamila)"#,
+  "policyidealpoint_cos_similarity_to_median~1+(1|cluster_kamila)",
+  "policyidealpoint_eucli_distance_to_median~1+(1|cluster_kamila)",
+  "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/cluster_kamila)",
+  "policyidealpoint_eucli_distance_to_median~1+(1|adminvillage/cluster_kamila)"#,
   #"policyidealpoint_cos_similarity_to_median~cluster_kamila+1+(1|adminvillage/cluster_kamila)"#,
   #"policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/admindistrict)",
   #"policyidealpoint_cos_similarity_to_median~1+(1|adminvillage)" ,

@@ -66,13 +66,10 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #nests: id
 
 # * check kamila result ----------------------------------------------
-if (FALSE) {
-  load(file=paste0(dataset_in_scriptsfile_directory, "kamila_clustering_parameters.Rdata"), verbose=TRUE)
-  dplyr::distinct(kamila_clustering_parameters,survey,imp,totlclusters) %>%
-    dplyr::filter(totlclusters==4)
-}
+needimps<-custom_ret_appro_kamila_clustering_parameters()
 
-# * try analysing ----------------------------
+
+# prepare data: matching different surveys and centering ----------------------------
 survey_with_idealpoint_name<-paste0(save_dataset_in_scriptsfile_directory, "miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData")
 load(file=survey_with_idealpoint_name, verbose=TRUE)
 doneimps<-unique(survey_data_imputed$`2016citizen`$.imp)
@@ -100,8 +97,8 @@ common_names <- survey_data_imputed[need_svytitle] %>%
 
 merged_acrossed_surveys_list_with_normality_filepath<-paste0(dataset_in_scriptsfile_directory,"merged_acrossed_surveys_list_with_normality.RData")
 if (FALSE) {
-  transform_pp_data_to_normal<-FALSE
   transform_pp_data_to_normal<-TRUE
+  transform_pp_data_to_normal<-FALSE
   merged_acrossed_surveys_list_with_normality<-lapply(doneimps, function(imp, normalize=FALSE, ...) {
     needdf<-survey_data_imputed[need_svytitle] %>%
       lapply(FUN=function(X,nimp) {dplyr::filter(X, .imp==!!nimp) %>% dplyr::select(-myown_indp_atti)}, nimp=imp) %>%
@@ -110,7 +107,8 @@ if (FALSE) {
       dplyr::mutate_at("cluster_kamila", as.ordered)  %>%
       dplyr::select(-dplyr::contains("policy")) %>%
       dplyr::mutate(myown_factoredses_overallscaled=as.numeric(scale(myown_factoredses)) ) %>%
-      dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age)) )
+      dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age)) ) %>%
+      dplyr::mutate(myown_factoredparticip_ordinal=cut(myown_factoredparticip,breaks=c(-10,-2,-1.5,-1.3,-0.65,-0.4,-0.15,0.15,0.7,1.3,1.8,10),right=TRUE,include.lowest=TRUE,ordered_result=TRUE))
       #C L Q E4 E5
       #dplyr::mutate_at("cluster_kamila", ~dplyr::recode_factor(., `1` = "A", `2` = "B", `3` = "C", `4` = "D", `5` = "E", `6` = "F", .ordered =TRUE) ) %>%
     if (normalize==TRUE) {
@@ -121,7 +119,7 @@ if (FALSE) {
       transform_normality<-NA
     }
     return(list(needdf, transform_normality))
-  }, survey_data_imputed=survey_data_imputed, need_svytitle=need_svytitle, normalize=transform_pp_data_to_normal)
+  }, survey_data_imputed=survey_data_imputed, need_svytitle=need_svytitle, normalize=transform_pp_data_to_normal, needimps=needimps)
   merged_acrossed_surveys_list<-lapply(merged_acrossed_surveys_list_with_normality, function(X) {X[[1]]})
   save(merged_acrossed_surveys_list, merged_acrossed_surveys_list_with_normality,file=merged_acrossed_surveys_list_with_normality_filepath)
 } else {
@@ -129,34 +127,7 @@ if (FALSE) {
 }
 adopting_transformation_method<-try(lapply(merged_acrossed_surveys_list_with_normality, function(X) {X[[2]]$chosen_transform}))
 
-if ({nullmodel_icc_test<-FALSE;nullmodel_icc_test}) {
-  nullmodel_args<-data.frame("formula"=c(
-    "myown_factoredparticip~1+(1|adminvillage/admindistrict/myown_areakind/cluster_kamila/SURVEY)",
-    "myown_factoredparticip~1+(1|cluster_kamila/SURVEY)",
-    "myown_factoredparticip~1+(1|cluster_kamila)",
-    "myown_factoredparticip~1+(1|SURVEY)",
-    "myown_factoredparticip~1+(1|adminvillage)",
-    "myown_factoredparticip~1+(1|admindistrict)",
-    "myown_factoredparticip~1+(1|admincity)",
-    "myown_factoredparticip~1+(1|myown_areakind)"
-  )) %>%
-    cbind("t"=1)
-  nullmodels_n<-custom_apply_thr_argdf(nullmodel_args[1,], "formula", function(fikey, loopargdf, datadf, ...) {
-    dplyr::filter(nullmodel_args, formula==!!fikey) %>%
-      magrittr::use_series("formula") %>%
-      as.character() %>%
-      as.formula() %>%
-      lme4::lmer(data=datadf) %>%
-      return()
-  }, datadf=merged_acrossed_surveys_list[[1]])
-  
-  lme4:::summary.merMod(nullmodel1)
-  lapply(nullmodels, try(performance::icc))
-  sum(residuals(nullmodels$`myown_factoredparticip~1+(1|cluster_kamila)`))
-  shapiro.test(residuals(nullmodels$`myown_factoredparticip~1+(1|cluster_kamila)`))
-}
-
-
+# inspecting data distributions ------------
 if ({plotting_to_inspect_distribution<-FALSE;plotting_to_inspect_distribution}) {
   merged_acrossed_surveys_overall<-dplyr::bind_rows(merged_acrossed_surveys_list)
   plotsvykey<-"2016citizen"
@@ -165,10 +136,10 @@ if ({plotting_to_inspect_distribution<-FALSE;plotting_to_inspect_distribution}) 
     #magrittr::use_series("myown_factoredparticip") %>%
     #shapiro.test()
     custom_plot("myown_factoredparticip_scaled","myown_wr")
-    #dplyr::select(!!need_particip_var[[plotsvykey]], myown_factoredparticip) %>%
-    #View()
+  #dplyr::select(!!need_particip_var[[plotsvykey]], myown_factoredparticip) %>%
+  #View()
   merged_acrossed_surveys_overall %>%
-  #dplyr::filter(merged_acrossed_surveys_overall, .imp==1, SURVEY==!!plotsvykey) %>%
+    #dplyr::filter(merged_acrossed_surveys_overall, .imp==1, SURVEY==!!plotsvykey) %>%
   {
     custom_plot(., "myown_factoredparticip","myown_wr") %>% print()
     custom_plot(., "myown_factoredparticip_scaled","myown_wr") %>% print()
@@ -180,28 +151,92 @@ if ({plotting_to_inspect_distribution<-FALSE;plotting_to_inspect_distribution}) 
 }
 
 
+# null models ----------------------------
+
+if ({nullmodel_icc_test<-FALSE;nullmodel_icc_test}) {
+  pp_nullmodel_args<-data.frame("formula"=c(
+    "myown_factoredparticip~1+(1|adminvillage/admindistrict/myown_areakind/cluster_kamila/SURVEY)",
+    "myown_factoredparticip~1+(1|cluster_kamila/SURVEY)",
+    "myown_factoredparticip~1+(1|cluster_kamila)",
+    "myown_factoredparticip~1+(1|SURVEY)",
+    "myown_factoredparticip~1+(1|adminvillage)",
+    "myown_factoredparticip~1+(1|admindistrict)",
+    "myown_factoredparticip~1+(1|admincity)",
+    "myown_factoredparticip~1+(1|myown_areakind)"
+  ))
+  pp_nullmodels<-custom_apply_thr_argdf(pp_nullmodel_args, "formula", function(fikey, loopargdf, datadf, ...) {
+    dplyr::filter(loopargdf, formula==!!fikey) %>%
+      magrittr::use_series("formula") %>%
+      as.character() %>%
+      as.formula() %>%
+      # lme4::glmer(formula=., data={
+      #     dplyr::mutate_at(datadf, "myown_factoredparticip", ~myown_factoredparticip-min(myown_factoredparticip)+1 )
+      # }, family = Gamma) %>% #, family = poisson(link = "log")
+      #robustlmm::rlmerRcpp(formula=., data=datadf) %>%
+      #lme4::lmer(formula=., data=datadf) %>%
+      #lme4::bootMer(x=., data=datadf) %>%
+      # ordinal::clmm(formula=., data=datadf, weights=datadf$myown_wr, Hess=TRUE, model = TRUE, link = "logit",
+      #               threshold = "symmetric") %>% #c("flexible", "symmetric", "symmetric2", "equidistant")
+      return()
+  }, datadf=merged_acrossed_surveys_list[[1]])
+  
+  #lme4:::summary.merMod(nullmodel1)
+  lapply(nullmodels, try(performance::icc))
+  #sum(residuals(nullmodels$`myown_factoredparticip~1+(1|cluster_kamila)`))
+  #shapiro.test(residuals(nullmodels$`myown_factoredparticip~1+(1|cluster_kamila)`))
+}
+
+
+ppmodels_file<-paste0(save_dataset_in_scriptsfile_directory,"/analyse_res/ppmodels.RData")
+load(file=ppmodels_file, verbose=TRUE)
 ppmodel_args<-data.frame("formula"=c(
-  "myown_factoredparticip~myown_factoredses_overallscaled+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_marriage+myown_sex+myown_selfid+cluster_kamila+myown_areakind+SURVEY+1+(1|cluster_kamila)"#,
+  "myown_factoredparticip_ordinal~1+(1|adminvillage)",
+  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+myown_age_overallscaled+(1|adminvillage)",
+  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+(1|adminvillage)",
+  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled*myown_age_overallscaled+SURVEY+(1|adminvillage)",
+  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+(1|adminvillage)",
+  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+(1|adminvillage)",
+  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+(1|adminvillage)",
+  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+(1|adminvillage)",
+  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+(1|adminvillage)",
+  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+(1|adminvillage)",
+  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila+(1|adminvillage)",
+  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila+myown_religion+(1|adminvillage)",
+  "myown_factoredparticip_ordinal~(myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila+myown_religion)|adminvillage"
+  #"myown_factoredparticip_ordinal~myown_factoredses_overallscaled+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila",
+  #"myown_factoredparticip_ordinal~myown_factoredses_overallscaled+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila+(1|cluster_kamila)",
+  #"myown_factoredparticip_ordinal~myown_factoredses_overallscaled+myown_age_overallscaled+SURVEY+cluster_kamila+(1|cluster_kamila)",
+  #"myown_factoredparticip_ordinal~myown_factoredses_overallscaled+myown_age_overallscaled+myown_marriage+myown_sex+myown_selfid+cluster_kamila+myown_areakind+SURVEY+1+(1|cluster_kamila)",
+  #FULL
+  #"myown_factoredparticip_ordinal~myown_factoredses_overallscaled+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_marriage+myown_sex+myown_selfid+cluster_kamila+myown_areakind+SURVEY+1+(1|cluster_kamila)"#,
+  #"myown_factoredparticip_ordinal~myown_factoredses_overallscaled+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_marriage+myown_sex+myown_selfid+cluster_kamila+myown_areakind+SURVEY+1+(1|cluster_kamila)"#,
   #"myown_factoredparticip~myown_factoredses_overallscaled+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_marriage+myown_sex+myown_selfid+cluster_kamila+myown_areakind+SURVEY+cluster_kamila*SURVEY+1+(1|cluster_kamila)"#,
   #"myown_factoredparticip~(1|adminvillage/admindistrict/admincity/myown_areakind/cluster_kamila/SURVEY)"
-))
+)) %>%
+  dplyr::filter(!(formula %in% !!names(all_ppmodels)))
+
 #merged_acrossed_surveys_list[[1]]$
-library(lme4)
+#library(lme4)
 ppmodels<-custom_apply_thr_argdf(ppmodel_args, "formula", function(fikey, loopargdf, datadf, ...) {
   dplyr::filter(loopargdf, formula==!!fikey) %>%
     magrittr::use_series("formula") %>%
     as.character() %>%
     as.formula() %>%
-    lme4::glmer(formula=., data={
-        dplyr::mutate_at(datadf, "myown_factoredparticip", ~myown_factoredparticip-min(myown_factoredparticip)+1 )
-    }, family = Gamma) %>% #, family = poisson(link = "log")
+    # lme4::glmer(formula=., data={
+    #     dplyr::mutate_at(datadf, "myown_factoredparticip", ~myown_factoredparticip-min(myown_factoredparticip)+1 )
+    # }, family = Gamma) %>% #, family = poisson(link = "log")
     #robustlmm::rlmerRcpp(formula=., data=datadf) %>%
     #lme4::lmer(formula=., data=datadf) %>%
     #lme4::bootMer(x=., data=datadf) %>%
+    ordinal::clmm(formula=., data=datadf, weights=datadf$myown_wr, Hess=TRUE, model = TRUE, link = "logit",
+         threshold = "symmetric") %>% #c("flexible", "symmetric", "symmetric2", "equidistant")
     return()
-}, datadf=merged_acrossed_surveys_list[[1]], mc.cores=1)
-merged_acrossed_surveys_list[[1]]
+}, datadf=merged_acrossed_surveys_list[[1]])
 
+all_ppmodels<-rlist::list.merge(all_ppmodels, ppmodels)
+save(all_ppmodels,file=ppmodels_file)
+
+lapply(all_ppmodels, function(X) {try(ordinal:::summary.clmm(X))})
 lapply(ppmodels, lme4:::summary.merMod, signif.stars=TRUE)
 lapply(ppmodels, summary, signif.stars=TRUE)
 lapply(ppmodels, function(X) {sum(lme4:::residuals.merMod(X))} )

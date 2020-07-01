@@ -132,13 +132,16 @@ poLCA_survey_results<-needpoLCAsurveys_arguments_df$store_key %>% #poLCA_infodf$
 #    do.call(poLCA.table, .) %>%
 #    return()
 #})
-openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1) %>%
-  dplyr::filter(SURVEY %in% needpoLCAsurveys, ID %in% !!c(unlist(lcaneed_independence_attitude[survey_data_title]), "v90") ) %>%
-  dplyr::distinct(SURVEY, ID, QUESTION, ANSWER) %>%
-  View()
-openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1) %>%
-  dplyr::distinct(SURVEY,ID,QUESTION,ANSWER) %>%
-  View()
+if (FALSE) {
+  openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1) %>%
+    dplyr::filter(SURVEY %in% needpoLCAsurveys, ID %in% !!c(unlist(lcaneed_independence_attitude[survey_data_title]), "v90") ) %>%
+    dplyr::distinct(SURVEY, ID, QUESTION, ANSWER) %>%
+    View()
+  openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1) %>%
+    dplyr::distinct(SURVEY,ID,QUESTION,ANSWER) %>%
+    View()
+}
+
 
 #v90 就兩岸關係而言,請問您覺得台灣獨立,統一,維持現狀何者比較好?
 #v91 請問您同不同意若台灣宣佈獨立,仍可和中共維持和平關係,則台灣應成為一個新國家?

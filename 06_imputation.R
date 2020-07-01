@@ -9,11 +9,7 @@ source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding=
 gc(verbose=TRUE)
 
 load(paste0(dataset_in_scriptsfile_directory, "all_survey_combined_after_settingNA.RData"), verbose=TRUE)
-survey_imputation_and_measurement<-try(openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1))
-if(is(survey_imputation_and_measurement, 'try-error')) {
-  survey_imputation_and_measurement<- paste0(dataset_in_scriptsfile_directory,"imputationcomputingbasis.xlsx") %>%
-    openxlsx::read.xlsx(sheet = 1)
-}
+survey_imputation_and_measurement<-custom_ret_survey_imputation_and_measurement(paths_to_survey_imputation_and_measurement_file)
 
 # 第四部份：清理資料：填補遺漏值 -------------------------------------------
 

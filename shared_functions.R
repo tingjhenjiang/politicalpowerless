@@ -390,7 +390,7 @@ custom_plot<-function(df, fvar, weightvar="", usingsurveypkg=FALSE, fillcolor=""
            "numeric"=ggplot2::scale_fill_distiller(palette = "Pastel2"),#scale_fill_continuous(type = "gradient"),
            "factor"=ggplot2::scale_fill_brewer(palette = "Pastel2")
     )
-    ggplotinit+statlayer+ggplotlab#+geom_func+scale_colour_brewer()+ggp_scale
+    return(ggplotinit+statlayer+ggplotlab) #+geom_func+scale_colour_brewer()+ggp_scale
   }
 }
 custom_notdfplot<-function(srcvector, weight=NULL, usingsurveypkg=FALSE, fillcolor="", ...) {
@@ -486,7 +486,39 @@ mutate_last <- function(.data, ...) {
 #  mutate_last(qty.exit = qty, cf = 0, delta.watts = 13) %>%
 #  ungroup() %>%
 #  select(-is.exit)
-path_to_survey_imputation_and_measurement_file<-paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx")
+paths_to_survey_imputation_and_measurement_file<-c(
+  paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx"),
+  paste0(dataset_in_scriptsfile_directory,"imputationcomputingbasis.xlsx")
+)
+custom_ret_survey_imputation_and_measurement<-function(paths) {
+  survey_imputation_and_measurement<-try(openxlsx::read.xlsx(paths[1],sheet = 1))
+  if(is(survey_imputation_and_measurement, 'try-error')) {
+    survey_imputation_and_measurement<- paths[2] %>%
+      openxlsx::read.xlsx(sheet = 1)
+  }
+  return(survey_imputation_and_measurement)
+}
+
+kamila_clustering_parameters_path<-paste0(dataset_in_scriptsfile_directory, "kamila_clustering_parameters.Rdata")
+custom_ret_appro_kamila_clustering_parameters<-function(path=kamila_clustering_parameters_path, intact=FALSE) {
+  load(file=path, verbose=TRUE)
+  if (intact==TRUE) {
+    return(kamila_clustering_parameters)
+  }
+  needimps<-dplyr::distinct(kamila_clustering_parameters,survey,imp,totlclusters) %>%
+    dplyr::filter( (survey=="2010overall" & totlclusters==4) | (survey=="2016citizen" & totlclusters==6)) %>%
+    dplyr::select(-totlclusters)
+  n_of_imps<-dplyr::group_by(needimps, survey) %>%
+    dplyr::summarise(nimps=dplyr::n()) %>%
+    magrittr::use_series(nimps) %>%
+    min()
+  t<-dplyr::group_by(needimps, survey) %>%
+    dplyr::slice_head(n=n_of_imps) %>%
+    dplyr::ungroup() %>%
+    dplyr::mutate(.imp=imp) %>%
+    cbind(newimp=rep.int(1:n_of_imps, 2))
+  return(t)
+}
 
 gcreset<-function() {
   gc(reset = TRUE)
@@ -998,6 +1030,18 @@ custom_apply_thr_argdf <- function(argdf, loopstorekey, customfunc, method="fork
 #     lme4::lmer(data=datadf) %>%
 #     return()
 # }, datadf=merged_acrossed_surveys_list[[1]])
+
+#https://stats.stackexchange.com/questions/233800/how-can-i-get-confidence-intervals-for-fixed-effects-using-the-rlmer-function-r
+confint.rlmerMod <- function(object,parm,level=0.95) {
+  beta <- fixef(object)
+  if (missing(parm)) parm <- names(beta)
+  se <- sqrt(diag(vcov(object)))
+  z <- qnorm((1+level)/2)
+  ctab <- cbind(beta-z*se,beta+z*se)
+  colnames(ctab) <- stats:::format.perc(c((1-level)/2,(1+level)/2),
+                                        digits=3)
+  return(ctab[parm,])
+}
 
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"

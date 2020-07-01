@@ -45,8 +45,10 @@ adminparty <- list(
     "adminparty"=c(0,1,0,0,0,0)
   )
 ) %>%
-  do.call(dplyr::bind_rows,.) %>%
-  dplyr::mutate_at("adminparty", as.factor)
+  dplyr::bind_rows() %>%
+  dplyr::mutate("partysize"="small") %>%
+  mutate_cond(party %in% c("中國國民黨","民主進步黨"), "partysize"="large") %>%
+  dplyr::mutate_at(c("adminparty","partysize"), as.factor)
 
 # 第一部分：投票及議案及「問卷答案對照意向」資料,主要也就是RData&excel檔  -------------------------------------------
 
@@ -913,6 +915,7 @@ mergedf_votes_bills_surveyanswer <- dplyr::distinct(legislators_with_elections,t
 
 mergedf_votes_bills_surveyanswer <- mergedf_votes_bills_surveyanswer %>%
   dplyr::left_join(bills_billcontent, by = c("billid_myown","term","period","meetingno","temp_meeting_no","billn","billresult","date")) %>% ##,"url"
+  dplyr::select(-tidyselect::contains("billarea0")) %>%
   dplyr::right_join(bills_answer_to_bill, by = c("billid_myown")) %>%  #left 1419337 right 926609
   #篩選出研究範圍
   #dplyr::inner_join(distinct(survey_time_range_df,yrmonth)) %>%
@@ -947,17 +950,21 @@ mergedf_votes_bills_surveyanswer <- mergedf_votes_bills_surveyanswer %>%
   mutate_cond(opiniondirectionfromconstituent=='x' | opiniondirectionfromconstituent=='b' | opiniondirectionfrombill=='x', respondopinion=NA, success_on_bill=NA) %>%
   mutate_cond(is.na(salient), salient=0) %>%
   dplyr::mutate(ansv_and_label=paste0("[",SURVEYANSWERVALUE,"] ",LABEL)) %>%
-  dplyr::mutate_at(c("SURVEY","billresult","legislator_party","pp_agendavoting","pp_propose_advanceforagenda","value_on_q_variable","variable_on_q","pp_lawamendment","issue_field1","issue_field2","respondopinion","success_on_bill","ansv_and_label"), as.factor) %>%
+  dplyr::mutate_at(dplyr::vars(tidyselect::any_of(c("SURVEY","billresult","legislator_party","pp_agendavoting","pp_propose_advanceforagenda","value_on_q_variable","variable_on_q","pp_lawamendment","respondopinion","success_on_bill","ansv_and_label") ) ) , as.factor) %>% #"issue_field1","issue_field2"
   dplyr::arrange(term, period, temp_meeting_no, meetingno, billn) %>%
   dplyr::mutate_at("respondopinion", as.ordered) %>%
   dplyr::select(-tidyselect::any_of(c("date","urln","pp_committee","votecontent","pp_enactment","pp_enforcement","pp_res_bynew","pp_res_bycompete","pp_res_notjudged","pp_ignored","billconflict","pol_score","eco_score","SURVEYQUESTIONID"))) %>%
   dplyr::select(-tidyselect::any_of(c("url.x","url.y","pp_keyword.x","pp_keyword.y","billcontent.x","billcontent.y","SURVEYANSWERVALUE","LABEL","QUESTION"))) %>%
   dplyr::select(-tidyselect::any_of(c("yrmonth","pp_groupbased","pp_propose_advanceforagenda","period","temp_meeting_no","meetingno","billn","billresult","opinionstrength","issue_field_importance"))) %>%
-  dplyr::select(!dplyr::starts_with("billarea0")) %>%
+  #dplyr::select(!dplyr::starts_with("billarea0")) %>%
   dplyr::select(!starts_with("opiniondirection")) %>%
   dplyr::select(!starts_with("opinionfrom")) %>%
   dplyr::select(-tidyselect::any_of(c("legislator_age","incumbent","legislator_party","legislator_sex","seniority","votedecision"))) %>%
-  dplyr::mutate_at(c("legislator_name","salient","billid_myown"), as.factor)
+  dplyr::mutate_at(c("legislator_name","salient","billid_myown"), as.factor) %>%
+  dplyr::mutate_at(dplyr::vars(tidyselect::contains("billarea0")), ~as.factor(as.character(.))) %>%
+  {.[!sapply(., function (x) all(is.na(x)))]} # drop all empty columns
+
+#if (unique(mergedf_votes_bills_surveyanswer$))
 
 #check
 #dplyr::filter(mergedf_votes_bills_surveyanswer,is.na(opinionstrength)) %>% dplyr::distinct(billid_myown, value_on_q_variable, variable_on_q) %>% View()

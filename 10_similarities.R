@@ -9,19 +9,26 @@ source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding=
 
 # 第一部份：計算受訪者與立法委員的相似性 --------------------------------
 load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"), verbose=TRUE)
-people_legialator_match <- data.frame(
+people_legislator_match <- data.frame(
   key=c("2004citizen","2004citizen","2010env","2010env","2010overall","2010overall","2016citizen"),
-  term=c(5,6,7,8,7,8,9)) %>%
+  term=c(5,6,7,8,7,8,9), stringsAsFactors=FALSE) %>%
   cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
-  dplyr::mutate(pp_ly_match = paste0(key,"_term",term,"_imp",imp) )
+  dplyr::mutate(pp_ly_match = paste0(key,"_term",term,"_imp",imp) ) %>%
+  dplyr::filter(key %in% names(survey_data_imputed), term %in% c(7,9))
 #legislators_with_elections:  "term" "legislator_name" "legislator_sex" "legislator_party" "partyGroup" "areaName" "degree" "experience" "servingdayslong_in_this_term" "seniority" "legislator_age" "education" "incumbent" "wonelection" "election_party" "electionarea" "admincity" "admindistrict" "adminvillage" "elec_dist_type"
 #legislators_additional_attr: "term" "legislator_name" "legislator_eduyr" "legislator_occp" "legislator_ses" "legislator_ethnicity"
 #"myown_sex" "myown_eduyr" "myown_ses" "myown_age" "myown_selfid"
 legislators_sim_basis <- dplyr::distinct(legislators_with_elections, term, legislator_name, legislator_sex, legislator_age) %>%
   dplyr::left_join(legislators_additional_attr)
-distance_dissimilarities_pply<-mapply(function(key,term,imp,survey_data_imputed,legislators_sim_basis) {
+
+distance_dissimilarities_pply<-custom_apply_thr_argdf(people_legislator_match, "pp_ly_match", function(fikey, loopargdf, datadf, legislators_sim_basis=legislators_sim_basis, ...) {
+  needrow<-dplyr::filter(loopargdf, pp_ly_match==!!fikey)
+  key<-needrow$key
+  imp<-needrow$imp
+  term<-needrow$term
   targetcolnames<-c("sex","eduyr","ses","age","selfid")
   basissurveydf<-survey_data_imputed[[key]] %>%
     .[.$.imp==imp,]
@@ -38,16 +45,15 @@ distance_dissimilarities_pply<-mapply(function(key,term,imp,survey_data_imputed,
     dplyr::mutate_at("legislator_ethnicity", as.character) %>%
     magrittr::set_colnames(targetcolnames) %>%
     as.data.frame()
-  similarities <- StatMatch::gower.dist(x, y, rngs=NULL, KR.corr=TRUE, var.weights = NULL) %>%
-    magrittr::set_colnames(legislators_sim_basis[legislators_sim_basis$term==term,]$legislator_name) %>%
-    magrittr::set_rownames(respondentids)
+  similarities <- try({StatMatch::gower.dist(x, y, rngs=NULL, KR.corr=TRUE, var.weights = NULL) %>%
+      magrittr::set_colnames(legislators_sim_basis[legislators_sim_basis$term==term,]$legislator_name) %>%
+      magrittr::set_rownames(respondentids)})
   return(similarities)
-}, key=people_legialator_match$key, term=people_legialator_match$term, imp=people_legialator_match$imp, MoreArgs = list(survey_data_imputed,legislators_sim_basis), SIMPLIFY=FALSE) %>%
-  magrittr::set_names(people_legialator_match$pp_ly_match)
+}, datadf=survey_data_imputed, legislators_sim_basis=legislators_sim_basis)
 
 similarities_bet_pp_ly_longdf <- names(distance_dissimilarities_pply) %>%
   custom_parallel_lapply(., function(fikey,...) {
-    needrow<-dplyr::filter(people_legialator_match, pp_ly_match==!!fikey)
+    needrow<-dplyr::filter(people_legislator_match, pp_ly_match==!!fikey)
     needmatrix<-distance_dissimilarities_pply[[fikey]]
     allrows_to_vectors<-c()
     legislator_names<-c()
@@ -59,7 +65,7 @@ similarities_bet_pp_ly_longdf <- names(distance_dissimilarities_pply) %>%
       dplyr::select(-pp_ly_match) %>%
       dplyr::rename(SURVEY=key) %>%
       return()
-  },people_legialator_match=people_legialator_match,
+  },people_legislator_match=people_legislator_match,
   distance_dissimilarities_pply=distance_dissimilarities_pply,
   method=parallel_method
   ) %>%

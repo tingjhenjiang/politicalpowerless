@@ -11,7 +11,7 @@ source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding=
 term_to_survey <- data.frame("term"=c(5,6,7,7,8,8,9), "SURVEY"=c("2004citizen","2004citizen","2010env","2010overall","2010env","2010overall","2016citizen"))
 gc(verbose=TRUE)
 
-survey_imputation_and_measurement<-openxlsx::read.xlsx(path_to_survey_imputation_and_measurement_file,sheet = 1)
+survey_imputation_and_measurement<-custom_ret_survey_imputation_and_measurement(paths_to_survey_imputation_and_measurement_file)
 survey_codebook<-openxlsx::read.xlsx(paste0(dataset_file_directory,"all_survey_questions_englished.xlsx"),sheet = 4)
 
 
@@ -295,6 +295,7 @@ C．選取合格者
 
 # 第七部份：把問卷資料變形以便串連及行政區、選舉資料 ---------------------------------
 load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
 #library(reshape2)
 #survey_oldq_id<-list(
 #  "2004citizen"=c("v25","v26","v27","v41","v42","v43","v44","v45","v46","v60","v61","v62","v65","v74","v91a","v91b","v92_1","v92_2","v92_3","v92_4","v92_5","v93a","v93b","v95","v96","v97","v105a","v105b","v105c","v106a","v106b","v106c","v107a","v107b","v107c","v114","v118a","v118b","v118c","v118d"),
@@ -348,11 +349,15 @@ if({covert_label_according_to_xls_codebook<-FALSE;covert_label_according_to_xls_
   #X
 }
 
+needimps<-custom_ret_appro_kamila_clustering_parameters() %>%
+  dplyr::rename(SURVEY=survey) %>%
+  dplyr::select(-.imp)
+needsurveys<-names(survey_data_imputed)
 #survey_data_melted
 complete_survey_dataset <- mapply(function(X,Y) {
   survey_data_title<-X$SURVEY[1]
   X<-dplyr::mutate_at(X,Y,as.character) %>%
-    dplyr::mutate_at("myown_age",~as.numeric(scale(.)))
+    dplyr::mutate(myown_age_grpscaled=as.numeric(scale(myown_age)))
   if (survey_data_title=="2010overall") {
     X %<>% dplyr::mutate(stratum=as.character(paste0("2010overall",stratum2)))
   }
@@ -366,7 +371,7 @@ complete_survey_dataset <- mapply(function(X,Y) {
   other_var_as_id<-base::setdiff(names(X),Y)
   reshape2::melt(X, id.vars = other_var_as_id, variable.name = "SURVEYQUESTIONID", value.name = "SURVEYANSWERVALUE") %>%
     dplyr::mutate_at("SURVEYANSWERVALUE", as.character)
-},X=survey_data_imputed,Y=survey_q_ids) %>%
+},X=survey_data_imputed[needsurveys],Y=survey_q_ids[needsurveys]) %>%
   {#節省欄位合併
     common_var<-Reduce(base::intersect, lapply(., names )) %>%
       base::setdiff(c("sd")) %>% c("psu","ssu","stratum")
@@ -383,7 +388,9 @@ complete_survey_dataset <- mapply(function(X,Y) {
   dplyr::mutate_at(c("SURVEY","admincity","admindistrict","adminvillage","value_on_q_variable"),as.factor) %>%
   dplyr::mutate_at("id", as.integer) %>%
   dplyr::mutate_at(c("stratum","psu","ssu"), as.factor) %>%
-  dplyr::filter(SURVEY %in% c("2010overall","2016citizen"))
+  dplyr::filter(SURVEY %in% c("2010overall","2016citizen")) %>%
+  dplyr::semi_join(needimps) %>%
+  dplyr::left_join(needimps)
 
 #complete_survey_dataset %<>% data.table::as.data.table()
 #save(complete_survey_dataset,file=paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"))
