@@ -851,7 +851,7 @@ ret_std_legislators_data<-function(legislatorsxlsxpath = paste0(dataset_file_dir
     dplyr::mutate(seniority=cumsum(servingdayslong_in_this_term)-servingdayslong_in_this_term) %>%
     dplyr::ungroup() %>%
     dplyr::group_by(term) %>%
-    dplyr::mutate_at("seniority", ~as.numeric(scale(.))) %>%
+    #dplyr::mutate_at("seniority", ~as.numeric(scale(.))) %>%
     dplyr::ungroup() %>%
     dplyr::filter(term %in% terms) %>%
     dplyr::mutate_at(c("term"), as.character) %>%

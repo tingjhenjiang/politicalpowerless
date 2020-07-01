@@ -775,7 +775,7 @@ myown_vote_record_df <- meetingdata %>% #20:114 term9 58,
       mc.cores=parallel::detectCores() # #
     ), .$termmeetingtime)
   } %>%
-  dplyr::bind_rows() %>% #plyr::rbind.fill() %>%
+  plyr::rbind.fill() %>% # %>%
   dplyr::filter(!is.na(legislator_name)) %>%
   mutate_cond(term==9 & customgrepl(legislator_name,"簡東明"),legislator_name="簡東明Uliw．Qaljupayare") %>%
   mutate_cond(term==9 & customgrepl(legislator_name,"廖國棟"),legislator_name="廖國棟Sufin．Siluko") %>%
@@ -787,6 +787,7 @@ myown_vote_record_df <- meetingdata %>% #20:114 term9 58,
       dplyr::distinct(term, legislator_name)
   })
 
+myown_vote_record_df %<>% data.table::as.data.table()
 save(myown_vote_record_df,file=paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df.RData"))
 
 #myown_vote_record_df<-do.call("rbind",custom_parallel_lapply(

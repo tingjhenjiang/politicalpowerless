@@ -659,203 +659,218 @@ mirt::itemplot(resmodel)
 
 
 # * EFA by IRT.fa --------------------------------
-res.irtefas <- list()
-resirtefasfile <- paste0(dataset_in_scriptsfile_directory, "res.irtefas.RData")
-custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), function (fi, myown_vote_record_df_wide_billidascol, resirtefasfile, parallelfa_result_n_factor, widedata_preserve_vars) {
-  n_component_row<-dplyr::filter(parallelfa_result_n_factor, i==fi)
-  n_component<-magrittr::use_series(n_component_row, fa)
-  plot_title<-magrittr::use_series(n_component_row, term)
-  colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[fi]]), widedata_preserve_vars)
-  votingdfwide<-myown_vote_record_df_wide_billidascol[[fi]][,colname_billids] %>%
-    dplyr::mutate_all(.funs=unclass)
-  residx <- paste0(plot_title,"_",n_component)
-  if (TRUE) {
-    resmodel <- #psych::polychoric(votingdfwide, na.rm=FALSE) %>%
-      psych::irt.fa(votingdfwide,nfactors=n_component, rotate="varimax", missing=TRUE)
-    load(file=resirtefasfile)
-    res.irtefas[[residx]] <- resmodel
-    save(res.irtefas, file = resirtefasfile)
-  }
-},myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol,
-resirtefasfile=resirtefasfile,
-parallelfa_result_n_factor=parallelfa_result_n_factor,
-widedata_preserve_vars=widedata_preserve_vars,
-method=parallel_method,
-mc.cores=1) #nrow(parallelfa_result_n_factor)
-load(file=resirtefasfile, verbose=TRUE)
-for (residx in names(res.irtefas)) {
-  #View(res.irtefas[[residx]]$irt$difficulty)
-  res.irtefas[[residx]]$irt$discrimination %>%
+if (FALSE) {
+  res.irtefas <- list()
+  resirtefasfile <- paste0(dataset_in_scriptsfile_directory, "res.irtefas.RData")
+  custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), function (fi, myown_vote_record_df_wide_billidascol, resirtefasfile, parallelfa_result_n_factor, widedata_preserve_vars) {
+    n_component_row<-dplyr::filter(parallelfa_result_n_factor, i==fi)
+    n_component<-magrittr::use_series(n_component_row, fa)
+    plot_title<-magrittr::use_series(n_component_row, term)
+    colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[fi]]), widedata_preserve_vars)
+    votingdfwide<-myown_vote_record_df_wide_billidascol[[fi]][,colname_billids] %>%
+      dplyr::mutate_all(.funs=unclass)
+    residx <- paste0(plot_title,"_",n_component)
+    if (TRUE) {
+      resmodel <- #psych::polychoric(votingdfwide, na.rm=FALSE) %>%
+        psych::irt.fa(votingdfwide,nfactors=n_component, rotate="varimax", missing=TRUE)
+      load(file=resirtefasfile)
+      res.irtefas[[residx]] <- resmodel
+      save(res.irtefas, file = resirtefasfile)
+    }
+  },myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol,
+  resirtefasfile=resirtefasfile,
+  parallelfa_result_n_factor=parallelfa_result_n_factor,
+  widedata_preserve_vars=widedata_preserve_vars,
+  method=parallel_method,
+  mc.cores=1) #nrow(parallelfa_result_n_factor)
+  load(file=resirtefasfile, verbose=TRUE)
+  for (residx in names(res.irtefas)) {
+    #View(res.irtefas[[residx]]$irt$difficulty)
+    res.irtefas[[residx]]$irt$discrimination %>%
     {dplyr::bind_cols(
       data.frame(billid=rownames(.)), as.data.frame(.))} %>%
-    openxlsx::write.xlsx("TMP.xlsx")
-  readline(paste0("now in ", residx))
-}
-for (residx in names(res.irtefas)) {
-  fi<-parallelfa_result_n_factor$i[which(parallelfa_result_n_factor$need_factorn==residx)]
-  term<-parallelfa_result_n_factor$term[which(parallelfa_result_n_factor$need_factorn==residx)]
-  colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[fi]]), widedata_preserve_vars)
-  votingdfwide<-myown_vote_record_df_wide_billidascol[[fi]][,colname_billids] %>%
-    dplyr::mutate_all(.funs=unclass)
-  #psych::score.irt.poly(stats=res.irtefas[[residx]], items=votingdfwide)
-  dplyr::select(myown_vote_record_df_wide_billidascol[[fi]] ,legislator_name) %>%
-    dplyr::mutate(term=!!term) %>%
-    dplyr::bind_cols(psych::scoreIrt(stats=res.irtefas[[residx]], items=votingdfwide)) %>%
-    openxlsx::write.xlsx("TMP.xlsx")
-  readline(paste0("now in ", residx))
-}
-# * EFA by polychoric correlations --------------------------------
-#http://personality-project.org/r/psych/HowTo/factor.pdf
-res.catgfas <- list()
-rescatgfasfile <- paste0(dataset_in_scriptsfile_directory, "res.catgfas_noimp.RData")
-custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), function (fi, myown_vote_record_df_wide_billidascol, rescatgfasfile, parallelfa_result_n_factor, widedata_preserve_vars) {
-  n_component_row<-dplyr::filter(parallelfa_result_n_factor, i==fi)
-  n_component<-magrittr::use_series(n_component_row, fa)
-  plot_title<-magrittr::use_series(n_component_row, term)
-  colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[fi]]), widedata_preserve_vars)
-  votingdfwide<-myown_vote_record_df_wide_billidascol[[fi]][,colname_billids] %>%
-    dplyr::mutate_all(.funs=unclass)
-  residx <- paste0(plot_title,"_",n_component)
-  if (TRUE) {
-    #from https://alice86.github.io/2018/04/08/Factor-Analysis-on-Ordinal-Data-example-in-R-(psych,-homals)/
-    #https://sakaluk.wordpress.com/2016/05/26/11-make-it-pretty-scree-plots-and-parallel-analysis-using-psych-and-ggplot2/
-    resmodel <- psych::fa(r=votingdfwide, nfactors=n_component, rotate="varimax", cor="poly", missing=FALSE)
-    load(file=rescatgfasfile)
-    res.catgfas[[residx]] <- resmodel
-    save(res.catgfas, file = rescatgfasfile)
+      openxlsx::write.xlsx("TMP.xlsx")
+    readline(paste0("now in ", residx))
   }
-},myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol,
-rescatgfasfile=rescatgfasfile,
-parallelfa_result_n_factor=parallelfa_result_n_factor,
-widedata_preserve_vars=widedata_preserve_vars,
-method=parallel_method,
-mc.cores=nrow(parallelfa_result_n_factor))
-load(rescatgfasfile,verbose=TRUE)
-for (residx in names(res.catgfas)) {
-  res.catgfas[[residx]]$loadings %>% unclass() %>% as.data.frame() %>%
+  for (residx in names(res.irtefas)) {
+    fi<-parallelfa_result_n_factor$i[which(parallelfa_result_n_factor$need_factorn==residx)]
+    term<-parallelfa_result_n_factor$term[which(parallelfa_result_n_factor$need_factorn==residx)]
+    colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[fi]]), widedata_preserve_vars)
+    votingdfwide<-myown_vote_record_df_wide_billidascol[[fi]][,colname_billids] %>%
+      dplyr::mutate_all(.funs=unclass)
+    #psych::score.irt.poly(stats=res.irtefas[[residx]], items=votingdfwide)
+    dplyr::select(myown_vote_record_df_wide_billidascol[[fi]] ,legislator_name) %>%
+      dplyr::mutate(term=!!term) %>%
+      dplyr::bind_cols(psych::scoreIrt(stats=res.irtefas[[residx]], items=votingdfwide)) %>%
+      openxlsx::write.xlsx("TMP.xlsx")
+    readline(paste0("now in ", residx))
+  }
+}
+
+# * EFA by polychoric correlations --------------------------------
+if (FALSE) {
+  #http://personality-project.org/r/psych/HowTo/factor.pdf
+  res.catgfas <- list()
+  rescatgfasfile <- paste0(dataset_in_scriptsfile_directory, "res.catgfas_noimp.RData")
+  custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), function (fi, myown_vote_record_df_wide_billidascol, rescatgfasfile, parallelfa_result_n_factor, widedata_preserve_vars) {
+    n_component_row<-dplyr::filter(parallelfa_result_n_factor, i==fi)
+    n_component<-magrittr::use_series(n_component_row, fa)
+    plot_title<-magrittr::use_series(n_component_row, term)
+    colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[fi]]), widedata_preserve_vars)
+    votingdfwide<-myown_vote_record_df_wide_billidascol[[fi]][,colname_billids] %>%
+      dplyr::mutate_all(.funs=unclass)
+    residx <- paste0(plot_title,"_",n_component)
+    if (TRUE) {
+      #from https://alice86.github.io/2018/04/08/Factor-Analysis-on-Ordinal-Data-example-in-R-(psych,-homals)/
+      #https://sakaluk.wordpress.com/2016/05/26/11-make-it-pretty-scree-plots-and-parallel-analysis-using-psych-and-ggplot2/
+      resmodel <- psych::fa(r=votingdfwide, nfactors=n_component, rotate="varimax", cor="poly", missing=FALSE)
+      load(file=rescatgfasfile)
+      res.catgfas[[residx]] <- resmodel
+      save(res.catgfas, file = rescatgfasfile)
+    }
+  },myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol,
+  rescatgfasfile=rescatgfasfile,
+  parallelfa_result_n_factor=parallelfa_result_n_factor,
+  widedata_preserve_vars=widedata_preserve_vars,
+  method=parallel_method,
+  mc.cores=nrow(parallelfa_result_n_factor))
+  load(rescatgfasfile,verbose=TRUE)
+  for (residx in names(res.catgfas)) {
+    res.catgfas[[residx]]$loadings %>% unclass() %>% as.data.frame() %>%
     {
       cbind(., row.names(.))
     } %>%
-    openxlsx::write.xlsx("TMP.xlsx") 
-  readline(paste0("now in ",residx))
-}
-for (residx in names(res.catgfas)) {
-  fi<-parallelfa_result_n_factor$i[which(parallelfa_result_n_factor$need_factorn==residx)]
-  term<-parallelfa_result_n_factor$term[which(parallelfa_result_n_factor$need_factorn==residx)]
-  data.frame(name=myown_vote_record_df_wide_billidascol[[fi]]$legislator_name) %>%
-    dplyr::bind_cols(  as.data.frame(res.catgfas[[residx]]$scores)  ) %>%
-    openxlsx::write.xlsx("TMP.xlsx")
-  readline(paste0("now in term ", term))
-}
-# * EFA by homals --------------------------------
-res.homals <- list()
-# res.homals.accepted_ndimensions <- list()
-res.homals.loadings <- list()
-reshomalsfile <- paste0(dataset_in_scriptsfile_directory, "res.homals.RData")
-res.homals<-custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), function(i,...) {
-  plot_title<-parallelfa_result_n_factor$term[i]
-  colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[i]]), widedata_preserve_vars)
-  votingdfwide<-myown_vote_record_df_wide_billidascol[[i]][,colname_billids] %>%
-    .[complete.cases(.),]
-  n_component<-parallelfa_result_n_factor$fa[i]
-  message(paste("now in",plot_title,"for component in",n_component))
-  #for (n_component in 2:8) { #repeat
-  #n_component<-as.integer(readline(prompt="Enter n_component: "))
-  #from https://alice86.github.io/2018/04/08/Factor-Analysis-on-Ordinal-Data-example-in-R-(psych,-homals)/
-  residx <- paste0(plot_title,"_",n_component)
-  message(paste("now in",residx))
-  resmodel <- homals::homals(votingdfwide, ndim = n_component, level = "ordinal")
-  res.homal.df<-data.frame("index"=residx, "eigenvalue"=resmodel$eigenvalues, "dimension"=1:resmodel$ndim)
-  cache <- apply(votingdfwide, 2, function(x) nlevels(as.factor(x)))
-  ld <- unlist(lapply(resmodel$loadings, function(x) x[1,]))
-  loadings <- matrix(ld, byrow = T, nrow = n_component)
-  colnames(loadings) <- names(cache)
-  load(reshomalsfile, verbose=TRUE)
-  res.homals[[residx]] <- resmodel
-  res.homals.loadings[[residx]] <- loadings
-  save(res.homals, res.homals.loadings, file = reshomalsfile) #res.homals.accepted_ndimensions
-  return(resmodel)
-  #summary(res.homals[[residx]])
-  #plot(res.homals[[residx]], plot.type = "screeplot")
-  #ggplotscreeplot(res.homal.df, "dimension", "eigenvalue")
-  # tmpdim <- readline(paste0("now at ", residx, ", Enter number of dimensions?"))
-  # if (tmpdim=="") {
-  #   break
-  # } else {
-  #   res.homals.accepted_ndimensions[[residx]]<-tmpdim
-  # }
-},myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol,
-parallelfa_result_n_factor=parallelfa_result_n_factor,reshomalsfile=reshomalsfile,
-method=parallel_method,mc.cores=1) %>%
-  magrittr::set_names(parallelfa_result_n_factor$need_factorn)
-save(res.homals, res.homals.loadings, file = reshomalsfile) #res.homals.accepted_ndimensions
-load(file = reshomalsfile, verbose=TRUE)
-homals::plot3dstatic(res.homals[[residx]], plot.type = "screeplot")
-for (residx in names(res.homals.loadings)) {
-  openxlsx::write.xlsx(as.data.frame(res.homals.loadings[[residx]]), "TMP.xlsx")
-  readline(paste("now at loadings", residx, "continue?"))
-  res.homals[[residx]]$objscores %>%
-    as.data.frame() %>%
-    data.frame(name=rownames(.), term=substr(residx,1,1), .) %>%
-    dplyr::mutate_at(base::setdiff(names(.), "name"), as.character) %>%
-    dplyr::mutate_at(base::setdiff(names(.), "name"), as.numeric) %>%
-    openxlsx::write.xlsx("TMP.xlsx")
-  readline(paste("now at objscores", residx, ", continue?"))
+      openxlsx::write.xlsx("TMP.xlsx") 
+    readline(paste0("now in ",residx))
+  }
+  for (residx in names(res.catgfas)) {
+    fi<-parallelfa_result_n_factor$i[which(parallelfa_result_n_factor$need_factorn==residx)]
+    term<-parallelfa_result_n_factor$term[which(parallelfa_result_n_factor$need_factorn==residx)]
+    data.frame(name=myown_vote_record_df_wide_billidascol[[fi]]$legislator_name) %>%
+      dplyr::bind_cols(  as.data.frame(res.catgfas[[residx]]$scores)  ) %>%
+      openxlsx::write.xlsx("TMP.xlsx")
+    readline(paste0("now in term ", term))
+  }
 }
 
-# * EFA by gifi homels --------------------------------
-gifi.res.homals <- list()
-gifi.res.homals.accepted_ndimensions <- list()
-gifi.res.homals.loadings <- list()
-for (i in 1:length(myown_vote_record_df_wide_billidascol)) {
-  plot_title<-terms[i]
-  colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[i]]), widedata_preserve_vars)
-  votingdfwide<-myown_vote_record_df_wide_billidascol[[i]][,colname_billids]
-  Gifi::makeNumeric(votingdfwide)
-  for (n_component in 2:8) { #repeat
-    if (is.na(n_component)) break
+# * EFA by homals --------------------------------
+if (FALSE) {
+  res.homals <- list()
+  # res.homals.accepted_ndimensions <- list()
+  res.homals.loadings <- list()
+  reshomalsfile <- paste0(dataset_in_scriptsfile_directory, "res.homals.RData")
+  res.homals<-custom_parallel_lapply(1:nrow(parallelfa_result_n_factor), function(i,...) {
+    plot_title<-parallelfa_result_n_factor$term[i]
+    colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[i]]), widedata_preserve_vars)
+    votingdfwide<-myown_vote_record_df_wide_billidascol[[i]][,colname_billids] %>%
+      .[complete.cases(.),]
+    n_component<-parallelfa_result_n_factor$fa[i]
+    message(paste("now in",plot_title,"for component in",n_component))
+    #for (n_component in 2:8) { #repeat
+    #n_component<-as.integer(readline(prompt="Enter n_component: "))
     #from https://alice86.github.io/2018/04/08/Factor-Analysis-on-Ordinal-Data-example-in-R-(psych,-homals)/
     residx <- paste0(plot_title,"_",n_component)
-    gifi.res.homals[[residx]] <- Gifi::homals(votingdfwide, ndim = n_component, ordinal = TRUE)
-    #summary(gifi.res.homals[[residx]])
-    #plot(gifi.res.homals[[residx]], plot.type = "screeplot")
-    gifi.res.homals.df<-data.frame("index"=residx, "eigenvalue"=gifi.res.homals[[residx]]$eigenvalues, "dimension"=1:gifi.res.homals[[residx]]$ndim)
-    ggplotscreeplot(res.homal.df, "dimension", "eigenvalue")
-    tmpdim <- readline(paste0("now at ", residx, ", Enter number of dimensions?"))
-    if (tmpdim=="") {
-      break
-    } else {
-      gifi.res.homals.accepted_ndimensions[[residx]]<-tmpdim
-    }
+    message(paste("now in",residx))
+    resmodel <- homals::homals(votingdfwide, ndim = n_component, level = "ordinal")
+    res.homal.df<-data.frame("index"=residx, "eigenvalue"=resmodel$eigenvalues, "dimension"=1:resmodel$ndim)
     cache <- apply(votingdfwide, 2, function(x) nlevels(as.factor(x)))
-    ld <- unlist(lapply(gifi.res.homals[[residx]]$loadings, function(x) x[1,]))
+    ld <- unlist(lapply(resmodel$loadings, function(x) x[1,]))
     loadings <- matrix(ld, byrow = T, nrow = n_component)
     colnames(loadings) <- names(cache)
-    gifi.res.homals.loadings[[residx]] <- loadings
+    load(reshomalsfile, verbose=TRUE)
+    res.homals[[residx]] <- resmodel
+    res.homals.loadings[[residx]] <- loadings
+    save(res.homals, res.homals.loadings, file = reshomalsfile) #res.homals.accepted_ndimensions
+    return(resmodel)
+    #summary(res.homals[[residx]])
+    #plot(res.homals[[residx]], plot.type = "screeplot")
+    #ggplotscreeplot(res.homal.df, "dimension", "eigenvalue")
+    # tmpdim <- readline(paste0("now at ", residx, ", Enter number of dimensions?"))
+    # if (tmpdim=="") {
+    #   break
+    # } else {
+    #   res.homals.accepted_ndimensions[[residx]]<-tmpdim
+    # }
+  },myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol,
+  parallelfa_result_n_factor=parallelfa_result_n_factor,reshomalsfile=reshomalsfile,
+  method=parallel_method,mc.cores=1) %>%
+    magrittr::set_names(parallelfa_result_n_factor$need_factorn)
+  save(res.homals, res.homals.loadings, file = reshomalsfile) #res.homals.accepted_ndimensions
+  load(file = reshomalsfile, verbose=TRUE)
+  homals::plot3dstatic(res.homals[[residx]], plot.type = "screeplot")
+  for (residx in names(res.homals.loadings)) {
+    openxlsx::write.xlsx(as.data.frame(res.homals.loadings[[residx]]), "TMP.xlsx")
+    readline(paste("now at loadings", residx, "continue?"))
+    res.homals[[residx]]$objscores %>%
+      as.data.frame() %>%
+      data.frame(name=rownames(.), term=substr(residx,1,1), .) %>%
+      dplyr::mutate_at(base::setdiff(names(.), "name"), as.character) %>%
+      dplyr::mutate_at(base::setdiff(names(.), "name"), as.numeric) %>%
+      openxlsx::write.xlsx("TMP.xlsx")
+    readline(paste("now at objscores", residx, ", continue?"))
   }
 }
 
-# * EFA by MCA --------------------------------
-res.catpcas <- list()
-res.mcas <- list()
-for (i in 1:length(myown_vote_record_df_wide_billidascol)) {
-  plot_title<-terms[i]
-  colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[i]]), widedata_preserve_vars)
-  votingdfwide<-myown_vote_record_df_wide_billidascol[[i]][,colname_billids]
-  repeat {
-    n_component<-as.integer(readline(prompt="Enter n_component: "))
-    if (is.na(n_component)) break
-    #res.catpca<- Gifi::princals(data=votingdfwide, ndim = n_component, ordinal = TRUE, verbose = TRUE)
-    res.mca<-Gifi::homals(data=votingdfwide, ndim = n_component, ordinal = TRUE, verbose = TRUE)
-    #plot(res.catpca, plot.type = "screeplot")
-    plot(res.mca, plot.type = "screeplot")
-    #summary(res.catpca)
-    residx<-paste0(plot_title, "_", n_component)
-    #res.catpcas[[index_res]]<-res.catpca
-    res.mcas[[residx]]<-res.mca
-    summary(res.mca)
+
+# * EFA by gifi homels --------------------------------
+if (FALSE) {
+  gifi.res.homals <- list()
+  gifi.res.homals.accepted_ndimensions <- list()
+  gifi.res.homals.loadings <- list()
+  for (i in 1:length(myown_vote_record_df_wide_billidascol)) {
+    plot_title<-terms[i]
+    colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[i]]), widedata_preserve_vars)
+    votingdfwide<-myown_vote_record_df_wide_billidascol[[i]][,colname_billids]
+    Gifi::makeNumeric(votingdfwide)
+    for (n_component in 2:8) { #repeat
+      if (is.na(n_component)) break
+      #from https://alice86.github.io/2018/04/08/Factor-Analysis-on-Ordinal-Data-example-in-R-(psych,-homals)/
+      residx <- paste0(plot_title,"_",n_component)
+      gifi.res.homals[[residx]] <- Gifi::homals(votingdfwide, ndim = n_component, ordinal = TRUE)
+      #summary(gifi.res.homals[[residx]])
+      #plot(gifi.res.homals[[residx]], plot.type = "screeplot")
+      gifi.res.homals.df<-data.frame("index"=residx, "eigenvalue"=gifi.res.homals[[residx]]$eigenvalues, "dimension"=1:gifi.res.homals[[residx]]$ndim)
+      ggplotscreeplot(res.homal.df, "dimension", "eigenvalue")
+      tmpdim <- readline(paste0("now at ", residx, ", Enter number of dimensions?"))
+      if (tmpdim=="") {
+        break
+      } else {
+        gifi.res.homals.accepted_ndimensions[[residx]]<-tmpdim
+      }
+      cache <- apply(votingdfwide, 2, function(x) nlevels(as.factor(x)))
+      ld <- unlist(lapply(gifi.res.homals[[residx]]$loadings, function(x) x[1,]))
+      loadings <- matrix(ld, byrow = T, nrow = n_component)
+      colnames(loadings) <- names(cache)
+      gifi.res.homals.loadings[[residx]] <- loadings
+    }
   }
 }
+
+
+# * EFA by MCA --------------------------------
+if (FALSE) {
+  res.catpcas <- list()
+  res.mcas <- list()
+  for (i in 1:length(myown_vote_record_df_wide_billidascol)) {
+    plot_title<-terms[i]
+    colname_billids <- setdiff(names(myown_vote_record_df_wide_billidascol[[i]]), widedata_preserve_vars)
+    votingdfwide<-myown_vote_record_df_wide_billidascol[[i]][,colname_billids]
+    repeat {
+      n_component<-as.integer(readline(prompt="Enter n_component: "))
+      if (is.na(n_component)) break
+      #res.catpca<- Gifi::princals(data=votingdfwide, ndim = n_component, ordinal = TRUE, verbose = TRUE)
+      res.mca<-Gifi::homals(data=votingdfwide, ndim = n_component, ordinal = TRUE, verbose = TRUE)
+      #plot(res.catpca, plot.type = "screeplot")
+      plot(res.mca, plot.type = "screeplot")
+      #summary(res.catpca)
+      residx<-paste0(plot_title, "_", n_component)
+      #res.catpcas[[index_res]]<-res.catpca
+      res.mcas[[residx]]<-res.mca
+      summary(res.mca)
+    }
+  }
+}
+
 
 save(res.mcas, file = paste0(dataset_in_scriptsfile_directory, "res.mcas.RData"))
 
@@ -881,7 +896,7 @@ for (key in names(myown_vote_record_df_wide)) {
 
 mergedf_votes_bills_surveyanswer <- dplyr::distinct(legislators_with_elections,term,legislator_name,legislator_party,legislator_sex,seniority,legislator_age,incumbent,elec_dist_type) %>%
   dplyr::mutate_at("term", as.numeric) %>%
-  dplyr::mutate_at(c("seniority"), ~as.numeric(scale(.))) %>%
+  #dplyr::mutate_at(c("seniority"), ~as.numeric(scale(.))) %>%
   dplyr::left_join(myown_vote_record_df, ., by=c("term","legislator_name")) %>%
   dplyr::distinct(votedecision,legislator_name,billid_myown,legislator_party,legislator_sex,seniority,legislator_age,incumbent,elec_dist_type) %>%
   dplyr::left_join(dplyr::filter(myown_vote_record_df, term %in% terms), .) %>%

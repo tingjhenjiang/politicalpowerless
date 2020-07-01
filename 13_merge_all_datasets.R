@@ -35,7 +35,7 @@ gc(verbose=TRUE)
 if (TRUE) {
   overalldf_general_inter_func<-function(targetdf) {
     targetdf %>%
-      dplyr::select(-tidyselect::any_of(c("admincity","admindistrict","adminvillage","legislator_sex","legislator_age","legislator_party","incumbent"))) %>%
+      dplyr::select(-tidyselect::any_of(c("legislator_sex","legislator_age","legislator_party","incumbent"))) %>%
       return()
   }
   overalldf_general_func<-function(targetdf, agendavoting=0, similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf, mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer) {
@@ -47,11 +47,12 @@ if (TRUE) {
       }) %>% #Joining, by = c("SURVEY", "ansv_and_label", "value_on_q_variable", "term", "elec_dist_type", "legislator_name")
       dplyr::filter(!is.na(respondopinion)) %>%
       dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
-      dplyr::mutate_at("days_diff_survey_bill",~as.numeric(scale(.))) %>%
+      #dplyr::mutate_at("days_diff_survey_bill",~as.numeric(scale(.))) %>%
       dplyr::mutate_at(c("SURVEY","value_on_q_variable","legislator_name","term"),as.factor) %>%
       dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","variablename_of_issuefield","value_on_q_variable","fpc")))#
     targetdfcolnames<-colnames(targetdf)
-    reserve_cols<-base::setdiff(targetdfcolnames,c("issue_field1","issue_field2"))
+    widentolongbasiscols<-grep(pattern="billarea",x=targetdfcolnames,value=TRUE)
+    reserve_cols<-base::setdiff(targetdfcolnames,widentolongbasiscols)
     data.table::melt(targetdf, id.vars=reserve_cols, variable.name = "variablename_of_issuefield", value.name="issuefield") %>%
       dplyr::select(-tidyselect::any_of(c("variablename_of_issuefield"))) %>%
       dplyr::mutate_at("issuefield",as.factor) %>%
@@ -70,10 +71,12 @@ if (TRUE) {
 
 if ({mergingoverlldf<-FALSE; mergingoverlldf & running_bigdata_computation}) {
   load(paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"), verbose=TRUE)
+  complete_survey_dataset %<>% dplyr::filter(newimp==1)
   load(paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"), verbose=TRUE)
   load(paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
-  load(paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"), verbose=TRUE)
+  #load(paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"), verbose=TRUE)
   load(paste0(dataset_in_scriptsfile_directory, "similarities_match.RData"), verbose=TRUE)
+  similarities_bet_pp_ly_longdf %<>% dplyr::mutate_at("id",as.integer)
 }
 
 if (FALSE) {
@@ -105,17 +108,21 @@ if (mergingoverlldf & running_bigdata_computation) {
       dplyr::mutate(elec_dist_type="partylist") %>%
       dplyr::left_join({
         dplyr::filter(legislators_with_elections, elec_dist_type=="partylist") %>%
-          dplyr::distinct_at(.vars=vars(-admincity,-admindistrict,-adminvillage))
+          dplyr::distinct_at(.vars=dplyr::vars(-admincity,-admindistrict,-adminvillage))
       }) %>% #Joining, by = c("term", "elec_dist_type")
       overalldf_general_inter_func() %>%
       #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
       overalldf_general_func(agendavoting=0,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer)
   )
-  overall_nonagenda_df %<>% dplyr::bind_rows() %>%
+  overall_nonagenda_df %<>% plyr::rbind.fill() %>%
     dplyr::mutate_at("elec_dist_type",as.factor) %>%
     dplyr::mutate_at("elec_dist_type", droplevels) %>%
-    dplyr::mutate_at(c("cluster_clustrd","cluster_varsellcm","cluster_kamila"), as.ordered) %>%
-    dplyr::mutate_at("issuefield", ~relevel(., ref = 7))
+    dplyr::mutate_at("cluster_kamila", as.ordered) %>%
+    dplyr::mutate_at("issuefield", ~relevel(., ref = 7)) %>%
+    dplyr::mutate_at("seniority"=~seniority+as.numeric(days_diff_survey_bill)/365) %>%
+    dplyr::mutate_at("myown_age"=~myown_age+as.numeric(days_diff_survey_bill)/365)
+  #dplyr::filter(overall_nonagenda_df[[1]], id==104104, grepl("孝嚴", legislator_name)) %>% View()
+  
   while (TRUE) {
     savestatus<-try(save(overall_nonagenda_df, file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData")))
     if(!is(savestatus, 'try-error')) break
@@ -125,16 +132,16 @@ if (mergingoverlldf & running_bigdata_computation) {
 # modeling data prepare when bigdata exists --------------------------------
 
 if (running_bigdata_computation & loadbigdatadf) {
-  #load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"), verbose=TRUE)
   #load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_fullydummycoded.RData"), verbose=TRUE)
-  load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"), verbose=TRUE)
+  #load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"), verbose=TRUE)
 }
 
 modelvars_ex_conti<-c("myown_age","similarity_distance","party_pressure","seniority","days_diff_survey_bill")
 modelvars_ex_catg<-c("myown_sex","myown_selfid","myown_marriage","adminparty","issuefield") %>%
   c("elec_dist_type")
 modelvars_latentrelated<-c("myown_factoredses","myown_factoredefficacy","myown_factoredparticip")
-modelvars_clustervars<-c("cluster_varsellcm","cluster_kamila","cluster_clustrd")
+modelvars_clustervars<-c("cluster_kamila")
 modelvars_controllclustervars<-c("term","myown_areakind")
 if (running_bigdata_computation & loadbigdatadf) {
   #if(!is(overalldf, 'try-error')) {

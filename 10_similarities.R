@@ -8,7 +8,7 @@ if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
 source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
 
 # 第一部份：計算受訪者與立法委員的相似性 --------------------------------
-load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
+#load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
 load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"), verbose=TRUE)
@@ -24,7 +24,11 @@ people_legislator_match <- data.frame(
 legislators_sim_basis <- dplyr::distinct(legislators_with_elections, term, legislator_name, legislator_sex, legislator_age) %>%
   dplyr::left_join(legislators_additional_attr)
 
-distance_dissimilarities_pply<-custom_apply_thr_argdf(people_legislator_match, "pp_ly_match", function(fikey, loopargdf, datadf, legislators_sim_basis=legislators_sim_basis, ...) {
+
+needimps<-custom_ret_appro_kamila_clustering_parameters() %>%
+  dplyr::rename(SURVEY=survey)
+
+similarities_bet_pp_ly_longdf<-custom_apply_thr_argdf(people_legislator_match, "pp_ly_match", function(fikey, loopargdf, datadf, legislators_sim_basis=legislators_sim_basis, ...) {
   needrow<-dplyr::filter(loopargdf, pp_ly_match==!!fikey)
   key<-needrow$key
   imp<-needrow$imp
@@ -48,31 +52,20 @@ distance_dissimilarities_pply<-custom_apply_thr_argdf(people_legislator_match, "
   similarities <- try({StatMatch::gower.dist(x, y, rngs=NULL, KR.corr=TRUE, var.weights = NULL) %>%
       magrittr::set_colnames(legislators_sim_basis[legislators_sim_basis$term==term,]$legislator_name) %>%
       magrittr::set_rownames(respondentids)})
-  return(similarities)
-}, datadf=survey_data_imputed, legislators_sim_basis=legislators_sim_basis)
+  t<-lapply(1:nrow(similarities), function(rowi, needmatrix, needrow, ...) {
+    data.frame(needrow, id=rownames(needmatrix)[rowi], legislator_name=colnames(needmatrix), similarity_distance=needmatrix[rowi,], stringsAsFactors=FALSE)
+  }, needmatrix=similarities, needrow=needrow) %>%
+    plyr::rbind.fill() %>%
+    dplyr::rename(SURVEY=key) %>%
+    dplyr::select(-pp_ly_match) %>%
+    dplyr::mutate_at("legislator_name", as.factor)
+  return(t)
+}, datadf=survey_data_imputed, legislators_sim_basis=legislators_sim_basis, method=parallel_method) %>%
+  plyr::rbind.fill() %>%
+  dplyr::semi_join(needimps) %>%
+  dplyr::left_join(needimps) %>%
+  dplyr::filter(newimp==1)
 
-similarities_bet_pp_ly_longdf <- names(distance_dissimilarities_pply) %>%
-  custom_parallel_lapply(., function(fikey,...) {
-    needrow<-dplyr::filter(people_legislator_match, pp_ly_match==!!fikey)
-    needmatrix<-distance_dissimilarities_pply[[fikey]]
-    allrows_to_vectors<-c()
-    legislator_names<-c()
-    ids_vector<-c()
-    lapply(1:nrow(needmatrix), function(rowi,...) {
-      data.frame(needrow, id=rownames(needmatrix)[rowi], legislator_name=colnames(needmatrix), similarity_distance=needmatrix[rowi,])
-    }, needmatrix=needmatrix, needrow=needrow) %>%
-      dplyr::bind_rows() %>%
-      dplyr::select(-pp_ly_match) %>%
-      dplyr::rename(SURVEY=key) %>%
-      return()
-  },people_legislator_match=people_legislator_match,
-  distance_dissimilarities_pply=distance_dissimilarities_pply,
-  method=parallel_method
-  ) %>%
-  dplyr::bind_rows() %>%
-  dplyr::mutate_at("legislator_name", as.factor) %>%
-  dplyr::mutate_at("id", as.integer) %>%
-  dplyr::mutate_at("similarity_distance", ~as.numeric(scale(.)))
 
 #similarities_bet_pp_ly_longdf %<>% data.table::as.data.table()
 #save(similarities_bet_pp_ly_longdf, file = paste0(dataset_in_scriptsfile_directory, "similarities_match.RData"))
