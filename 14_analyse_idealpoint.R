@@ -52,7 +52,12 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #https://www.rensvandeschoot.com/tutorials/brms-started/
 #https://bookdown.org/content/4253/introducing-the-multilevel-model-for-change.html
 #not normal https://rdrr.io/cran/clubSandwich/f/vignettes/panel-data-CRVE.Rmd
-
+#https://www.researchgate.net/publication/251965897_Cluster-robust_standard_errors_using_R
+#merDeriv
+#clubSandwich
+#https://wangcc.me/LSHTMlearningnote/random-intercept.html
+#Does it make sense to include a factor as both fixed and random factor in a Linear Mixed Effects Model?
+#https://stats.stackexchange.com/questions/263194/does-it-make-sense-to-include-a-factor-as-both-fixed-and-random-factor-in-a-line
 #nests: id
 
 # * check kamila result ----------------------------------------------
@@ -139,98 +144,84 @@ if ({plotting_inspection<-FALSE;plotting_inspection}) {
   )
 }
 
-all_idealpoint_nullmodels_file<-paste0(save_dataset_in_scriptsfile_directory,"analyse_res/all_idealpoint_nullmodels.RData")
-load(file=all_idealpoint_nullmodels_file, verbose=TRUE)
-# * null model ------------------
-idealpoint_nullmodel_args<-data.frame("formula"=c(
-  #"policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/admindistrict/admincity/myown_areakind/cluster_kamila/SURVEY)",
-  #"policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/cluster_kamila)",
+all_idealpoint_models_file<-paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models.RData")
+load(file=all_idealpoint_models_file, verbose=TRUE)
+
+#library(lme4)
+# * modeling ------------------
+idealpoint_models_args<-data.frame("formula"=c(
   "policyidealpoint_cos_similarity_to_median~(1|SURVEY)",
   "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)",
-  "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)+(1|SURVEY)",
-  "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)+(1|adminvillage)",
-  "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
-  "policyidealpoint_cos_similarity_to_median~(1|adminvillage/cluster_kamila)",
-  "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)",
-  "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)",
-  "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|adminvillage)",
-  "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
-  "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|adminvillage/cluster_kamila)",
   "policyidealpoint_cos_similarity_to_median~(1|myown_areakind)",
-  "policyidealpoint_cos_similarity_to_median~(1|adminvillage)",
-  "policyidealpoint_cos_similarity_to_median~(1|admindistrict)",
   "policyidealpoint_cos_similarity_to_median~(1|admincity)",
-  "policyidealpoint_eucli_distance_to_median~(1|SURVEY)",
-  "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)",
-  "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|SURVEY)",
-  "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|adminvillage)",
-  "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
-  "policyidealpoint_eucli_distance_to_median~(1|adminvillage/cluster_kamila)",
-  "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)",
-  "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)",
-  "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|adminvillage)",
-  "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
-  "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|adminvillage/cluster_kamila)",
-  "policyidealpoint_eucli_distance_to_median~(1|myown_areakind)",
-  "policyidealpoint_eucli_distance_to_median~(1|adminvillage)",
-  "policyidealpoint_eucli_distance_to_median~(1|admindistrict)",
-  "policyidealpoint_eucli_distance_to_median~(1|admincity)"#,
+  "policyidealpoint_cos_similarity_to_median~(1|admindistrict)",
+  "policyidealpoint_cos_similarity_to_median~(1|adminvillage)"#,
+  # "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)",
+  # "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)",
+  # "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|adminvillage)",
+  # "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
+  # "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|adminvillage/cluster_kamila)",
+  # "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/admindistrict/admincity/myown_areakind/cluster_kamila/SURVEY)",
+  # "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/cluster_kamila)",
+  # "policyidealpoint_cos_similarity_to_median~(1|myown_areakind)",
+  # "policyidealpoint_cos_similarity_to_median~(1|adminvillage)",
+  # "policyidealpoint_cos_similarity_to_median~(1|admindistrict)",
+  # "policyidealpoint_cos_similarity_to_median~(1|admincity)",
+  # "policyidealpoint_eucli_distance_to_median~(1|SURVEY)",
+  # "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)",
+  # "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|SURVEY)",
+  # "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|adminvillage)",
+  # "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
+  # "policyidealpoint_eucli_distance_to_median~(1|adminvillage/cluster_kamila)",
+  # "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)",
+  # "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)",
+  # "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|adminvillage)",
+  # "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
+  # "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|adminvillage/cluster_kamila)",
+  # "policyidealpoint_eucli_distance_to_median~(1|myown_areakind)",
+  # "policyidealpoint_eucli_distance_to_median~(1|adminvillage)",
+  # "policyidealpoint_eucli_distance_to_median~(1|admindistrict)",
+  # "policyidealpoint_eucli_distance_to_median~(1|admincity)"#,
 )) %>%
-  dplyr::filter(!(formula %in% !!names(all_idealpoint_nullmodels)))
-idealpoint_nullmodels<-custom_apply_thr_argdf(idealpoint_nullmodel_args, "formula", function(fikey, loopargdf, datadf, ...) {
-  dplyr::filter(loopargdf, formula==!!fikey) %>%
+  dplyr::filter(!(formula %in% !!names(all_idealpoint_models)))
+idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "formula", function(fikey, loopargdf, datadf, ...) {
+  f<-dplyr::filter(loopargdf, formula==!!fikey) %>%
     magrittr::use_series("formula") %>%
     as.character() %>%
-    as.formula() %>%
-    lmerTest::lmer(data=datadf) %>%
-    #lme4::lmer(data=datadf) %>%
-    return()
-}, datadf=merged_acrossed_surveys_list[[1]])
-if (length(all_idealpoint_nullmodels)==0) {
-  all_idealpoint_nullmodels<-idealpoint_nullmodels
+    as.formula()
+  #datadf %<>% dplyr::mutate(secondweight=1)
+  t<-try(
+    #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
+    #robustlmm::rlmer(data=datadf, weights=datadf$myown_wr) %>%
+    lmerTest::lmer(formula=f, data=datadf, weights=datadf$myown_wr)
+    #lme4::lmer(formula=f, data=datadf, weights=datadf$myown_wr)
+  )
+  return(t)
+}, datadf=merged_acrossed_surveys_list[[1]], mc.cores=1)
+
+breads<-custom_parallel_lapply(idealpoint_models, merDeriv::bread.lmerMod, method=parallel_method)
+#estfuns:Models with weights specification is currently not supported
+#estfuns<-custom_parallel_lapply(idealpoint_models, merDeriv::estfun.lmerMod, method=parallel_method)
+
+load(file=all_idealpoint_models_file, verbose=TRUE)
+if (length(all_idealpoint_models)==0) {
+  all_idealpoint_models<-idealpoint_models
 } else {
-  all_idealpoint_nullmodels<-rlist::list.merge(all_idealpoint_nullmodels,idealpoint_nullmodels)
+  all_idealpoint_models<-rlist::list.merge(all_idealpoint_models,idealpoint_models)
 }
+save(all_idealpoint_models, file=all_idealpoint_models_file)
 
-save(all_idealpoint_nullmodels, file=all_idealpoint_nullmodels_file)
+lapply(all_idealpoint_models, try(performance::icc))
+lapply(all_idealpoint_models, function(X) {try(lmerTest:::summary.lmerModLmerTest(X))})
 
-lapply(idealpoint_nullmodels, try(performance::icc))
-lapply(idealpoint_nullmodels, function(X) {try(lmerTest:::summary.lmerModLmerTest(X))})
-
-lapply(idealpoint_nullmodels, function(X) {try(lmerTest:::anova.lmerModLmerTest(X, type="I", ddf="Kenward-Roger"))})
-lapply(idealpoint_nullmodels, try(lme4:::summary.merMod))
-lapply(idealpoint_nullmodels, function(X) {X})
-lapply(idealpoint_nullmodels, try(lme4:::VarCorr.merMod))
-lapply(idealpoint_nullmodels, try(lme4:::anova.merMod))
+lapply(all_idealpoint_models, function(X) {try(lmerTest:::anova.lmerModLmerTest(X, type="I", ddf="Kenward-Roger"))})
+lapply(all_idealpoint_models, try(lme4:::summary.merMod))
+lapply(all_idealpoint_models, function(X) {X})
+lapply(all_idealpoint_models, try(lme4:::VarCorr.merMod))
+lapply(all_idealpoint_models, try(lme4:::anova.merMod))
 library(afex)
-lapply(idealpoint_nullmodels, try(afex:::lmerTest_anova))
+lapply(all_idealpoint_models, try(afex:::lmerTest_anova))
 
-
-# * random intercept and slope model ------------------
-
-idealpoint_model_args<-data.frame("formula"=c(
-  "policyidealpoint_cos_similarity_to_median~1+(1|cluster_kamila)",
-  "policyidealpoint_eucli_distance_to_median~1+(1|cluster_kamila)",
-  "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/cluster_kamila)",
-  "policyidealpoint_eucli_distance_to_median~1+(1|adminvillage/cluster_kamila)"#,
-  #"policyidealpoint_cos_similarity_to_median~cluster_kamila+1+(1|adminvillage/cluster_kamila)"#,
-  #"policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/admindistrict)",
-  #"policyidealpoint_cos_similarity_to_median~1+(1|adminvillage)" ,
-  #"policyidealpoint_cos_similarity_to_median~1+(1|cluster_kamila)",
-  # "policyidealpoint_cos_similarity_to_median~1+(1|myown_areakind)",
-  # "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage)",
-  # "policyidealpoint_cos_similarity_to_median~1+(1|admindistrict)",
-   #"policyidealpoint_cos_similarity_to_median~1+(1|admincity)"
-))
-idealpoint_models<-custom_apply_thr_argdf(idealpoint_model_args, "formula", function(fikey, loopargdf, datadf, ...) {
-  dplyr::filter(loopargdf, formula==!!fikey) %>%
-    magrittr::use_series("formula") %>%
-    as.character() %>%
-    as.formula() %>%
-    robustlmm::rlmer(data=datadf) %>%
-    #lmerTest::lmer(data=datadf) %>%
-    return()
-}, datadf=merged_acrossed_surveys_list[[1]])
 
 lapply(idealpoint_models, lmerTest:::summary.lmerModLmerTest)
 lapply(idealpoint_models, function(X) {sum(lme4:::residuals.merMod(X))} )

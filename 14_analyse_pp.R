@@ -233,7 +233,12 @@ ppmodels<-custom_apply_thr_argdf(ppmodel_args, "formula", function(fikey, loopar
     return()
 }, datadf=merged_acrossed_surveys_list[[1]])
 
-all_ppmodels<-rlist::list.merge(all_ppmodels, ppmodels)
+load(file=ppmodels_file, verbose=TRUE)
+if (length(all_ppmodels)==0) {
+  all_ppmodels<-ppmodels
+} else {
+  all_ppmodels<-rlist::list.merge(all_ppmodels,ppmodels)
+}
 save(all_ppmodels,file=ppmodels_file)
 
 lapply(all_ppmodels, function(X) {try(ordinal:::summary.clmm(X))})

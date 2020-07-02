@@ -40,8 +40,45 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #https://wangcc.me/LSHTMlearningnote/Hierarchical.html
 #the ordinal package, via the clmm and clmm2 functions (clmm = Cumulative Link Mixed Model)
 #nests: id
+#Hausman test
+#https://bookdown.org/tpemartin/econometric_analysis/r-for-panel-data.html#hausman-1
 
-if ({running_brms_model<-TRUE; running_brms_model & running_bigdata_computation}) {
+respondmodels_file<-paste0(save_dataset_in_scriptsfile_directory,"/analyse_res/respondmodels.RData")
+load(file=respondmodels_file, verbose=TRUE)
+
+respondmodel_args<-data.frame("formula"=c(
+  # "respondopinion~1+(1|billid_myown)",
+  # "respondopinion~1+(1|id_wth_survey)",
+  # "respondopinion~1+(1|psu)",
+  # "respondopinion~1+(1|ssu)",
+  # "respondopinion~1+(1|adminvillage)",
+  # "respondopinion~1+(1|admindistrict)",
+  # "respondopinion~1+(1|admincity)",
+  # "respondopinion~1+(1|myown_areakind)",
+  # "respondopinion~1+(1|cluster_kamila)",
+  # "respondopinion~1+(1|legislator_name)",
+  # "respondopinion~1+(1|partyGroup)",
+  # "respondopinion~1+(1|SURVEY)"
+)) %>%
+  dplyr::filter(!(formula %in% !!names(all_respondmodels)))
+
+respondmodels<-custom_apply_thr_argdf(respondmodel_args, "formula", function(fikey, loopargdf, datadf, ...) {
+  dplyr::filter(loopargdf, formula==!!fikey) %>%
+    magrittr::use_series("formula") %>%
+    as.character() %>%
+    as.formula() %>%
+    ordinal::clmm(formula=., data=datadf, weights=datadf$myown_wr, Hess=TRUE, model = TRUE, link = "logit",
+                  threshold = "symmetric") %>% #c("flexible", "symmetric", "symmetric2", "equidistant")
+    return()
+}, datadf=overall_nonagenda_df)
+
+load(file=respondmodels_file, verbose=TRUE)
+all_respondmodels<-rlist::list.merge(all_respondmodels, respondmodels)
+save(all_respondmodels,file=respondmodels_file)
+
+
+
+if ({running_brms_model<-FALSE; running_brms_model & running_bigdata_computation}) {
   #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"), verbose=TRUE)
   # Ordinal regression modeling patient's rating of inhaler instructions
   # category specific effects are estimated for variable 'treat'

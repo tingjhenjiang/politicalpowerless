@@ -49,7 +49,7 @@ if (TRUE) {
       dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
       #dplyr::mutate_at("days_diff_survey_bill",~as.numeric(scale(.))) %>%
       dplyr::mutate_at(c("SURVEY","value_on_q_variable","legislator_name","term"),as.factor) %>%
-      dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","variablename_of_issuefield","value_on_q_variable","fpc")))#
+      dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","variablename_of_issuefield","value_on_q_variable","fpc","myown_hire_people_no","myown_manage_people_no","myown_constituency_party_vote","myown_online_time")))#
     targetdfcolnames<-colnames(targetdf)
     widentolongbasiscols<-grep(pattern="billarea",x=targetdfcolnames,value=TRUE)
     reserve_cols<-base::setdiff(targetdfcolnames,widentolongbasiscols)
@@ -119,9 +119,22 @@ if (mergingoverlldf & running_bigdata_computation) {
     dplyr::mutate_at("elec_dist_type", droplevels) %>%
     dplyr::mutate_at("cluster_kamila", as.ordered) %>%
     dplyr::mutate_at("issuefield", ~relevel(., ref = 7)) %>%
-    dplyr::mutate_at("seniority"=~seniority+as.numeric(days_diff_survey_bill)/365) %>%
-    dplyr::mutate_at("myown_age"=~myown_age+as.numeric(days_diff_survey_bill)/365)
-  #dplyr::filter(overall_nonagenda_df[[1]], id==104104, grepl("孝嚴", legislator_name)) %>% View()
+    dplyr::mutate_at("seniority", ~seniority+as.numeric(days_diff_survey_bill)/365) %>%
+    dplyr::mutate_at("myown_age", ~myown_age+as.numeric(days_diff_survey_bill)/365) %>%
+    dplyr::mutate(days_diff_survey_bill_overallscaled=as.numeric(scale(days_diff_survey_bill))) %>%
+    dplyr::mutate(seniority_overallscaled=as.numeric(scale(seniority))) %>%
+    dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age))) %>%
+    dplyr::mutate(myown_factoredses_overallscaled=as.numeric(scale(myown_factoredses))) %>%
+    dplyr::mutate(myown_factoredefficacy_overallscaled=as.numeric(scale(myown_factoredefficacy))) %>%
+    dplyr::mutate(myown_factoredparticip_overallscaled=as.numeric(scale(myown_factoredparticip))) %>%
+    dplyr::mutate(similarity_distance_overallscaled=as.numeric(scale(similarity_distance))) %>%
+    dplyr::mutate(party_pressure_overallscaled=as.numeric(scale(party_pressure))) %>%
+    dplyr::mutate(id_wth_survey=paste0(SURVEY,id)) %>%
+    dplyr::mutate_at("id_wth_survey", as.factor)
+  #district 780457
+  #partylist 26775408
+  #dplyr::filter(overall_nonagenda_df, id==104104, grepl("孝嚴", legislator_name)) %>% View()
+  #sapply(overall_nonagenda_df,class)
   
   while (TRUE) {
     savestatus<-try(save(overall_nonagenda_df, file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData")))
@@ -137,7 +150,7 @@ if (running_bigdata_computation & loadbigdatadf) {
   #load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"), verbose=TRUE)
 }
 
-modelvars_ex_conti<-c("myown_age","similarity_distance","party_pressure","seniority","days_diff_survey_bill")
+modelvars_ex_conti<-c("myown_age","myown_age_overallscaled","similarity_distance","similarity_distance_overallscaled","party_pressure","party_pressure_overallscaled","seniority","seniority_overallscaled","days_diff_survey_bill","days_diff_survey_bill_overallscaled")
 modelvars_ex_catg<-c("myown_sex","myown_selfid","myown_marriage","adminparty","issuefield") %>%
   c("elec_dist_type")
 modelvars_latentrelated<-c("myown_factoredses","myown_factoredefficacy","myown_factoredparticip")
