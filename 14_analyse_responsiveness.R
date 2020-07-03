@@ -42,9 +42,15 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #nests: id
 #Hausman test
 #https://bookdown.org/tpemartin/econometric_analysis/r-for-panel-data.html#hausman-1
+#linear growth model
+#https://quantdev.ssri.psu.edu/sites/qdev/files/GCM_Chp3_Tutorial_2.html
 
-respondmodels_file<-paste0(save_dataset_in_scriptsfile_directory,"/analyse_res/respondmodels.RData")
+respondmodels_file<-paste0(save_dataset_in_scriptsfile_directory,"analyse_res/respondmodels.RData")
 load(file=respondmodels_file, verbose=TRUE)
+all_respondmodels_keys<-try(names(all_respondmodels))
+all_respondmodels_keys<-if (is(all_respondmodels_keys,'try-error')) c() else all_respondmodels_keys
+try(rm(all_respondmodels))
+gcreset()
 
 respondmodel_args<-data.frame("formula"=c(
   # "respondopinion~1+(1|billid_myown)",
@@ -58,25 +64,56 @@ respondmodel_args<-data.frame("formula"=c(
   # "respondopinion~1+(1|cluster_kamila)",
   # "respondopinion~1+(1|legislator_name)",
   # "respondopinion~1+(1|partyGroup)",
-  # "respondopinion~1+(1|SURVEY)"
-)) %>%
-  dplyr::filter(!(formula %in% !!names(all_respondmodels)))
+  # "respondopinion~1+(1|SURVEY)",
+  #"respondopinion~1+(1|partyGroup/legislator_name)",
+  #"respondopinion~1+(1|id_wth_survey/adminvillage/admindistrict/admincity/myown_areakind)",
+  #"respondopinion~1+(1|admincity/admindistrict/adminvillage/id_wth_survey)"#,
+  #"respondopinion~1+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)",
+  #complete
+  #"respondopinion~1+days_diff_survey_bill_overallscaled+issuefield+(1|issuefield)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)"
+  #"respondopinion~1+(1|issuefield)"
+),stringsAsFactors=FALSE) %>%
+  cbind(., half = rep(c(1,0), each = nrow(.) )) %>%
+  cbind(., file = rep(respondmodels_file, each = nrow(.) ), stringsAsFactors=FALSE) %>%
+  dplyr::mutate(storekey=paste0(formula,half)) %>%
+  dplyr::filter(!(formula %in% !!all_respondmodels_keys))
 
-respondmodels<-custom_apply_thr_argdf(respondmodel_args, "formula", function(fikey, loopargdf, datadf, ...) {
-  dplyr::filter(loopargdf, formula==!!fikey) %>%
-    magrittr::use_series("formula") %>%
-    as.character() %>%
+if (FALSE) { #test
+  overall_nonagenda_df_small<-overall_nonagenda_df[sample(nrow(overall_nonagenda_df), 500), ] %>%
+    dplyr::mutate(respondopinion_conti=as.integer(respondopinion)) %>%
+    dplyr::mutate_if(is.factor, droplevels)
+}
+
+respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
+  argrow<-dplyr::filter(loopargdf, storekey==!!fikey)
+  if (argrow$half==1) {datadf %<>% dplyr::filter(days_diff_survey_bill<=365)}
+  retmodel<-argrow$formula %>%
     as.formula() %>%
     ordinal::clmm(formula=., data=datadf, weights=datadf$myown_wr, Hess=TRUE, model = TRUE, link = "logit",
-                  threshold = "symmetric") %>% #c("flexible", "symmetric", "symmetric2", "equidistant")
-    return()
+                  threshold = "symmetric") %>%#c("flexible", "symmetric", "symmetric2", "equidistant")
+    list() %>%
+    magrittr::set_names(argrow$storekey)
+  tryn<-1
+  while (TRUE) {
+    loadsavestatus<-try({
+      load(file=argrow$file, verbose=TRUE)
+      all_respondmodels<-rlist::list.merge(all_respondmodels, retmodel)
+      save(all_respondmodels, file=argrow$file)
+    })
+    tryn<-tryn+1
+    if(!is(loadsavestatus, 'try-error') | tryn>10) break
+  }
+  return(retmodel)
 }, datadf=overall_nonagenda_df)
 
 load(file=respondmodels_file, verbose=TRUE)
 all_respondmodels<-rlist::list.merge(all_respondmodels, respondmodels)
 save(all_respondmodels,file=respondmodels_file)
 
-
+if (FALSE) {
+  lapply(all_respondmodels, function(X) {try(ordinal:::summary.clmm(X))})
+  ordinal:::summary.clmm(all_respondmodels[[1]])
+}
 
 if ({running_brms_model<-FALSE; running_brms_model & running_bigdata_computation}) {
   #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"), verbose=TRUE)

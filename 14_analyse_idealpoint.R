@@ -66,57 +66,9 @@ needimps<-custom_ret_appro_kamila_clustering_parameters()
 # * try analysing ----------------------------
 survey_with_idealpoint_name<-paste0(save_dataset_in_scriptsfile_directory, "miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData")
 load(file=survey_with_idealpoint_name, verbose=TRUE)
-doneimps<-unique(survey_data_imputed$`2016citizen`$.imp)
-#survey_with_idealpoint_name<-paste0(dataset_in_scriptsfile_directory, "miced_survey_9_with_mirt_lca_clustering_idealpoints.RData")
-#load(file=survey_with_idealpoint_name, verbose=TRUE)
-#load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
-#survey_data_imputed$`2010overall`$cluster_kamila %<>% as.factor()
-#survey_data_imputed$`2016citizen`$cluster_kamila %<>% as.factor()
+merged_acrossed_surveys_list<-ret_merged_for_idealpoint_and_pp_df_list(survey_data_imputed, dataset_in_scriptsfile_directory, minuspolicy=FALSE)
+adopting_transformation_method<-try(lapply(merged_acrossed_surveys_list_with_normality, function(X) {X[[2]]$chosen_transform}))
 
-# custom_plot(survey_data_imputed$`2010overall`,"policyidealpoint_cos_similarity_to_median","myown_wr")
-# custom_plot(survey_data_imputed$`2016citizen`,"policyidealpoint_eucli_distance_to_median","myown_wr")
-
-need_svytitle<-names(survey_data_imputed) #c("2010overall","2016citizen")
-analysis_idealpoint_to_median_args<-data.frame("survey"=survey_data_title) %>%
-  cbind(., imp = rep(doneimps, each = nrow(.))) %>%
-  dplyr::mutate(store_key=paste0(survey,"_imp",imp)) %>%
-  dplyr::filter(survey %in% !!need_svytitle) %>%
-  dplyr::mutate_at("survey", as.character) %>%
-  dplyr::mutate_at("imp", as.integer) %>%
-  dplyr::arrange(survey, imp)
-
-common_names <- survey_data_imputed[need_svytitle] %>%
-  lapply(FUN=names) %>%
-  purrr::reduce(base::intersect)
-merged_acrossed_surveys_list_with_normality_filepath<-paste0(dataset_in_scriptsfile_directory,"merged_acrossed_surveys_list_with_normality.RData")
-if (FALSE) {
-  transform_pp_data_to_normal<-TRUE
-  transform_pp_data_to_normal<-FALSE
-  merged_acrossed_surveys_list_with_normality<-lapply(doneimps, function(imp, normalize=FALSE, ...) {
-    needdf<-survey_data_imputed[need_svytitle] %>%
-      lapply(FUN=function(X,nimp) {dplyr::filter(X, .imp==!!nimp) %>% dplyr::select(-myown_indp_atti)}, nimp=imp) %>%
-      dplyr::bind_rows() %>%
-      dplyr::mutate_at("SURVEY", as.factor) %>%
-      dplyr::mutate_at("cluster_kamila", as.ordered)  %>%
-      #dplyr::select(-dplyr::contains("policy")) %>%
-      dplyr::mutate(myown_factoredses_overallscaled=as.numeric(scale(myown_factoredses)) ) %>%
-      dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age)) )
-    #C L Q E4 E5
-    #dplyr::mutate_at("cluster_kamila", ~dplyr::recode_factor(., `1` = "A", `2` = "B", `3` = "C", `4` = "D", `5` = "E", `6` = "F", .ordered =TRUE) ) %>%
-    if (normalize==TRUE) {
-      transform_normality<-bestNormalize::bestNormalize(needdf$myown_factoredparticip)
-      needdf$original_pp<-needdf$myown_factoredparticip
-      needdf$myown_factoredparticip<-transform_normality$x.t
-    } else {
-      transform_normality<-NA
-    }
-    return(list(needdf, transform_normality))
-  }, survey_data_imputed=survey_data_imputed, need_svytitle=need_svytitle, normalize=transform_pp_data_to_normal)
-  merged_acrossed_surveys_list<-lapply(merged_acrossed_surveys_list_with_normality, function(X) {X[[1]]})
-  save(merged_acrossed_surveys_list, merged_acrossed_surveys_list_with_normality,file=merged_acrossed_surveys_list_with_normality_filepath)
-} else {
-  load(merged_acrossed_surveys_list_with_normality_filepath,verbose=TRUE)
-}
 
 if ({plotting_inspection<-FALSE;plotting_inspection}) {
   merged_acrossed_surveys_overall<-dplyr::bind_rows(merged_acrossed_surveys_list)
@@ -146,6 +98,10 @@ if ({plotting_inspection<-FALSE;plotting_inspection}) {
 
 all_idealpoint_models_file<-paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models.RData")
 load(file=all_idealpoint_models_file, verbose=TRUE)
+all_idealpoint_models_keys<-try(names(all_idealpoint_models))
+all_idealpoint_models_keys<-if (is(all_idealpoint_models_keys,'try-error')) c() else all_respondmodels_keys
+
+
 
 #library(lme4)
 # * modeling ------------------
@@ -182,12 +138,11 @@ idealpoint_models_args<-data.frame("formula"=c(
   # "policyidealpoint_eucli_distance_to_median~(1|adminvillage)",
   # "policyidealpoint_eucli_distance_to_median~(1|admindistrict)",
   # "policyidealpoint_eucli_distance_to_median~(1|admincity)"#,
-)) %>%
-  dplyr::filter(!(formula %in% !!names(all_idealpoint_models)))
+), stringsAsFactors=FALSE) %>%
+  dplyr::filter(!(formula %in% !!all_idealpoint_models_keys))
 idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "formula", function(fikey, loopargdf, datadf, ...) {
   f<-dplyr::filter(loopargdf, formula==!!fikey) %>%
     magrittr::use_series("formula") %>%
-    as.character() %>%
     as.formula()
   #datadf %<>% dplyr::mutate(secondweight=1)
   t<-try(
@@ -199,9 +154,11 @@ idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "formula", fun
   return(t)
 }, datadf=merged_acrossed_surveys_list[[1]], mc.cores=1)
 
-breads<-custom_parallel_lapply(idealpoint_models, merDeriv::bread.lmerMod, method=parallel_method)
-#estfuns:Models with weights specification is currently not supported
-#estfuns<-custom_parallel_lapply(idealpoint_models, merDeriv::estfun.lmerMod, method=parallel_method)
+if (FALSE) {
+  breads<-custom_parallel_lapply(idealpoint_models, merDeriv::bread.lmerMod, method=parallel_method)
+  #estfuns:Models with weights specification is currently not supported
+  #estfuns<-custom_parallel_lapply(idealpoint_models, merDeriv::estfun.lmerMod, method=parallel_method)
+}
 
 load(file=all_idealpoint_models_file, verbose=TRUE)
 if (length(all_idealpoint_models)==0) {

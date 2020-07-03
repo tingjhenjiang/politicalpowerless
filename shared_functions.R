@@ -1043,6 +1043,46 @@ confint.rlmerMod <- function(object,parm,level=0.95) {
   return(ctab[parm,])
 }
 
+ret_merged_for_idealpoint_and_pp_df_list<-function(survey_data_imputed, dataset_in_scriptsfile_directory, directlyload=FALSE, transform_pp_data_to_normal=FALSE, minuspolicy=FALSE, ...) {
+  needimps<-custom_ret_appro_kamila_clustering_parameters()
+  doneimps<-unique(survey_data_imputed$`2016citizen`$.imp)
+  need_svytitle<-names(survey_data_imputed)
+  merged_acrossed_surveys_list_with_normality_filepath<-paste0(dataset_in_scriptsfile_directory,"merged_acrossed_surveys_list_with_normality.RData")
+  if (directlyload==FALSE) {
+    merged_acrossed_surveys_list_with_normality<-lapply(doneimps, function(imp, normalize=FALSE, ...) {
+      needdf<-survey_data_imputed[need_svytitle] %>%
+        custom_parallel_lapply(FUN=function(X,nimp) {dplyr::filter(X, .imp==!!nimp) %>% dplyr::select(-myown_indp_atti)}, nimp=imp, method = parallel_method) %>%
+        dplyr::bind_rows() %>%
+        dplyr::mutate_at("SURVEY", as.factor) %>%
+        dplyr::mutate_at("cluster_kamila", as.ordered)  %>%
+        dplyr::mutate(id=as.factor(paste0(SURVEY,id))) %>%
+        dplyr::mutate_at(c("myown_areakind","admincity","admindistrict","adminvillage"), as.factor) %>%
+        dplyr::mutate(myown_factoredses_overallscaled=as.numeric(scale(myown_factoredses)) ) %>%
+        dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age)) ) %>%
+        dplyr::mutate(myown_factoredparticip_ordinal=cut(myown_factoredparticip,breaks=c(-10,-2,-1.5,-1.3,-0.65,-0.4,-0.15,0.15,0.7,1.3,1.8,10),right=TRUE,include.lowest=TRUE,ordered_result=TRUE)) %>%
+        dplyr::mutate_if(is.factor, droplevels)
+      if (minuspolicy==TRUE) {
+        needdf %<>% dplyr::select(-dplyr::contains("policy"))
+      }
+      #C L Q E4 E5
+      #dplyr::mutate_at("cluster_kamila", ~dplyr::recode_factor(., `1` = "A", `2` = "B", `3` = "C", `4` = "D", `5` = "E", `6` = "F", .ordered =TRUE) ) %>%
+      if (normalize==TRUE) {
+        transform_normality<-bestNormalize::bestNormalize(needdf$myown_factoredparticip)
+        needdf$myown_factoredparticip_normalized<-transform_normality$x.t
+      } else {
+        transform_normality<-NA
+      }
+      return(list(needdf, transform_normality))
+    }, survey_data_imputed=survey_data_imputed, need_svytitle=need_svytitle, normalize=transform_pp_data_to_normal, minuspolicy=minuspolicy)
+    merged_acrossed_surveys_list<-lapply(merged_acrossed_surveys_list_with_normality, function(X) {X[[1]]})
+    save(merged_acrossed_surveys_list, merged_acrossed_surveys_list_with_normality,file=merged_acrossed_surveys_list_with_normality_filepath)
+  } else {
+    load(merged_acrossed_surveys_list_with_normality_filepath,verbose=TRUE)
+  }
+  return(merged_acrossed_surveys_list)
+}
+
+
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"
 #research_odbc_ch <- odbcConnect(research_odbc, believeNRows = FALSE, rows_at_time = 1, DBMSencoding="UTF-8")
