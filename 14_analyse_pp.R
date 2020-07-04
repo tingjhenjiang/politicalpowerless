@@ -102,23 +102,25 @@ if ({plotting_to_inspect_distribution<-FALSE;plotting_to_inspect_distribution}) 
 ppmodels_file<-paste0(save_dataset_in_scriptsfile_directory,"/analyse_res/ppmodels.RData")
 load(file=ppmodels_file, verbose=TRUE)
 ppmodel_args<-data.frame("formula"=c(
-  "myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)",
-  "myown_factoredparticip_ordinal~((1+cluster_kamila)|SURVEY)",
-  "myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)",
-  "myown_factoredparticip_ordinal~1+(1|admincity/admindistrict/adminvillage)",
-  "myown_factoredparticip_ordinal~1+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila+myown_religion+(1|cluster_kamila)+(1|myown_areakind/admincity/admindistrict/adminvillage)",
-  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+myown_age_overallscaled+(1|adminvillage)",
-  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+(1|adminvillage)",
-  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled*myown_age_overallscaled+SURVEY+(1|adminvillage)",
-  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+(1|adminvillage)",
-  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+(1|adminvillage)",
-  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+(1|adminvillage)",
-  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+(1|adminvillage)",
-  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+(1|adminvillage)",
-  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+(1|adminvillage)",
-  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila+(1|adminvillage)",
-  "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila+myown_religion+(1|adminvillage)",
-  "myown_factoredparticip_ordinal~(myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila+myown_religion)|adminvillage"
+  "myown_factoredparticip_ordinal~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_marriage+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage)+myown_age+(myown_age|myown_areakind/admincity/admindistrict/adminvillage)+myown_age*myown_age+(myown_age*myown_age|myown_areakind/admincity/admindistrict/adminvillage)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage)+myown_selfid+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage)+(1|myown_areakind/admincity/admindistrict/adminvillage)"
+  #"myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)+(1|cluster_kamila)+(1|SURVEY)"
+  #"myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)",
+  # "myown_factoredparticip_ordinal~((1+cluster_kamila)|SURVEY)",
+  # "myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)",
+  # "myown_factoredparticip_ordinal~1+(1|admincity/admindistrict/adminvillage)",
+  # "myown_factoredparticip_ordinal~1+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila+myown_religion+(1|cluster_kamila)+(1|myown_areakind/admincity/admindistrict/adminvillage)",
+  # "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+myown_age_overallscaled+(1|adminvillage)",
+  # "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+(1|adminvillage)",
+  # "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled*myown_age_overallscaled+SURVEY+(1|adminvillage)",
+  # "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+(1|adminvillage)",
+  # "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+(1|adminvillage)",
+  # "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+(1|adminvillage)",
+  # "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+(1|adminvillage)",
+  # "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+(1|adminvillage)",
+  # "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+(1|adminvillage)",
+  # "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila+(1|adminvillage)",
+  # "myown_factoredparticip_ordinal~myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila+myown_religion+(1|adminvillage)",
+  # "myown_factoredparticip_ordinal~(myown_factoredses_overallscaled+(myown_factoredses_overallscaled|adminvillage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila+myown_religion)|adminvillage"
   #complete
   
   #"myown_factoredparticip_ordinal~myown_factoredses_overallscaled+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+SURVEY+myown_marriage+myown_sex+myown_selfid+myown_areakind+cluster_kamila",
@@ -131,25 +133,27 @@ ppmodel_args<-data.frame("formula"=c(
   #"myown_factoredparticip~myown_factoredses_overallscaled+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_marriage+myown_sex+myown_selfid+cluster_kamila+myown_areakind+SURVEY+cluster_kamila*SURVEY+1+(1|cluster_kamila)"#,
   #"myown_factoredparticip~(1|adminvillage/admindistrict/admincity/myown_areakind/cluster_kamila/SURVEY)"
 ), stringsAsFactors=FALSE) %>%
+  cbind(., needimp = rep(1:6, each = nrow(.)), stringsAsFactors=FALSE) %>%
+  dplyr::mutate(storekey=paste0(formula,needimp)) %>%
   dplyr::filter(!(formula %in% !!names(all_ppmodels)))
 
 #merged_acrossed_surveys_list[[1]]$
 #library(lme4)
-ppmodels<-custom_apply_thr_argdf(ppmodel_args, "formula", function(fikey, loopargdf, datadf, ...) {
-  f<-dplyr::filter(loopargdf, formula==!!fikey) %>%
-    magrittr::use_series("formula") %>%
-    as.formula()
+ppmodels<-custom_apply_thr_argdf(ppmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
+  needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
+  f<-needrow$formula %>% as.formula()
+  needimp<-needrow$needimp
     # lme4::glmer(formula=., data={
     #     dplyr::mutate_at(datadf, "myown_factoredparticip", ~myown_factoredparticip-min(myown_factoredparticip)+1 )
     # }, family = Gamma) %>% #, family = poisson(link = "log")
     #robustlmm::rlmerRcpp(formula=., data=datadf) %>%
     #lme4::lmer(formula=., data=datadf) %>%
     #lme4::bootMer(x=., data=datadf) %>%
-    retmodel<-ordinal::clmm(formula=f, data=datadf, weights=datadf$myown_wr, Hess=TRUE, model = TRUE, link = "logit",
-         threshold = "symmetric") %>% #c("flexible", "symmetric", "symmetric2", "equidistant")
+  retmodel<-ordinal::clmm(formula=f, data=datadf[[needimp]], weights=datadf[[needimp]]$myown_wr, Hess=TRUE, model = TRUE, link = "logit",
+                          threshold = "flexible") %>% #c("flexible", "symmetric", "symmetric2", "equidistant")
       try()
-    return(retmodel)
-}, datadf=merged_acrossed_surveys_list[[1]])
+  return(retmodel)
+}, datadf=merged_acrossed_surveys_list)
 
 load(file=ppmodels_file, verbose=TRUE)
 if (length(all_ppmodels)==0) {
@@ -159,16 +163,19 @@ if (length(all_ppmodels)==0) {
 }
 save(all_ppmodels,file=ppmodels_file)
 
-lapply(all_ppmodels, function(X) {try(ordinal:::summary.clmm(X))})
-lapply(ppmodels, lme4:::summary.merMod, signif.stars=TRUE)
-lapply(ppmodels, summary, signif.stars=TRUE)
-lapply(ppmodels, function(X) {sum(lme4:::residuals.merMod(X))} )
-lapply(ppmodels, function(X) {hist(lme4:::residuals.merMod(X), breaks = 100)} )
-lapply(ppmodels, function(X) {shapiro.test(lme4:::residuals.merMod(X))} )
-lapply(ppmodels, robustlmm:::summary.rlmerMod)
-lapply(ppmodels, function(X) { sum(robustlmm:::residuals.rlmerMod(X))  } )
-lapply(ppmodels, function(X) { hist(robustlmm:::residuals.rlmerMod(X), breaks = 100)  } )
-lapply(ppmodels, function(X) { shapiro.test(robustlmm:::residuals.rlmerMod(X))  } )
+if (FALSE) {
+  lapply(all_ppmodels, function(X) {try(ordinal:::summary.clmm(X))})
+  lapply(ppmodels, lme4:::summary.merMod, signif.stars=TRUE)
+  lapply(ppmodels, summary, signif.stars=TRUE)
+  lapply(ppmodels, function(X) {sum(lme4:::residuals.merMod(X))} )
+  lapply(ppmodels, function(X) {hist(lme4:::residuals.merMod(X), breaks = 100)} )
+  lapply(ppmodels, function(X) {shapiro.test(lme4:::residuals.merMod(X))} )
+  lapply(ppmodels, robustlmm:::summary.rlmerMod)
+  lapply(ppmodels, function(X) { sum(robustlmm:::residuals.rlmerMod(X))  } )
+  lapply(ppmodels, function(X) { hist(robustlmm:::residuals.rlmerMod(X), breaks = 100)  } )
+  lapply(ppmodels, function(X) { shapiro.test(robustlmm:::residuals.rlmerMod(X))  } )
+}
+
 
 
 if ({bayesian<-FALSE;bayesian}) {
@@ -228,23 +235,18 @@ if (FALSE) {
       sample_prior = TRUE
       #,file = here::here("data/policyidealpoint_cos_similarity_to_median_to_kamila-robust")
     )
+  
+  #load(file=paste0(dataset_in_scriptsfile_directory,"brms/test_cossim_to_cluster_mod_robusts.RData"), verbose=TRUE)
+  save(pp_to_cluster_nullmod, file=paste0(dataset_in_scriptsfile_directory,"brms/pp_to_cluster_nullmod.RData"))
+  
+  
 }
-
-
-#load(file=paste0(dataset_in_scriptsfile_directory,"brms/test_cossim_to_cluster_mod_robusts.RData"), verbose=TRUE)
-save(pp_to_cluster_nullmod, file=paste0(dataset_in_scriptsfile_directory,"brms/pp_to_cluster_nullmod.RData"))
-
 
 if (FALSE) {
   brms:::summary.brmsfit(cossim_to_cluster_mod_robusts)
   brms::pp_check(cossim_to_cluster_mod_robusts)
   brms::pp_check(cossim_to_cluster_mod_robusts, group="cluster_kamila")
 }
-
-if (FALSE) {
-  
-}
-
 
 #pick parameters
 #https://easystats.github.io/parameters/index.html

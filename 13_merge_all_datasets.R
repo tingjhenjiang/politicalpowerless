@@ -130,7 +130,8 @@ if (mergingoverlldf & running_bigdata_computation) {
     dplyr::mutate(similarity_distance_overallscaled=as.numeric(scale(similarity_distance))) %>%
     dplyr::mutate(party_pressure_overallscaled=as.numeric(scale(party_pressure))) %>%
     dplyr::mutate(id_wth_survey=paste0(SURVEY,id)) %>%
-    dplyr::mutate_at("id_wth_survey", as.factor)
+    dplyr::mutate_at("id_wth_survey", as.factor) %>%
+    dplyr::mutate_if(is.factor, droplevels)
   #district 780457
   #partylist 26775408
   #dplyr::filter(overall_nonagenda_df, id==104104, grepl("孝嚴", legislator_name)) %>% View()

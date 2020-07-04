@@ -1,7 +1,7 @@
 #setwd("E:/Software/scripts/R")
 #setwd("/mnt/e/Software/scripts/R")
 #Sys.setlocale(category = "LC_ALL", locale = "zh_TW.UTF-8")
-chooseCRANmirror(ind=which(grepl("cran.csie.ntu.edu.tw",getCRANmirrors()$URL)))
+#chooseCRANmirror(ind=which(grepl("cran.csie.ntu.edu.tw",getCRANmirrors()$URL)))
 #reposurl<-getCRANmirrors()$URL
 #for (i in reposurl) {
 #  install.packages('feather', repo=i)

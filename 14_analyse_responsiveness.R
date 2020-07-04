@@ -44,6 +44,8 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #https://bookdown.org/tpemartin/econometric_analysis/r-for-panel-data.html#hausman-1
 #linear growth model
 #https://quantdev.ssri.psu.edu/sites/qdev/files/GCM_Chp3_Tutorial_2.html
+#Using R and lme/lmer to fit different two- and three-level longitudinal models
+#https://rpsychologist.com/r-guide-longitudinal-lme-lmer
 
 respondmodels_file<-paste0(save_dataset_in_scriptsfile_directory,"analyse_res/respondmodels.RData")
 load(file=respondmodels_file, verbose=TRUE)
@@ -70,12 +72,12 @@ respondmodel_args<-data.frame("formula"=c(
   #"respondopinion~1+(1|admincity/admindistrict/adminvillage/id_wth_survey)"#,
   #"respondopinion~1+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)",
   #complete
-  #"respondopinion~1+days_diff_survey_bill_overallscaled+issuefield+(1|issuefield)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)"
+  "respondopinion~1+days_diff_survey_bill_overallscaled+(days_diff_survey_bill_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+issuefield+(1|issuefield)+(issuefield|billid_myown)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_marriage+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled+(myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled*myown_age_overallscaled+(myown_age_overallscaled*myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_selfid+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+similarity_distance_overallscaled+(similarity_distance_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(similarity_distance_overallscaled|legislator_name)+myown_factoredparticip_overallscaled+(myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_factoredparticip_overallscaled*cluster_kamila+cluster_kamila+(1|cluster_kamila)+elec_dist_type+(1|elec_dist_type)+(1/partyGroup/legislator_name)+(elec_dist_type|partyGroup/legislator_name)+party_pressure_overallscaled+(1|party_pressure_overallscaled)+(1|partyGroup/legislator_name)+(party_pressure_overallscaled|partyGroup)+partysize+(1|partysize)+(partysize|partyGroup)+admincity+(1|admincity)+SURVEY+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)"
   #"respondopinion~1+(1|issuefield)"
 ),stringsAsFactors=FALSE) %>%
-  cbind(., half = rep(c(1,0), each = nrow(.) )) %>%
+  cbind(., withindays = rep(c(1095,365), each = nrow(.) )) %>%
   cbind(., file = rep(respondmodels_file, each = nrow(.) ), stringsAsFactors=FALSE) %>%
-  dplyr::mutate(storekey=paste0(formula,half)) %>%
+  dplyr::mutate(storekey=paste0(formula,withindays)) %>%
   dplyr::filter(!(formula %in% !!all_respondmodels_keys))
 
 if (FALSE) { #test
@@ -86,11 +88,12 @@ if (FALSE) { #test
 
 respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
   argrow<-dplyr::filter(loopargdf, storekey==!!fikey)
-  if (argrow$half==1) {datadf %<>% dplyr::filter(days_diff_survey_bill<=365)}
+  datadf %<>% dplyr::filter(days_diff_survey_bill<=!!argrow$withindays)
   retmodel<-argrow$formula %>%
     as.formula() %>%
     ordinal::clmm(formula=., data=datadf, weights=datadf$myown_wr, Hess=TRUE, model = TRUE, link = "logit",
-                  threshold = "symmetric") %>%#c("flexible", "symmetric", "symmetric2", "equidistant")
+                  threshold = "flexible") %>%#c("flexible", "symmetric", "symmetric2", "equidistant")
+    try() %>%
     list() %>%
     magrittr::set_names(argrow$storekey)
   tryn<-1
