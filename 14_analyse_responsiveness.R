@@ -72,8 +72,8 @@ respondmodel_args<-data.frame("formula"=c(
   #"respondopinion~1+(1|admincity/admindistrict/adminvillage/id_wth_survey)"#,
   #"respondopinion~1+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)",
   #complete
-  "respondopinion~1+days_diff_survey_bill_overallscaled+(days_diff_survey_bill_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+issuefield+(1|issuefield)+(issuefield|billid_myown)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_marriage+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled+(myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled*myown_age_overallscaled+(myown_age_overallscaled*myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_selfid+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+similarity_distance_overallscaled+(similarity_distance_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(similarity_distance_overallscaled|legislator_name)+myown_factoredparticip_overallscaled+(myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_factoredparticip_overallscaled*cluster_kamila+cluster_kamila+(1|cluster_kamila)+elec_dist_type+(1|elec_dist_type)+(1/partyGroup/legislator_name)+(elec_dist_type|partyGroup/legislator_name)+party_pressure_overallscaled+(1|party_pressure_overallscaled)+(1|partyGroup/legislator_name)+(party_pressure_overallscaled|partyGroup)+partysize+(1|partysize)+(partysize|partyGroup)+admincity+(1|admincity)+SURVEY+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)"
-  #"respondopinion~1+(1|issuefield)"
+  "respondopinion~1+days_diff_survey_bill_overallscaled+(days_diff_survey_bill_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(days_diff_survey_bill_overallscaled|billid_myown)+issuefield+(1|issuefield)+(issuefield|billid_myown)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_marriage+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled+(myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled*myown_age_overallscaled+(myown_age_overallscaled*myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_selfid+(1|myown_selfid)+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_religion+(1|myown_religion)+(myown_religion|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+similarity_distance_overallscaled+(similarity_distance_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(similarity_distance_overallscaled|legislator_name)+myown_factoredparticip_overallscaled+(myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+cluster_kamila*myown_factoredparticip_overallscaled+(cluster_kamila*myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+cluster_kamila+(1|cluster_kamila)+elec_dist_type+(elec_dist_type|partyGroup/legislator_name)+seniority_overallscaled+(seniority_overallscaled|partyGroup/legislator_name)+(1|partyGroup/legislator_name)+party_pressure_overallscaled+(party_pressure_overallscaled|partyGroup)+(party_pressure_overallscaled|billid_myown)+partysize+(partysize|partyGroup)+adminparty+(adminparty|partyGroup)+SURVEY"
+  #"respondopinion~1+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|issuefield)+(1|cluster_kamila)+(1|elec_dist_type)"
 ),stringsAsFactors=FALSE) %>%
   cbind(., withindays = rep(c(1095,365), each = nrow(.) )) %>%
   cbind(., file = rep(respondmodels_file, each = nrow(.) ), stringsAsFactors=FALSE) %>%
@@ -86,12 +86,14 @@ if (FALSE) { #test
     dplyr::mutate_if(is.factor, droplevels)
 }
 
-respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
+fikey<-respondmodel_args$storekey[1]
+loopargdf<-respondmodel_args
+#respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
   argrow<-dplyr::filter(loopargdf, storekey==!!fikey)
-  retmodel<- dplyr::filter(datadf, days_diff_survey_bill<=!!argrow$withindays) %>%
+  respondmodels<- dplyr::filter(overall_nonagenda_df, days_diff_survey_bill<=!!argrow$withindays) %>%
     {list(formula=as.formula(argrow$formula), data=., weights=magrittr::use_series(., "myown_wr"), 
           Hess=TRUE, model = TRUE, link = "logit", threshold = "flexible")} %>%
-    do.call(ordinal::clmm, args=.)
+    do.call(ordinal::clmm, args=.) %>%
     # {ordinal::clmm(formula=f, data=., weights=magrittr::use_series(., "myown_wr"), Hess=TRUE, model = TRUE, link = "logit",
     #               threshold = "flexible")} %>%#c("flexible", "symmetric", "symmetric2", "equidistant")
     try() %>%
@@ -101,14 +103,14 @@ respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fi
   while (TRUE) {
     loadsavestatus<-try({
       load(file=argrow$file, verbose=TRUE)
-      all_respondmodels<-rlist::list.merge(all_respondmodels, retmodel)
+      all_respondmodels<-rlist::list.merge(all_respondmodels, respondmodels)
       save(all_respondmodels, file=argrow$file)
     })
     tryn<-tryn+1
     if(!is(loadsavestatus, 'try-error') | tryn>10) break
   }
-  return(retmodel[[1]])
-}, datadf=overall_nonagenda_df)
+  
+# return(retmodel[[1]]) }, datadf=overall_nonagenda_df, mc.cores=1)
 
 load(file=respondmodels_file, verbose=TRUE)
 if (length(all_respondmodels)==0 | identical(all_respondmodels, list(a=1))) {

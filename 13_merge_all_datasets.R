@@ -49,7 +49,7 @@ if (TRUE) {
       dplyr::mutate(days_diff_survey_bill=difftime(stdbilldate, stdsurveydate, units = "days")) %>%
       #dplyr::mutate_at("days_diff_survey_bill",~as.numeric(scale(.))) %>%
       dplyr::mutate_at(c("SURVEY","value_on_q_variable","legislator_name","term"),as.factor) %>%
-      dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","variablename_of_issuefield","value_on_q_variable","fpc","myown_hire_people_no","myown_manage_people_no","myown_constituency_party_vote","myown_online_time")))#
+      dplyr::select(-tidyselect::any_of(c("stdsurveydate","stdbilldate","ansv_and_label","variablename_of_issuefield","value_on_q_variable","fpc")))#
     targetdfcolnames<-colnames(targetdf)
     widentolongbasiscols<-grep(pattern="billarea",x=targetdfcolnames,value=TRUE)
     reserve_cols<-base::setdiff(targetdfcolnames,widentolongbasiscols)
@@ -146,7 +146,13 @@ if (mergingoverlldf & running_bigdata_computation) {
 # modeling data prepare when bigdata exists --------------------------------
 
 if (running_bigdata_computation & loadbigdatadf) {
-  load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"), verbose=TRUE)
+  if (FALSE) {
+    tinycolumns<-c("admincity","admindistrict","adminvillage","billid_myown","cluster_kamila","days_diff_survey_bill","days_diff_survey_bill_overallscaled","elec_dist_type","id_wth_survey","issuefield","legislator_name","myown_age_overallscaled","myown_areakind","myown_factoredparticip_overallscaled","myown_factoredses_overallscaled","myown_marriage","myown_selfid","myown_sex","myown_religion","seniority_overallscaled","party_pressure_overallscaled","partyGroup","partysize","adminparty","respondopinion","similarity_distance_overallscaled","SURVEY")
+    overall_nonagenda_df %<>% dplyr::select(!!tinycolumns)
+    try(save(overall_nonagenda_df, file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_tiny.RData")))
+  }
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_tiny.RData"), verbose=TRUE)
+  #load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df.RData"), verbose=TRUE)
   #load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_fullydummycoded.RData"), verbose=TRUE)
   #load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"), verbose=TRUE)
 }

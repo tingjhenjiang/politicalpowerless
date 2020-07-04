@@ -102,7 +102,7 @@ if ({plotting_to_inspect_distribution<-FALSE;plotting_to_inspect_distribution}) 
 ppmodels_file<-paste0(save_dataset_in_scriptsfile_directory,"/analyse_res/ppmodels.RData")
 load(file=ppmodels_file, verbose=TRUE)
 ppmodel_args<-data.frame("formula"=c(
-  "myown_factoredparticip_ordinal~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_marriage+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage)+myown_age+(myown_age|myown_areakind/admincity/admindistrict/adminvillage)+myown_age*myown_age+(myown_age*myown_age|myown_areakind/admincity/admindistrict/adminvillage)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage)+myown_selfid+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage)+(1|myown_areakind/admincity/admindistrict/adminvillage)"
+  "myown_factoredparticip_ordinal~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_marriage+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage)+(1|myown_marriage)+myown_age_overallscaled+(myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_age_overallscaled*myown_age_overallscaled+(myown_age_overallscaled*myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage)+myown_selfid+(1|myown_selfid)+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage)+myown_religion+(1|myown_religion)+(myown_religion|myown_areakind/admincity/admindistrict/adminvillage)+(1|myown_areakind/admincity/admindistrict/adminvillage)"
   #"myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)+(1|cluster_kamila)+(1|SURVEY)"
   #"myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)",
   # "myown_factoredparticip_ordinal~((1+cluster_kamila)|SURVEY)",
@@ -149,11 +149,17 @@ ppmodels<-custom_apply_thr_argdf(ppmodel_args, "storekey", function(fikey, loopa
     #robustlmm::rlmerRcpp(formula=., data=datadf) %>%
     #lme4::lmer(formula=., data=datadf) %>%
     #lme4::bootMer(x=., data=datadf) %>%
-  retmodel<-ordinal::clmm(formula=f, data=datadf[[needimp]], weights=datadf[[needimp]]$myown_wr, Hess=TRUE, model = TRUE, link = "logit",
-                          threshold = "flexible") %>% #c("flexible", "symmetric", "symmetric2", "equidistant")
-      try()
+  retmodel<-datadf[[needimp]] %>%
+    {list(
+      formula=as.formula(needrow$formula),
+      data=., weights=.$myown_wr, Hess=TRUE, model = TRUE, link = "logit",
+      threshold = "flexible"
+    )} %>%
+    do.call(ordinal::clmm, args=.) %>%
+    try()
+    #@() %>% #c("flexible", "symmetric", "symmetric2", "equidistant")
   return(retmodel)
-}, datadf=merged_acrossed_surveys_list)
+}, datadf=merged_acrossed_surveys_list) #, mc.cores=1
 
 load(file=ppmodels_file, verbose=TRUE)
 if (length(all_ppmodels)==0) {

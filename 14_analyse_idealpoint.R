@@ -108,7 +108,7 @@ all_idealpoint_models_keys<-if (is(all_idealpoint_models_keys,'try-error')) c() 
 #library(lme4)
 # * modeling ------------------
 idealpoint_models_args<-data.frame("formula"=c(
-  "policyidealpoint_cos_similarity_to_median~1+cluster_kamila+(1|cluster_kamila)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage)+myown_selfid+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage)+myown_marriage+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+(1|myown_areakind/admincity/admindistrict/adminvillage)"#,
+  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_marriage+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage)+(1|myown_marriage)+myown_age_overallscaled+(myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_age_overallscaled*myown_age_overallscaled+(myown_age_overallscaled*myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage)+myown_selfid+(1|myown_selfid)+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage)+myown_religion+(1|myown_religion)+(myown_religion|myown_areakind/admincity/admindistrict/adminvillage)+(1|myown_areakind/admincity/admindistrict/adminvillage)"#,
   #"policyidealpoint_cos_similarity_to_median~(1|SURVEY)",
   # "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)",
   # "policyidealpoint_cos_similarity_to_median~(1|myown_areakind)",
@@ -157,7 +157,7 @@ idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", fu
     #{magrittr::use_series(., "myown_wr")} %>%
     try()
   return(t)
-}, datadf=merged_acrossed_surveys_list)
+}, datadf=merged_acrossed_surveys_list) #, mc.cores=1
 
 
 load(file=all_idealpoint_models_file, verbose=TRUE)
