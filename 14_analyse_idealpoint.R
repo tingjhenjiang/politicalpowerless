@@ -58,6 +58,8 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #https://wangcc.me/LSHTMlearningnote/random-intercept.html
 #Does it make sense to include a factor as both fixed and random factor in a Linear Mixed Effects Model?
 #https://stats.stackexchange.com/questions/263194/does-it-make-sense-to-include-a-factor-as-both-fixed-and-random-factor-in-a-line
+#Test homogeneity in lmer models
+#https://stats.stackexchange.com/questions/255546/test-homogeneity-in-lmer-models
 #nests: id
 
 # * check kamila result ----------------------------------------------
@@ -99,19 +101,20 @@ if ({plotting_inspection<-FALSE;plotting_inspection}) {
 all_idealpoint_models_file<-paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models.RData")
 load(file=all_idealpoint_models_file, verbose=TRUE)
 all_idealpoint_models_keys<-try(names(all_idealpoint_models))
-all_idealpoint_models_keys<-if (is(all_idealpoint_models_keys,'try-error')) c() else all_respondmodels_keys
+all_idealpoint_models_keys<-if (is(all_idealpoint_models_keys,'try-error')) c() else all_idealpoint_models_keys
 
 
 
 #library(lme4)
 # * modeling ------------------
 idealpoint_models_args<-data.frame("formula"=c(
-  "policyidealpoint_cos_similarity_to_median~(1|SURVEY)",
-  "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)",
-  "policyidealpoint_cos_similarity_to_median~(1|myown_areakind)",
-  "policyidealpoint_cos_similarity_to_median~(1|admincity)",
-  "policyidealpoint_cos_similarity_to_median~(1|admindistrict)",
-  "policyidealpoint_cos_similarity_to_median~(1|adminvillage)"#,
+  "policyidealpoint_cos_similarity_to_median~1+cluster_kamila+(1|cluster_kamila)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage)+myown_selfid+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage)+myown_marriage+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+(1|myown_areakind/admincity/admindistrict/adminvillage)"#,
+  #"policyidealpoint_cos_similarity_to_median~(1|SURVEY)",
+  # "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)",
+  # "policyidealpoint_cos_similarity_to_median~(1|myown_areakind)",
+  # "policyidealpoint_cos_similarity_to_median~(1|admincity)",
+  # "policyidealpoint_cos_similarity_to_median~(1|admindistrict)",
+  #"policyidealpoint_cos_similarity_to_median~(1|admincity)"#,
   # "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)",
   # "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)",
   # "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|adminvillage)",
@@ -139,65 +142,75 @@ idealpoint_models_args<-data.frame("formula"=c(
   # "policyidealpoint_eucli_distance_to_median~(1|admindistrict)",
   # "policyidealpoint_eucli_distance_to_median~(1|admincity)"#,
 ), stringsAsFactors=FALSE) %>%
+  cbind(., needimp = rep(1:6, each = nrow(.)), stringsAsFactors=FALSE) %>%
+  dplyr::mutate(storekey=paste0(needimp,formula)) %>%
   dplyr::filter(!(formula %in% !!all_idealpoint_models_keys))
-idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "formula", function(fikey, loopargdf, datadf, ...) {
-  f<-dplyr::filter(loopargdf, formula==!!fikey) %>%
-    magrittr::use_series("formula") %>%
-    as.formula()
-  #datadf %<>% dplyr::mutate(secondweight=1)
-  t<-try(
-    #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
-    #robustlmm::rlmer(data=datadf, weights=datadf$myown_wr) %>%
-    lmerTest::lmer(formula=f, data=datadf, weights=datadf$myown_wr)
-    #lme4::lmer(formula=f, data=datadf, weights=datadf$myown_wr)
-  )
-  return(t)
-}, datadf=merged_acrossed_surveys_list[[1]], mc.cores=1)
 
-if (FALSE) {
-  breads<-custom_parallel_lapply(idealpoint_models, merDeriv::bread.lmerMod, method=parallel_method)
-  #estfuns:Models with weights specification is currently not supported
-  #estfuns<-custom_parallel_lapply(idealpoint_models, merDeriv::estfun.lmerMod, method=parallel_method)
-}
+idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, ...) {
+  needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
+  #datadf %<>% dplyr::mutate(secondweight=1)
+  t<-datadf[[needrow$needimp]] %>%
+    {list(formula=as.formula(needrow$formula), data=., weights=.$myown_wr)} %>% #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
+    #robustlmm::rlmer(data=datadf, weights=datadf$myown_wr) %>%
+    #lmerTest::lmer(formula=f, data=datadf[[needrow$needimp]], weights=datadf[[needrow$needimp]]$myown_wr) %>%
+    do.call(lme4::lmer, args=.) %>%
+    #{magrittr::use_series(., "myown_wr")} %>%
+    try()
+  return(t)
+}, datadf=merged_acrossed_surveys_list)
+
 
 load(file=all_idealpoint_models_file, verbose=TRUE)
-if (length(all_idealpoint_models)==0) {
+if (length(all_idealpoint_models)==0 | identical(all_idealpoint_models, list(a=1))) {
   all_idealpoint_models<-idealpoint_models
 } else {
   all_idealpoint_models<-rlist::list.merge(all_idealpoint_models,idealpoint_models)
 }
 save(all_idealpoint_models, file=all_idealpoint_models_file)
 
-lapply(all_idealpoint_models, try(performance::icc))
-lapply(all_idealpoint_models, function(X) {try(lmerTest:::summary.lmerModLmerTest(X))})
-
-lapply(all_idealpoint_models, function(X) {try(lmerTest:::anova.lmerModLmerTest(X, type="I", ddf="Kenward-Roger"))})
-lapply(all_idealpoint_models, try(lme4:::summary.merMod))
-lapply(all_idealpoint_models, function(X) {X})
-lapply(all_idealpoint_models, try(lme4:::VarCorr.merMod))
-lapply(all_idealpoint_models, try(lme4:::anova.merMod))
-library(afex)
-lapply(all_idealpoint_models, try(afex:::lmerTest_anova))
 
 
-lapply(idealpoint_models, lmerTest:::summary.lmerModLmerTest)
-lapply(idealpoint_models, function(X) {sum(lme4:::residuals.merMod(X))} )
-lapply(idealpoint_models, function(X) {hist(lme4:::residuals.merMod(X), breaks = 100)} )
-lapply(idealpoint_models, function(X) {shapiro.test(lme4:::residuals.merMod(X))} )
+if (FALSE) {
+  clubSandwich::coef_test
+  
 
-lapply(idealpoint_models, lme4:::summary.merMod, signif.stars=TRUE)
-lapply(idealpoint_models, summary, signif.stars=TRUE)
-lapply(idealpoint_models, lme4::confint.merMod)
+  breads<-custom_parallel_lapply(idealpoint_models, merDeriv::bread.lmerMod, method=parallel_method)
+  #estfuns:Models with weights specification is currently not supported
+  #estfuns<-custom_parallel_lapply(idealpoint_models, merDeriv::estfun.lmerMod, method=parallel_method)
 
-lapply(idealpoint_models, robustlmm:::summary.rlmerMod)
-lapply(idealpoint_models, robustlmm:::plot.rlmerMod)
-lapply(idealpoint_models, confint.rlmerMod)
-lapply(idealpoint_models, function(X) { sum(robustlmm:::residuals.rlmerMod(X))  } )
-lapply(idealpoint_models, function(X) { hist(robustlmm:::residuals.rlmerMod(X), breaks = 100)  } )
-lapply(idealpoint_models, function(X) { shapiro.test(robustlmm:::residuals.rlmerMod(X))  } )
+  
+  lapply(all_idealpoint_models, try(performance::icc))
+  lapply(all_idealpoint_models, function(X) {try(lmerTest:::summary.lmerModLmerTest(X))})
+  
+  lapply(all_idealpoint_models, function(X) {try(lmerTest:::anova.lmerModLmerTest(X, type="I", ddf="Kenward-Roger"))})
+  lapply(all_idealpoint_models, try(lme4:::summary.merMod))
+  lapply(all_idealpoint_models, function(X) {X})
+  lapply(all_idealpoint_models, try(lme4:::VarCorr.merMod))
+  lapply(all_idealpoint_models, try(lme4:::anova.merMod))
+  library(afex)
+  lapply(all_idealpoint_models, try(afex:::lmerTest_anova))
+  
+  
+  lapply(idealpoint_models, lmerTest:::summary.lmerModLmerTest)
+  lapply(idealpoint_models, function(X) {sum(lme4:::residuals.merMod(X))} )
+  lapply(idealpoint_models, function(X) {hist(lme4:::residuals.merMod(X), breaks = 100)} )
+  lapply(idealpoint_models, function(X) {shapiro.test(lme4:::residuals.merMod(X))} )
+  
+  lapply(idealpoint_models, lme4:::summary.merMod, signif.stars=TRUE)
+  lapply(idealpoint_models, summary, signif.stars=TRUE)
+  lapply(idealpoint_models, lme4::confint.merMod)
+  
+  lapply(idealpoint_models, robustlmm:::summary.rlmerMod)
+  lapply(idealpoint_models, robustlmm:::plot.rlmerMod)
+  lapply(idealpoint_models, confint.rlmerMod)
+  lapply(idealpoint_models, function(X) { sum(robustlmm:::residuals.rlmerMod(X))  } )
+  lapply(idealpoint_models, function(X) { hist(robustlmm:::residuals.rlmerMod(X), breaks = 100)  } )
+  lapply(idealpoint_models, function(X) { shapiro.test(robustlmm:::residuals.rlmerMod(X))  } )
+  
+  
+  lapply(idealpoint_models, car::linearHypothesis)
+}
 
-
-lapply(idealpoint_models, car::linearHypothesis)
 
 # * brms backup --------------
 
@@ -225,10 +238,10 @@ if (FALSE) {
       iter = 2000
       #,file = here::here("data/policyidealpoint_cos_similarity_to_median_to_kamila-robust")
     )
+  load(file=paste0(dataset_in_scriptsfile_directory,"brms/test_cossim_to_cluster_mod_robusts.RData"), verbose=TRUE)
+  save(cossim_to_cluster_mod_robusts1, cossim_to_cluster_mod_robusts2, cossim_to_cluster_mod_robusts3, file=paste0(dataset_in_scriptsfile_directory,"brms/test_cossim_to_cluster_mod_robusts.RData"))
+  
 }
-
-load(file=paste0(dataset_in_scriptsfile_directory,"brms/test_cossim_to_cluster_mod_robusts.RData"), verbose=TRUE)
-save(cossim_to_cluster_mod_robusts1, cossim_to_cluster_mod_robusts2, cossim_to_cluster_mod_robusts3, file=paste0(dataset_in_scriptsfile_directory,"brms/test_cossim_to_cluster_mod_robusts.RData"))
 
 
 if (FALSE) {

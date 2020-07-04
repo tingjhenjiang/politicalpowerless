@@ -77,22 +77,23 @@ respondmodel_args<-data.frame("formula"=c(
 ),stringsAsFactors=FALSE) %>%
   cbind(., withindays = rep(c(1095,365), each = nrow(.) )) %>%
   cbind(., file = rep(respondmodels_file, each = nrow(.) ), stringsAsFactors=FALSE) %>%
-  dplyr::mutate(storekey=paste0(formula,withindays)) %>%
+  dplyr::mutate(storekey=paste0(withindays,formula)) %>%
   dplyr::filter(!(formula %in% !!all_respondmodels_keys))
 
 if (FALSE) { #test
-  overall_nonagenda_df_small<-overall_nonagenda_df[sample(nrow(overall_nonagenda_df), 500), ] %>%
+  overall_nonagenda_df_small<-overall_nonagenda_df[sample(nrow(overall_nonagenda_df), 5000), ] %>%
     dplyr::mutate(respondopinion_conti=as.integer(respondopinion)) %>%
     dplyr::mutate_if(is.factor, droplevels)
 }
 
 respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
   argrow<-dplyr::filter(loopargdf, storekey==!!fikey)
-  datadf %<>% dplyr::filter(days_diff_survey_bill<=!!argrow$withindays)
-  retmodel<-argrow$formula %>%
-    as.formula() %>%
-    ordinal::clmm(formula=., data=datadf, weights=datadf$myown_wr, Hess=TRUE, model = TRUE, link = "logit",
-                  threshold = "flexible") %>%#c("flexible", "symmetric", "symmetric2", "equidistant")
+  retmodel<- dplyr::filter(datadf, days_diff_survey_bill<=!!argrow$withindays) %>%
+    {list(formula=as.formula(argrow$formula), data=., weights=magrittr::use_series(., "myown_wr"), 
+          Hess=TRUE, model = TRUE, link = "logit", threshold = "flexible")} %>%
+    do.call(ordinal::clmm, args=.)
+    # {ordinal::clmm(formula=f, data=., weights=magrittr::use_series(., "myown_wr"), Hess=TRUE, model = TRUE, link = "logit",
+    #               threshold = "flexible")} %>%#c("flexible", "symmetric", "symmetric2", "equidistant")
     try() %>%
     list() %>%
     magrittr::set_names(argrow$storekey)
@@ -106,11 +107,15 @@ respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fi
     tryn<-tryn+1
     if(!is(loadsavestatus, 'try-error') | tryn>10) break
   }
-  return(retmodel)
+  return(retmodel[[1]])
 }, datadf=overall_nonagenda_df)
 
 load(file=respondmodels_file, verbose=TRUE)
-all_respondmodels<-rlist::list.merge(all_respondmodels, respondmodels)
+if (length(all_respondmodels)==0 | identical(all_respondmodels, list(a=1))) {
+  all_respondmodels<-respondmodels
+} else {
+  all_respondmodels<-rlist::list.merge(all_respondmodels,respondmodels)
+}
 save(all_respondmodels,file=respondmodels_file)
 
 if (FALSE) {
