@@ -385,7 +385,8 @@ legislators_additional_attr <- legislators_with_elections %>% #[!is.na(legislato
   dplyr::filter(!is.na(wonelection)) %>%
   dplyr::select(-election_type,-wonelection)
 
-legislators_with_elections %<>% dplyr::select(-tidyselect::any_of(c("education","degree","experience","wonelection","servingdayslong_in_this_term"))) %>%
+legislators_with_elections %<>% dplyr::filter(!is.na(wonelection)) %>%
+  dplyr::select(-tidyselect::any_of(c("education","degree","experience","wonelection","servingdayslong_in_this_term"))) %>%
   dplyr::mutate_at(c("legislator_name","electionarea","admincity","admindistrict","adminvillage"), as.factor) %>%
   dplyr::select(-tidyselect::any_of(c("areaName","election_party","electionarea")))
 

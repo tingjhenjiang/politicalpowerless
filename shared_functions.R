@@ -524,13 +524,6 @@ gcreset<-function() {
   gc(reset = TRUE)
 }
 
-findduplicatedrowsindf<-function(df,vard=c()) {
-  if (length(var)>0) {
-    df[duplicated(df[,vard]), ]
-  } else {
-    df
-  }
-}
 
 #rJava安裝前要R CMD javareconf
 if (check_if_windows()) {
@@ -1082,6 +1075,24 @@ ret_merged_for_idealpoint_and_pp_df_list<-function(survey_data_imputed, dataset_
   return(merged_acrossed_surveys_list)
 }
 
+
+custom_find_duplicated_rows<-function(targetdf, cols=c(), findall=FALSE, remove=FALSE) {
+  if (length(cols)<=0) {
+    cols<-names(targetdf)
+  }
+  targetdf %<>% data.table::as.data.table()
+  if (remove==TRUE) {
+    matcheddf<-targetdf[!duplicated(targetdf)]
+  } else {
+    if (findall==FALSE) {
+      matcheddf<-targetdf[duplicated(targetdf)]
+    } else {
+      matcheddf<-targetdf[duplicated(targetdf)] %>%
+        dplyr::semi_join(targetdf)
+    }
+  }
+  return(matcheddf)
+}
 
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"
