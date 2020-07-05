@@ -126,7 +126,8 @@ if (mergingoverlldf & running_bigdata_computation) {
     dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age))) %>%
     dplyr::mutate(myown_factoredses_overallscaled=as.numeric(scale(myown_factoredses))) %>%
     dplyr::mutate(myown_factoredefficacy_overallscaled=as.numeric(scale(myown_factoredefficacy))) %>%
-    dplyr::mutate(myown_factoredparticip_overallscaled=as.numeric(scale(myown_factoredparticip))) %>%
+    dplyr::mutate(myown_factoredparticip_overallscaled=as.numeric(scale(myown_factoredparticip)))  %>%
+    dplyr::mutate(myown_factoredparticip_overallscaled_inverse=myown_factoredparticip_overallscaled*-1) %>%
     dplyr::mutate(similarity_distance_overallscaled=as.numeric(scale(similarity_distance))) %>%
     dplyr::mutate(party_pressure_overallscaled=as.numeric(scale(party_pressure))) %>%
     dplyr::mutate(id_wth_survey=paste0(SURVEY,id)) %>%
