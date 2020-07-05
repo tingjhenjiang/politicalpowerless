@@ -1,8 +1,10 @@
 ==respond==
-1+days_diff_survey_bill_overallscaled+(days_diff_survey_bill_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(days_diff_survey_bill_overallscaled|billid_myown)+(days_diff_survey_bill_overallscaled|billid_myown)
+1+days_diff_survey_bill_overallscaled+(days_diff_survey_bill_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(days_diff_survey_bill_overallscaled|billid_myown)
++(1|billid_myown)
 +issuefield+(1|issuefield)+(issuefield|billid_myown)
 +myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)
 +myown_marriage+(1|myown_marriage)+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)
++myown_areakind+(1|myown_areakind)
 +myown_age_overallscaled+(myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)
 +myown_age_overallscaled*myown_age_overallscaled+(myown_age_overallscaled*myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)
 +myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)
@@ -34,3 +36,28 @@ myown_factoredparticip_ordinal~
 +myown_selfid+(1|myown_selfid)+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage)
 +myown_religion+(1|myown_religion)+(myown_religion|myown_areakind/admincity/admindistrict/adminvillage)
 +(1|myown_areakind/admincity/admindistrict/adminvillage)
+
+==brms version==
+respondopinion | weights(myown_wr)~
+1+days_diff_survey_bill_overallscaled
++issuefield+(1||issuefield)
++(1+issuefield+days_diff_survey_bill_overallscaled+party_pressure_overallscaled||billid_myown)
++myown_areakind
++(1+days_diff_survey_bill_overallscaled+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_factoredparticip_overallscaled+similarity_distance_overallscaled+cluster_kamila*myown_factoredparticip_overallscaled||myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)
++myown_factoredses_overallscaled
++myown_marriage+(1|myown_marriage)
++myown_age_overallscaled
++myown_age_overallscaled*myown_age_overallscaled
++myown_sex
++myown_selfid+(1|myown_selfid)
++myown_religion+(1|myown_religion)
++myown_factoredparticip_overallscaled
++similarity_distance_overallscaled+(similarity_distance_overallscaled|legislator_name)
++cluster_kamila*myown_factoredparticip_overallscaled
++cluster_kamila+(1|cluster_kamila)
++elec_dist_type+(1+elec_dist_type+seniority_overallscaled||partyGroup:legislator_name)
++seniority_overallscaled
++party_pressure_overallscaled+(1+elec_dist_type+seniority_overallscaled+party_pressure_overallscaled+partysize+adminparty||partyGroup)
++partysize
++adminparty
++SURVEY

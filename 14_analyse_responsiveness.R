@@ -72,27 +72,100 @@ respondmodel_args<-data.frame("formula"=c(
   #"respondopinion~1+(1|admincity/admindistrict/adminvillage/id_wth_survey)"#,
   #"respondopinion~1+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)",
   #complete
-  "respondopinion~1+days_diff_survey_bill_overallscaled+(days_diff_survey_bill_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(days_diff_survey_bill_overallscaled|billid_myown)+issuefield+(1|issuefield)+(issuefield|billid_myown)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_marriage+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled+(myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled*myown_age_overallscaled+(myown_age_overallscaled*myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_selfid+(1|myown_selfid)+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_religion+(1|myown_religion)+(myown_religion|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+similarity_distance_overallscaled+(similarity_distance_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(similarity_distance_overallscaled|legislator_name)+myown_factoredparticip_overallscaled+(myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+cluster_kamila*myown_factoredparticip_overallscaled+(cluster_kamila*myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+cluster_kamila+(1|cluster_kamila)+elec_dist_type+(elec_dist_type|partyGroup/legislator_name)+seniority_overallscaled+(seniority_overallscaled|partyGroup/legislator_name)+(1|partyGroup/legislator_name)+party_pressure_overallscaled+(party_pressure_overallscaled|partyGroup)+(party_pressure_overallscaled|billid_myown)+partysize+(partysize|partyGroup)+adminparty+(adminparty|partyGroup)+SURVEY"
+  "respondopinion~1+days_diff_survey_bill_overallscaled+(days_diff_survey_bill_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(days_diff_survey_bill_overallscaled|billid_myown)+(1|billid_myown)+issuefield+(1|issuefield)+(issuefield|billid_myown)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_marriage+(1|myown_marriage)+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled+(myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled*myown_age_overallscaled+(myown_age_overallscaled*myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_selfid+(1|myown_selfid)+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_religion+(1|myown_religion)+(myown_religion|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+similarity_distance_overallscaled+(similarity_distance_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(similarity_distance_overallscaled|legislator_name)+myown_factoredparticip_overallscaled+(myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+cluster_kamila*myown_factoredparticip_overallscaled+(cluster_kamila*myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+cluster_kamila+(1|cluster_kamila)+elec_dist_type+(elec_dist_type|partyGroup/legislator_name)+seniority_overallscaled+(seniority_overallscaled|partyGroup/legislator_name)+(1|partyGroup/legislator_name)+party_pressure_overallscaled+(party_pressure_overallscaled|partyGroup)+(party_pressure_overallscaled|billid_myown)+partysize+(partysize|partyGroup)+adminparty+(adminparty|partyGroup)+SURVEY",
+  "1+(1|billid_myown)+(1|issuefield)+(1|legislator_name)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|myown_marriage)+(1|myown_selfid)+(1|myown_religion)+(1|cluster_kamila)+(1|partyGroup/legislator_name)+(1|partyGroup)+SURVEY"
   #"respondopinion~1+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|issuefield)+(1|cluster_kamila)+(1|elec_dist_type)"
 ),stringsAsFactors=FALSE) %>%
   cbind(., withindays = rep(c(1095,365), each = nrow(.) )) %>%
   cbind(., file = rep(respondmodels_file, each = nrow(.) ), stringsAsFactors=FALSE) %>%
-  dplyr::mutate(storekey=paste0(withindays,formula)) %>%
+  dplyr::mutate(storekey=paste0(c("full","null"),withindays)) %>%
   dplyr::filter(!(formula %in% !!all_respondmodels_keys))
 
-if (FALSE) { #test
-  overall_nonagenda_df_small<-overall_nonagenda_df[sample(nrow(overall_nonagenda_df), 5000), ] %>%
-    dplyr::mutate(respondopinion_conti=as.integer(respondopinion)) %>%
-    dplyr::mutate_if(is.factor, droplevels)
-}
+running_brms_model<-TRUE
 
-fikey<-respondmodel_args$storekey[1]
-loopargdf<-respondmodel_args
-#respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
+if (running_brms_model==TRUE & running_bigdata_computation) {
+  #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"), verbose=TRUE)
+  # Ordinal regression modeling patient's rating of inhaler instructions
+  # category specific effects are estimated for variable 'treat'
+  #要把屆次加入群
+  #modelformula<-argrow$formula
+  modelformula<-"respondopinion | weights(myown_wr)~1+days_diff_survey_bill_overallscaled+issuefield+(1||issuefield)+(1+issuefield+days_diff_survey_bill_overallscaled+party_pressure_overallscaled||billid_myown)+myown_areakind+(1+days_diff_survey_bill_overallscaled+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_factoredparticip_overallscaled+similarity_distance_overallscaled+cluster_kamila*myown_factoredparticip_overallscaled||myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_factoredses_overallscaled+myown_marriage+(1|myown_marriage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_sex+myown_selfid+(1|myown_selfid)+myown_religion+(1|myown_religion)+myown_factoredparticip_overallscaled+similarity_distance_overallscaled+(similarity_distance_overallscaled|legislator_name)+cluster_kamila*myown_factoredparticip_overallscaled+cluster_kamila+(1|cluster_kamila)+elec_dist_type+(1+elec_dist_type+seniority_overallscaled||partyGroup:legislator_name)+seniority_overallscaled+party_pressure_overallscaled+(1+elec_dist_type+seniority_overallscaled+party_pressure_overallscaled+partysize+adminparty||partyGroup)+partysize+adminparty+SURVEY" %>%
+    brms::brmsformula()
+  overall_nonagenda_df %<>% dplyr::mutate_at("myown_sex", dplyr::recode_factor, "[1] 男"="male", "[2] 女"="female") %>%
+    dplyr::mutate_at("myown_selfid", dplyr::recode_factor, "[1] 台灣閩南人"="fulo", "[2] 台灣客家人"="hakka", "[3] 台灣原住民"="aboriginal", "[4] 大陸各省市(含港澳金馬)"="foreignstate", "[5] 新移民"="newresid") %>%
+    dplyr::mutate_at("myown_marriage", dplyr::recode_factor, "[1] 單身且從沒結過婚"="notmarriaged", "[2] 已婚且與配偶同住"="marriaged", "[3] 已婚但沒有與配偶同住"="marriaged_nolivtog", "[4] 同居"="livtog", "[5] 離婚"="divorced", "[6] 分居"="sep", "[7] 配偶去世"="spousedead") %>%
+    dplyr::mutate_at("myown_areakind", dplyr::recode_factor, "[1] 都會核心"="metrocore", "[2] 工商市區"="industrial", "[3] 新興市鎮"="newlydeveloped", "[4] 傳統產業市鎮"="traditional", "[5] 低度發展鄉鎮"="underdev", "[6] 高齡化鄉鎮+偏遠鄉鎮"="oldandfar") %>%
+    dplyr::mutate_at("issuefield", dplyr::recode_factor, "經社文權利"="seright", "財政"="finance", "經濟"="eco", "衛生及環境"="env", "公民政治權"="pocivright", "社會福利"="socialwelfare", "政府組織及法制"="lawaff", "教育文化科研"="esc", "統獨"="indp", "外交"="diplo", "內政"="interaff")
+  #tprior<-brms::get_prior(formula=modelformula,data = overall_nonagenda_df[sample(nrow(overall_nonagenda_df), 100000), ])
+  prior1 <- c(brms::set_prior("normal(-0.005,0.1)", class = "b", coef = "similarity_distance_overallscaled"),
+              brms::set_prior("normal(0.005,0.1)", class = "b", coef = "myown_age_overallscaled"),
+              brms::set_prior("normal(0.005,0.1)", class = "b", coef = "myown_factoredses_overallscaled"),
+              brms::set_prior("normal(-0.005,0.1)", class = "b", coef = "myown_sexfemale"),
+              brms::set_prior("normal(-0.005,0.1)", class = "b", coef = "myown_selfidhakka"),
+              brms::set_prior("normal(-0.005,0.1)", class = "b", coef = "myown_selfidaboriginal"),
+              brms::set_prior("normal(0.005,0.1)", class = "b", coef = "myown_selfidforeignstate"),
+              brms::set_prior("normal(-0.005,0.1)", class = "b", coef = "myown_selfidnewresid"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_marriagemarriaged"),
+              brms::set_prior("normal(-0.01,0.1)", class = "b", coef = "myown_marriagemarriaged_nolivtog"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_marriagelivtog"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_marriagedivorced"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_marriagesep"),
+              brms::set_prior("normal(0.02,0.1)", class = "b", coef = "myown_marriagespousedead"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_areakindindustrial"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_areakindnewlydeveloped"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_areakindtraditional"),
+              brms::set_prior("normal(-0.01,0.1)", class = "b", coef = "myown_areakindunderdev"),
+              brms::set_prior("normal(-0.01,0.1)", class = "b", coef = "myown_areakindoldandfar"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "cluster_kamila.C"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "cluster_kamila.L"),
+              brms::set_prior("normal(-0.01,0.1)", class = "b", coef = "cluster_kamila.Q"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "cluster_kamilaE4"),
+              brms::set_prior("normal(-0.02,0.1)", class = "b", coef = "cluster_kamilaE5"),
+              brms::set_prior("normal(0.1,0.1)", class = "b", coef = "myown_factoredparticip_overallscaled"),
+              brms::set_prior("normal(-0.2,0.1)", class = "b", coef = "party_pressure_overallscaled"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "seniority_overallscaled"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled"),
+              brms::set_prior("normal(-0.01,0.1)", class = "b", coef = "elec_dist_typepartylist"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "adminparty1"),
+              brms::set_prior("normal(-0.4,0.1)", class = "b", coef = "issuefieldinteraff"),
+              brms::set_prior("normal(-0.24,0.1)", class = "b", coef = "issuefieldpocivright"),
+              brms::set_prior("normal(-0.24,0.1)", class = "b", coef = "issuefielddiplo"),
+              brms::set_prior("normal(-0.24,0.1)", class = "b", coef = "issuefieldlawaff"),
+              brms::set_prior("normal(0.24,0.1)", class = "b", coef = "issuefieldesc"),
+              brms::set_prior("normal(-0.004,0.1)", class = "b", coef = "issuefieldsocialwelfare"),
+              brms::set_prior("normal(0.05,0.1)", class = "b", coef = "issuefieldeco"),
+              #brms::set_prior("normal(-0.05,0.1)", class = "b", coef = "issuefieldseright"),
+              brms::set_prior("normal(0.05,0.1)", class = "b", coef = "issuefieldenv"),
+              brms::set_prior("normal(-0.02,0.1)", class = "b", coef = "issuefieldfinance"),
+              brms::set_prior("normal(-0.02,0.1)", class = "b", coef = "issuefieldindp"),
+              brms::set_prior("normal(-0.04,0.1)", class = "b", coef = "SURVEY2016citizen"))
+  #overall_nonagenda_df_sampled<-overall_nonagenda_df[sample_n_for_df,] %>%
+  respondmodels <- brms::brm(modelformula, data = overall_nonagenda_df, family = brms::cumulative(link = "logit"),
+                             prior=prior1, chains = 2, cores = parallel::detectCores(), iter = 1500) %>%
+    try() %>%
+    list() %>%
+    magrittr::set_names("brms_responsive")
+  #brms:::summary.brmsfit(brmmodelonrespondopinion)
+  #brms:::plot.brmsfit(brmmodelonrespondopinion, ask = FALSE)
+  #brms::WAIC(brmmodelonrespondopinion)
+  #save(brmmodelonrespondopinion, file=paste0(dataset_in_scriptsfile_directory, "brmmodelonrespondopinion.RData"))
+
+
+} else {
+  
+  if (FALSE) { #test
+    overall_nonagenda_df_small<-overall_nonagenda_df[sample(nrow(overall_nonagenda_df), 100000), ] %>%
+      dplyr::mutate(respondopinion_conti=as.integer(respondopinion)) %>%
+      dplyr::mutate_if(is.factor, droplevels)
+  }
+  
+  fikey<-respondmodel_args$storekey[3]
+  loopargdf<-respondmodel_args
+  #respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
   argrow<-dplyr::filter(loopargdf, storekey==!!fikey)
   respondmodels<- dplyr::filter(overall_nonagenda_df, days_diff_survey_bill<=!!argrow$withindays) %>%
-    {list(formula=as.formula(argrow$formula), data=., weights=magrittr::use_series(., "myown_wr"), 
-          Hess=TRUE, model = TRUE, link = "logit", threshold = "flexible")} %>%
+  {list(formula=as.formula(argrow$formula), data=., weights=magrittr::use_series(., "myown_wr"), 
+        Hess=TRUE, model = TRUE, link = "logit", threshold = "flexible")} %>%
     do.call(ordinal::clmm, args=.) %>%
     # {ordinal::clmm(formula=f, data=., weights=magrittr::use_series(., "myown_wr"), Hess=TRUE, model = TRUE, link = "logit",
     #               threshold = "flexible")} %>%#c("flexible", "symmetric", "symmetric2", "equidistant")
@@ -100,7 +173,7 @@ loopargdf<-respondmodel_args
     list() %>%
     magrittr::set_names(argrow$storekey)
   tryn<-1
-  while (TRUE) {
+  while (FALSE) {
     loadsavestatus<-try({
       load(file=argrow$file, verbose=TRUE)
       all_respondmodels<-rlist::list.merge(all_respondmodels, respondmodels)
@@ -110,7 +183,18 @@ loopargdf<-respondmodel_args
     if(!is(loadsavestatus, 'try-error') | tryn>10) break
   }
   
-# return(retmodel[[1]]) }, datadf=overall_nonagenda_df, mc.cores=1)
+  # return(retmodel[[1]]) }, datadf=overall_nonagenda_df, mc.cores=1)
+  
+  if (FALSE) {
+    lapply(all_respondmodels, function(X) {try(ordinal:::summary.clmm(X))})
+    ordinal:::summary.clmm(all_respondmodels[[1]])
+  }
+}
+
+
+
+
+  
 
 load(file=respondmodels_file, verbose=TRUE)
 if (length(all_respondmodels)==0 | identical(all_respondmodels, list(a=1))) {
@@ -119,43 +203,3 @@ if (length(all_respondmodels)==0 | identical(all_respondmodels, list(a=1))) {
   all_respondmodels<-rlist::list.merge(all_respondmodels,respondmodels)
 }
 save(all_respondmodels,file=respondmodels_file)
-
-if (FALSE) {
-  lapply(all_respondmodels, function(X) {try(ordinal:::summary.clmm(X))})
-  ordinal:::summary.clmm(all_respondmodels[[1]])
-}
-
-if ({running_brms_model<-FALSE; running_brms_model & running_bigdata_computation}) {
-  #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"), verbose=TRUE)
-  # Ordinal regression modeling patient's rating of inhaler instructions
-  # category specific effects are estimated for variable 'treat'
-  #要把屆次加入群
-  sample_n_for_df<-sample(1:nrow(overall_nonagenda_df),60000)
-  #overall_nonagenda_df_sampled<-overall_nonagenda_df[sample_n_for_df,] %>%
-  overall_nonagenda_df_sampled<- overall_nonagenda_df_sampled %>%
-    dplyr::group_by(imp) %>%
-    {
-      targetfreq<-{as.data.frame(table(.$imp)) %>% .$Freq %>% min()}
-      dplyr::slice(., 1:targetfreq)
-    }
-  modelformula<-c(modelvars_ex_conti, modelvars_ex_catg, modelvars_latentrelated, modelvars_clustervars[1], modelvars_controllclustervars) %>%
-    paste0(., collapse="+") %>%
-    paste0("respondopinion~",.)
-  message(modelformula)
-  paste0(modelvars_clustervars,collapse="|") %>%
-    paste0("(",.,")") %>%
-    grep(pattern=., x=names(overall_nonagenda_df_sampled), value=TRUE) %>%
-    paste0(collapse="+")
-  modelformula<-"
-    respondopinion | weights(myown_wr)~(myown_age+myown_sex+myown_selfid+myown_marriage+myown_factoredses+myown_factoredefficacy+myown_factoredparticip|myown_areakind)+similarity_distance+days_diff_survey_bill+(party_pressure+seniority+adminparty+elec_dist_type+1|term)+issuefield+cluster_varsellcm2+cluster_varsellcm3+cluster_varsellcm4+cluster_varsellcm5+cluster_varsellcm6
-  " %>%
-    brms::brmsformula()
-  brmmodelonrespondopinion <- overall_nonagenda_df_sampled %>%
-    brms::brm(modelformula,
-              data = ., family = brms::cumulative(link = "logit"),
-              chains = 2, cores = parallel::detectCores())
-  brms:::summary.brmsfit(brmmodelonrespondopinion)
-  #brms:::plot.brmsfit(brmmodelonrespondopinion, ask = FALSE)
-  #brms::WAIC(brmmodelonrespondopinion)
-  save(brmmodelonrespondopinion, file=paste0(dataset_in_scriptsfile_directory, "brmmodelonrespondopinion.RData"))
-}
