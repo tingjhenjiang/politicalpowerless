@@ -166,14 +166,15 @@ if (usingpackage=="brms" & running_bigdata_computation) {
     do.call(ordinal::clmm, args=.) %>%
     # {ordinal::clmm(formula=f, data=., weights=magrittr::use_series(., "myown_wr"), Hess=TRUE, model = TRUE, link = "logit",
     #               threshold = "flexible")} %>%#c("flexible", "symmetric", "symmetric2", "equidistant")
-    try() %>%
-    list() %>%
-    magrittr::set_names(argrow$storekey)
+    try() 
   tryn<-1
   while (FALSE) {
     loadsavestatus<-try({
       load(file=argrow$file, verbose=TRUE)
-      all_respondmodels<-rlist::list.merge(all_respondmodels, respondmodels)
+      all_respondmodels<- respondmodels %>%
+        list() %>%
+        magrittr::set_names(argrow$storekey) %>%
+        rlist::list.merge(all_respondmodels, .)
       save(all_respondmodels, file=argrow$file)
     })
     tryn<-tryn+1

@@ -253,13 +253,17 @@ if (FALSE) {
 }
 
 
+
+
 if (FALSE) {
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/ppmodels(very_precious_efficient).RData"), verbose=TRUE)
   #save(all_ppmodels, file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/ppmodels(very_precious_efficient).RData"))
   lapply(all_ppmodels, ordinal:::summary.clmm)
   #pooling https://rdrr.io/github/DaanNieboer/ordinalimputation/api/
   t<-mice::as.mira(all_ppmodels)
+  pooling.clmm(t$analyses)
   mice::pool(t)
+  get_vcov(t$analyses[[1]])
 }
 
 #pick parameters
