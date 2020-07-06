@@ -102,7 +102,7 @@ if ({plotting_to_inspect_distribution<-FALSE;plotting_to_inspect_distribution}) 
 ppmodels_file<-paste0(save_dataset_in_scriptsfile_directory,"/analyse_res/ppmodels.RData")
 load(file=ppmodels_file, verbose=TRUE)
 ppmodel_args<-data.frame("formula"=c(
-  "myown_factoredparticip_ordinal~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_marriage+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage)+(1|myown_marriage)+myown_age_overallscaled+(myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_age_overallscaled*myown_age_overallscaled+(myown_age_overallscaled*myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage)+myown_selfid+(1|myown_selfid)+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage)+myown_religion+(1|myown_religion)+(myown_religion|myown_areakind/admincity/admindistrict/adminvillage)+(1|myown_areakind/admincity/admindistrict/adminvillage)"
+  "myown_factoredparticip_ordinal~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admincity/admindistrict/adminvillage)"
   #"myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)+(1|cluster_kamila)+(1|SURVEY)"
   #"myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)",
   # "myown_factoredparticip_ordinal~((1+cluster_kamila)|SURVEY)",
@@ -242,16 +242,24 @@ if (FALSE) {
       #,file = here::here("data/policyidealpoint_cos_similarity_to_median_to_kamila-robust")
     )
   
+  brms:::summary.brmsfit(cossim_to_cluster_mod_robusts)
+  brms::pp_check(cossim_to_cluster_mod_robusts)
+  brms::pp_check(cossim_to_cluster_mod_robusts, group="cluster_kamila")
+  
   #load(file=paste0(dataset_in_scriptsfile_directory,"brms/test_cossim_to_cluster_mod_robusts.RData"), verbose=TRUE)
   save(pp_to_cluster_nullmod, file=paste0(dataset_in_scriptsfile_directory,"brms/pp_to_cluster_nullmod.RData"))
   
   
 }
 
+
 if (FALSE) {
-  brms:::summary.brmsfit(cossim_to_cluster_mod_robusts)
-  brms::pp_check(cossim_to_cluster_mod_robusts)
-  brms::pp_check(cossim_to_cluster_mod_robusts, group="cluster_kamila")
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/ppmodels(very_precious_efficient).RData"), verbose=TRUE)
+  #save(all_ppmodels, file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/ppmodels(very_precious_efficient).RData"))
+  lapply(all_ppmodels, ordinal:::summary.clmm)
+  #pooling https://rdrr.io/github/DaanNieboer/ordinalimputation/api/
+  t<-mice::as.mira(all_ppmodels)
+  mice::pool(t)
 }
 
 #pick parameters
