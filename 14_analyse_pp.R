@@ -102,7 +102,7 @@ if ({plotting_to_inspect_distribution<-FALSE;plotting_to_inspect_distribution}) 
 ppmodels_file<-paste0(save_dataset_in_scriptsfile_directory,"/analyse_res/ppmodels.RData")
 load(file=ppmodels_file, verbose=TRUE)
 ppmodel_args<-data.frame("formula"=c(
-  "myown_factoredparticip_ordinal~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admincity/admindistrict/adminvillage)"
+  "myown_factoredparticip_ordinal~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"
   #"myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)+(1|cluster_kamila)+(1|SURVEY)"
   #"myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)",
   # "myown_factoredparticip_ordinal~((1+cluster_kamila)|SURVEY)",
