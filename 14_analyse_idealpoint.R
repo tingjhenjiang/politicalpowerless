@@ -158,6 +158,19 @@ if (FALSE) {
   des <- mitools::imputationList(merged_acrossed_surveys_list) %>%
     survey::svydesign(ids=~1, weight=~myown_wr, data=.)
   all_idealpoint_models_svy<-survey:::with.svyimputationList(des,svylme::svy2lme(needformula, sterr=TRUE, return.devfun=FALSE, method="general"),multicore=TRUE)
+  combined_all_idealpoint_models_svy<-mitools::MIcombine(all_idealpoint_models_svy)
+  mitools_summary_table<-cbind(summary(combined_all_idealpoint_models_svy), combined_all_idealpoint_models_svy$df)
+  write.csv(mitools_summary_table,"TMP.csv")
+  all_idealpoint_models_svy_mira<-mice::as.mira(all_idealpoint_models_svy)
+  #combined_all_idealpoint_models_svy
+  miceaddspooled<-miceadds::pool_mi(
+    qhat=mitools::MIextract( all_idealpoint_models_svy, fun=coef),
+    u=mitools::MIextract( all_idealpoint_models_svy, fun=vcov)#,
+    #se="List of vector of standard errors. Either u or se must be provided.",
+    #dfcom="Degrees of freedom of statistical analysis",
+    #all_idealpoint_models_svy_mira$analyses
+    )
+  write.csv(summary(miceaddspooled), "TMP.csv")
   save(all_idealpoint_models_svy, file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models(svylme).RData"))
 }
 
