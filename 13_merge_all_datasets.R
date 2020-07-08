@@ -60,8 +60,8 @@ if (TRUE) {
        return()
     #return(targetdf)
   }
-  overalldf_to_implist_func<-function(targetdf, usinglib="lavaan") {
-    targetdf %>% lapply(1:5, function(needimp,df) {
+  overalldf_to_implist_func<-function(targetdf, usinglib="lavaan", impns=1:5) {
+    targetdf %>% lapply(impns, function(needimp,df) {
       return(dplyr::filter(df, imp==!!needimp))
     }, df=.) %>%
       {if (usinglib=="survey") mitools::imputationList(.) else .} %>%

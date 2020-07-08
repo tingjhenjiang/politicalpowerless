@@ -1094,6 +1094,221 @@ custom_find_duplicated_rows<-function(targetdf, cols=c(), findall=FALSE, remove=
   return(matcheddf)
 }
 
+##pooling functions for ordinal::clmm, from ordinalimputation
+if (TRUE) {
+  prof_ci <- function(fits, alpha = 0.05, index, data){
+    # Function to calculate the profile confidence interval around the
+    # variance of the random effect,
+    x_est   <- unlist(fits[[1]]$ST)[index]
+    xmax    <- 5 * x_est
+    ci.lb   <- optimize(f = score_prog_ll, interval = c(0, x_est),
+                        alpha = alpha/2, fits = fits, data = data,
+                        index = index)
+    ci.ub   <- optimize(f = score_prog_ll, interval = c(x_est, xmax),
+                        alpha = 1 - alpha/2, fits = fits, data = data, index = index)
+    
+    return(c(ci.lb$minimum, ci.ub$minimum))
+  }
+  
+  
+  score_prog_ll <- function (x, fits, index, alpha, data)
+  {
+    n_x      <- length(x)
+    score    <- rep(NA, n_x)
+    
+    for(j in 1:n_x){
+      ll_value <- rep(NA , length(fits))
+      for(i in 1:length(fits)){
+        fitted <- fits[[i]]
+        
+        start             <- list(fitted$coefficients, unlist(fitted$ST))
+        gamma             <- start[[2]][index]
+        start[[2]][index] <- x[j]
+        
+        fit_prof <- update(fitted, start = start, eval.max = 1,
+                           data = complete(data, i))
+        ll_value[i] <- pnorm(sign(x[j] - gamma[index]) * sqrt(-2 * (fit_prof$logLik -
+                                                                      fitted$logLik)))
+      }
+      
+      avg_ll   <- mean(ll_value)
+      score[j] <- (avg_ll - alpha)^2
+    }
+    return(score)
+  }
+  
+  
+  pooling <- function(x,...){
+    UseMethod("pooling",x)
+  }
+  
+  
+  get_re_std <- function(x){
+    res <- x$ST
+    return(res)
+  }
+  
+  pool_rubin <- function(coefs, variance){
+    qbar <- colMeans(coefs)
+    
+    m            <- length(variance)
+    
+    bw_imp_var   <- var(coefs)
+    wi_imp_var   <- Reduce("+", variance)/m
+    
+    totalVar     <- wi_imp_var + (1 + 1/m) * bw_imp_var
+    qbar         <- colMeans(coefs)
+    
+    res <- list(estimate = qbar, variance = totalVar)
+  }
+  
+  pool_re <- function(re_mode, condvar){
+    n_cluster <- ncol(re_mode)
+    m         <- nrow(re_mode)
+    
+    res <- data.frame(cluster = 1:n_cluster,
+                      mode = rep(NA, n_cluster),
+                      cond_var = rep(NA, n_cluster))
+    for(i in 1:n_cluster){
+      
+      
+      res$mode[i] <- mean(re_mode[, i])
+      
+      bw_imp_var <- var(re_mode[, i])
+      wi_imp_var <- mean(condvar[, i])
+      
+      res$cond_var[i] <- wi_imp_var + (1 + 1/m) * bw_imp_var
+    }
+    return(res)
+  }
+  
+  print.pooled.clmm <- function(x){
+    cat("Random effect parameters:\n")
+    print(x$random_dist)
+    cat("\n\nFixed effect estimates:\n")
+    print(x$fixed_effects)
+    
+  }
+  
+  get_vcov <- function(x, coefs){
+    res <- vcov(x)
+    res <- res[coefs, coefs]
+    return(res)
+  }
+  
+  plot.pooled.clmm <- function(x, xlim = NULL, ylim = NULL, xlab = "Cluster effect", ylab = "Cluster", refline = 0,...){
+    index <- order(x$random_effects$mode)
+    x$random_effects <- x$random_effects[index, ]
+    y      <- 1:nrow(x$random_effects)
+    
+    
+    x_plot <- x$random_effects$mode
+    
+    if(is.null(xlim)){
+      xmax   <- with(x$random_effects, mode + qnorm(0.975) * sqrt(cond_var))
+      xmin   <- with(x$random_effects, mode - qnorm(0.975) * sqrt(cond_var))
+      
+      xlim <- c(floor(min(xmin) + 0.1), ceiling(max(xmax) + 0.1))
+    }
+    if(is.null(ylim)){
+      ylim <- c(0, nrow(x$random_effects) + 1)
+    }
+    
+    plot(x_plot, y, xlim = xlim, ylim = ylim, pch = 19, xlab = xlab, ylab = ylab,...)
+    segments(x0 = xmin, x1 = xmax, y0 = y, y1 = y)
+    abline(v = refline, lty = 3)
+  }
+  
+  
+  pooling.clmm <- function(x, conf.int.re = c("none", "profile"), data = NULL){
+    conf.int.re <- match.arg(conf.int.re)
+    
+    # Pool fixed effects and standard deviation random effect.
+    coefs        <- sapply(X = x, FUN = coefficients)
+    std_re       <- sapply(X = lapply(X = x, FUN = get_re_std),
+                           FUN = unlist)
+    coefs_fit    <- t(coefs)
+    
+    vcov_fits  <- lapply(X = x, FUN = get_vcov, coefs = rownames(coefs))
+    pool_fixed <- pool_rubin(coefs = coefs_fit, variance = vcov_fits)
+    
+    if(class(std_re)=="numeric"){
+      n_re <- 1
+    }else{
+      n_re <- nrow(std_re)
+    }
+    
+    mu_fixed   <- pool_fixed$estimate
+    se_fixed   <- sqrt(diag(pool_fixed$variance))
+    ci_l_fixed <- mu_fixed - 1.96 * se_fixed
+    ci_u_fixed <- mu_fixed + 1.96 * se_fixed
+    
+    fixef      <- cbind(mu_fixed, ci_l_fixed, ci_u_fixed)
+    
+    rownames(fixef) <- names(pool_fixed$estimate)
+    colnames(fixef) <- c("Estimate", "Lower 95% CI", "Upper 95% CI")
+    if(n_re==1){
+      std_dev <- sqrt(mean(std_re))
+    }else{
+      std_dev <- sqrt(rowMeans(std_re))
+    }
+    
+    mor     <- exp(sqrt(2 * std_dev^2) * qnorm(0.75))
+    std_re  <- data.frame(std_dev = std_dev, mor = mor)
+    if(conf.int.re=="profile"){
+      if(is.null(data)){
+        stop("To calculate the profile likelihood please supply the data used when fitting the model.")
+      }
+      cat("Calculating profile likelihood, may take a very long time.\n")
+      conf_int <- matrix(nrow = n_re, ncol = 2)
+      for(i in 1:n_re){
+        conf_int[i, ] <- prof_ci(fits = x, index = i, data = data)
+        cat("Random effect variabce number ", i, "done\n")
+      }
+    }else{
+      conf_int <- NULL
+    }
+    
+    ranef_fits   <- t(sapply(X = lapply(X = x, FUN = ordinal::ranef), FUN = unlist))
+    condVar_fits <- t(sapply(X = lapply(X = x, FUN = ordinal::condVar), FUN = unlist))
+    
+    random_effect <- pool_re(ranef_fits, condVar_fits)
+    
+    mu_random <- random_effect$mode
+    se_random <- sqrt(random_effect$cond_var)
+    
+    ci_l_random <- mu_random - 1.96 * se_random
+    ci_u_random <- mu_random + 1.96 * se_random
+    
+    random <- cbind(mu_random, ci_l_random, ci_u_random)
+    
+    
+    rownames(random) <- 1:nrow(random)
+    colnames(random) <- c("Estimate", "Lower 95% CI", "Upper 95% CI")
+    
+    res <- list(fixed_effects = fixef, random_dist = std_re,
+                random_effects = random, se_fixed = se_fixed,
+                se_random = se_random, conf_int_re = conf_int)
+    class(res) <- c("pooled.clmm")
+    return(res)
+  }
+}
+
+#from https://www.jepusto.com/mi-with-clubsandwich/
+
+ret_robust_models<-function(list_of_models, datadf, clustervar="myown_areakind", vcov="CR1", method="fork", ...) {
+  coefsrobust_mods<-lapply(1:length(list_of_models), function(fi, ...) {
+    list(obj=list_of_models[[fi]], vcov=vcov, cluster=datadf[[fi]][,clustervar]) %>%
+      return()
+  }, list_of_models=list_of_models, datadf=datadf, clustervar=clustervar, vcov=vcov) %>%
+    custom_parallel_lapply(function(arg) {do.call(clubSandwich::coef_test, args=arg)}, method=method, ... )
+    #function(fi, list_of_models=list_of_models, datadf=datadf, clustervar=clustervar, vcov=vcov, ...) {
+    #clubSandwich::coef_test(list_of_models[[fi]], cluster=magrittr::use_series(datadf[[fi]], clustervar, vcov=vcov)) %>%
+    #  return()
+  #}, list_of_models=list_of_models, datadf=datadf, clustervar=clustervar, vcov=vcov, method=parallel_method, ...)
+  return(coefsrobust_mods)
+}
+
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"
 #research_odbc_ch <- odbcConnect(research_odbc, believeNRows = FALSE, rows_at_time = 1, DBMSencoding="UTF-8")

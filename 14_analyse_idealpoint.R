@@ -61,6 +61,8 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #Test homogeneity in lmer models
 #https://stats.stackexchange.com/questions/255546/test-homogeneity-in-lmer-models
 #nests: id
+#data analysis after multiple imputation
+#https://bookdown.org/mwheymans/bookmi/data-analysis-after-multiple-imputation.html
 
 # * check kamila result ----------------------------------------------
 needimps<-custom_ret_appro_kamila_clustering_parameters()
@@ -108,7 +110,7 @@ all_idealpoint_models_keys<-if (is(all_idealpoint_models_keys,'try-error')) c() 
 #library(lme4)
 # * modeling ------------------
 idealpoint_models_args<-data.frame("formula"=c(
-  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_marriage+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage)+(1|myown_marriage)+myown_age_overallscaled+(myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_age_overallscaled*myown_age_overallscaled+(myown_age_overallscaled*myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage)+myown_selfid+(1|myown_selfid)+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage)+myown_religion+(1|myown_religion)+(myown_religion|myown_areakind/admincity/admindistrict/adminvillage)+(1|myown_areakind/admincity/admindistrict/adminvillage)"#,
+  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"#,
   #"policyidealpoint_cos_similarity_to_median~(1|SURVEY)",
   # "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)",
   # "policyidealpoint_cos_similarity_to_median~(1|myown_areakind)",
@@ -146,18 +148,32 @@ idealpoint_models_args<-data.frame("formula"=c(
   dplyr::mutate(storekey=paste0(needimp,formula)) %>%
   dplyr::filter(!(formula %in% !!all_idealpoint_models_keys))
 
+
+if (FALSE) {
+  needformula<-as.formula(idealpoint_models_args[1,"formula"])
+  #single
+  des <- survey::svydesign(ids=~1, weight=~myown_wr, data=merged_acrossed_surveys_list[[1]])
+  t<-svylme::svy2lme(needformula, design=des, sterr=TRUE, return.devfun=FALSE, method="nested")
+  #multiple
+  des <- mitools::imputationList(merged_acrossed_surveys_list) %>%
+    survey::svydesign(ids=~1, weight=~myown_wr, data=.)
+  t<-survey:::with.svyimputationList(des,svylme::svy2lme(needformula, sterr=TRUE, return.devfun=FALSE, method="nested"),multicore=FALSE)
+}
+
+library(lme4)
 idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, ...) {
   needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
   #datadf %<>% dplyr::mutate(secondweight=1)
   t<-datadf[[needrow$needimp]] %>%
-    {list(formula=as.formula(needrow$formula), data=., weights=.$myown_wr)} %>% #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
-    #robustlmm::rlmer(data=datadf, weights=datadf$myown_wr) %>%
+    {list(formula=as.formula(needrow$formula), data=.)} %>% #, weights=.$myown_wr)
+    #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
+    do.call(robustlmm::rlmer, args=.) %>%
     #lmerTest::lmer(formula=f, data=datadf[[needrow$needimp]], weights=datadf[[needrow$needimp]]$myown_wr) %>%
-    do.call(lme4::lmer, args=.) %>%
+    #do.call(lme4::lmer, args=.) %>%
     #{magrittr::use_series(., "myown_wr")} %>%
     try()
   return(t)
-}, datadf=merged_acrossed_surveys_list) #, mc.cores=1
+}, datadf=merged_acrossed_surveys_list) #
 
 
 load(file=all_idealpoint_models_file, verbose=TRUE)
@@ -169,8 +185,20 @@ if (length(all_idealpoint_models)==0 | identical(all_idealpoint_models, list(a=1
 save(all_idealpoint_models, file=all_idealpoint_models_file)
 
 
-
+# * interpretation parts --------------
 if (FALSE) {
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(very_precious_efficient).RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lme4_no_weight).RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(robustlmm).RData"), verbose=TRUE)
+  
+  
+  all_idealpoint_models<-all_idealpoint_models[7:12]
+  t<-mice::as.mira(all_idealpoint_models)
+  coefs<-ret_robust_models(all_idealpoint_models, merged_acrossed_surveys_list, clustervar="myown_areakind", vcov="CR1", method=parallel_method, mc.cores=1)
+  mitml::testEstimates(t$analyses, var.comp=TRUE)
+  pv<-mice::pool(t)
+  summary(pv)
+  #save(all_idealpoint_models, file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(very_precious_efficient).RData"))
   clubSandwich::coef_test
   
 
