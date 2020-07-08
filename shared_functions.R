@@ -1094,7 +1094,7 @@ custom_find_duplicated_rows<-function(targetdf, cols=c(), findall=FALSE, remove=
   return(matcheddf)
 }
 
-##pooling functions for ordinal::clmm
+##pooling functions for ordinal::clmm, from ordinalimputation
 if (TRUE) {
   prof_ci <- function(fits, alpha = 0.05, index, data){
     # Function to calculate the profile confidence interval around the
@@ -1294,6 +1294,20 @@ if (TRUE) {
   }
 }
 
+#from https://www.jepusto.com/mi-with-clubsandwich/
+
+ret_robust_models<-function(list_of_models, datadf, clustervar="myown_areakind", vcov="CR1", method="fork", ...) {
+  coefsrobust_mods<-lapply(1:length(list_of_models), function(fi, ...) {
+    list(obj=list_of_models[[fi]], vcov=vcov, cluster=datadf[[fi]][,clustervar]) %>%
+      return()
+  }, list_of_models=list_of_models, datadf=datadf, clustervar=clustervar, vcov=vcov) %>%
+    custom_parallel_lapply(function(arg) {do.call(clubSandwich::coef_test, args=arg)}, method=method, ... )
+    #function(fi, list_of_models=list_of_models, datadf=datadf, clustervar=clustervar, vcov=vcov, ...) {
+    #clubSandwich::coef_test(list_of_models[[fi]], cluster=magrittr::use_series(datadf[[fi]], clustervar, vcov=vcov)) %>%
+    #  return()
+  #}, list_of_models=list_of_models, datadf=datadf, clustervar=clustervar, vcov=vcov, method=parallel_method, ...)
+  return(coefsrobust_mods)
+}
 
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"

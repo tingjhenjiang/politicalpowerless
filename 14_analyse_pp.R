@@ -261,8 +261,10 @@ if (FALSE) {
   lapply(all_ppmodels, ordinal:::summary.clmm)
   #pooling https://rdrr.io/github/DaanNieboer/ordinalimputation/api/
   t<-mice::as.mira(all_ppmodels)
+  pv<-mice::pool(t)
+  summary(pv)
   pooling.clmm(t$analyses)
-  mice::pool(t)
+  
   get_vcov(t$analyses[[1]])
 }
 
