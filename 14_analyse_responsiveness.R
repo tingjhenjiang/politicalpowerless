@@ -78,8 +78,8 @@ respondmodel_args<-data.frame("formula"=c(
   #"respondopinion~1+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|issuefield)+(1|cluster_kamila)+(1|elec_dist_type)"
 ),stringsAsFactors=FALSE) %>%
   cbind(., withindays = rep(c(1095,365), each = nrow(.) )) %>%
-  cbind(., file = rep(respondmodels_file, each = nrow(.) ), stringsAsFactors=FALSE) %>%
   dplyr::mutate(storekey=paste0(c("eff","null"),withindays)) %>%
+  dplyr::mutate(file = paste0(respondmodels_file,storekey,".RData")) %>%
   dplyr::filter(!(formula %in% !!all_respondmodels_keys))
 
 usingpackage<-"ordinal"
@@ -155,8 +155,8 @@ if (usingpackage=="brms" & running_bigdata_computation) {
       dplyr::mutate(respondopinion_conti=as.integer(respondopinion)) %>%
       dplyr::mutate_if(is.factor, droplevels)
   }
-  
-  fikey<-respondmodel_args$storekey[1]
+  fi<-3
+  fikey<-respondmodel_args$storekey[fi]
   loopargdf<-respondmodel_args
   #respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
   argrow<-dplyr::filter(loopargdf, storekey==!!fikey)
@@ -169,7 +169,7 @@ if (usingpackage=="brms" & running_bigdata_computation) {
     #               threshold = "flexible")} %>%#c("flexible", "symmetric", "symmetric2", "equidistant")
     try() 
   tryn<-1
-  while (FALSE) {
+  while (TRUE) {
     loadsavestatus<-try({
       load(file=argrow$file, verbose=TRUE)
       all_respondmodels<- respondmodels %>%
@@ -202,3 +202,4 @@ if (length(all_respondmodels)==0 | identical(all_respondmodels, list(a=1))) {
   all_respondmodels<-rlist::list.merge(all_respondmodels,respondmodels)
 }
 save(all_respondmodels,file=respondmodels_file)
+save(respondmodels,file=respondmodel_args$file[fi])
