@@ -590,21 +590,25 @@ if (FALSE) {
   #SpatialNP https://cran.r-project.org/web/packages/SpatialNP/index.html
 }
 
-# Testing Normality of political participation using R --------------------------------
-
+# Testing Normality of political participation and similarity to median using R --------------------------------
 if (FALSE) {
-  pp_normality_test_args <- data.frame(survey_key=survey_keys) %>%
-    cbind(., imp = rep(imputation_sample_i_s, each = nrow(.))) %>%
+  needimps<-custom_ret_appro_kamila_clustering_parameters()
+  survey_with_idealpoint_name<-paste0(save_dataset_in_scriptsfile_directory, "miced_survey_2surveysonly_mirt_lca_clustering_idealpoints.RData")
+  load(file=survey_with_idealpoint_name, verbose=TRUE)
+  merged_acrossed_surveys_list<-ret_merged_for_idealpoint_and_pp_df_list(survey_data_imputed, dataset_in_scriptsfile_directory, minuspolicy=FALSE)
+  normality_test_args <- data.frame(imp = 1:length(merged_acrossed_surveys_list)) %>%
+    cbind(., testvar = rep(c("myown_factoredparticip","policyidealpoint_eucli_distance_to_median","policyidealpoint_cos_similarity_to_median"), each = nrow(.))) %>%
     cbind(., testm = rep(c("Shapiro-Wilk", "Anderson-Darling", "Cramer-vonMises", "Lilliefors","PearsonChi-Squared","Shapiro-Francia"), each = nrow(.))) %>%
-    dplyr::mutate(store_key=paste0(survey_key,"_imp",imp,"_",testm)) %>%
-    dplyr::mutate_at(c("survey_key","testm","store_key"), as.character) %>%
+    dplyr::mutate(storekey=paste0("imp",imp,"_",testvar,"_",testm)) %>%
+    dplyr::mutate_at(c("testm","testvar","storekey"), as.character) %>%
     dplyr::mutate_at(c("imp"), as.integer) %>%
-    dplyr::arrange(survey_key, imp, testm)
-  pp_normality_test_res<-custom_parallel_lapply(1:nrow(pp_normality_test_args), function(rowi, ...) {
-    needrow<-pp_normality_test_args[rowi,]
-    needv<-survey_data_imputed[[needrow$survey_key]] %>%
-      dplyr::filter(.imp==!!needrow$imp) %>%
-      magrittr::use_series("myown_factoredparticip")
+    dplyr::arrange(imp, testvar, testm)
+  
+  testnormalitycheck<-custom_apply_thr_argdf(normality_test_args, "storekey", function(fikey, loopargdf, datadf, ...) {
+    needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
+    needv<-needrow$imp %>%
+      magrittr::extract2(datadf, .) %>%
+      .[, needrow$testvar]
     switch(needrow$testm, 
            "Shapiro-Wilk"=shapiro.test(needv),
            "Anderson-Darling"=nortest::ad.test(needv),
@@ -615,15 +619,13 @@ if (FALSE) {
     ) %>%
       magrittr::use_series("p.value") %>%
       data.frame("pvalue"=.) %>%
-      dplyr::bind_cols(needrow, .)
-  },pp_normality_test_args=pp_normality_test_args,survey_data_imputed=survey_data_imputed,
-  method=parallel_method) %>%
-    dplyr::bind_rows() %>%
-    dplyr::select(-store_key) %>%
-    dplyr::mutate(TF=pvalue<=0.05)
-  write.csv(pp_normality_test_res,"TMP.csv")
+      dplyr::bind_cols(needrow, .) %>%
+      return()
+  }, datadf=merged_acrossed_surveys_list) %>%
+    plyr::rbind.fill()
+  
+  write.csv(testnormalitycheck,"TMP.csv")
 }
-
 
 # CFA IRT 驗證性因素分析 問卷因素結構 --------------------------------
 #mirt example https://philchalmers.github.io/mirt/html/mirt.html
