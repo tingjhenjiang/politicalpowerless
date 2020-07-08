@@ -158,6 +158,7 @@ if (FALSE) {
   des <- mitools::imputationList(merged_acrossed_surveys_list) %>%
     survey::svydesign(ids=~1, weight=~myown_wr, data=.)
   all_idealpoint_models_svy<-survey:::with.svyimputationList(des,svylme::svy2lme(needformula, sterr=TRUE, return.devfun=FALSE, method="general"),multicore=TRUE)
+  save(all_idealpoint_models_svy, file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models(svylme).RData"))
 }
 
 library(lme4)
