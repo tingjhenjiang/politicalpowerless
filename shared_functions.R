@@ -501,6 +501,7 @@ custom_ret_survey_imputation_and_measurement<-function(paths) {
 
 kamila_clustering_parameters_path<-paste0(dataset_in_scriptsfile_directory, "kamila_clustering_parameters.Rdata")
 custom_ret_appro_kamila_clustering_parameters<-function(path=kamila_clustering_parameters_path, intact=FALSE) {
+  message(paste("now loading", path))
   load(file=path, verbose=TRUE)
   if (intact==TRUE) {
     return(kamila_clustering_parameters)

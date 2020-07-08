@@ -101,7 +101,7 @@ if ({plotting_inspection<-FALSE;plotting_inspection}) {
 }
 
 all_idealpoint_models_file<-paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models.RData")
-load(file=all_idealpoint_models_file, verbose=TRUE)
+all_idealpoint_models_loadsave_status<-try(load(file=all_idealpoint_models_file, verbose=TRUE))
 all_idealpoint_models_keys<-try(names(all_idealpoint_models))
 all_idealpoint_models_keys<-if (is(all_idealpoint_models_keys,'try-error')) c() else all_idealpoint_models_keys
 
@@ -153,11 +153,11 @@ if (FALSE) {
   needformula<-as.formula(idealpoint_models_args[1,"formula"])
   #single
   des <- survey::svydesign(ids=~1, weight=~myown_wr, data=merged_acrossed_surveys_list[[1]])
-  t<-svylme::svy2lme(needformula, design=des, sterr=TRUE, return.devfun=FALSE, method="nested")
+  t<-svylme::svy2lme(needformula, design=des, sterr=TRUE, return.devfun=FALSE, method="general")
   #multiple
   des <- mitools::imputationList(merged_acrossed_surveys_list) %>%
     survey::svydesign(ids=~1, weight=~myown_wr, data=.)
-  t<-survey:::with.svyimputationList(des,svylme::svy2lme(needformula, sterr=TRUE, return.devfun=FALSE, method="nested"),multicore=FALSE)
+  all_idealpoint_models_svy<-survey:::with.svyimputationList(des,svylme::svy2lme(needformula, sterr=TRUE, return.devfun=FALSE, method="general"),multicore=TRUE)
 }
 
 library(lme4)
