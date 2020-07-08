@@ -63,6 +63,8 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #nests: id
 #data analysis after multiple imputation
 #https://bookdown.org/mwheymans/bookmi/data-analysis-after-multiple-imputation.html
+#pool
+#https://francish.netlify.app/post/multiple-imputation-in-r-with-regression-output/
 
 # * check kamila result ----------------------------------------------
 needimps<-custom_ret_appro_kamila_clustering_parameters()
