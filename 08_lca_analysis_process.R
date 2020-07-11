@@ -69,9 +69,131 @@ detectedcores<-detectedcores #detectedcores #detectedcores #
 source("08_lca_analysis_process_commonpart.R")
 stop()
 
+needimps<-custom_ret_appro_kamila_clustering_parameters() %>%
+  dplyr::filter(survey=="2016citizen") %>%
+  dplyr::select(-newimp) %>%
+  dplyr::mutate_at("imp",as.integer)
 
+formula_2016citizen_args<-data.frame("survey"="2016citizen","construct"=c("a1","a2","a3","a4","a5","a6","a7","a8","a9","a10","a11","a12"),
+                        "modelformula"=c(
+                          "cbind(d5b,d5e,d6f,d6g,d7a,d7b,d7c,d7d,d7e,d7f,d7g,d7h,d7i,d7j,d7k)~1",
+                          "cbind(c12,c13,f3,f4,f5)~1",
+                          "cbind(d11b,d13a,d13b,d14a,d14b,d14c)~1",
+                          "cbind(d2a,d2b,d3a,d3b)~1",
+                          "cbind(c1a,c1b,c1c,c1d,c1e,c2,c3)~1",
+                          "cbind(d7d,d7j,d8a,d8b)~1",
+                          "cbind(c12,c13)~1",
+                          "cbind(d7j,d5b,d7a,d7f,d5f,d17c,d5e,d6f,d6g)~1",
+                          "cbind(d14b,d14c,d14a,d11a,d11b,d13a)~1",
+                          "cbind(d6e,d6f,d6g,d6h,d6d,d6a,d6b,d6c)~1",
+                          "cbind(d5a,d5b,d5d)~1",
+                          "cbind(d17c,c10,d17a)~1"
+                        )) %>%
+  cbind(., imp = rep(imps, each = nrow(.))) %>%
+  cbind(., nclass = rep(3, each = nrow(.))) %>%
+  cbind(., nrep = rep(1, each = nrow(.))) %>%
+  cbind(., maxiter = rep(100, each = nrow(.))) %>%
+  dplyr::mutate(storekey=paste0(survey,"_imp",imp,"_",construct,"_nc_",nclass)) %>%
+  dplyr::mutate_all(as.character) %>%
+  dplyr::mutate_at(c("nclass","nrep","maxiter","imp"),as.integer) %>%
+  mutate_cond(construct=="a10", nclass=4) %>%
+  mutate_cond(construct=="a11", nclass=3) %>%
+  mutate_cond(construct=="a2", nclass=4) %>%
+  mutate_cond(construct=="a3", nclass=6) %>%
+  mutate_cond(construct=="a4", nclass=6) %>%
+  mutate_cond(construct=="a5", nclass=4) %>%
+  dplyr::filter(construct %in% c("a10","a11","a2","a3","a4","a5")) %>%
+  dplyr::semi_join(needimps) %>%
+  dplyr::anti_join(shrink_polca_models_inf) %>%
+  dplyr::arrange(survey, imp)
 
+backup_polca_models_2016policy<-polca_models_2016policy
+polca_models_2016policy<-rlist::list.merge(backup_polca_models_2016policy,polca_models_2016policy)
 
+for (i in 1:2) {
+  if (i==2) {
+    need_formula_2016citizen_args<-dplyr::filter(polca_models_inf,resid.df>0) %>%
+      dplyr::semi_join(formula_2016citizen_args, .) %>%
+      dplyr::mutate(nrep=35, maxiter=1000)
+  } else {
+    need_formula_2016citizen_args<-formula_2016citizen_args
+  }
+  polca_models_2016policy<-custom_apply_thr_argdf(need_formula_2016citizen_args, "storekey", function(fikey, loopargdf, datadf, ...) {
+    needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
+    polcaarg<-list(
+      X=dplyr::filter(datadf, .imp==!!needrow$imp),
+      n_latentclasses=needrow$nclass,
+      nrep=needrow$nrep,
+      maxiter=needrow$maxiter,
+      modelformula=needrow$modelformula
+    )
+    retmodel<-do.call(custom_generate_LCA_model, args=polcaarg)
+    return(retmodel)
+    #custom_generate_LCA_model(X, n_latentclasses=3, nrep=30, maxiter=1000, modelformula=NA)
+  }, datadf=survey_data_imputed$`2016citizen`)
+  
+  polca_models_inf<-lapply(names(polca_models_2016policy), function(fikey, polca_models, formula_2016citizen_args) {
+    X<-magrittr::extract2(polca_models, fikey)
+    data.frame(nclass=X$nclass,resid.df=X$resid.df,aic=X$aic,bic=X$bic,storekey=fikey) %>%
+      dplyr::left_join(formula_2016citizen_args)
+  }, polca_models=polca_models_2016policy, formula_2016citizen_args=formula_2016citizen_args) %>%
+    rbind.fill()
+}
+save(polca_models_2016policy,file=paste0(save_dataset_in_scriptsfile_directory,"/analyse_res/polca_models_2016policy.RData"))
+
+shrink_polca_models_inf<-dplyr::group_by(polca_models_inf, survey, construct, imp) %>%
+  dplyr::arrange(bic, aic) %>%
+  dplyr::slice(1) %>%
+  dplyr::left_join(
+    list(
+      "a1"="政府介入人民經濟、生存、平權職責",
+      "a2"="跨國人民與資金流動",
+      "a3"="治安維護與公民權",
+      "a4"="言論、集會自由",
+      "a5"="政府介入經濟與公用事業",
+      "a6"="政府介入社福衛環",
+      "a7"="與中國大陸資本往來看法",
+      "a8"="對就業與生存弱勢保障",
+      "a9"="政府角色、責任與義務",#（a9與a3需要在其他題項區分）
+      "a10"="政府支出期望",
+      "a11"="政府帶領經濟發展",
+      "a12"="稅務與所得重分配") %>%
+      unlist() %>%
+      data.frame(construct=names(.), constructname=.)
+  ) %>%
+  dplyr::arrange(construct, imp)
+
+#1,2,9,19,22,23
+recode_constructclass_list<-list()
+for (rowi in 1:nrow(shrink_polca_models_inf)) { #needpoLCAsurveys_with_imp
+  repeat {
+    needrow<-shrink_polca_models_inf[rowi, ]
+    survey_with_imp<-paste0(needrow$survey,needrow$imp)
+    prefixinfstr<-paste("now in imp", needrow$imp, "c:", needrow$construct, needrow$constructname, "number of class is",needrow$nclass)
+    model<-needrow$storekey %>%
+      magrittr::extract2(polca_models_2016policy, .)
+    cat("\014")
+    print(model)
+    tmp_recode_list<-list()
+    for (groupn in 1:needrow$nclass) {
+      inputofclass<-readline(paste(prefixinfstr, "groupN of", groupn, "is(AG to PRO):") ) %>%
+        paste0("construct_",needrow$construct,"_",.,"of",needrow$nclass)
+      tmp_recode_list<-c(tmp_recode_list, magrittr::set_names(c(inputofclass),groupn) )
+    }
+    if (is.null(recode_constructclass_list[[survey_with_imp]])) {
+      recode_constructclass_list[[survey_with_imp]]<-list()
+    }
+    if (is.null(recode_constructclass_list[[survey_with_imp]][[needrow$construct]])) {
+      recode_constructclass_list[[survey_with_imp]][[needrow$construct]]<-list()
+    }
+    recode_constructclass_list[[survey_with_imp]][[needrow$construct]]<-tmp_recode_list
+    if (readline("Next?")=="Y") {
+      break
+    }
+  }
+}
+
+save(recode_constructclass_list,file=paste0(dataset_in_scriptsfile_directory,"recode_constructclass_list.RData"))
 
 # 第六-3部份：潛在類別分析：將分析結果整併入dataset Apply poLCA results --------------------------------
 
@@ -109,7 +231,7 @@ poLCA_infodf<-dplyr::bind_rows(poLCA_infodf_notshrink) %>%
   dplyr::ungroup() %>%
   dplyr::filter(!is.na(residdf), survey %in% !!names(survey_data_imputed)) %>%
   dplyr::distinct(modelformula, nclass)
-  
+
 
 
 #load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)

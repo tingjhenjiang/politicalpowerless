@@ -64,3 +64,9 @@ for (plotvar in plotvars) {
   ggplot2::ggsave(filename=targetsavefilename, plot=resplot)
   print(resplot)
 }
+
+# plotting for different issues ----------------
+df <- data.frame(y=abs(rnorm(8)),
+                 x=as.factor(rep(c(0,100,200,500),times=2))) 
+ggplot(aes(y=y,x=x), data=df) + 
+  geom_boxplot()
