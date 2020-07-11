@@ -65,6 +65,7 @@ source(file = paste0(source_sharedfuncs_r_path,"/13_merge_all_datasets.R"), enco
 #https://bookdown.org/mwheymans/bookmi/data-analysis-after-multiple-imputation.html
 #pool
 #https://francish.netlify.app/post/multiple-imputation-in-r-with-regression-output/
+#https://www.jaredknowles.com/journal/2014/5/17/mixed-effects-tutorial-2-fun-with-mermod-objects
 
 # * check kamila result ----------------------------------------------
 needimps<-custom_ret_appro_kamila_clustering_parameters()
@@ -176,20 +177,43 @@ if (FALSE) {
   save(all_idealpoint_models_svy, file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models(svylme).RData"))
 }
 
-library(lme4)
-idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, ...) {
+#library(lme4)
+library(jrfit)
+idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, modelvars, ...) {
   needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
-  #datadf %<>% dplyr::mutate(secondweight=1)
-  t<-datadf[[needrow$needimp]] %>%
-    {list(formula=as.formula(needrow$formula), data=.)} %>% #, weights=.$myown_wr)
+  dummyc_catg_vars<-unlist(modelvars[c("modelvars_ex_catg","modelvars_clustervars","modelvars_controllclustervars")]) %>%
+    base::intersect(names(datadf[[needrow$needimp]]), .)
+  greppattern_allmodelgvars<-dummyc_catg_vars %>%
+    paste0(.,collapse="|") %>%
+    paste0("(",.,")",collapse="|")
+  allmodelvars<-base::intersect(names(datadf[[needrow$needimp]]), c(modelvars_ex_conti,modelvars_latentrelated)) %>%
+    c(dummyc_catg_vars)
+  t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::contains("NA")) %>% #datadf[[needrow$needimp]] %>%
+    {dummycode_of_a_dataframe(., catgvars=dummyc_catg_vars)} %>%
+    {list(x=as.matrix(
+      dplyr::select(., tidyselect::starts_with(allmodelvars) ) %>%
+        complete.cases()
+    ), y=.$policyidealpoint_cos_similarity_to_median_scaled, block=.$admindistrict  )} %>%
+    #{list(formula=as.formula(needrow$formula), data=.  )} %>% #, weights=.$myown_wr
     #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
-    do.call(robustlmm::rlmer, args=.) %>%
+    #do.call(robustlmm::rlmer, args=.) %>%
+    #do.call(lmerTest::lmer, args=.) %>%
+    do.call(fustomjrfit, args=.) %>%
     #lmerTest::lmer(formula=f, data=datadf[[needrow$needimp]], weights=datadf[[needrow$needimp]]$myown_wr) %>%
     #do.call(lme4::lmer, args=.) %>%
     #{magrittr::use_series(., "myown_wr")} %>%
     try()
   return(t)
-}, datadf=merged_acrossed_surveys_list) #
+}, datadf=merged_acrossed_surveys_list,
+modelvars=list(
+  "modelvars_ex_conti"=modelvars_ex_conti,
+  "modelvars_ex_catg"=modelvars_ex_catg,
+  "modelvars_latentrelated"=modelvars_latentrelated,
+  "modelvars_clustervars"=modelvars_clustervars,
+  "modelvars_controllclustervars"=modelvars_controllclustervars
+  ),
+  mc.cores=1
+) #
 
 
 load(file=all_idealpoint_models_file, verbose=TRUE)
@@ -203,13 +227,82 @@ save(all_idealpoint_models, file=all_idealpoint_models_file)
 
 # * interpretation parts --------------
 if (FALSE) {
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models.RData"), verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(very_precious_efficient).RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lmertest).RData"), verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lme4_no_weight).RData"), verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(robustlmm).RData"), verbose=TRUE)
+  all_idealpoint_models_lmertest<-all_idealpoint_models
+  all_idealpoint_models_robust<-all_idealpoint_models
+  #check distribution
+  merged_acrossed_surveys_list[[1]]$policyidealpoint_cos_similarity_to_median_scaled %>%
+    fitdistrplus::descdist(discrete=FALSE)
+  
+  robustlmm:::VarCorr.rlmerMod(all_idealpoint_models_robust[[1]])
+  robustlmm::getME(all_idealpoint_models_robust[[1]],"theta")
+  #try on rlmer
+  coefs.robust <- data.frame(coef(summary(all_idealpoint_models_robust[[1]]))) %>%
+    cbind(dfs=coef(summary(all_idealpoint_models_lmertest[[1]]))[,"df"]) %>%
+    dplyr::mutate(pvalue=2*pt(abs(t.value), dfs, lower=FALSE) )
+  p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
+  se<-coef(summary(all_idealpoint_models_robust[[1]]))[,2]
+  confint.rlmerMod(all_idealpoint_models_robust[[1]])
+  sigma(all_idealpoint_models_robust[[1]])
   
   
+  if(typeof(Model) == "S4"){
+    coefs = data.frame(coef(summary(all_idealpoint_models_robust[[1]])))
+    t_value = coefs["DxSchizo", "t.value"]
+    Results[i,"P_value"] = 2 * (1 - pnorm(abs(t_value))) * ncol(Data)
+    Results[i,"Beta"]= coefs["DxSchizo", "Estimate"]
+  } else {
+    Results[i,"Warning"] = as.character(Model)
+    Results[i, "Beta"] = 0
+    Results[i,"P_value"] = 1
+  }
+  
+  
+  
+  imputeFEs <- ldply(mods, FEsim, nsims = 1000)
+  t<-miceadds::lmer_vcov(all_idealpoint_models[[1]], level=.95, use_reml=FALSE)
+  miceadds::lmer_vcov(all_idealpoint_models[[1]])
+  miceadds::lmer_vcov(all_idealpoint_models_robust[[1]])
+  miceadds:::lmer_pool_wrapper
+  myown_robustlmm_pool<-function(models, level = 0.95, FUN = lmer_vcov2, ...) 
+  {
+    M <- length(models)
+    qhat <- list()
+    se <- list()
+    NMI <- FALSE
+    for (mm in 1:M) {
+      args <- list(object = models[[mm]], level = level)
+      res_mm <- do.call(what = FUN, args = args)
+      qhat[[mm]] <- res_mm$coef
+      se[[mm]] <- res_mm$se
+    }
+    res <- miceadds::pool_nmi(qhat = qhat, u = NULL, se = se, NMI = NMI, 
+                    comp_cov = TRUE, is_list = TRUE, method = 1)
+    if (!NMI) {
+      res$lambda_Between <- NA
+      res$lambda_Within <- NA
+    }
+    class(res) <- "lmer_pool"
+    return(res)
+  }
+  
+  
+  t<-merTools::FEsim(all_idealpoint_models[[1]])
+  t<-mice::as.mira(all_idealpoint_models)
+  t<-mitools::imputationList(all_idealpoint_models)
+  
+  miceadds::lmer_pool
+  miceadds:::lmer_pool_wrapper
+  mires<-mitools::MIcombine(t$imputations)
+  #try on lme
   all_idealpoint_models<-all_idealpoint_models[7:12]
   t<-mice::as.mira(all_idealpoint_models)
+  coefs <- data.frame(coef(summary(all_idealpoint_models[[1]])))
+  confint(all_idealpoint_models[[1]])
   coefs<-ret_robust_models(all_idealpoint_models, merged_acrossed_surveys_list, clustervar="myown_areakind", vcov="CR1", method=parallel_method, mc.cores=1)
   mitml::testEstimates(t$analyses, var.comp=TRUE)
   pv<-mice::pool(t)

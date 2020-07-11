@@ -135,6 +135,9 @@ if (mergingoverlldf & running_bigdata_computation) {
     dplyr::mutate(myown_factoredparticip_overallscaled_inverse=myown_factoredparticip_overallscaled*-1) %>%
     dplyr::mutate(similarity_distance_overallscaled=as.numeric(scale(similarity_distance))) %>%
     dplyr::mutate(party_pressure_overallscaled=as.numeric(scale(party_pressure))) %>%
+    dplyr::mutate_at("adminvillage", ~paste0(admincity,admindistrict,adminvillage)) %>%
+    dplyr::mutate_at("admindistrict", ~paste0(admincity,admindistrict)) %>%
+    dplyr::mutate_at(c("adminvillage","admindistrict"), as.factor) %>%
     dplyr::mutate(id_wth_survey=paste0(SURVEY,id)) %>%
     dplyr::mutate_at("id_wth_survey", as.factor) %>%
     dplyr::mutate_if(is.factor, droplevels)
@@ -163,12 +166,13 @@ if (running_bigdata_computation & loadbigdatadf) {
   #load(file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData"), verbose=TRUE)
 }
 
-modelvars_ex_conti<-c("myown_age","myown_age_overallscaled","similarity_distance","similarity_distance_overallscaled","party_pressure","party_pressure_overallscaled","seniority","seniority_overallscaled","days_diff_survey_bill","days_diff_survey_bill_overallscaled")
-modelvars_ex_catg<-c("myown_sex","myown_selfid","myown_marriage","adminparty","issuefield") %>%
-  c("elec_dist_type")
-modelvars_latentrelated<-c("myown_factoredses","myown_factoredefficacy","myown_factoredparticip")
+modelvars_ex_conti<-c("myown_age_overallscaled","similarity_distance_overallscaled","party_pressure_overallscaled","seniority_overallscaled","days_diff_survey_bill_overallscaled") #%>%
+  #c("policyidealpoint_cos_similarity_to_median","policyidealpoint_eucli_distance_to_median_scaled")
+modelvars_ex_catg<-c("myown_sex","myown_selfid","myown_marriage","adminparty","issuefield","myown_religion","myown_areakind") %>%
+  c("elec_dist_type","partysize")
+modelvars_latentrelated<-c("myown_factoredses_overallscaled","myown_factoredparticip_overallscaled") #,"myown_factoredefficacy"
 modelvars_clustervars<-c("cluster_kamila")
-modelvars_controllclustervars<-c("term","myown_areakind")
+modelvars_controllclustervars<-c("SURVEY","myown_areakind")
 if (running_bigdata_computation & loadbigdatadf) {
   #if(!is(overalldf, 'try-error')) {
   #  overalldf_to_implist_func() #34.2GB

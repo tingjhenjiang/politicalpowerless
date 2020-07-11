@@ -1036,6 +1036,26 @@ confint.rlmerMod <- function(object,parm,level=0.95) {
                                         digits=3)
   return(ctab[parm,])
 }
+confint.rlmerMod <- function(object, level = 0.95) {
+  # Extract beta coefficients
+  beta <- robustlmm:::fixef.rlmerMod(object)
+  # Extract names of coefficients
+  parm <- names(beta)
+  # Extract standard errors for the coefficients
+  #se <- sqrt(diag(robustlmm:::vcov.rlmerMod(object)))
+  se<-coef(summary(object))[,2]
+  # Set level of confidence interval
+  z <- qnorm((1 + level) / 2)
+  # Calculate CI
+  ctab <- cbind(beta - (z * se), 
+                beta + (z * se))
+  # label column names
+  colnames(ctab) <- c(paste(100 * ((1 - level) / 2), '%'),
+                      paste(100 * ((1 + level) / 2), '%'))
+  # Output
+  return(ctab[parm, ])
+}
+
 
 ret_merged_for_idealpoint_and_pp_df_list<-function(survey_data_imputed, dataset_in_scriptsfile_directory, directlyload=FALSE, transform_pp_data_to_normal=FALSE, minuspolicy=FALSE, ...) {
   needimps<-custom_ret_appro_kamila_clustering_parameters()
@@ -1050,6 +1070,8 @@ ret_merged_for_idealpoint_and_pp_df_list<-function(survey_data_imputed, dataset_
         dplyr::mutate_at("SURVEY", as.factor) %>%
         dplyr::mutate_at("cluster_kamila", as.ordered)  %>%
         dplyr::mutate(id=as.factor(paste0(SURVEY,id))) %>%
+        dplyr::mutate_at("adminvillage", ~paste0(admincity,admindistrict,adminvillage)) %>%
+        dplyr::mutate_at("admindistrict", ~paste0(admincity,admindistrict)) %>%
         dplyr::mutate_at(c("myown_areakind","admincity","admindistrict","adminvillage"), as.factor) %>%
         dplyr::mutate(myown_factoredses_overallscaled=as.numeric(scale(myown_factoredses)) ) %>%
         dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age)) ) %>%
@@ -1083,12 +1105,12 @@ custom_find_duplicated_rows<-function(targetdf, cols=c(), findall=FALSE, remove=
   }
   targetdf %<>% data.table::as.data.table()
   if (remove==TRUE) {
-    matcheddf<-targetdf[!duplicated(targetdf)]
+    matcheddf<-targetdf[!duplicated(targetdf[,cols]),]
   } else {
     if (findall==FALSE) {
-      matcheddf<-targetdf[duplicated(targetdf)]
+      matcheddf<-targetdf[duplicated(targetdf[,cols]),]
     } else {
-      matcheddf<-targetdf[duplicated(targetdf)] %>%
+      matcheddf<-targetdf[duplicated(targetdf[,cols]),] %>%
         dplyr::semi_join(targetdf)
     }
   }
@@ -1309,6 +1331,97 @@ ret_robust_models<-function(list_of_models, datadf, clustervar="myown_areakind",
   #}, list_of_models=list_of_models, datadf=datadf, clustervar=clustervar, vcov=vcov, method=parallel_method, ...)
   return(coefsrobust_mods)
 }
+
+fustomjrfit<-function (x, y, block, yhat0 = NULL, scores = wscores, fitint = NULL, 
+                       var.type = "sandwich", fitblock = FALSE, tuser = NULL, ...) 
+{
+  call <- match.call()
+  if (var.type == "sandwich") {
+    v1 <- tsand
+  }
+  if (var.type == "cs") {
+    v1 <- tcs
+  }
+  if (var.type == "ind") {
+    v1 <- tind
+  }
+  if (var.type == "user") {
+    if (!exists("tuser")) 
+      stop("tuser not defined")
+    v1 <- tuser
+  }
+  x <- as.matrix(x)
+  x1 <- as.matrix(cbind(rep(1, nrow(x)), x))
+  qrx1 <- qr(x1)
+  if (is.null(fitint)) {
+    if (qrx1$rank == ncol(x1)) {
+      x <- x1
+      fitint <- TRUE
+    }
+    else {
+      fitint <- FALSE
+    }
+  }
+  else {
+    if (fitint) {
+      x <- x1
+    }
+  }
+  P <- ncol(x)
+  Q <- as.matrix(pbdDMAT::qr.Q(qrx1))
+  q1 <- Q[, 1]
+  xq <- as.matrix(Q[, 2:qrx1$rank])
+  if (fitblock) {
+    z <- model.matrix(~as.factor(block) - 1)
+    z <- z[, 2:ncol(z)]
+    QZ <- cbind(Q, z)
+    qrxz <- pbdDMAT::qr(QZ)
+    Qxz <- pbdDMAT::qr.Q(qrxz)
+    zq <- Qxz[, (qrx1$rank + 1):qrxz$rank]
+    xq <- cbind(xq, zq)
+    x <- cbind(x, zq)
+  }
+  if (is.null(yhat0)) {
+    beta0 <- suppressWarnings(quantreg::rq(y ~ xq - 1)$coef)
+  }
+  else {
+    beta0 <- stats::lsfit(xq, yhat0, intercept = FALSE)$coef
+  }
+  fit <- Rfit::jaeckel(xq, y, beta0, scores = scores)
+  if (fit$convergence != 0) {
+    fit <- Rfit::jaeckel(xq, y, fit$par, scores = scores)
+    if (fit$convergence != 0) 
+      warning("Convergence status not zero in jaeckel")
+  }
+  betahat <- fit$par
+  yhat <- xq %*% betahat
+  ehat <- y - yhat
+  alphahat <- median(ehat)
+  ehat <- ehat - alphahat
+  yhat <- yhat + alphahat
+  bhat <- stats::lsfit(x, yhat, intercept = FALSE)$coefficients
+  tauhat <- Rfit::gettauF0(ehat, ncol(xq), scores)
+  xxpxi <- x %*% base::chol2inv(base::chol(base::crossprod(x)))
+  A1 <- base::crossprod(xxpxi, q1)
+  A2 <- base::crossprod(xxpxi, xq)
+  sigma0 <- jrfit::sigmastar(ehat, block, ncol(xq) + 1)
+  taus <- Rfit::taustar(ehat, ncol(xq) + 1)
+  V1 <- v1(ehat, xq, block, scores = scores)
+  varhat <- sigma0 * taus * taus * Matrix::tcrossprod(A1) + tauhat * 
+    tauhat * Matrix::tcrossprod(A2 %*% V1, A2)
+  DF <- switch(var.type, cs = length(y) - ncol(xq) - 1 - 1, 
+               ind = length(y) - ncol(xq) - 1, sandwich = length(unique(block)), 
+               user = length(unique(block)))
+  res <- list(coefficients = bhat, residuals = ehat, fitted.values = yhat, 
+              varhat = varhat, x = x, y = y, block = block, tauhat = tauhat, 
+              tauhats = taus, qrx1 = qrx1, disp = fit$value, scores = scores, 
+              v1 = v1, fitint = fitint, P = P, var.type = var.type, 
+              DF = DF)
+  res$call <- call
+  class(res) <- "jrfit"
+  res
+}
+#install.packages("~/pbdDMAT_0.5-1.tar.gz", repos = NULL, type="source")
 
 #research_odbc_file<-"E:\\Software\\scripts\\R\\vote_record\\votingdf.sqlite.dsn"
 #research_odbc<-"Research"
