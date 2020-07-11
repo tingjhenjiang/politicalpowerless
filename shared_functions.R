@@ -1337,10 +1337,10 @@ fustomjrfit<-function (x, y, block, yhat0 = NULL, scores = wscores, fitint = NUL
 {
   call <- match.call()
   if (var.type == "sandwich") {
-    v1 <- tsand
+    v1 <- jrfit::tsand
   }
   if (var.type == "cs") {
-    v1 <- tcs
+    v1 <- jrfit::tcs
   }
   if (var.type == "ind") {
     v1 <- tind
@@ -1352,7 +1352,7 @@ fustomjrfit<-function (x, y, block, yhat0 = NULL, scores = wscores, fitint = NUL
   }
   x <- as.matrix(x)
   x1 <- as.matrix(cbind(rep(1, nrow(x)), x))
-  qrx1 <- qr(x1)
+  qrx1 <- base::qr(x1)
   if (is.null(fitint)) {
     if (qrx1$rank == ncol(x1)) {
       x <- x1

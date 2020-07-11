@@ -190,10 +190,12 @@ idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", fu
     c(dummyc_catg_vars)
   t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::contains("NA")) %>% #datadf[[needrow$needimp]] %>%
     {dummycode_of_a_dataframe(., catgvars=dummyc_catg_vars)} %>%
-    {list(x=as.matrix(
-      dplyr::select(., tidyselect::starts_with(allmodelvars) ) %>%
-        complete.cases()
-    ), y=.$policyidealpoint_cos_similarity_to_median_scaled, block=.$admindistrict  )} %>%
+    dplyr::select(., tidyselect::starts_with(c(allmodelvars,"policyidealpoint_cos_similarity_to_median_scaled","admindistrict")), -myown_selfid_population ) %>%
+    .[complete.cases(.), ] %>%
+    {
+      targetx<-dplyr::select(., -policyidealpoint_cos_similarity_to_median_scaled, -admindistrict)
+      list(x=as.matrix(targetx) , y=.$policyidealpoint_cos_similarity_to_median_scaled, block=.$admindistrict, var.type="sandwich")
+    } %>%
     #{list(formula=as.formula(needrow$formula), data=.  )} %>% #, weights=.$myown_wr
     #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
     #do.call(robustlmm::rlmer, args=.) %>%
@@ -211,8 +213,7 @@ modelvars=list(
   "modelvars_latentrelated"=modelvars_latentrelated,
   "modelvars_clustervars"=modelvars_clustervars,
   "modelvars_controllclustervars"=modelvars_controllclustervars
-  ),
-  mc.cores=1
+  )
 ) #
 
 
@@ -223,7 +224,7 @@ if (length(all_idealpoint_models)==0 | identical(all_idealpoint_models, list(a=1
   all_idealpoint_models<-rlist::list.merge(all_idealpoint_models,idealpoint_models)
 }
 save(all_idealpoint_models, file=all_idealpoint_models_file)
-
+#save(idealpoint_models, file="/home/dowbatw/politicalpowerless/data/analyse_res/idealpoint_models(jrfit_cs).RData")
 
 # * interpretation parts --------------
 if (FALSE) {
