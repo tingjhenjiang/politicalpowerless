@@ -154,6 +154,7 @@ idealpoint_models_args<-data.frame("formula"=c(
 
 if (FALSE) {
   needformula<-as.formula(idealpoint_models_args[1,"formula"])
+  needformula<-"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|admindistrict)+(1|admincity)"
   #single
   des <- survey::svydesign(ids=~1, weight=~myown_wr, data=merged_acrossed_surveys_list[[1]])
   t<-svylme::svy2lme(needformula, design=des, sterr=TRUE, return.devfun=FALSE, method="general")
@@ -178,42 +179,48 @@ if (FALSE) {
 }
 
 #library(lme4)
-library(jrfit)
+jrfit<-FALSE #library(jrfit)
+
 idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, modelvars, ...) {
   needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
-  dummyc_catg_vars<-unlist(modelvars[c("modelvars_ex_catg","modelvars_clustervars","modelvars_controllclustervars")]) %>%
-    base::intersect(names(datadf[[needrow$needimp]]), .)
-  greppattern_allmodelgvars<-dummyc_catg_vars %>%
-    paste0(.,collapse="|") %>%
-    paste0("(",.,")",collapse="|")
-  allmodelvars<-base::intersect(names(datadf[[needrow$needimp]]), c(modelvars_ex_conti,modelvars_latentrelated)) %>%
-    c(dummyc_catg_vars)
+  if (FALSE) { #jrfit part
+    # dummyc_catg_vars<-unlist(modelvars[c("modelvars_ex_catg","modelvars_clustervars","modelvars_controllclustervars")]) %>%
+    #   base::intersect(names(datadf[[needrow$needimp]]), .)
+    # greppattern_allmodelgvars<-dummyc_catg_vars %>%
+    #   paste0(.,collapse="|") %>%
+    #   paste0("(",.,")",collapse="|")
+    # allmodelvars<-base::intersect(names(datadf[[needrow$needimp]]), c(modelvars_ex_conti,modelvars_latentrelated)) %>%
+    #   c(dummyc_catg_vars)
+    
+    # {dummycode_of_a_dataframe(., catgvars=dummyc_catg_vars)} %>%
+    #   dplyr::select(., tidyselect::starts_with(c(allmodelvars,"policyidealpoint_cos_similarity_to_median_scaled","admindistrict")), -myown_selfid_population ) %>%
+    #   .[complete.cases(.), ] %>%
+    #   {
+    #     targetx<-dplyr::select(., -policyidealpoint_cos_similarity_to_median_scaled, -admindistrict)
+    #     list(x=as.matrix(targetx) , y=.$policyidealpoint_cos_similarity_to_median_scaled, block=.$admindistrict, var.type="sandwich")
+    #   }
+  }
+  
   t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::contains("NA")) %>% #datadf[[needrow$needimp]] %>%
-    {dummycode_of_a_dataframe(., catgvars=dummyc_catg_vars)} %>%
-    dplyr::select(., tidyselect::starts_with(c(allmodelvars,"policyidealpoint_cos_similarity_to_median_scaled","admindistrict")), -myown_selfid_population ) %>%
-    .[complete.cases(.), ] %>%
-    {
-      targetx<-dplyr::select(., -policyidealpoint_cos_similarity_to_median_scaled, -admindistrict)
-      list(x=as.matrix(targetx) , y=.$policyidealpoint_cos_similarity_to_median_scaled, block=.$admindistrict, var.type="sandwich")
-    } %>%
-    #{list(formula=as.formula(needrow$formula), data=.  )} %>% #, weights=.$myown_wr
+    {list(formula=as.formula(needrow$formula), data=., weights=.$myown_wr )} %>% #
     #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
     #do.call(robustlmm::rlmer, args=.) %>%
     #do.call(lmerTest::lmer, args=.) %>%
-    do.call(fustomjrfit, args=.) %>%
+    #do.call(fustomjrfit, args=.) %>%
+    #do.call(svylme::svy2lme, args=.)
     #lmerTest::lmer(formula=f, data=datadf[[needrow$needimp]], weights=datadf[[needrow$needimp]]$myown_wr) %>%
     #do.call(lme4::lmer, args=.) %>%
     #{magrittr::use_series(., "myown_wr")} %>%
     try()
   return(t)
 }, datadf=merged_acrossed_surveys_list,
-modelvars=list(
-  "modelvars_ex_conti"=modelvars_ex_conti,
-  "modelvars_ex_catg"=modelvars_ex_catg,
-  "modelvars_latentrelated"=modelvars_latentrelated,
-  "modelvars_clustervars"=modelvars_clustervars,
-  "modelvars_controllclustervars"=modelvars_controllclustervars
-  )
+  modelvars=list(
+    "modelvars_ex_conti"=modelvars_ex_conti,
+    "modelvars_ex_catg"=modelvars_ex_catg,
+    "modelvars_latentrelated"=modelvars_latentrelated,
+    "modelvars_clustervars"=modelvars_clustervars,
+    "modelvars_controllclustervars"=modelvars_controllclustervars
+    )
 ) #
 
 
