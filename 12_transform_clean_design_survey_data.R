@@ -296,6 +296,12 @@ C．選取合格者
 # 第七部份：把問卷資料變形以便串連及行政區、選舉資料 ---------------------------------
 load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
 load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
+load(file=paste0(dataset_in_scriptsfile_directory,"survey_data_with_condensed_opinion.RData"), verbose=TRUE)
+
+survey_data_imputed_with_newconstruct<-lapply(names(survey_data_imputed), function(surveykey, ...) {
+  dplyr::left_join(survey_data_imputed[[surveykey]], survey_data_with_condensed_opinion[[surveykey]])
+}, survey_data_imputed=survey_data_imputed, survey_data_with_condensed_opinion=survey_data_with_condensed_opinion)
+survey_data_imputed<-survey_data_imputed_with_newconstruct
 #library(reshape2)
 #survey_oldq_id<-list(
 #  "2004citizen"=c("v25","v26","v27","v41","v42","v43","v44","v45","v46","v60","v61","v62","v65","v74","v91a","v91b","v92_1","v92_2","v92_3","v92_4","v92_5","v93a","v93b","v95","v96","v97","v105a","v105b","v105c","v106a","v106b","v106c","v107a","v107b","v107c","v114","v118a","v118b","v118c","v118d"),

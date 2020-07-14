@@ -78,7 +78,7 @@ needimps<-custom_ret_appro_kamila_clustering_parameters() %>%
   dplyr::select(-newimp) %>%
   dplyr::mutate_at("imp",as.integer)
 needimps_with_construct_nclass<-needimps %>%
-  cbind(., construct = rep(c("a1","a2","a3","a4","a5","a6","a7","a8","a9","a10","a11"), each = nrow(.))) %>%
+  cbind(., construct = rep(c("a1","a2","a3","a4","a5","a6","a7","a8","a9","a10","a11","a12"), each = nrow(.))) %>%
   cbind(., nclass = rep(2:7, each = nrow(.))) %>%
   mutate_cond(survey=="2016citizen" & construct=="a1", nclass=5) %>% #5
   mutate_cond(survey=="2016citizen" & construct=="a2", nclass=3) %>%
@@ -132,6 +132,7 @@ formula_reduction_args<-dplyr::bind_rows(
 formula_reduction_args %<>% dplyr::semi_join(needimps_with_construct_nclass, by=c("survey","construct","imp","nclass")) %>%
   dplyr::arrange(survey, construct, imp)
 
+load(file=paste0(save_dataset_in_scriptsfile_directory,"/analyse_res/polca_models_2016policy.RData"), verbose=TRUE)
 already_processed_polca_models_2016policy<-lapply(names(polca_models_2016policy), function(fikey, polca_models, formula_reduction_args) {
   X<-magrittr::extract2(polca_models, fikey)
   data.frame(nclass=X$nclass,resid.df=X$resid.df,aic=X$aic,bic=X$bic,nrep=X$nrep,storekey=fikey) %>%
@@ -217,6 +218,9 @@ for (rowi in 1:nrow(shrink_polca_models_inf)) { #needpoLCAsurveys_with_imp
   if ( !((needrow$survey=="2016citizen" & needrow$imp==1) |  (needrow$survey=="2010overall" & needrow$imp==2)  )) { #
     next
   }
+  if ( needrow$construct != "a12") {
+    next
+  }
   repeat {
     survey_with_imp<-paste0(needrow$survey,needrow$imp)
     prefixinfstr<-paste("now in imp", needrow$imp, "c:", needrow$construct, needrow$constructname, "number of class is",needrow$nclass)
@@ -260,7 +264,7 @@ for (rowi in 1:nrow(need_shrink_polca_models_inf)) {
   needmodel<-magrittr::extract2(polca_models_2016policy, needrow$storekey)
   #readline("Next")
   targetupdaterows<-which(survey_data_with_condensed_opinion[[needrow$survey]]$.imp==needrow$imp)
-  survey_data_with_condensed_opinion[[needrow$survey]][targetupdaterows, paste0("construct_",needrow$construct)] <-
+  survey_data_with_condensed_opinion[[needrow$survey]][targetupdaterows, paste0("construct_",needrow$survey,"_",needrow$construct)] <-
     dplyr::recode_factor(needmodel$predclass, !!!constructlist)
   #survey_data_imputed[[survey]]$myown_indp_atti[tp_check_df_imppos]<-dplyr::recode(poLCA_survey_results[[survey_with_imp]]$predclass, !!!recode_indp_list[[survey_with_imp]])
 }
