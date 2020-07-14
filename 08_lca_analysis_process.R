@@ -69,13 +69,18 @@ detectedcores<-detectedcores #detectedcores #detectedcores #
 source("08_lca_analysis_process_commonpart.R")
 stop()
 
+
+
+# condense survey questions --------------------------------
+
+library(poLCA)
 needimps<-custom_ret_appro_kamila_clustering_parameters() %>%
   dplyr::select(-newimp) %>%
   dplyr::mutate_at("imp",as.integer)
 needimps_with_construct_nclass<-needimps %>%
   cbind(., construct = rep(c("a1","a2","a3","a4","a5","a6","a7","a8","a9","a10","a11"), each = nrow(.))) %>%
   cbind(., nclass = rep(2:7, each = nrow(.))) %>%
-  mutate_cond(survey=="2016citizen" & construct=="a1", nclass=5) %>%
+  mutate_cond(survey=="2016citizen" & construct=="a1", nclass=5) %>% #5
   mutate_cond(survey=="2016citizen" & construct=="a2", nclass=3) %>%
   mutate_cond(survey=="2016citizen" & construct=="a3", nclass=6) %>%
   mutate_cond(survey=="2016citizen" & construct=="a4", nclass=6) %>%
@@ -127,15 +132,22 @@ formula_reduction_args<-dplyr::bind_rows(
 formula_reduction_args %<>% dplyr::semi_join(needimps_with_construct_nclass, by=c("survey","construct","imp","nclass")) %>%
   dplyr::arrange(survey, construct, imp)
 
+already_processed_polca_models_2016policy<-lapply(names(polca_models_2016policy), function(fikey, polca_models, formula_reduction_args) {
+  X<-magrittr::extract2(polca_models, fikey)
+  data.frame(nclass=X$nclass,resid.df=X$resid.df,aic=X$aic,bic=X$bic,nrep=X$nrep,storekey=fikey) %>%
+    return()
+}, polca_models=polca_models_2016policy) %>%
+  plyr::rbind.fill() %>%
+  dplyr::filter(nrep>1)
+
 for (i in 1:2) {
   if (i==2) {
     need_formula_reduction_args<-dplyr::filter(polca_models_inf,resid.df>0) %>%
       dplyr::semi_join(formula_reduction_args, .) %>%
-      dplyr::mutate(nrep=35, maxiter=1000) %>%
-      dplyr::filter(!(storekey %in% !!names(polca_models_2016policy) ))
+      dplyr::mutate(nrep=35, maxiter=1000)
   } else {
     need_formula_reduction_args<-formula_reduction_args %>%
-      dplyr::filter(!(storekey %in% !!names(polca_models_2016policy) ))
+      dplyr::filter(!(storekey %in% !!already_processed_polca_models_2016policy$storekey ))
   }
   polca_models_2016policy<-custom_apply_thr_argdf(need_formula_reduction_args, "storekey", function(fikey, loopargdf, datadf, ...) {
     needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
@@ -153,14 +165,14 @@ for (i in 1:2) {
   
   polca_models_inf<-lapply(names(polca_models_2016policy), function(fikey, polca_models, formula_reduction_args) {
     X<-magrittr::extract2(polca_models, fikey)
-    data.frame(nclass=X$nclass,resid.df=X$resid.df,aic=X$aic,bic=X$bic,storekey=fikey) %>%
-      dplyr::left_join(formula_reduction_args)
+    data.frame(nclass=X$nclass,resid.df=X$resid.df,aic=X$aic,bic=X$bic,nrep=X$nrep,storekey=fikey) %>%
+      dplyr::left_join(dplyr::select(formula_reduction_args, -nrep), by=c("storekey", "nclass"))
   }, polca_models=polca_models_2016policy, formula_reduction_args=formula_reduction_args) %>%
     rbind.fill()
 }
 backup_polca_models_2016policy<-polca_models_2016policy
 load(file=paste0(save_dataset_in_scriptsfile_directory,"/analyse_res/polca_models_2016policy.RData"), verbose=TRUE)
-polca_models_2016policy<-rlist::list.merge(backup_polca_models_2016policy,polca_models_2016policy)
+polca_models_2016policy<-rlist::list.merge(polca_models_2016policy,backup_polca_models_2016policy)
 #save(polca_models_2016policy,file=paste0(save_dataset_in_scriptsfile_directory,"/analyse_res/polca_models_2016policy.RData"))
 
 shrink_polca_models_inf<-dplyr::arrange(polca_models_inf, bic, aic) %>%
@@ -197,21 +209,25 @@ shrink_polca_models_inf<-dplyr::arrange(polca_models_inf, bic, aic) %>%
   ) %>%
   dplyr::arrange(survey, construct, imp)
 
-#1,2,9,19,22,23
+#save(shrink_polca_models_inf, recode_constructclass_list, file=paste0(dataset_in_scriptsfile_directory,"shrink_polca_models_inf.RData"))
+load(file=paste0(dataset_in_scriptsfile_directory,"shrink_polca_models_inf.RData"), verbose=TRUE)
 recode_constructclass_list<-list()
 for (rowi in 1:nrow(shrink_polca_models_inf)) { #needpoLCAsurveys_with_imp
+  needrow<-shrink_polca_models_inf[rowi, ]
+  if ( !((needrow$survey=="2016citizen" & needrow$imp==1) |  (needrow$survey=="2010overall" & needrow$imp==2)  )) { #
+    next
+  }
   repeat {
-    needrow<-shrink_polca_models_inf[rowi, ]
     survey_with_imp<-paste0(needrow$survey,needrow$imp)
     prefixinfstr<-paste("now in imp", needrow$imp, "c:", needrow$construct, needrow$constructname, "number of class is",needrow$nclass)
     model<-needrow$storekey %>%
       magrittr::extract2(polca_models_2016policy, .)
     cat("\014")
-    print(model)
+    print(model$probs)
     tmp_recode_list<-list()
     for (groupn in 1:needrow$nclass) {
       inputofclass<-readline(paste(prefixinfstr, "groupN of", groupn, "is(AG to PRO):") ) %>%
-        paste0("construct_",needrow$construct,"_",.,"of",needrow$nclass)
+        paste0(needrow$constructname,"_",.,"of",needrow$nclass)
       tmp_recode_list<-c(tmp_recode_list, magrittr::set_names(c(inputofclass),groupn) )
     }
     if (is.null(recode_constructclass_list[[survey_with_imp]])) {
@@ -222,12 +238,33 @@ for (rowi in 1:nrow(shrink_polca_models_inf)) { #needpoLCAsurveys_with_imp
     }
     recode_constructclass_list[[survey_with_imp]][[needrow$construct]]<-tmp_recode_list
     if (readline("Next?")=="Y") {
+      save(shrink_polca_models_inf, recode_constructclass_list, file=paste0(dataset_in_scriptsfile_directory,"shrink_polca_models_inf.RData"))
       break
     }
   }
 }
 
-save(recode_constructclass_list,file=paste0(dataset_in_scriptsfile_directory,"recode_constructclass_list.RData"))
+need_shrink_polca_models_inf<-dplyr::filter(shrink_polca_models_inf, 
+                                            ((survey=="2016citizen" & imp==1) |  (survey=="2010overall" & imp==2)  )
+                                            )
+survey_data_with_condensed_opinion<-lapply(survey_data_imputed, function(X) {
+  dplyr::select(X, id, .id, .imp) %>% return()
+})
+for (rowi in 1:nrow(need_shrink_polca_models_inf)) {
+  needrow<-need_shrink_polca_models_inf[rowi, ]
+  survey_with_imp<-paste0(needrow$survey,needrow$imp)
+  message(survey_with_imp)
+  constructlist<-magrittr::extract2(recode_constructclass_list, survey_with_imp)
+  constructlist<-magrittr::extract2(constructlist, needrow$construct)
+  print(constructlist)
+  needmodel<-magrittr::extract2(polca_models_2016policy, needrow$storekey)
+  #readline("Next")
+  targetupdaterows<-which(survey_data_with_condensed_opinion[[needrow$survey]]$.imp==needrow$imp)
+  survey_data_with_condensed_opinion[[needrow$survey]][targetupdaterows, paste0("construct_",needrow$construct)] <-
+    dplyr::recode_factor(needmodel$predclass, !!!constructlist)
+  #survey_data_imputed[[survey]]$myown_indp_atti[tp_check_df_imppos]<-dplyr::recode(poLCA_survey_results[[survey_with_imp]]$predclass, !!!recode_indp_list[[survey_with_imp]])
+}
+save(survey_data_with_condensed_opinion, file=paste0(dataset_in_scriptsfile_directory,"survey_data_with_condensed_opinion.RData"))
 
 # 第六-3部份：潛在類別分析：將分析結果整併入dataset Apply poLCA results --------------------------------
 
