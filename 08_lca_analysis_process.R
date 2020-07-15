@@ -257,7 +257,7 @@ survey_data_with_condensed_opinion<-lapply(survey_data_imputed, function(X) {
 for (rowi in 1:nrow(need_shrink_polca_models_inf)) {
   needrow<-need_shrink_polca_models_inf[rowi, ]
   survey_with_imp<-paste0(needrow$survey,needrow$imp)
-  message(survey_with_imp)
+  message(paste(survey_with_imp,needrow$construct))
   constructlist<-magrittr::extract2(recode_constructclass_list, survey_with_imp)
   constructlist<-magrittr::extract2(constructlist, needrow$construct)
   print(constructlist)

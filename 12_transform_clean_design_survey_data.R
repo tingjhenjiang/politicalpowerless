@@ -298,10 +298,15 @@ load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_
 load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
 load(file=paste0(dataset_in_scriptsfile_directory,"survey_data_with_condensed_opinion.RData"), verbose=TRUE)
 
+recode_condense_label_basis<-dplyr::filter(survey_codebook,grepl(pattern="construct", ID)) %>% dplyr::mutate(newlabel=paste0("[",VALUE,"] ",LABEL))
+recode_condense_label_basislist<-magrittr::set_names(recode_condense_label_basis$newlabel,recode_condense_label_basis$LABEL)
+
 survey_data_imputed_with_newconstruct<-lapply(names(survey_data_imputed), function(surveykey, ...) {
-  dplyr::left_join(survey_data_imputed[[surveykey]], survey_data_with_condensed_opinion[[surveykey]])
-}, survey_data_imputed=survey_data_imputed, survey_data_with_condensed_opinion=survey_data_with_condensed_opinion)
-survey_data_imputed<-survey_data_imputed_with_newconstruct
+  retdf<-dplyr::left_join(survey_data_imputed[[surveykey]], survey_data_with_condensed_opinion[[surveykey]])
+  constructcols<-grep(pattern="construct", x=names(retdf), value=TRUE)
+  dplyr::mutate_at(retdf, constructcols, dplyr::recode_factor, !!!recode_condense_label_basislist)
+}, survey_data_imputed=survey_data_imputed, survey_data_with_condensed_opinion=survey_data_with_condensed_opinion, recode_condense_label_basislist=recode_condense_label_basislist)
+survey_data_imputed<-magrittr::set_names(survey_data_imputed_with_newconstruct, names(survey_data_imputed))
 #library(reshape2)
 #survey_oldq_id<-list(
 #  "2004citizen"=c("v25","v26","v27","v41","v42","v43","v44","v45","v46","v60","v61","v62","v65","v74","v91a","v91b","v92_1","v92_2","v92_3","v92_4","v92_5","v93a","v93b","v95","v96","v97","v105a","v105b","v105c","v106a","v106b","v106c","v107a","v107b","v107c","v114","v118a","v118b","v118c","v118d"),

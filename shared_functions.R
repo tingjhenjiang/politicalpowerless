@@ -489,7 +489,8 @@ mutate_last <- function(.data, ...) {
 paths_to_survey_imputation_and_measurement_file<-c(
   paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx"),
   paste0(dataset_in_scriptsfile_directory,"imputationcomputingbasis.xlsx")
-)
+) %>%
+  .[sapply(., file.exists)]
 custom_ret_survey_imputation_and_measurement<-function(paths) {
   survey_imputation_and_measurement<-try(openxlsx::read.xlsx(paths[1],sheet = 1))
   if(is(survey_imputation_and_measurement, 'try-error')) {
