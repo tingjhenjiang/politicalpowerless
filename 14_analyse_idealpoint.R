@@ -112,42 +112,47 @@ all_idealpoint_models_keys<-if (is(all_idealpoint_models_keys,'try-error')) c() 
 
 #library(lme4)
 # * modeling ------------------
+
+#full efficient
+#policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)
+#"policyidealpoint_cos_similarity_to_median~(1|SURVEY)",
+# "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)",
+# "policyidealpoint_cos_similarity_to_median~(1|myown_areakind)",
+# "policyidealpoint_cos_similarity_to_median~(1|admincity)",
+# "policyidealpoint_cos_similarity_to_median~(1|admindistrict)",
+#"policyidealpoint_cos_similarity_to_median~(1|admincity)"#,
+# "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)",
+# "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)",
+# "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|adminvillage)",
+# "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
+# "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|adminvillage/cluster_kamila)",
+# "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/admindistrict/admincity/myown_areakind/cluster_kamila/SURVEY)",
+# "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/cluster_kamila)",
+# "policyidealpoint_cos_similarity_to_median~(1|myown_areakind)",
+# "policyidealpoint_cos_similarity_to_median~(1|adminvillage)",
+# "policyidealpoint_cos_similarity_to_median~(1|admindistrict)",
+# "policyidealpoint_cos_similarity_to_median~(1|admincity)",
+# "policyidealpoint_eucli_distance_to_median~(1|SURVEY)",
+# "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)",
+# "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|SURVEY)",
+# "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|adminvillage)",
+# "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
+# "policyidealpoint_eucli_distance_to_median~(1|adminvillage/cluster_kamila)",
+# "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)",
+# "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)",
+# "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|adminvillage)",
+# "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
+# "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|adminvillage/cluster_kamila)",
+# "policyidealpoint_eucli_distance_to_median~(1|myown_areakind)",
+# "policyidealpoint_eucli_distance_to_median~(1|adminvillage)",
+# "policyidealpoint_eucli_distance_to_median~(1|admindistrict)",
+# "policyidealpoint_eucli_distance_to_median~(1|admincity)"#,
+
 idealpoint_models_args<-data.frame("formula"=c(
-  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"#,
-  #full efficient
-  #policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)
-  #"policyidealpoint_cos_similarity_to_median~(1|SURVEY)",
-  # "policyidealpoint_cos_similarity_to_median~(1|cluster_kamila)",
-  # "policyidealpoint_cos_similarity_to_median~(1|myown_areakind)",
-  # "policyidealpoint_cos_similarity_to_median~(1|admincity)",
-  # "policyidealpoint_cos_similarity_to_median~(1|admindistrict)",
-  #"policyidealpoint_cos_similarity_to_median~(1|admincity)"#,
-  # "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)",
-  # "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)",
-  # "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|adminvillage)",
-  # "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
-  # "policyidealpoint_cos_similarity_to_median~cluster_kamila+(1|adminvillage/cluster_kamila)",
-  # "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/admindistrict/admincity/myown_areakind/cluster_kamila/SURVEY)",
-  # "policyidealpoint_cos_similarity_to_median~1+(1|adminvillage/cluster_kamila)",
-  # "policyidealpoint_cos_similarity_to_median~(1|myown_areakind)",
-  # "policyidealpoint_cos_similarity_to_median~(1|adminvillage)",
-  # "policyidealpoint_cos_similarity_to_median~(1|admindistrict)",
-  # "policyidealpoint_cos_similarity_to_median~(1|admincity)",
-  # "policyidealpoint_eucli_distance_to_median~(1|SURVEY)",
-  # "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)",
-  # "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|SURVEY)",
-  # "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|adminvillage)",
-  # "policyidealpoint_eucli_distance_to_median~(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
-  # "policyidealpoint_eucli_distance_to_median~(1|adminvillage/cluster_kamila)",
-  # "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)",
-  # "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)",
-  # "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|adminvillage)",
-  # "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|cluster_kamila)+(1|SURVEY)+(1|adminvillage)",
-  # "policyidealpoint_eucli_distance_to_median~cluster_kamila+(1|adminvillage/cluster_kamila)",
-  # "policyidealpoint_eucli_distance_to_median~(1|myown_areakind)",
-  # "policyidealpoint_eucli_distance_to_median~(1|adminvillage)",
-  # "policyidealpoint_eucli_distance_to_median~(1|admindistrict)",
-  # "policyidealpoint_eucli_distance_to_median~(1|admincity)"#,
+  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)",
+  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)",
+  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_sex+myown_selfid+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)",
+  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"
 ), stringsAsFactors=FALSE) %>%
   cbind(., needimp = rep(1:6, each = nrow(.)), stringsAsFactors=FALSE) %>%
   dplyr::mutate(storekey=paste0(needimp,formula)) %>%
@@ -192,8 +197,9 @@ idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", fu
       paste0("(",.,")",collapse="|")
     allmodelvars<-base::intersect(names(datadf[[needrow$needimp]]), c(modelvars_ex_conti,modelvars_latentrelated)) %>%
       c(dummyc_catg_vars)
-    t<-dummycode_of_a_dataframe(datadf[[needrow$needimp]], catgvars=dummyc_catg_vars) %>%
-      dplyr::select(tidyselect::starts_with(c(allmodelvars,"policyidealpoint_cos_similarity_to_median_scaled","admindistrict")), -myown_selfid_population ) %>%
+    t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>%
+      dummycode_of_a_dataframe(catgvars=dummyc_catg_vars) %>%
+      dplyr::select(tidyselect::starts_with(c(allmodelvars,"policyidealpoint_cos_similarity_to_median_scaled","admindistrict")), -myown_selfid_population) %>%
       #{ .[complete.cases(.), ]} %>%
       {
          targetx<-dplyr::select(., -policyidealpoint_cos_similarity_to_median_scaled, -admindistrict)
@@ -202,10 +208,10 @@ idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", fu
       do.call(customjrfit, args=.) %>%
       try()
   } else {
-    t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::contains("NA")) %>% #datadf[[needrow$needimp]] %>%
+    t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>% #datadf[[needrow$needimp]] %>%
     {list(formula=as.formula(needrow$formula), data=., weights=.$myown_wr )} %>% #
       #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
-      #do.call(robustlmm::rlmer, args=.) %>%
+      do.call(robustlmm::rlmer, args=.) %>%
       #do.call(lmerTest::lmer, args=.) %>%
       #do.call(svylme::svy2lme, args=.)
       #lmerTest::lmer(formula=f, data=datadf[[needrow$needimp]], weights=datadf[[needrow$needimp]]$myown_wr) %>%
