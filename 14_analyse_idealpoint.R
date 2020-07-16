@@ -154,7 +154,7 @@ idealpoint_models_args<-data.frame("formula"=c(
   "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_sex+myown_selfid+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)",
   "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"
 ), stringsAsFactors=FALSE) %>%
-  cbind(., needimp = rep(1:6, each = nrow(.)), stringsAsFactors=FALSE) %>%
+  cbind(., needimp = rep(1, each = nrow(.)), stringsAsFactors=FALSE) %>%
   dplyr::mutate(storekey=paste0(needimp,formula)) %>%
   dplyr::filter(!(formula %in% !!all_idealpoint_models_keys))
 
@@ -188,7 +188,7 @@ if (FALSE) {
 #library(lme4)
 idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, modelvars, ...) {
   needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
-  if (TRUE) { #jrfit part
+  if (FALSE) { #jrfit part
     library(jrfit)
     dummyc_catg_vars<-unlist(modelvars[c("modelvars_ex_catg","modelvars_clustervars","modelvars_controllclustervars")]) %>%
       base::intersect(names(datadf[[needrow$needimp]]), .)
