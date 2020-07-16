@@ -161,7 +161,7 @@ if (usingpackage=="brms" & running_bigdata_computation) {
     "1+(1|billid_myown)+(1|issuefield)+(1|legislator_name)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|myown_marriage)+(1|myown_selfid)+(1|myown_religion)+(1|cluster_kamila)+(1|partyGroup/legislator_name)+(1|partyGroup)+SURVEY"
     #"respondopinion~1+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|issuefield)+(1|cluster_kamila)+(1|elec_dist_type)"
   ),stringsAsFactors=FALSE) %>%
-    cbind(., withindays = rep(c(1095,183), each = nrow(.) )) %>%
+    cbind(., withindays = rep(c(1095,50), each = nrow(.) )) %>% #183
     dplyr::mutate(storekey=paste0(c("1stcondense_timevarying_halfyr","null"),withindays)) %>%
     dplyr::mutate(file = paste0(respondmodels_file,storekey,".RData")) %>%
     dplyr::filter(!(formula %in% !!all_respondmodels_keys))
@@ -217,4 +217,5 @@ if (length(all_respondmodels)==0 | identical(all_respondmodels, list(a=1))) {
   all_respondmodels<-rlist::list.merge(all_respondmodels,respondmodels)
 }
 save(all_respondmodels,file=respondmodels_file)
+message(respondmodel_args$file[fi])
 save(respondmodels,file=respondmodel_args$file[fi])
