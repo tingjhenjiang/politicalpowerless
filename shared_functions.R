@@ -1333,7 +1333,7 @@ ret_robust_models<-function(list_of_models, datadf, clustervar="myown_areakind",
   return(coefsrobust_mods)
 }
 
-fustomjrfit<-function (x, y, block, yhat0 = NULL, scores = wscores, fitint = NULL, 
+customjrfit<-function (x, y, block, yhat0 = NULL, scores = wscores, fitint = NULL, 
                        var.type = "sandwich", fitblock = FALSE, tuser = NULL, ...) 
 {
   call <- match.call()

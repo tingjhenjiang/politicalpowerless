@@ -102,7 +102,8 @@ if ({plotting_to_inspect_distribution<-FALSE;plotting_to_inspect_distribution}) 
 ppmodels_file<-paste0(save_dataset_in_scriptsfile_directory,"/analyse_res/ppmodels.RData")
 load(file=ppmodels_file, verbose=TRUE)
 ppmodel_args<-data.frame("formula"=c(
-  "myown_factoredparticip_ordinal~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"
+  #deduct myown_marriage myown_religion myown_areakind
+  "myown_factoredparticip_ordinal~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_sex+myown_selfid+myown_marriage+myown_religion+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"
   #"myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)+(1|cluster_kamila)+(1|SURVEY)"
   #"myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)",
   # "myown_factoredparticip_ordinal~((1+cluster_kamila)|SURVEY)",
@@ -137,6 +138,7 @@ ppmodel_args<-data.frame("formula"=c(
   dplyr::mutate(storekey=paste0(formula,needimp)) %>%
   dplyr::filter(!(formula %in% !!names(all_ppmodels)))
 
+savemodelprefix<-""
 #merged_acrossed_surveys_list[[1]]$
 #library(lme4)
 ppmodels<-custom_apply_thr_argdf(ppmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
@@ -159,10 +161,10 @@ ppmodels<-custom_apply_thr_argdf(ppmodel_args, "storekey", function(fikey, loopa
     try()
     #@() %>% #c("flexible", "symmetric", "symmetric2", "equidistant")
   return(retmodel)
-}, datadf=merged_acrossed_surveys_list) #, mc.cores=1
+}, datadf=merged_acrossed_surveys_list) #
 
 load(file=ppmodels_file, verbose=TRUE)
-if (length(all_ppmodels)==0) {
+if (length(all_ppmodels)==0 | identical(all_ppmodels, list(a=1))) {
   all_ppmodels<-ppmodels
 } else {
   all_ppmodels<-rlist::list.merge(all_ppmodels,ppmodels)
@@ -256,9 +258,26 @@ if (FALSE) {
 
 
 if (FALSE) {
-  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/ppmodels(very_precious_efficient).RData"), verbose=TRUE)
-  #save(all_ppmodels, file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/ppmodels(very_precious_efficient).RData"))
-  lapply(all_ppmodels, ordinal:::summary.clmm)
+  modeltype<-"(very_precious_efficient_full)"
+  modeltype<-"(very_precious_efficient_without_marriage)"
+  modeltype<-"(very_precious_efficient_without_religion)"
+  modeltype<-"(very_precious_efficient_without_areakind)"
+  modeltype<-"(very_precious_efficient_without_age)"
+  modeltype<-"(very_precious_efficient_without_age_areakind)"
+  modeltype<-"(very_precious_efficient_without_areakind_marriage)"
+  modeltype<-"(very_precious_efficient_without_areakind_religion)"
+  modeltype<-""
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/ppmodels",modeltype,".RData"), verbose=TRUE)
+  #all_ppmodels<-all_ppmodels[7:12] names(all_ppmodels)
+  #save(all_ppmodels, file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/ppmodels",modeltype,".RData"))
+  t<-all_ppmodels[[1]]
+  t<-lapply(all_ppmodels[1], function(X) {ordinal:::summary.clmm(X)})
+  t<-t[[1]]
+  t$coefficients
+  t$ST
+  t$optRes
+  t$formula
+  t$info
   #pooling https://rdrr.io/github/DaanNieboer/ordinalimputation/api/
   t<-mice::as.mira(all_ppmodels)
   pv<-mice::pool(t)
