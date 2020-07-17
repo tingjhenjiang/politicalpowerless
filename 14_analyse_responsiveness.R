@@ -137,31 +137,30 @@ if (usingpackage=="brms" & running_bigdata_computation) {
     switch.NR=TRUE, control=list(print.iter=TRUE)
     )
 } else {
-  
+  # "respondopinion~1+(1|billid_myown)",
+  # "respondopinion~1+(1|id_wth_survey)",
+  # "respondopinion~1+(1|psu)",
+  # "respondopinion~1+(1|ssu)",
+  # "respondopinion~1+(1|adminvillage)",
+  # "respondopinion~1+(1|admindistrict)",
+  # "respondopinion~1+(1|admincity)",
+  # "respondopinion~1+(1|myown_areakind)",
+  # "respondopinion~1+(1|cluster_kamila)",
+  # "respondopinion~1+(1|legislator_name)",
+  # "respondopinion~1+(1|partyGroup)",
+  # "respondopinion~1+(1|SURVEY)",
+  #"respondopinion~1+(1|partyGroup/legislator_name)",
+  #"respondopinion~1+(1|id_wth_survey/adminvillage/admindistrict/admincity/myown_areakind)",
+  #"respondopinion~1+(1|admincity/admindistrict/adminvillage/id_wth_survey)"#,
+  #"respondopinion~1+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)",
+  #complete
+  #"respondopinion~1+days_diff_survey_bill_overallscaled+(days_diff_survey_bill_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(days_diff_survey_bill_overallscaled|billid_myown)+(1|billid_myown)+issuefield+(1|issuefield)+(issuefield|billid_myown)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_marriage+(1|myown_marriage)+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled+(myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled*myown_age_overallscaled+(myown_age_overallscaled*myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_selfid+(1|myown_selfid)+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_religion+(1|myown_religion)+(myown_religion|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+similarity_distance_overallscaled+(similarity_distance_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(similarity_distance_overallscaled|legislator_name)+myown_factoredparticip_overallscaled+(myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+cluster_kamila*myown_factoredparticip_overallscaled+(cluster_kamila*myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+cluster_kamila+(1|cluster_kamila)+elec_dist_type+(elec_dist_type|partyGroup/legislator_name)+seniority_overallscaled+(seniority_overallscaled|partyGroup/legislator_name)+(1|partyGroup/legislator_name)+party_pressure_overallscaled+(party_pressure_overallscaled|partyGroup)+(party_pressure_overallscaled|billid_myown)+partysize+(partysize|partyGroup)+adminparty+(adminparty|partyGroup)+SURVEY",
+  #"respondopinion~1+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|issuefield)+(1|cluster_kamila)+(1|elec_dist_type)"
   respondmodel_args<-data.frame("formula"=c(
-    # "respondopinion~1+(1|billid_myown)",
-    # "respondopinion~1+(1|id_wth_survey)",
-    # "respondopinion~1+(1|psu)",
-    # "respondopinion~1+(1|ssu)",
-    # "respondopinion~1+(1|adminvillage)",
-    # "respondopinion~1+(1|admindistrict)",
-    # "respondopinion~1+(1|admincity)",
-    # "respondopinion~1+(1|myown_areakind)",
-    # "respondopinion~1+(1|cluster_kamila)",
-    # "respondopinion~1+(1|legislator_name)",
-    # "respondopinion~1+(1|partyGroup)",
-    # "respondopinion~1+(1|SURVEY)",
-    #"respondopinion~1+(1|partyGroup/legislator_name)",
-    #"respondopinion~1+(1|id_wth_survey/adminvillage/admindistrict/admincity/myown_areakind)",
-    #"respondopinion~1+(1|admincity/admindistrict/adminvillage/id_wth_survey)"#,
-    #"respondopinion~1+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)",
-    #complete
-    #"respondopinion~1+days_diff_survey_bill_overallscaled+(days_diff_survey_bill_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(days_diff_survey_bill_overallscaled|billid_myown)+(1|billid_myown)+issuefield+(1|issuefield)+(issuefield|billid_myown)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_marriage+(1|myown_marriage)+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled+(myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled*myown_age_overallscaled+(myown_age_overallscaled*myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_selfid+(1|myown_selfid)+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_religion+(1|myown_religion)+(myown_religion|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+similarity_distance_overallscaled+(similarity_distance_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(similarity_distance_overallscaled|legislator_name)+myown_factoredparticip_overallscaled+(myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+cluster_kamila*myown_factoredparticip_overallscaled+(cluster_kamila*myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+cluster_kamila+(1|cluster_kamila)+elec_dist_type+(elec_dist_type|partyGroup/legislator_name)+seniority_overallscaled+(seniority_overallscaled|partyGroup/legislator_name)+(1|partyGroup/legislator_name)+party_pressure_overallscaled+(party_pressure_overallscaled|partyGroup)+(party_pressure_overallscaled|billid_myown)+partysize+(partysize|partyGroup)+adminparty+(adminparty|partyGroup)+SURVEY",
     "respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+issuefield+myown_factoredses_overallscaled+myown_sex+myown_selfid+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+(1|admindistrict/id_wth_survey)+elec_dist_type+seniority_overallscaled+cluster_kamila+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY",
     "1+(1|billid_myown)+(1|issuefield)+(1|legislator_name)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|myown_marriage)+(1|myown_selfid)+(1|myown_religion)+(1|cluster_kamila)+(1|partyGroup/legislator_name)+(1|partyGroup)+SURVEY"
-    #"respondopinion~1+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|issuefield)+(1|cluster_kamila)+(1|elec_dist_type)"
   ),stringsAsFactors=FALSE) %>%
-    cbind(., withindays = rep(c(1095,50), each = nrow(.) )) %>% #183
+    cbind(., withindays = rep(c(1095,80), each = nrow(.) )) %>% #183
     dplyr::mutate(storekey=paste0(c("1stcondense_timevarying_halfyr","null"),withindays)) %>%
     dplyr::mutate(file = paste0(respondmodels_file,storekey,".RData")) %>%
     dplyr::filter(!(formula %in% !!all_respondmodels_keys))

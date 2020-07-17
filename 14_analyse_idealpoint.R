@@ -228,7 +228,7 @@ idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", fu
     "modelvars_latentrelated"=modelvars_latentrelated,
     "modelvars_clustervars"=modelvars_clustervars,
     "modelvars_controllclustervars"=modelvars_controllclustervars
-    ), mc.cores=1
+    )
 )
 
 
