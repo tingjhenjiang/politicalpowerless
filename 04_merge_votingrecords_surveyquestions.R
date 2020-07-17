@@ -220,18 +220,29 @@ newlevel_of_voting<-c("反對", non_decision, "贊成")
 myown_vote_record_df_wide_billidascol <- lapply(names(myown_vote_record_df_wide), function(key, ...) {
   dplyr::arrange(myown_vote_record_df_wide[[key]], legislator_name, billid_myown, votedecision) %>%
     dplyr::mutate_at(.vars=c("votedecision","legislator_party"), as.character) %>%
-    lapply(terms, function (term,data) { data[data$term==term,] }, data=. ) %>%
-    lapply(function(data, ...) {reshape2::dcast(data, widedata_formula, fun.aggregate=paste0, value.var="votedecision", fill="")}, widedata_formula=widedata_formula) %>%
-    lapply(function(data) {dplyr::mutate_all(data, .funs=function (X){X<-ifelse(X=="",NA,X)} )} ) %>%
-    #lapply(function(data) {t(data)}) %>%
-    #lapply(function(data) {magrittr::set_colnames(data, data[2,])}) %>%
-    #lapply(function(data) {as.data.frame(data[4:nrow(data),])}) %>%
-    lapply(function(data) {dplyr::mutate_at(data, .vars=dplyr::setdiff(colnames(data), widedata_preserve_vars), function (X) {
-      ordered(X, levels = newlevel_of_voting)
-    })} ) %>%
-    lapply(function(data) {magrittr::set_rownames(data, data$legislator_name)})
-}, myown_vote_record_df_wide=myown_vote_record_df_wide, terms=terms, widedata_preserve_vars=widedata_preserve_vars, widedata_formula=widedata_formula) %>%
+    lapply(terms, function (term,data) { data[data$term==term,] }, data=. ) #%>%
+    #lapply(function(data, ...) {reshape2::dcast(data, widedata_formula, fun.aggregate=paste0, value.var="votedecision", fill="")}, widedata_formula=widedata_formula) %>%
+    #lapply(function(data) {dplyr::mutate_all(data, .funs=function (X){X<-ifelse(X=="",NA,X)} )} ) %>%
+      #lapply(function(data) {t(data)}) %>%
+      #lapply(function(data) {magrittr::set_colnames(data, data[2,])}) %>%
+      #lapply(function(data) {as.data.frame(data[4:nrow(data),])}) %>%
+    #lapply(function(data) {dplyr::mutate_at(data, .vars=dplyr::setdiff(colnames(data), widedata_preserve_vars), function (X) {
+    #  ordered(X, levels = newlevel_of_voting)
+    #})} ) %>%
+    #lapply(function(data) {magrittr::set_rownames(data, data$legislator_name)})
+}, myown_vote_record_df_wide=myown_vote_record_df_wide, terms=c(7,9), widedata_preserve_vars=widedata_preserve_vars, widedata_formula=widedata_formula) %>%
   magrittr::set_names(names(myown_vote_record_df_wide))
+
+myown_vote_record_df_wide_billidascol_selected<-lapply(1:length(myown_vote_record_df_wide_billidascol$notagendavoting), function(key, ...) {
+  t<-reshape2::dcast(myown_vote_record_df_wide_billidascol$notagendavoting[[key]], widedata_formula, fun.aggregate=paste0, value.var="votedecision", fill="") %>%
+    dplyr::mutate_all(.funs=function (X){X<-ifelse(X=="",NA,X)} )
+  colnames_t<-colnames(t)
+  dplyr::mutate_at(t,.vars=dplyr::setdiff(colnames_t, widedata_preserve_vars), function (X) {
+    ordered(X, levels = newlevel_of_voting)
+    })  %>%
+    magrittr::set_rownames(.$legislator_name)
+}, myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol, widedata_preserve_vars=widedata_preserve_vars, widedata_formula=widedata_formula)
+
 
 # * 先前parallel analysis的結果 --------------------------------
 
@@ -319,9 +330,22 @@ parallelfa_result_n_factor <- dplyr::left_join(parallelfa_n_factors_args_df,
 # * MDS algorithms --------------------------------
 #http://www.hmwu.idv.tw/web/R/C01-hmwu_R-DimensionReduction.pdf
 
-# * EFA by mirt on limited variables --------------------------------
-
-
+# * EFA by mirt on mixed effect --------------------------------
+testdata<-myown_vote_record_df_wide_billidascol_selected[[1]] %>%
+  .[complete.cases(.), ] %>%
+  dplyr::mutate_at("legislator_party", as.factor)
+billidcolnames<-colnames(testdata) %>% base::setdiff(widedata_preserve_vars)
+renamed_billidcolnames<-sapply(billidcolnames, customgsub, pattern="-", replacement="_") %>% unname()
+#rndformula<-paste0(renamed_billidcolnames,collapse="+") %>%
+#  paste0("|legislator_party")
+testdata<-dplyr::mutate_at(testdata, billidcolnames, unclass) %>%
+  dplyr::rename_with(~ (gsub("-", "_", .x, fixed = TRUE)))
+testdata_cov<-data.frame(legislator_party=testdata$legislator_party)
+mirt::mirtCluster()
+t<-mirt::mixedmirt(testdata[,renamed_billidcolnames], covdata=testdata_cov,
+                   model=3, fixed = ~ 0 + legislator_party,
+                   random = list(~ 1|legislator_party),
+                   itemtype = "graded")
 
 # * EFA by MCMC --------------------------------
 res.MCMCefas <- list()
