@@ -185,7 +185,6 @@ if (FALSE) {
   save(all_idealpoint_models_svy, file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models(svylme).RData"))
 }
 
-#library(lme4)
 idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, modelvars, ...) {
   needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
   if (FALSE) { #jrfit part
@@ -208,8 +207,10 @@ idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", fu
       do.call(customjrfit, args=.) %>%
       try()
   } else {
+    library(lme4)
+    library(robustlmm)
     t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>% #datadf[[needrow$needimp]] %>%
-    {list(formula=as.formula(needrow$formula), data=., weights=.$myown_wr )} %>% #
+    {list(formula=as.formula(needrow$formula), data=. )} %>% #, weights=.$myown_wr
       #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
       do.call(robustlmm::rlmer, args=.) %>%
       #do.call(lmerTest::lmer, args=.) %>%
@@ -227,7 +228,7 @@ idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", fu
     "modelvars_latentrelated"=modelvars_latentrelated,
     "modelvars_clustervars"=modelvars_clustervars,
     "modelvars_controllclustervars"=modelvars_controllclustervars
-    )
+    ), mc.cores=1
 )
 
 
