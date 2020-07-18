@@ -149,10 +149,8 @@ all_idealpoint_models_keys<-if (is(all_idealpoint_models_keys,'try-error')) c() 
 # "policyidealpoint_eucli_distance_to_median~(1|admincity)"#,
 
 idealpoint_models_args<-data.frame("formula"=c(
-  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)",
-  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)",
-  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_sex+myown_selfid+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)",
-  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"
+  #"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)",
+  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_sex+myown_selfid+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"
 ), stringsAsFactors=FALSE) %>%
   cbind(., needimp = rep(1, each = nrow(.)), stringsAsFactors=FALSE) %>%
   dplyr::mutate(storekey=paste0(needimp,formula)) %>%
@@ -212,8 +210,8 @@ idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", fu
     t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>% #datadf[[needrow$needimp]] %>%
     {list(formula=as.formula(needrow$formula), data=. )} %>% #, weights=.$myown_wr
       #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
-      do.call(robustlmm::rlmer, args=.) %>%
-      #do.call(lmerTest::lmer, args=.) %>%
+      #do.call(robustlmm::rlmer, args=.) %>%
+      do.call(lmerTest::lmer, args=.) %>%
       #do.call(svylme::svy2lme, args=.)
       #lmerTest::lmer(formula=f, data=datadf[[needrow$needimp]], weights=datadf[[needrow$needimp]]$myown_wr) %>%
       #do.call(lme4::lmer, args=.) %>%
@@ -245,9 +243,16 @@ save(all_idealpoint_models, file=all_idealpoint_models_file)
 if (FALSE) {
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models.RData"), verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(very_precious_efficient).RData"), verbose=TRUE)
-  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lmertest).RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lmertest_no_weight_multipleimp).RData"), verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lme4_no_weight).RData"), verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(robustlmm).RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(rlmer_compare).RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lmertest_compare_weighted).RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(robustlmm_final_efficient).RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lmertest_final_efficient).RData"), verbose=TRUE)
+  #save(all_idealpoint_models, file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lmertest_compare_weighted).RData"))
+  robustlmm::compare(all_idealpoint_models[[1]], all_idealpoint_models[[2]], all_idealpoint_models[[3]], all_idealpoint_models[[4]]) %>%
+    xtable::xtable()
   all_idealpoint_models_lmertest<-all_idealpoint_models
   all_idealpoint_models_robust<-all_idealpoint_models
   #check distribution
@@ -260,9 +265,8 @@ if (FALSE) {
   coefs.robust <- data.frame(coef(summary(all_idealpoint_models_robust[[1]]))) %>%
     cbind(dfs=coef(summary(all_idealpoint_models_lmertest[[1]]))[,"df"]) %>%
     dplyr::mutate(pvalue=2*pt(abs(t.value), dfs, lower=FALSE) )
-  p.values <- 2*pt(abs(coefs.robust[,3]), coefs$df, lower=FALSE)
-  se<-coef(summary(all_idealpoint_models_robust[[1]]))[,2]
-  confint.rlmerMod(all_idealpoint_models_robust[[1]])
+  coefs.robust[,"Std..Error"]<-coef(summary(all_idealpoint_models_robust[[1]]))[,2]
+  coefs.robust %<>% cbind(confint.rlmerMod(all_idealpoint_models_robust[[1]]))
   sigma(all_idealpoint_models_robust[[1]])
   
   
