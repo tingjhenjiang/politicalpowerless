@@ -54,9 +54,11 @@ all_respondmodels_keys<-if (is(all_respondmodels_keys,'try-error')) c() else all
 try(rm(all_respondmodels))
 gcreset()
 
-usingpackage<-"glmmlasso"
+usingpackage<-"ordinal"
 
+# * brms part -------------------
 if (usingpackage=="brms" & running_bigdata_computation) {
+  
   #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"), verbose=TRUE)
   # Ordinal regression modeling patient's rating of inhaler instructions
   # category specific effects are estimated for variable 'treat'
@@ -142,7 +144,7 @@ if (usingpackage=="brms" & running_bigdata_computation) {
   #brms::WAIC(brmmodelonrespondopinion)
   #save(brmmodelonrespondopinion, file=paste0(dataset_in_scriptsfile_directory, "brmmodelonrespondopinion.RData"))
 
-
+# * glmlasso part -------------------
 } else if (usingpackage=="glmmlasso" & running_bigdata_computation) {
   #https://rdrr.io/cran/glmmLasso/src/demo/glmmLasso-soccer.r
   fi<-1
@@ -188,7 +190,7 @@ if (usingpackage=="brms" & running_bigdata_computation) {
     }
   }, datadf=rundatadf, mc.cores=1)
     
-    
+# * ordinal part -------------------
 } else {
   # "respondopinion~1+(1|billid_myown)",
   # "respondopinion~1+(1|id_wth_survey)",
@@ -310,11 +312,12 @@ if (usingpackage=="brms" & running_bigdata_computation) {
   # 
   #"7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27","9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98"
   respondmodel_args<-data.frame("formula"=c(
-    "respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+days_diff_survey_bill_overallscaled*myown_sex+days_diff_survey_bill_overallscaled*myown_selfid+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+(issuefield|billid_myown)+(myown_factoredses_overallscaled|admindistrict/id_wth_survey)+(myown_sex|admindistrict/id_wth_survey)+(myown_selfid|admindistrict/id_wth_survey)+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+(1|admindistrict/id_wth_survey)+(seniority_overallscaled|partyGroup/legislator_name)+(cluster_kamila|admindistrict/id_wth_survey)+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY",
+    #"respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+days_diff_survey_bill_overallscaled*myown_sex+days_diff_survey_bill_overallscaled*myown_selfid+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+(issuefield|billid_myown)+(myown_factoredses_overallscaled|admindistrict/id_wth_survey)+(myown_sex|admindistrict/id_wth_survey)+(myown_selfid|admindistrict/id_wth_survey)+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+(1|admindistrict/id_wth_survey)+(seniority_overallscaled|partyGroup/legislator_name)+(cluster_kamila|admindistrict/id_wth_survey)+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY",
+    "respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+days_diff_survey_bill_overallscaled*myown_sex+days_diff_survey_bill_overallscaled*myown_selfid+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+issuefield+myown_factoredses_overallscaled+myown_sex+myown_selfid+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+(1|admindistrict/id_wth_survey)+seniority_overallscaled+cluster_kamila+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY",
     "1+(1|billid_myown)+(1|issuefield)+(1|legislator_name)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|myown_marriage)+(1|myown_selfid)+(1|myown_religion)+(1|cluster_kamila)+(1|partyGroup/legislator_name)+(1|partyGroup)+SURVEY"
   ),stringsAsFactors=FALSE) %>%
     cbind(., withindays = rep(c(1095,80), each = nrow(.) )) %>% #183
-    dplyr::mutate(storekey=paste0(c("fixshalfyrsbill_rdnslope","null"),withindays)) %>%
+    dplyr::mutate(storekey=paste0(c("fixs1yrbill_rndintconly","null"),withindays)) %>%
     dplyr::mutate(file = paste0(respondmodels_file,storekey,".RData")) %>%
     dplyr::filter(!(formula %in% !!all_respondmodels_keys))
   if (FALSE) { #test
