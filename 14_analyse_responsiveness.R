@@ -280,7 +280,7 @@ if (usingpackage=="brms" & running_bigdata_computation) {
   # 
   #"7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27","9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98"
   respondmodel_args<-data.frame("formula"=c(
-    "respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+days_diff_survey_bill_overallscaled*myown_sex+days_diff_survey_bill_overallscaled*myown_selfid+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+issuefield+myown_factoredses_overallscaled+myown_sex+myown_selfid+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+(1|admindistrict/id_wth_survey)+elec_dist_type+seniority_overallscaled+cluster_kamila+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY",
+    "respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+days_diff_survey_bill_overallscaled*myown_sex+days_diff_survey_bill_overallscaled*myown_selfid+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+issuefield+myown_factoredses_overallscaled+myown_sex+myown_selfid+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+(1|admindistrict/id_wth_survey)+seniority_overallscaled+cluster_kamila+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY",
     "1+(1|billid_myown)+(1|issuefield)+(1|legislator_name)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|myown_marriage)+(1|myown_selfid)+(1|myown_religion)+(1|cluster_kamila)+(1|partyGroup/legislator_name)+(1|partyGroup)+SURVEY"
   ),stringsAsFactors=FALSE) %>%
     cbind(., withindays = rep(c(1095,80), each = nrow(.) )) %>% #183
@@ -300,7 +300,11 @@ if (usingpackage=="brms" & running_bigdata_computation) {
   
   respondmodels<-dplyr::select(overall_nonagenda_df, -tidyselect::ends_with("NA")) %>%
     #dplyr::filter(overall_nonagenda_df) %>% #, days_diff_survey_bill<=!!argrow$withindays
-    dplyr::filter( billid_myown %in% !!c("7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27","9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98")  ) %>%
+    dplyr::filter( billid_myown %in% !!c("7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27",
+                                         "7-6-0-15-8","7-6-0-15-11","7-6-0-15-12",
+                                         "9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98",
+                                         "9-2-0-17-34","9-2-0-17-35","9-2-0-17-36","9-2-0-17-37","9-2-0-17-38","9-2-0-17-39","9-2-0-17-41","9-2-0-17-61","9-2-1-1-2","9-2-1-1-4","9-2-1-1-5","9-2-1-2-1","9-2-1-2-2","9-2-1-2-3","9-2-1-2-4","9-2-1-2-5","9-2-1-2-14","9-2-1-2-18","9-2-1-2-42","9-2-1-2-47","9-2-1-2-53","9-2-1-2-55","9-2-1-2-58"
+                                         )) %>%
     droplevels() %>%
     {list(formula=as.formula(argrow$formula), data=., weights=magrittr::use_series(., "myown_wr"), 
         Hess=TRUE, model = TRUE, link = "logit", threshold = "flexible")} %>%
