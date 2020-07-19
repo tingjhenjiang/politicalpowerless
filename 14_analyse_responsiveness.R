@@ -54,7 +54,7 @@ all_respondmodels_keys<-if (is(all_respondmodels_keys,'try-error')) c() else all
 try(rm(all_respondmodels))
 gcreset()
 
-usingpackage<-"ordinal"
+usingpackage<-"glmmlasso"
 
 if (usingpackage=="brms" & running_bigdata_computation) {
   #load(file=paste0(dataset_in_scriptsfile_directory, "overall_nonagenda_df_sampled.RData"), verbose=TRUE)
@@ -144,30 +144,51 @@ if (usingpackage=="brms" & running_bigdata_computation) {
 
 
 } else if (usingpackage=="glmmlasso" & running_bigdata_computation) {
+  #https://rdrr.io/cran/glmmLasso/src/demo/glmmLasso-soccer.r
+  fi<-1
   respondmodel_args<-data.frame("rnd"=c(
     "+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+(1|admindistrict/id_wth_survey)+(1|partyGroup/legislator_name)"
   ),stringsAsFactors=FALSE) %>%
-    cbind(., withindays = rep(c(1095,183), each = nrow(.) )) %>%
-    dplyr::mutate(storekey=paste0(c("1stcondense_timevarying_lasso",withindays),withindays)) %>%
-    dplyr::mutate(file = paste0(respondmodels_file,storekey,".RData")) %>%
-    dplyr::filter(!(formula %in% !!all_respondmodels_keys))
-  overall_nonagenda_df_small<-overall_nonagenda_df[sample(nrow(overall_nonagenda_df), 10000), ] %>%
-    dplyr::mutate_if(is.factor, droplevels)
-  respondmodels<- dplyr::select(overall_nonagenda_df, -tidyselect::ends_with("NA")) %>%
-     dplyr::filter( billid_myown %in% !!c("7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27",
-                                          "7-6-0-15-8","7-6-0-15-11","7-6-0-15-12",
-                                          "9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98",
-                                          "9-2-0-17-34","9-2-0-17-35","9-2-0-17-36","9-2-0-17-37","9-2-0-17-38","9-2-0-17-39","9-2-0-17-41","9-2-0-17-61","9-2-1-1-2","9-2-1-1-4","9-2-1-1-5","9-2-1-2-1","9-2-1-2-2","9-2-1-2-3","9-2-1-2-4","9-2-1-2-5","9-2-1-2-14","9-2-1-2-18","9-2-1-2-42","9-2-1-2-47","9-2-1-2-53","9-2-1-2-55","9-2-1-2-58"
-     )) %>%
-    #overall_nonagenda_df_small %>%
-    droplevels() %>%
-    glmmLasso::glmmLasso(
-    fix=respondopinion~1+days_diff_survey_bill_overallscaled+myown_factoredparticip_overallscaled+similarity_distance_overallscaled+myown_factoredses_overallscaled+as.factor(cluster_kamila)+as.factor(myown_sex)+as.factor(myown_selfid)+as.factor(issuefield)+seniority_overallscaled+party_pressure_overallscaled+as.factor(partysize)+as.factor(SURVEY),
-    rnd=list(admindistrict=~1+days_diff_survey_bill_overallscaled,id_wth_survey=~1+days_diff_survey_bill_overallscaled,billid_myown=~1,legislator_name=~1),
-    family=glmmLasso::cumulative(), data = ., lambda=10,
-    switch.NR=TRUE, control=list(print.iter=TRUE)
+    cbind(., lambda = rep(seq(500,0,by=-10), each = nrow(.) )) %>%
+    dplyr::mutate(storekey=paste0("2ndcondense_timevarying_lasso", lambda)) %>%
+    dplyr::mutate(file = paste0(respondmodels_file,storekey,".RData"))
+  # overall_nonagenda_df_small<-overall_nonagenda_df[sample(nrow(overall_nonagenda_df), 10000), ] %>%
+  #   dplyr::mutate_if(is.factor, droplevels)
+  rundatadf<-dplyr::select(overall_nonagenda_df, -tidyselect::ends_with("NA")) %>%
+    dplyr::filter( billid_myown %in% !!c("7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27",
+                                         "7-6-0-15-8","7-6-0-15-11","7-6-0-15-12",
+                                         "9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98",
+                                         "9-2-0-17-34","9-2-0-17-35","9-2-0-17-36","9-2-0-17-37","9-2-0-17-38","9-2-0-17-39","9-2-0-17-41","9-2-0-17-61","9-2-1-1-2","9-2-1-1-4","9-2-1-1-5","9-2-1-2-1","9-2-1-2-2","9-2-1-2-3","9-2-1-2-4","9-2-1-2-5","9-2-1-2-14","9-2-1-2-18","9-2-1-2-42","9-2-1-2-47","9-2-1-2-53","9-2-1-2-55","9-2-1-2-58")
     ) %>%
-    try()
+    #overall_nonagenda_df_small %>%
+    droplevels()
+  respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
+    argrow<-dplyr::filter(loopargdf, storekey==!!fikey)
+    respglmmlassos <- glmmLasso::glmmLasso(
+        fix=respondopinion~1+days_diff_survey_bill_overallscaled+myown_factoredparticip_overallscaled+similarity_distance_overallscaled+myown_factoredses_overallscaled+as.factor(cluster_kamila)+as.factor(myown_sex)+as.factor(myown_selfid)+as.factor(issuefield)+seniority_overallscaled+party_pressure_overallscaled+as.factor(partysize)+as.factor(SURVEY),
+        rnd=list(admindistrict=~1+days_diff_survey_bill_overallscaled,id_wth_survey=~1+days_diff_survey_bill_overallscaled,billid_myown=~1,legislator_name=~1),
+        family=glmmLasso::cumulative(), data =datadf, lambda=argrow$lambda,
+        switch.NR=TRUE, control=list(print.iter=TRUE)
+      ) %>%
+      try() %>%
+      list() %>%
+      magrittr::set_names(paste0("respglmmlasso", argrow$lambda))
+    tryn<-1
+    while (TRUE) {
+      loadsavestatus<-try({
+        load(file=argrow$file, verbose=TRUE)
+        all_respondmodels<- respondmodels %>%
+          list() %>%
+          magrittr::set_names(argrow$storekey) %>%
+          rlist::list.merge(all_respondmodels, .)
+        save(all_respondmodels, file=argrow$file)
+      })
+      tryn<-tryn+1
+      if(!is(loadsavestatus, 'try-error') | tryn>10) break
+    }
+  }, datadf=rundatadf, mc.cores=1)
+    
+    
 } else {
   # "respondopinion~1+(1|billid_myown)",
   # "respondopinion~1+(1|id_wth_survey)",
