@@ -115,7 +115,7 @@ if (mergingoverlldf & running_bigdata_computation) {
       #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
       overalldf_general_func(agendavoting=0,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer)
   )
-  overall_nonagenda_df %<>% plyr::rbind.fill() %>%
+  overall_nonagenda_df %<>% .[[1]] %>% #plyr::rbind.fill() %>%
     dplyr::mutate_at("elec_dist_type",as.factor) %>%
     dplyr::mutate_at("cluster_kamila", as.ordered) %>%
     dplyr::mutate_at("issuefield", ~relevel(., ref = 5)) %>%
@@ -157,7 +157,8 @@ if (mergingoverlldf & running_bigdata_computation) {
 
 if (running_bigdata_computation & loadbigdatadf) {
   if (FALSE) {
-    tinycolumns<-c("myown_wr","admincity","admindistrict","adminvillage","billid_myown","cluster_kamila","days_diff_survey_bill","days_diff_survey_bill_overallscaled","elec_dist_type","id_wth_survey","issuefield","legislator_name","myown_age_overallscaled","myown_areakind","myown_factoredparticip_overallscaled","myown_factoredses_overallscaled","myown_marriage","myown_selfid","myown_sex","myown_religion","seniority_overallscaled","party_pressure_overallscaled","partyGroup","partysize","adminparty","respondopinion","similarity_distance_overallscaled","SURVEY")
+    tinycolumns<-c("myown_wr","admincity","admindistrict","adminvillage","billid_myown","cluster_kamila","days_diff_survey_bill","days_diff_survey_bill_overallscaled","elec_dist_type","id_wth_survey","issuefield","legislator_name","myown_age_overallscaled","myown_areakind","myown_factoredparticip_overallscaled","myown_factoredses_overallscaled","myown_marriage","myown_selfid","myown_sex","myown_religion","seniority_overallscaled","party_pressure_overallscaled","partyGroup","partysize","adminparty","respondopinion","similarity_distance_overallscaled","SURVEY") %>%
+      base::setdiff("elec_dist_type")
     overall_nonagenda_df %<>% dplyr::select(!!tinycolumns)
     try(save(overall_nonagenda_df, file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_tiny.RData")))
   }
