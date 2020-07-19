@@ -199,7 +199,8 @@ idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", fu
       dplyr::select(tidyselect::starts_with(c(allmodelvars,"policyidealpoint_cos_similarity_to_median_scaled","admindistrict")), -myown_selfid_population) %>%
       #{ .[complete.cases(.), ]} %>%
       {
-         targetx<-dplyr::select(., -policyidealpoint_cos_similarity_to_median_scaled, -admindistrict)
+         targetx<-dplyr::select(., -policyidealpoint_cos_similarity_to_median_scaled, -admindistrict) %>%
+           dplyr::select(-tidyselect::contains(c("myown_marriage","myown_religion","myown_areakind","myown_age")))
          list(x=as.matrix(targetx) , y=.$policyidealpoint_cos_similarity_to_median_scaled, block=.$admindistrict, var.type="sandwich")
       } %>%
       do.call(customjrfit, args=.) %>%
