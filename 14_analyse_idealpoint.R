@@ -156,8 +156,9 @@ idealpoint_models_args<-data.frame("formula"=c(
   dplyr::mutate(storekey=paste0(needimp,formula)) %>%
   dplyr::filter(!(formula %in% !!all_idealpoint_models_keys))
 
+usingpackage<-"svylme"
 
-if (TRUE) {
+if (usingpackage=="svylme") {
   library(svylme)
   needformula<-as.formula(idealpoint_models_args[1,"formula"])
   needformula<-"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_sex+myown_selfid+(1|admindistrict)+(1|admincity)"
@@ -182,52 +183,56 @@ if (TRUE) {
     #all_idealpoint_models_svy_mira$analyses
     )
   write.csv(summary(miceaddspooled), "TMP.csv")
-} else {
+  save(all_idealpoint_models_svy, file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models(svylme).RData"))
+
+} else if (usingpackage=="jrfit") {
   idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, modelvars, ...) {
     needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
-    if (FALSE) { #jrfit part
-      library(jrfit)
-      dummyc_catg_vars<-unlist(modelvars[c("modelvars_ex_catg","modelvars_clustervars","modelvars_controllclustervars")]) %>%
-        base::intersect(names(datadf[[needrow$needimp]]), .)
-      greppattern_allmodelgvars<-dummyc_catg_vars %>%
-        paste0(.,collapse="|") %>%
-        paste0("(",.,")",collapse="|")
-      allmodelvars<-base::intersect(names(datadf[[needrow$needimp]]), c(modelvars_ex_conti,modelvars_latentrelated)) %>%
-        c(dummyc_catg_vars)
-      t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>%
-        dummycode_of_a_dataframe(catgvars=dummyc_catg_vars) %>%
-        dplyr::select(tidyselect::starts_with(c(allmodelvars,"policyidealpoint_cos_similarity_to_median_scaled","admindistrict")), -myown_selfid_population) %>%
-        #{ .[complete.cases(.), ]} %>%
-        {
-          targetx<-dplyr::select(., -policyidealpoint_cos_similarity_to_median_scaled, -admindistrict)
-          list(x=as.matrix(targetx) , y=.$policyidealpoint_cos_similarity_to_median_scaled, block=.$admindistrict, var.type="sandwich")
-        } %>%
-        do.call(customjrfit, args=.) %>%
-        try()
-    } else {
-      library(lme4)
-      library(robustlmm)
-      t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>% #datadf[[needrow$needimp]] %>%
-      {list(formula=as.formula(needrow$formula), data=. )} %>% #, weights=.$myown_wr
-        #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
-        #do.call(robustlmm::rlmer, args=.) %>%
-        do.call(lmerTest::lmer, args=.) %>%
-        #do.call(svylme::svy2lme, args=.)
-        #lmerTest::lmer(formula=f, data=datadf[[needrow$needimp]], weights=datadf[[needrow$needimp]]$myown_wr) %>%
-        #do.call(lme4::lmer, args=.) %>%
-        #{magrittr::use_series(., "myown_wr")} %>%
-        try()
-    }
+    #jrfit part
+    library(jrfit)
+    dummyc_catg_vars<-unlist(modelvars[c("modelvars_ex_catg","modelvars_clustervars","modelvars_controllclustervars")]) %>%
+      base::intersect(names(datadf[[needrow$needimp]]), .)
+    greppattern_allmodelgvars<-dummyc_catg_vars %>%
+      paste0(.,collapse="|") %>%
+      paste0("(",.,")",collapse="|")
+    allmodelvars<-base::intersect(names(datadf[[needrow$needimp]]), c(modelvars_ex_conti,modelvars_latentrelated)) %>%
+      c(dummyc_catg_vars)
+    t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>%
+      dummycode_of_a_dataframe(catgvars=dummyc_catg_vars) %>%
+      dplyr::select(tidyselect::starts_with(c(allmodelvars,"policyidealpoint_cos_similarity_to_median_scaled","admindistrict")), -myown_selfid_population) %>%
+      #{ .[complete.cases(.), ]} %>%
+      {
+        targetx<-dplyr::select(., -policyidealpoint_cos_similarity_to_median_scaled, -admindistrict) %>%
+          dplyr::select(-tidyselect::contains(c("myown_marriage","myown_religion","myown_areakind","myown_age")))
+        list(x=as.matrix(targetx) , y=.$policyidealpoint_cos_similarity_to_median_scaled, block=.$admindistrict, var.type="sandwich")
+      } %>%
+      do.call(customjrfit, args=.) %>%
+      try()
     return(t)
-  }, datadf=merged_acrossed_surveys_list,
-  modelvars=list(
+  }, datadf=merged_acrossed_surveys_list, modelvars=list(
     "modelvars_ex_conti"=modelvars_ex_conti,
     "modelvars_ex_catg"=modelvars_ex_catg,
     "modelvars_latentrelated"=modelvars_latentrelated,
     "modelvars_clustervars"=modelvars_clustervars,
-    "modelvars_controllclustervars"=modelvars_controllclustervars
+    "modelvars_controllclustervars"=modelvars_controllclustervars )
   )
-  )
+  
+} else {
+  idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, modelvars, ...) {
+  needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
+  library(lme4)
+  library(robustlmm)
+  t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>% #datadf[[needrow$needimp]] %>%
+    {list(formula=as.formula(needrow$formula), data=. )} %>% #, weights=.$myown_wr
+    #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
+    #do.call(robustlmm::rlmer, args=.) %>%
+    do.call(lmerTest::lmer, args=.) %>%
+    #do.call(svylme::svy2lme, args=.)
+    #lmerTest::lmer(formula=f, data=datadf[[needrow$needimp]], weights=datadf[[needrow$needimp]]$myown_wr) %>%
+    #do.call(lme4::lmer, args=.) %>%
+    #{magrittr::use_series(., "myown_wr")} %>%
+    try()
+  }, datadf=merged_acrossed_surveys_list)
 }
 
 
