@@ -64,53 +64,76 @@ if (usingpackage=="brms" & running_bigdata_computation) {
   #modelformula<-argrow$formula
   modelformula<-"respondopinion | weights(myown_wr)~1+days_diff_survey_bill_overallscaled+issuefield+(1||issuefield)+(1+issuefield+days_diff_survey_bill_overallscaled+party_pressure_overallscaled||billid_myown)+myown_areakind+(1+days_diff_survey_bill_overallscaled+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_factoredparticip_overallscaled+similarity_distance_overallscaled+cluster_kamila*myown_factoredparticip_overallscaled||myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_factoredses_overallscaled+myown_marriage+(1|myown_marriage)+myown_age_overallscaled+myown_age_overallscaled*myown_age_overallscaled+myown_sex+myown_selfid+(1|myown_selfid)+myown_religion+(1|myown_religion)+myown_factoredparticip_overallscaled+similarity_distance_overallscaled+(similarity_distance_overallscaled|legislator_name)+cluster_kamila*myown_factoredparticip_overallscaled+cluster_kamila+(1|cluster_kamila)+elec_dist_type+(1+elec_dist_type+seniority_overallscaled||partyGroup:legislator_name)+seniority_overallscaled+party_pressure_overallscaled+(1+elec_dist_type+seniority_overallscaled+party_pressure_overallscaled+partysize+adminparty||partyGroup)+partysize+adminparty+SURVEY" %>%
     brms::brmsformula()
+  modelformula<-"respondopinion | weights(myown_wr)~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+days_diff_survey_bill_overallscaled*myown_sex+days_diff_survey_bill_overallscaled*myown_selfid+(1+days_diff_survey_bill_overallscaled||admindistrict/id_wth_survey)+(1|billid_myown)+issuefield+myown_factoredses_overallscaled+myown_sex+myown_selfid+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+elec_dist_type+seniority_overallscaled+cluster_kamila+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY" %>%
+    brms::brmsformula()
 
   #tprior<-brms::get_prior(formula=modelformula,data = overall_nonagenda_df[sample(nrow(overall_nonagenda_df), 100000), ])
-  prior1 <- c(brms::set_prior("normal(-0.005,0.1)", class = "b", coef = "similarity_distance_overallscaled"),
-              brms::set_prior("normal(0.005,0.1)", class = "b", coef = "myown_age_overallscaled"),
+  #tprior<-dplyr::filter( overall_nonagenda_df, billid_myown %in% !!c("7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27","9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98")  ) %>%
+  #  brms::get_prior(formula=modelformula,data=.)
+  prior1 <- c(brms::set_prior("normal(0.5085828514,0.1)", class = "b", coef = "cluster_kamila.C"),
+              brms::set_prior("normal(0.3333249552,0.1)", class = "b", coef = "cluster_kamila.L"),
+              brms::set_prior("normal(-0.4338196234,0.1)", class = "b", coef = "cluster_kamila.Q"),
+              brms::set_prior("normal(-0.3058793592,0.1)", class = "b", coef = "cluster_kamilaE4"),
+              brms::set_prior("normal(1.4566205110,0.1)", class = "b", coef = "cluster_kamilaE5"),
+              brms::set_prior("normal(-0.0569702140,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled"),
+              brms::set_prior("normal(0.2178754552,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled:cluster_kamila.C"),
+              brms::set_prior("normal(-0.2320120817,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled:cluster_kamila.L"),
+              brms::set_prior("normal(0.3002668657,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled:cluster_kamila.Q"),
+              brms::set_prior("normal(-0.1600304458,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled:cluster_kamilaE4"),
+              brms::set_prior("normal(0.8573951154,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled:cluster_kamilaE5"),
+              brms::set_prior("normal(0.1403038135,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled:myown_factoredparticip_overallscaled"),
+              brms::set_prior("normal(0.5074425821,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled:myown_factoredses_overallscaled"),
+              brms::set_prior("normal(1.3914550996,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled:myown_selfidaboriginal"),
+              brms::set_prior("normal(-1.0652859391,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled:myown_selfidforeignstate"),
+              brms::set_prior("normal(0.4531094029,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled:myown_selfidhakka"),
+              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled:myown_selfidnewresid"),
+              brms::set_prior("normal(-0.0586894384,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled:myown_sexfemale"),
+              brms::set_prior("normal(0.1450243475,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled:similarity_distance_overallscaled"),
+              brms::set_prior("normal(-0.0228590321,0.1)", class = "b", coef = "elec_dist_typepartylist"),
+              brms::set_prior("normal(0.0048392311,0.1)", class = "b", coef = "issuefieldeco"),
+              brms::set_prior("normal(0.4706332133,0.1)", class = "b", coef = "issuefieldesc"),
+              brms::set_prior("normal(-0.3639829927,0.1)", class = "b", coef = "issuefieldinteraff"),
+              #brms::set_prior("normal(-0.24,0.1)", class = "b", coef = "issuefieldpocivright"),
+              #brms::set_prior("normal(-0.24,0.1)", class = "b", coef = "issuefielddiplo"),
+              #brms::set_prior("normal(-0.24,0.1)", class = "b", coef = "issuefieldlawaff"),
+              #brms::set_prior("normal(-0.004,0.1)", class = "b", coef = "issuefieldsocialwelfare"),
+              #brms::set_prior("normal(-0.05,0.1)", class = "b", coef = "issuefieldseright"),
+              #brms::set_prior("normal(0.05,0.1)", class = "b", coef = "issuefieldenv"),
+              #brms::set_prior("normal(-0.02,0.1)", class = "b", coef = "issuefieldfinance"),
+              #brms::set_prior("normal(-0.02,0.1)", class = "b", coef = "issuefieldindp"),
+              brms::set_prior("normal(0.2403056082,0.1)", class = "b", coef = "myown_factoredparticip_overallscaled"),
+              brms::set_prior("normal(-0.0002353101,0.1)", class = "b", coef = "myown_factoredparticip_overallscaled:similarity_distance_overallscaled"),
               brms::set_prior("normal(0.005,0.1)", class = "b", coef = "myown_factoredses_overallscaled"),
-              brms::set_prior("normal(-0.005,0.1)", class = "b", coef = "myown_sexfemale"),
-              brms::set_prior("normal(-0.005,0.1)", class = "b", coef = "myown_selfidhakka"),
               brms::set_prior("normal(-0.005,0.1)", class = "b", coef = "myown_selfidaboriginal"),
               brms::set_prior("normal(0.005,0.1)", class = "b", coef = "myown_selfidforeignstate"),
-              brms::set_prior("normal(-0.005,0.1)", class = "b", coef = "myown_selfidnewresid"),
-              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_marriagemarriaged"),
-              brms::set_prior("normal(-0.01,0.1)", class = "b", coef = "myown_marriagemarriaged_nolivtog"),
-              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_marriagelivtog"),
-              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_marriagedivorced"),
-              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_marriagesep"),
-              brms::set_prior("normal(0.02,0.1)", class = "b", coef = "myown_marriagespousedead"),
-              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_areakindindustrial"),
-              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_areakindnewlydeveloped"),
-              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_areakindtraditional"),
-              brms::set_prior("normal(-0.01,0.1)", class = "b", coef = "myown_areakindunderdev"),
-              brms::set_prior("normal(-0.01,0.1)", class = "b", coef = "myown_areakindoldandfar"),
-              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "cluster_kamila.C"),
-              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "cluster_kamila.L"),
-              brms::set_prior("normal(-0.01,0.1)", class = "b", coef = "cluster_kamila.Q"),
-              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "cluster_kamilaE4"),
-              brms::set_prior("normal(-0.02,0.1)", class = "b", coef = "cluster_kamilaE5"),
-              brms::set_prior("normal(0.1,0.1)", class = "b", coef = "myown_factoredparticip_overallscaled"),
-              brms::set_prior("normal(-0.2,0.1)", class = "b", coef = "party_pressure_overallscaled"),
-              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "seniority_overallscaled"),
-              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "days_diff_survey_bill_overallscaled"),
-              brms::set_prior("normal(-0.01,0.1)", class = "b", coef = "elec_dist_typepartylist"),
-              brms::set_prior("normal(0.01,0.1)", class = "b", coef = "adminparty1"),
-              brms::set_prior("normal(-0.4,0.1)", class = "b", coef = "issuefieldinteraff"),
-              brms::set_prior("normal(-0.24,0.1)", class = "b", coef = "issuefieldpocivright"),
-              brms::set_prior("normal(-0.24,0.1)", class = "b", coef = "issuefielddiplo"),
-              brms::set_prior("normal(-0.24,0.1)", class = "b", coef = "issuefieldlawaff"),
-              brms::set_prior("normal(0.24,0.1)", class = "b", coef = "issuefieldesc"),
-              brms::set_prior("normal(-0.004,0.1)", class = "b", coef = "issuefieldsocialwelfare"),
-              brms::set_prior("normal(0.05,0.1)", class = "b", coef = "issuefieldeco"),
-              #brms::set_prior("normal(-0.05,0.1)", class = "b", coef = "issuefieldseright"),
-              brms::set_prior("normal(0.05,0.1)", class = "b", coef = "issuefieldenv"),
-              brms::set_prior("normal(-0.02,0.1)", class = "b", coef = "issuefieldfinance"),
-              brms::set_prior("normal(-0.02,0.1)", class = "b", coef = "issuefieldindp"),
-              brms::set_prior("normal(-0.04,0.1)", class = "b", coef = "SURVEY2016citizen"))
+              brms::set_prior("normal(0.8124392212,0.1)", class = "b", coef = "myown_selfidhakka"),
+              brms::set_prior("normal(-1.8443427853,0.1)", class = "b", coef = "myown_selfidnewresid"),
+              brms::set_prior("normal(-0.0535753347,0.1)", class = "b", coef = "myown_sexfemale"),
+              brms::set_prior("normal(0.0614349248,0.1)", class = "b", coef = "party_pressure_overallscaled"),
+              brms::set_prior("normal(-0.1308563682,0.1)", class = "b", coef = "partysizesmall"),
+              brms::set_prior("normal(-0.0114244127,0.1)", class = "b", coef = "seniority_overallscaled"),
+              brms::set_prior("normal(-0.2567981031,0.1)", class = "b", coef = "similarity_distance_overallscaled"),
+              #brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_areakindindustrial"),
+              #brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_areakindnewlydeveloped"),
+              #brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_areakindtraditional"),
+              #brms::set_prior("normal(-0.01,0.1)", class = "b", coef = "myown_areakindunderdev"),
+              #brms::set_prior("normal(-0.01,0.1)", class = "b", coef = "myown_areakindoldandfar"),
+              #brms::set_prior("normal(0.01,0.1)", class = "b", coef = "seniority_overallscaled"),
+              brms::set_prior("normal(-0.0373555187,0.1)", class = "b", coef = "SURVEY2016citizen"))
+  #brms::set_prior("normal(0.005,0.1)", class = "b", coef = "myown_age_overallscaled"),
+  #brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_marriagemarriaged"),
+  #brms::set_prior("normal(-0.01,0.1)", class = "b", coef = "myown_marriagemarriaged_nolivtog"),
+  #brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_marriagelivtog"),
+  #brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_marriagedivorced"),
+  #brms::set_prior("normal(0.01,0.1)", class = "b", coef = "myown_marriagesep"),
+  #brms::set_prior("normal(0.02,0.1)", class = "b", coef = "myown_marriagespousedead"),
+  #brms::set_prior("normal(0.01,0.1)", class = "b", coef = "adminparty1"),
   #overall_nonagenda_df_sampled<-overall_nonagenda_df[sample_n_for_df,] %>%
-  respondmodels <- brms::brm(modelformula, data = overall_nonagenda_df, family = brms::cumulative(link = "logit"),
-                             prior=prior1, chains = 2, cores = parallel::detectCores(), iter = 1500) %>%
+  respondmodels <- dplyr::select(overall_nonagenda_df, -tidyselect::ends_with("NA")) %>%
+    dplyr::filter(billid_myown %in% !!c("7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27","9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98")  ) %>%
+    droplevels() %>%
+    brms::brm(modelformula, data = ., family = brms::cumulative(link = "logit"),
+              prior=prior1, chains = 2, cores = parallel::detectCores(), iter = 1500) %>%
     try() %>%
     list() %>%
     magrittr::set_names("brms_responsive")
@@ -156,11 +179,111 @@ if (usingpackage=="brms" & running_bigdata_computation) {
   #complete
   #"respondopinion~1+days_diff_survey_bill_overallscaled+(days_diff_survey_bill_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(days_diff_survey_bill_overallscaled|billid_myown)+(1|billid_myown)+issuefield+(1|issuefield)+(issuefield|billid_myown)+myown_factoredses_overallscaled+(myown_factoredses_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_marriage+(1|myown_marriage)+(myown_marriage|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled+(myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_age_overallscaled*myown_age_overallscaled+(myown_age_overallscaled*myown_age_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_sex+(myown_sex|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_selfid+(1|myown_selfid)+(myown_selfid|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+myown_religion+(1|myown_religion)+(myown_religion|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+similarity_distance_overallscaled+(similarity_distance_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(similarity_distance_overallscaled|legislator_name)+myown_factoredparticip_overallscaled+(myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+cluster_kamila*myown_factoredparticip_overallscaled+(cluster_kamila*myown_factoredparticip_overallscaled|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+cluster_kamila+(1|cluster_kamila)+elec_dist_type+(elec_dist_type|partyGroup/legislator_name)+seniority_overallscaled+(seniority_overallscaled|partyGroup/legislator_name)+(1|partyGroup/legislator_name)+party_pressure_overallscaled+(party_pressure_overallscaled|partyGroup)+(party_pressure_overallscaled|billid_myown)+partysize+(partysize|partyGroup)+adminparty+(adminparty|partyGroup)+SURVEY",
   #"respondopinion~1+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|issuefield)+(1|cluster_kamila)+(1|elec_dist_type)"
+  
+  #c("7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27","7-6-0-15-8","7-6-0-15-11","7-6-0-15-12")
+  # 7-6-0-14-3
+  # 7-6-0-14-9
+  # 7-6-0-14-24
+  # 7-6-0-14-27
+  # 7-6-0-15-8
+  # 7-6-0-15-11
+  # 7-6-0-15-12 half yr to here
+  # 7-7-0-17-3
+  # 7-7-0-17-4
+  # 7-7-0-17-22
+  # 7-7-0-17-27
+  # 7-7-0-17-29
+  # 7-7-0-17-30
+  #c("9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98","9-2-0-17-34","9-2-0-17-35","9-2-0-17-36","9-2-0-17-37","9-2-0-17-38","9-2-0-17-39","9-2-0-17-41","9-2-0-17-61")
+  # 9-2-0-13-1
+  # 9-2-0-13-2
+  # 9-2-0-13-4
+  # 9-2-0-13-5
+  # 9-2-0-13-6
+  # 9-2-0-13-7
+  # 9-2-0-13-8
+  # 9-2-0-13-9
+  # 9-2-0-16-12
+  # 9-2-0-16-15
+  # 9-2-0-16-16
+  # 9-2-0-16-53
+  # 9-2-0-16-57
+  # 9-2-0-16-58
+  # 9-2-0-16-62
+  # 9-2-0-16-64
+  # 9-2-0-16-65
+  # 9-2-0-16-66
+  # 9-2-0-16-67
+  # 9-2-0-16-68
+  # 9-2-0-16-70
+  # 9-2-0-16-72
+  # 9-2-0-16-80
+  # 9-2-0-16-96
+  # 9-2-0-16-98
+  # 9-2-0-17-34
+  # 9-2-0-17-35
+  # 9-2-0-17-36
+  # 9-2-0-17-37
+  # 9-2-0-17-38
+  # 9-2-0-17-39
+  # 9-2-0-17-41
+  # 9-2-0-17-61
+  # 9-2-1-1-2
+  # 9-2-1-1-4
+  # 9-2-1-1-5
+  # 9-2-1-2-1
+  # 9-2-1-2-2
+  # 9-2-1-2-3
+  # 9-2-1-2-4
+  # 9-2-1-2-5
+  # 9-2-1-2-14
+  # 9-2-1-2-18
+  # 9-2-1-2-42
+  # 9-2-1-2-47
+  # 9-2-1-2-53
+  # 9-2-1-2-55
+  # 9-2-1-2-58 half yr to here
+  # 9-3-0-10-1
+  # 9-3-0-15-1
+  # 9-3-1-2-1
+  # 9-3-1-2-2
+  # 9-3-1-2-3
+  # 9-3-1-2-4
+  # 9-3-1-2-5
+  # 9-3-1-2-6
+  # 9-3-1-2-7
+  # 9-3-1-2-8
+  # 9-3-1-3-4
+  # 9-3-1-3-5
+  # 9-3-1-3-6
+  # 9-3-1-3-8
+  # 9-3-1-3-11
+  # 9-3-1-3-12
+  # 9-3-1-3-13
+  # 9-3-1-3-14
+  # 9-3-1-3-15
+  # 9-3-1-3-16
+  # 9-3-1-3-17
+  # 9-3-1-3-18
+  # 9-3-1-3-20
+  # 9-3-1-3-21
+  # 9-3-1-3-22
+  # 9-3-1-3-23
+  # 9-3-1-3-24
+  # 9-3-1-3-25
+  # 9-3-1-3-26
+  # 9-3-1-3-28
+  # 9-3-3-2-629
+  # 9-3-3-2-630
+  # 9-3-3-2-631
+  # 9-3-3-2-632
+  # 
+  #"7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27","9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98"
   respondmodel_args<-data.frame("formula"=c(
     "respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+days_diff_survey_bill_overallscaled*myown_sex+days_diff_survey_bill_overallscaled*myown_selfid+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+issuefield+myown_factoredses_overallscaled+myown_sex+myown_selfid+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+(1|admindistrict/id_wth_survey)+elec_dist_type+seniority_overallscaled+cluster_kamila+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY",
     "1+(1|billid_myown)+(1|issuefield)+(1|legislator_name)+(1|myown_areakind/admincity/admindistrict/adminvillage/id_wth_survey)+(1|myown_marriage)+(1|myown_selfid)+(1|myown_religion)+(1|cluster_kamila)+(1|partyGroup/legislator_name)+(1|partyGroup)+SURVEY"
   ),stringsAsFactors=FALSE) %>%
-    cbind(., withindays = rep(c(1095,100), each = nrow(.) )) %>% #183
+    cbind(., withindays = rep(c(1095,80), each = nrow(.) )) %>% #183
     dplyr::mutate(storekey=paste0(c("1stcondense_timevarying_halfyr","null"),withindays)) %>%
     dplyr::mutate(file = paste0(respondmodels_file,storekey,".RData")) %>%
     dplyr::filter(!(formula %in% !!all_respondmodels_keys))
@@ -174,7 +297,10 @@ if (usingpackage=="brms" & running_bigdata_computation) {
   loopargdf<-respondmodel_args
   #respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
   argrow<-dplyr::filter(loopargdf, storekey==!!fikey)
-  respondmodels<- dplyr::filter(overall_nonagenda_df, days_diff_survey_bill<=!!argrow$withindays) %>%
+  
+  respondmodels<-dplyr::select(overall_nonagenda_df, -tidyselect::ends_with("NA")) %>%
+    #dplyr::filter(overall_nonagenda_df) %>% #, days_diff_survey_bill<=!!argrow$withindays
+    dplyr::filter( billid_myown %in% !!c("7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27","9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98")  ) %>%
     droplevels() %>%
     {list(formula=as.formula(argrow$formula), data=., weights=magrittr::use_series(., "myown_wr"), 
         Hess=TRUE, model = TRUE, link = "logit", threshold = "flexible")} %>%

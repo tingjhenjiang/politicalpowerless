@@ -125,7 +125,7 @@ if (mergingoverlldf & running_bigdata_computation) {
     dplyr::mutate_at("myown_selfid", dplyr::recode_factor, "[1] 台灣閩南人"="fulo", "[2] 台灣客家人"="hakka", "[3] 台灣原住民"="aboriginal", "[4] 大陸各省市(含港澳金馬)"="foreignstate", "[5] 新移民"="newresid") %>%
     dplyr::mutate_at("myown_marriage", dplyr::recode_factor, "[1] 單身且從沒結過婚"="notmarriaged", "[2] 已婚且與配偶同住"="marriaged", "[3] 已婚但沒有與配偶同住"="marriaged_nolivtog", "[4] 同居"="livtog", "[5] 離婚"="divorced", "[6] 分居"="sep", "[7] 配偶去世"="spousedead") %>%
     dplyr::mutate_at("myown_areakind", dplyr::recode_factor, "[1] 都會核心"="metrocore", "[2] 工商市區"="industrial", "[3] 新興市鎮"="newlydeveloped", "[4] 傳統產業市鎮"="traditional", "[5] 低度發展鄉鎮"="underdev", "[6] 高齡化鄉鎮+偏遠鄉鎮"="oldandfar") %>%
-    dplyr::mutate_at("issuefield", dplyr::recode_factor, "經社文權利"="seright", "財政"="finance", "經濟"="eco", "衛生及環境"="env", "公民政治權"="pocivright", "社會福利"="socialwelfare", "政府組織及法制"="lawaff", "教育文化科研"="esc", "統獨"="indp", "外交"="diplo", "內政"="interaff") %>%
+    dplyr::mutate_at("issuefield", dplyr::recode_factor, "社會福利與經社文權利"="seright", "財政"="finance", "經濟"="eco", "衛生及環境"="env", "公民政治權"="pocivright", "政府組織及法制"="lawaff", "教育文化科研"="esc", "統獨"="indp", "外交"="diplo", "內政"="interaff") %>%
     dplyr::mutate(days_diff_survey_bill_overallscaled=as.numeric(scale(days_diff_survey_bill))) %>%
     dplyr::mutate(seniority_overallscaled=as.numeric(scale(seniority))) %>%
     dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age))) %>%
