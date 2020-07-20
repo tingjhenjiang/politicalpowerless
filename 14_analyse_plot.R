@@ -41,7 +41,7 @@ if (FALSE) {
   )
   for (plotvar in plotvars) {
     message(plotvar)
-    resplot<-custom_plot(overall_nonagenda_df, fvar=plotvar, weightvar="")
+    resplot<-custom_plot(overall_nonagenda_df, fvar=plotvar, weightvar="myown_wr")
     targetsavefilename<-here::here(paste0("plot/responsiveness/",plotvar,".png"))
     ggplot2::ggsave(filename=targetsavefilename, plot=resplot)
     print(resplot)

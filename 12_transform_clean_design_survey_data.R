@@ -379,6 +379,44 @@ complete_survey_dataset <- mapply(function(X,Y) {
   if (survey_data_title %in% c("2010overall","2016citizen")) {
     X %<>% dplyr::mutate_at(c("psu","ssu"),~as.character(paste0(!!survey_data_title,as.character(.))))
   }
+  
+  if (survey_data_title %in% c("2010overall")) {
+    X %<>% dplyr::mutate_at(c("admindistrict","adminvillage"), as.character)
+    #內湖區 | 内湖區
+    #内湖區    端陽里
+    #板橋市 廣徳里 | 廣德里(legislator_with_elec)
+    #蘆竹鄉    内厝村 | 內厝村(legislator_with_elec)
+    #蘆竹鄉    瓦薰村 | 瓦窯村(legislator_with_elec)
+    #烏日鄉    仁徳村 | 仁德村(legislator_with_elec)
+    #西區    磚瑤里 | 磚磘里(legislator_with_elec)
+    #嘉義市 西區    西榮里 | 
+    #内埔鄉    東寧村 | 內埔鄉(legislator_with_elec)
+    #内埔鄉    内田村 | 內埔鄉(legislator_with_elec)
+    #崁頂鄉    圍内村 | 圍內村(legislator_with_elec)
+    #崁頂鄉    炭頂村 | 崁頂村(legislator_with_elec)
+    X %<>% mutate_cond(admindistrict=="内湖區", admindistrict="內湖區") %>%
+      mutate_cond(adminvillage=="端陽里", adminvillage="瑞陽里") %>%
+      mutate_cond(adminvillage=="廣徳里", adminvillage="廣德里") %>%
+      mutate_cond(adminvillage=="内厝村", adminvillage="內厝村") %>%
+      mutate_cond(adminvillage=="瓦薰村", adminvillage="瓦窯村") %>%
+      mutate_cond(adminvillage=="仁徳村", adminvillage="仁德村") %>%
+      mutate_cond(adminvillage=="磚瑤里", adminvillage="磚磘里") %>%
+      mutate_cond(admincity=="嘉義市" & admindistrict=="西區" & adminvillage=="西榮里", adminvillage="西平里") %>%
+      mutate_cond(adminvillage=="廣徳里", adminvillage="廣德里") %>%
+      mutate_cond(admindistrict=="内埔鄉", admindistrict="內埔鄉") %>%
+      mutate_cond(adminvillage=="内田村", adminvillage="內田村") %>%
+      mutate_cond(adminvillage=="圍内村", adminvillage="圍內村") %>%
+      mutate_cond(adminvillage=="炭頂村", adminvillage="崁頂村")
+    X %<>% dplyr::mutate_at(c("admindistrict","adminvillage"), as.factor)
+  }
+  
+  if (survey_data_title %in% c("2016citizen")) {
+    X %<>% dplyr::mutate_at(c("admindistrict","adminvillage"), as.character)
+    X %<>% mutate_cond(admincity=="屏東縣" & admindistrict=="屏東市" & adminvillage=="民權里", adminvillage="光榮里、民權里")
+    #屏東市    民權里 | 光榮里、民權里(legislator_with_elec)
+    X %<>% dplyr::mutate_at(c("admindistrict","adminvillage"), as.factor)
+  }
+  
   other_var_as_id<-base::setdiff(names(X),Y)
   reshape2::melt(X, id.vars = other_var_as_id, variable.name = "SURVEYQUESTIONID", value.name = "SURVEYANSWERVALUE") %>%
     dplyr::mutate_at("SURVEYANSWERVALUE", as.character)
@@ -402,6 +440,13 @@ complete_survey_dataset <- mapply(function(X,Y) {
   dplyr::filter(SURVEY %in% c("2010overall","2016citizen")) %>%
   dplyr::semi_join(needimps) %>%
   dplyr::left_join(needimps)
+
+# t <- complete_survey_dataset %>%
+#   #dplyr::semi_join(needimps) %>%
+#   #dplyr::left_join(needimps) %>%
+#   dplyr::filter(newimp==1) %>%
+#   dplyr::mutate(survey_with_id=paste0(SURVEY,id))
+# unique(t$survey_with_id) %>% length()
 
 #complete_survey_dataset %<>% data.table::as.data.table()
 #save(complete_survey_dataset,file=paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"))

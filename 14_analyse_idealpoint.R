@@ -161,7 +161,7 @@ usingpackage<-"svylme"
 if (usingpackage=="svylme") {
   library(svylme)
   needformula<-as.formula(idealpoint_models_args[1,"formula"])
-  needformula<-"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_sex+myown_selfid+(1|admindistrict)+(1|admincity)"
+  needformula<-"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_sex+myown_selfid+myown_marriage+myown_areakind+myown_religion+myown_age_overallscaled+(1|admindistrict)+(1|admincity)"
   #single
   #des <- survey::svydesign(ids=~1, weight=~myown_wr, data=merged_acrossed_surveys_list[[1]])
   #t<-svylme::svy2lme(needformula, design=des, sterr=TRUE, return.devfun=FALSE, method="general")
@@ -169,7 +169,7 @@ if (usingpackage=="svylme") {
   des <- mitools::imputationList(merged_acrossed_surveys_list) %>%
     survey::svydesign(ids=~1, weight=~myown_wr, data=.)
   all_idealpoint_models_svy<-survey:::with.svyimputationList(des,svylme::svy2lme(needformula, sterr=TRUE, return.devfun=FALSE, method="general"),multicore=TRUE)
-  save(all_idealpoint_models_svy, file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models(svylme_simple).RData"))
+  save(all_idealpoint_models_svy, file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models(svylme).RData"))
   load(paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models(svylme).RData"), verbose=TRUE)
   load(paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models(svylme_simple).RData"), verbose=TRUE)
   combined_all_idealpoint_models_svy<-mitools::MIcombine(all_idealpoint_models_svy)

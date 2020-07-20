@@ -27,6 +27,7 @@ source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding=
 # survey_time_range_df <- plyr::rbind.fill(survey_time_range)
 
 term_to_survey <- data.frame("term"=c(5,6,7,7,8,8,9), "SURVEY"=c("2004citizen","2004citizen","2010env","2010overall","2010env","2010overall","2016citizen")) %>%
+  dplyr::filter(term %in% !!c(7,9)) %>%
   data.table::as.data.table()
 gc(verbose=TRUE)
 
@@ -39,6 +40,41 @@ if (TRUE) {
       return()
   }
   overalldf_general_func<-function(targetdf, agendavoting=0, similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf, mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer) {
+    # targetdf<-dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
+    #   dplyr::left_join(legislators_with_elections)
+    # 板橋市
+    # 廣徳里
+    # filter(targetdf, admindistrict=="西區") %>% left_join(
+    #   filter(legislators_with_elections, term==7, admindistrict=="內湖區")#, adminvillage=="廣徳里"
+    # )
+    #內湖區 | 内湖區
+    #内湖區    端陽里 內湖區    端陽里 瑞陽里
+    #板橋市 廣徳里 | 廣德里(legislator_with_elec)
+    #蘆竹鄉    内厝村 | 內厝村(legislator_with_elec)
+    #蘆竹鄉    瓦薰村 | 瓦窯村(legislator_with_elec)
+    #烏日鄉    仁徳村 | 仁德村(legislator_with_elec)
+    #西區    磚瑤里 | 磚磘里(legislator_with_elec)
+    #嘉義市 西區    西榮里 | 
+    #内埔鄉    東寧村 | 內埔鄉(legislator_with_elec)
+    #内埔鄉    内田村 | 內埔鄉(legislator_with_elec)
+    #崁頂鄉    圍内村 | 圍內村(legislator_with_elec)
+    #崁頂鄉    炭頂村 | 崁頂村(legislator_with_elec)
+    #屏東市    民權里 | 光榮里、民權里(legislator_with_elec)
+    
+    #input is complete_survey_dataset, term_to_survey, legislators_with_elections
+    #filter(t1, id_wth_survey=="2010overall114104") %>% View()
+    #filter(targetdf, id_wth_survey=="2010overall114104") %>% View()
+    #dplyr::filter(mergedf_votes_bills_surveyanswer, legislator_name=="蔣孝嚴")
+    #anti_join(t2, t1) %>% vhead()
+    #neglected_id<-distinct(t1, SURVEY, id) %>% anti_join(t2, .) %>%  distinct(SURVEY, id, admincity, admindistrict, adminvillage, term, legislator_name, billid_myown ) %>%  View()
+    #distinct(t1, SURVEY, id) %>% anti_join(t2, .) %>%  distinct(SURVEY, id, admincity, admindistrict, adminvillage, term, legislator_name, billid_myown ) %>%   View()
+    #anti_join(t2, t1) %>% distinct(SURVEY, id, admincity, admindistrict, adminvillage, term, legislator_name, billid_myown ) %>% distinct(SURVEY,id) %>% nrow() View()
+    #filter(legislators_with_elections, adminvillage=="西湖里", term==7) %>% View()
+    #dplyr::filter(mergedf_votes_bills_surveyanswer, is.na())
+    #dplyr::filter(myown_vote_record_df, term==7, legislator_name=="蔣孝嚴")
+    # dplyr::filter(myown_vote_record_df, term==7, legislator_name=="蔣孝嚴", billid_myown %in% !!c("7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27",
+    #                                                                                            "7-6-0-15-8","7-6-0-15-11","7-6-0-15-12"))
+    #t1<- targetdf %>%
     targetdf %<>%
       dplyr::left_join(similarities_bet_pp_ly_longdf) %>% #Joining, by = c("imp", "id", "SURVEY", "term", "legislator_name")
       dplyr::inner_join({
@@ -72,7 +108,9 @@ if (TRUE) {
 
 if ({mergingoverlldf<-FALSE; mergingoverlldf & running_bigdata_computation}) {
   load(paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"), verbose=TRUE)
-  complete_survey_dataset %<>% dplyr::filter(newimp==1)
+  complete_survey_dataset %<>% dplyr::filter(newimp==1) %>%
+    dplyr::mutate(id_wth_survey=paste0(SURVEY,id)) %>%
+    dplyr::mutate_at("id_wth_survey", as.factor)
   load(paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"), verbose=TRUE)
   load(paste0(dataset_in_scriptsfile_directory, "legislators_with_elections.RData"), verbose=TRUE)
   #load(paste0(dataset_in_scriptsfile_directory, "legislators_additional_attr.RData"), verbose=TRUE)
@@ -105,17 +143,22 @@ if (mergingoverlldf & running_bigdata_computation) {
       #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
       overalldf_general_func(agendavoting=0,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer),
     
-    dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
-      dplyr::mutate(elec_dist_type="partylist") %>%
-      dplyr::left_join({
-        dplyr::filter(legislators_with_elections, elec_dist_type=="partylist") %>%
-          dplyr::distinct_at(.vars=dplyr::vars(-admincity,-admindistrict,-adminvillage))
-      }) %>% #Joining, by = c("term", "elec_dist_type")
-      overalldf_general_inter_func() %>%
-      #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
-      overalldf_general_func(agendavoting=0,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer)
+    if (FALSE) { #merge partylist
+      dplyr::left_join(complete_survey_dataset, term_to_survey) %>% #Joining, by = "SURVEY"
+        dplyr::mutate(elec_dist_type="partylist") %>%
+        dplyr::left_join({
+          dplyr::filter(legislators_with_elections, elec_dist_type=="partylist") %>%
+            dplyr::distinct_at(.vars=dplyr::vars(-admincity,-admindistrict,-adminvillage))
+        }) %>% #Joining, by = c("term", "elec_dist_type")
+        overalldf_general_inter_func() %>%
+        #dplyr::left_join(legislators_additional_attr) %>% #Joining, by = c("term", "legislator_name")
+        overalldf_general_func(agendavoting=0,similarities_bet_pp_ly_longdf=similarities_bet_pp_ly_longdf,mergedf_votes_bills_surveyanswer=mergedf_votes_bills_surveyanswer)
+    } else {
+      data.frame()
+    }
+    
   )
-  overall_nonagenda_df %<>% .[[1]] %>% #plyr::rbind.fill() %>%
+  overall_nonagenda_df <- overall_nonagenda_df[[1]] %>% #plyr::rbind.fill() %>%
     dplyr::mutate_at("elec_dist_type",as.factor) %>%
     dplyr::mutate_at("cluster_kamila", as.ordered) %>%
     dplyr::mutate_at("issuefield", ~relevel(., ref = 5)) %>%
@@ -138,8 +181,6 @@ if (mergingoverlldf & running_bigdata_computation) {
     dplyr::mutate_at("adminvillage", ~paste0(admincity,admindistrict,adminvillage)) %>%
     dplyr::mutate_at("admindistrict", ~paste0(admincity,admindistrict)) %>%
     dplyr::mutate_at(c("adminvillage","admindistrict"), as.factor) %>%
-    dplyr::mutate(id_wth_survey=paste0(SURVEY,id)) %>%
-    dplyr::mutate_at("id_wth_survey", as.factor) %>%
     dplyr::mutate_if(is.factor, droplevels)
   #district 780457 14199356
   #partylist 26775408
