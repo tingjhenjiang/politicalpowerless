@@ -383,3 +383,13 @@ if (length(all_respondmodels)==0 | identical(all_respondmodels, list(a=1))) {
 save(all_respondmodels,file=respondmodels_file)
 message(respondmodel_args$file[fi])
 save(respondmodels,file=respondmodel_args$file[fi])
+
+# * reporting part -------------------
+if (FALSE) {
+  load(file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/resp_fixed_bills(mini).RData" ), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/resp_fixed_bills_to_halfyr.RData" ), verbose=TRUE)
+  t<-summary(respondmodels)
+  write.csv(cbind(t$coefficients,confint(respondmodels)), "TMP.csv")
+  t$info
+  coeft<-coef(summary(respondmodels))
+}
