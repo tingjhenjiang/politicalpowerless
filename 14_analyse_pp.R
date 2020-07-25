@@ -103,7 +103,7 @@ ppmodels_file<-paste0(save_dataset_in_scriptsfile_directory,"/analyse_res/ppmode
 load(file=ppmodels_file, verbose=TRUE)
 ppmodel_args<-data.frame("formula"=c(
   #deduct myown_marriage myown_religion myown_areakind
-  "myown_factoredparticip_ordinal~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_sex+myown_selfid+myown_marriage+myown_religion+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"
+  "myown_factoredparticip_ordinal~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_sex+myown_selfid+myown_religion+myown_age_overallscaled+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"
   #"myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)+(1|cluster_kamila)+(1|SURVEY)"
   #"myown_factoredparticip_ordinal~1+(1|myown_areakind/admincity/admindistrict/adminvillage)",
   # "myown_factoredparticip_ordinal~((1+cluster_kamila)|SURVEY)",
@@ -138,7 +138,7 @@ ppmodel_args<-data.frame("formula"=c(
   dplyr::mutate(storekey=paste0(formula,needimp)) %>%
   dplyr::filter(!(formula %in% !!names(all_ppmodels)))
 
-savemodelprefix<-""
+savemodelfilename<-"pp_efficient_full"
 #merged_acrossed_surveys_list[[1]]$
 #library(lme4)
 ppmodels<-custom_apply_thr_argdf(ppmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
@@ -163,13 +163,16 @@ ppmodels<-custom_apply_thr_argdf(ppmodel_args, "storekey", function(fikey, loopa
   return(retmodel)
 }, datadf=merged_acrossed_surveys_list) #
 
-load(file=ppmodels_file, verbose=TRUE)
-if (length(all_ppmodels)==0 | identical(all_ppmodels, list(a=1))) {
-  all_ppmodels<-ppmodels
-} else {
-  all_ppmodels<-rlist::list.merge(all_ppmodels,ppmodels)
-}
-save(all_ppmodels,file=ppmodels_file)
+try({
+  load(file=ppmodels_file, verbose=TRUE)
+  if (length(all_ppmodels)==0 | identical(all_ppmodels, list(a=1))) {
+    all_ppmodels<-ppmodels
+  } else {
+    all_ppmodels<-rlist::list.merge(all_ppmodels,ppmodels)
+  }
+  try(save(all_ppmodels,file=ppmodels_file))
+})
+try(save(ppmodels, file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/",savemodelfilename,".RData")))
 
 if (FALSE) {
   lapply(all_ppmodels, function(X) {try(ordinal:::summary.clmm(X))})

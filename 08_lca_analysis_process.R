@@ -218,9 +218,9 @@ for (rowi in 1:nrow(shrink_polca_models_inf)) { #needpoLCAsurveys_with_imp
   if ( !((needrow$survey=="2016citizen" & needrow$imp==1) |  (needrow$survey=="2010overall" & needrow$imp==2)  )) { #
     next
   }
-  if ( needrow$construct != "a12") {
-    next
-  }
+  #if ( needrow$construct != "a12") {
+  #  next
+  #}
   repeat {
     survey_with_imp<-paste0(needrow$survey,needrow$imp)
     prefixinfstr<-paste("now in imp", needrow$imp, "c:", needrow$construct, needrow$constructname, "number of class is",needrow$nclass)

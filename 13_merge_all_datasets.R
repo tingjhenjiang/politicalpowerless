@@ -159,7 +159,8 @@ if (mergingoverlldf & running_bigdata_computation) {
     
   )
   overall_nonagenda_df <- overall_nonagenda_df[[1]] %>% #plyr::rbind.fill() %>%
-    dplyr::mutate_at("elec_dist_type",as.factor) %>%
+    dplyr::select(-elec_dist_type) %>%
+    #dplyr::mutate_at("elec_dist_type",as.factor) %>%
     dplyr::mutate_at("cluster_kamila", as.ordered) %>%
     dplyr::mutate_at("issuefield", ~relevel(., ref = 5)) %>%
     dplyr::mutate_at("seniority", ~seniority+as.numeric(days_diff_survey_bill)/365) %>%
@@ -198,8 +199,8 @@ if (mergingoverlldf & running_bigdata_computation) {
 
 if (running_bigdata_computation & loadbigdatadf) {
   if (FALSE) {
-    tinycolumns<-c("myown_wr","admincity","admindistrict","adminvillage","billid_myown","cluster_kamila","days_diff_survey_bill","days_diff_survey_bill_overallscaled","elec_dist_type","id_wth_survey","issuefield","legislator_name","myown_age_overallscaled","myown_areakind","myown_factoredparticip_overallscaled","myown_factoredses_overallscaled","myown_marriage","myown_selfid","myown_sex","myown_religion","seniority_overallscaled","party_pressure_overallscaled","partyGroup","partysize","adminparty","respondopinion","similarity_distance_overallscaled","SURVEY") %>%
-      base::setdiff("elec_dist_type")
+    tinycolumns<-c("myown_wr","admindistrict","adminvillage","billid_myown","cluster_kamila","days_diff_survey_bill","days_diff_survey_bill_overallscaled","elec_dist_type","id_wth_survey","issuefield","legislator_name","myown_age_overallscaled","myown_areakind","myown_factoredparticip_overallscaled","myown_factoredses_overallscaled","myown_marriage","myown_selfid","myown_sex","myown_religion","seniority_overallscaled","party_pressure_overallscaled","partyGroup","partysize","adminparty","respondopinion","similarity_distance_overallscaled","SURVEY") %>%
+      base::setdiff(c("elec_dist_type","admincity"))
     overall_nonagenda_df %<>% dplyr::select(!!tinycolumns)
     try(save(overall_nonagenda_df, file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_tiny.RData")))
   }
@@ -211,11 +212,11 @@ if (running_bigdata_computation & loadbigdatadf) {
 
 modelvars_ex_conti<-c("myown_age_overallscaled","similarity_distance_overallscaled","party_pressure_overallscaled","seniority_overallscaled","days_diff_survey_bill_overallscaled") #%>%
   #c("policyidealpoint_cos_similarity_to_median","policyidealpoint_eucli_distance_to_median_scaled")
-modelvars_ex_catg<-c("myown_sex","myown_selfid","myown_marriage","adminparty","issuefield","myown_religion","myown_areakind") %>%
-  c("elec_dist_type","partysize")
+modelvars_ex_catg<-c("myown_sex","myown_areakind","myown_selfid","myown_marriage","issuefield","myown_religion","myown_areakind") %>% #,"adminparty"
+  c("partysize") #"elec_dist_type"
 modelvars_latentrelated<-c("myown_factoredses_overallscaled","myown_factoredparticip_overallscaled") #,"myown_factoredefficacy"
 modelvars_clustervars<-c("cluster_kamila")
-modelvars_controllclustervars<-c("SURVEY","myown_areakind")
+modelvars_controllclustervars<-c("SURVEY","myown_areakind","partyGroup")
 if (running_bigdata_computation & loadbigdatadf) {
   #if(!is(overalldf, 'try-error')) {
   #  overalldf_to_implist_func() #34.2GB
@@ -248,7 +249,7 @@ if (running_bigdata_computation & loadbigdatadf) {
 if ({dummycoding<-FALSE; dummycoding & running_platform=="guicluster"}) {
   partlydummycoding<-FALSE
   partlydummycoding<-TRUE
-  dummycodingvars<-if (partlydummycoding) base::intersect(dummyc_vars,modelvars_clustervars) else dummyc_vars
+  dummycodingvars<-if (partlydummycoding) base::intersect(dummyc_vars,modelvars_clustervars) else base::union(dummyc_vars,modelvars_clustervars)
   if (partlydummycoding) {
     overall_nonagenda_df <- dplyr::bind_cols(
       dplyr::select(overall_nonagenda_df, !!modelvars_clustervars),
@@ -256,10 +257,10 @@ if ({dummycoding<-FALSE; dummycoding & running_platform=="guicluster"}) {
     )
     savedummycodeddffilename<-paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_dummycoded.RData")
   } else {
-    overall_nonagenda_df <- dplyr::bind_cols(
-      dplyr::select(overall_nonagenda_df, !!modelvars_controllclustervars),
-      dummycode_of_a_dataframe(., catgvars=dummycodingvars)
-    )
+    overall_nonagenda_df <- #dplyr::bind_cols(
+      #dplyr::select(overall_nonagenda_df, !!modelvars_controllclustervars),
+      dummycode_of_a_dataframe(overall_nonagenda_df, catgvars=dummycodingvars)
+    #)
     savedummycodeddffilename<-paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_fullydummycoded.RData")
   }
   while (TRUE) {

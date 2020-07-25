@@ -149,19 +149,20 @@ all_idealpoint_models_keys<-if (is(all_idealpoint_models_keys,'try-error')) c() 
 # "policyidealpoint_eucli_distance_to_median~(1|admincity)"#,
 
 idealpoint_models_args<-data.frame("formula"=c(
-  #"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_sex+myown_selfid+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)",
-  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_sex+myown_selfid+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"
+  #"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_sex+myown_selfid+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)",
+  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_sex+myown_selfid+myown_factoredses_overallscaled+myown_age_overallscaled+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"
 ), stringsAsFactors=FALSE) %>%
   cbind(., needimp = rep(1, each = nrow(.)), stringsAsFactors=FALSE) %>%
   dplyr::mutate(storekey=paste0(needimp,formula)) %>%
   dplyr::filter(!(formula %in% !!all_idealpoint_models_keys))
 
-usingpackage<-"svylme"
+usingpackage<-"robustlmm"
+savemodelfilename<-"base_no_marriage_weighted_full"
 
 if (usingpackage=="svylme") {
   library(svylme)
   needformula<-as.formula(idealpoint_models_args[1,"formula"])
-  needformula<-"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_sex+myown_selfid+myown_marriage+myown_areakind+myown_religion+myown_age_overallscaled+(1|admindistrict)+(1|admincity)"
+  needformula<-"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_sex+myown_selfid+myown_religion+myown_age_overallscaled+(1|admindistrict)+(1|admincity)"
   #single
   #des <- survey::svydesign(ids=~1, weight=~myown_wr, data=merged_acrossed_surveys_list[[1]])
   #t<-svylme::svy2lme(needformula, design=des, sterr=TRUE, return.devfun=FALSE, method="general")
@@ -224,8 +225,8 @@ if (usingpackage=="svylme") {
   t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>% #datadf[[needrow$needimp]] %>%
     {list(formula=as.formula(needrow$formula), data=. )} %>% #, weights=.$myown_wr
     #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
-    #do.call(robustlmm::rlmer, args=.) %>%
-    do.call(lmerTest::lmer, args=.) %>%
+    do.call(robustlmm::rlmer, args=.) %>%
+    #do.call(lmerTest::lmer, args=.) %>%
     #do.call(svylme::svy2lme, args=.)
     #lmerTest::lmer(formula=f, data=datadf[[needrow$needimp]], weights=datadf[[needrow$needimp]]$myown_wr) %>%
     #do.call(lme4::lmer, args=.) %>%
@@ -236,15 +237,18 @@ if (usingpackage=="svylme") {
 
 
 
-
-load(file=all_idealpoint_models_file, verbose=TRUE)
-if (length(all_idealpoint_models)==0 | identical(all_idealpoint_models, list(a=1))) {
-  all_idealpoint_models<-idealpoint_models
-} else {
-  all_idealpoint_models<-rlist::list.merge(all_idealpoint_models,idealpoint_models)
-}
-save(all_idealpoint_models, file=all_idealpoint_models_file)
-#save(idealpoint_models, file="/home/dowbatw/politicalpowerless/data/analyse_res/idealpoint_models(jrfit_cs).RData")
+try({
+  load(file=all_idealpoint_models_file, verbose=TRUE)
+  if (length(all_idealpoint_models)==0 | identical(all_idealpoint_models, list(a=1))) {
+    all_idealpoint_models<-idealpoint_models
+  } else {
+    all_idealpoint_models<-rlist::list.merge(all_idealpoint_models,idealpoint_models)
+  }
+  save(all_idealpoint_models, file=all_idealpoint_models_file)
+})
+try({
+  save(idealpoint_models, file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models_",savemodelfilename,".RData"))
+})
 
 # * interpretation parts --------------
 if (FALSE) {
@@ -257,6 +261,26 @@ if (FALSE) {
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lmertest_compare_weighted).RData"), verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(robustlmm_final_efficient).RData"), verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lmertest_final_efficient).RData"), verbose=TRUE)
+  
+  
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_full.RData"), verbose=TRUE)
+  basemodel<-idealpoint_models[[1]]
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noage.RData"), verbose=TRUE)
+  model_noage<-idealpoint_models[[1]]
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noageareakind.RData"), verbose=TRUE)
+  model_noageareakind<-idealpoint_models[[1]]
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noagereligion.RData"), verbose=TRUE)
+  model_noagereligion<-idealpoint_models[[1]]
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noagereligionareakind.RData"), verbose=TRUE)
+  model_noagereligionareakind<-idealpoint_models[[1]]
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noareakind.RData"), verbose=TRUE)
+  model_noareakind<-idealpoint_models[[1]]
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noreligion.RData"), verbose=TRUE)
+  model_noreligion<-idealpoint_models[[1]]
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noreligionareakind.RData"), verbose=TRUE)
+  model_noreligionareakind<-idealpoint_models[[1]]
+  AIC(basemodel,model_noage,model_noageareakind,model_noagereligion,model_noagereligionareakind,model_noareakind,model_noreligion,model_noreligionareakind)
+  anova(basemodel,model_noage,model_noageareakind,model_noagereligion,model_noagereligionareakind,model_noareakind,model_noreligion,model_noreligionareakind)
   #save(all_idealpoint_models, file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lmertest_compare_weighted).RData"))
   robustlmm::compare(all_idealpoint_models[[1]], all_idealpoint_models[[2]], all_idealpoint_models[[3]], all_idealpoint_models[[4]]) %>%
     xtable::xtable()
