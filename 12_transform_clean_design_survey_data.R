@@ -389,6 +389,17 @@ reliability_test_res<- custom_parallel_lapply(1:nrow(needimps), function(rowi, .
   plyr::rbind.fill()
 write.csv(reliability_test_res, file=paste0("TMP.csv"))
 
+# test relation reliability with Krippendorff's alpha --------------
+
+newt<-openxlsx::read.xlsx(paste0(dataset_file_directory,"interrater.xlsx"), sheet=2)
+oldt<-openxlsx::read.xlsx(paste0(dataset_file_directory,"interrater.xlsx"), sheet=4)
+all_coding_option<-dplyr::bind_rows(newt,oldt)[,1] %>% unique()
+relation_reliability<-data.frame(both=all_coding_option) %>%
+  dplyr::mutate(in_newt=both %in% !!newt$relation) %>%
+  dplyr::mutate(in_oldt=both %in% !!oldt$relation)
+as.matrix(relation_reliability[,c("in_newt","in_oldt")]) %>%
+  irr::kripp.alpha(., method="nominal")
+
 # compacting (wide to long) surveys --------------
 
 #survey_data_melted
