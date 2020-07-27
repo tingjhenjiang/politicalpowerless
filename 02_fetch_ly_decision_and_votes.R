@@ -604,14 +604,14 @@ fetch_ly_decision_and_vote <- function(urln, meetingdata, urlarr, ...) { #length
     exact_agree_voter<-paragraph_list[agree_voter_area] %>%
       strsplit('　　') %>% unlist() %>% trimws() %>%
       customgsub("[\r\n]+","") %>%
-      customgrep("[\u4e00-\u9fa5]",value=TRUE) %>%
+      customgrep("[a-zA-Z\u4e00-\u9fa5]",value=TRUE) %>%
       stri_replace_all_fixed("　","") %>%
       trimws()
     
     exact_dissent_voter<-paragraph_list[dissent_voter_area] %>%
       strsplit('　　') %>% unlist() %>% trimws() %>%
       customgsub("[\r\n]+","") %>%
-      customgrep("[\u4e00-\u9fa5]",value=TRUE) %>%
+      customgrep("[a-zA-Z\u4e00-\u9fa5]",value=TRUE) %>%
       stri_replace_all_fixed("　","") %>%
       trimws()
     #exact_giveup_voter<-intersect(giveup_voters,checkarea) #沒有交集會傳回integer(0)

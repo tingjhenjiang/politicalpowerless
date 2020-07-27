@@ -282,12 +282,21 @@ if (FALSE) {
   t$formula
   t$info
   #pooling https://rdrr.io/github/DaanNieboer/ordinalimputation/api/
+  t<-mice::as.mira(ppmodels)
   t<-mice::as.mira(all_ppmodels)
   pv<-mice::pool(t)
-  summary(pv)
-  pooling.clmm(t$analyses)
+  pooledppres<-pooling.clmm(t$analyses)
+  summarytable<-cbind(summary(pv), pooledppres$fixed_effects)
+  print(summarytable)
+  write.csv(summarytable, "TMP.csv")
+  print(pooledppres$random_dist)
   
   get_vcov(t$analyses[[1]])
+  pp_fullmod<-ppmodels[[1]]
+  pp_noagemod<-ppmodels[[1]]
+  pp_noareakindmod<-ppmodels[[1]]
+  pp_noreligionmod<-ppmodels[[1]]
+  MuMIn::model.sel(pp_fullmod,pp_noagemod,pp_noareakindmod,pp_noreligionmod)
 }
 
 #pick parameters
