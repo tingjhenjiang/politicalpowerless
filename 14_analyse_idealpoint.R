@@ -156,8 +156,8 @@ idealpoint_models_args<-data.frame("formula"=c(
   dplyr::mutate(storekey=paste0(needimp,formula)) %>%
   dplyr::filter(!(formula %in% !!all_idealpoint_models_keys))
 
-usingpackage<-"svylme"
-savemodelfilename<-"base_no_marriage_weighted_full"
+usingpackage<-"lmertest"
+savemodelfilename<-"base_no_marriage_unweighted_full"
 
 if (usingpackage=="svylme") {
   library(svylme)
@@ -220,19 +220,19 @@ if (usingpackage=="svylme") {
   
 } else {
   idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, modelvars, ...) {
-  needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
-  library(lme4)
-  library(robustlmm)
-  t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>% #datadf[[needrow$needimp]] %>%
-    {list(formula=as.formula(needrow$formula), data=. )} %>% #, weights=.$myown_wr
-    #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
-    do.call(robustlmm::rlmer, args=.) %>%
-    #do.call(lmerTest::lmer, args=.) %>%
-    #do.call(svylme::svy2lme, args=.)
-    #lmerTest::lmer(formula=f, data=datadf[[needrow$needimp]], weights=datadf[[needrow$needimp]]$myown_wr) %>%
-    #do.call(lme4::lmer, args=.) %>%
-    #{magrittr::use_series(., "myown_wr")} %>%
-    try()
+    needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
+    library(lme4)
+    #library(robustlmm)
+    t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>% #datadf[[needrow$needimp]] %>%
+      {list(formula=as.formula(needrow$formula), data=. )} %>% #, weights=.$myown_wr
+      #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
+      #do.call(robustlmm::rlmer, args=.) %>%
+      do.call(lmerTest::lmer, args=.) %>%
+      #do.call(svylme::svy2lme, args=.)
+      #lmerTest::lmer(formula=f, data=datadf[[needrow$needimp]], weights=datadf[[needrow$needimp]]$myown_wr) %>%
+      #do.call(lme4::lmer, args=.) %>%
+      #{magrittr::use_series(., "myown_wr")} %>%
+      try()
   }, datadf=merged_acrossed_surveys_list)
 }
 
@@ -283,10 +283,17 @@ if (FALSE) {
   AIC(basemodel,model_noage,model_noageareakind,model_noagereligion,model_noagereligionareakind,model_noareakind,model_noreligion,model_noreligionareakind)
   anova(basemodel,model_noage,model_noageareakind,model_noagereligion,model_noagereligionareakind,model_noareakind,model_noreligion,model_noreligionareakind)
   #save(all_idealpoint_models, file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lmertest_compare_weighted).RData"))
+  
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_robustlmm_full.RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_robustlmm_noreligionareakind.RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/lmertest_after_collinearity/idealpoint_models_base_unweighted_no_marriage.RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/lmertest_after_collinearity/idealpoint_models_base_unweighted_no_marriage_noreligionareakind.RData"), verbose=TRUE)
+  
+  
   robustlmm::compare(all_idealpoint_models[[1]], all_idealpoint_models[[2]], all_idealpoint_models[[3]], all_idealpoint_models[[4]]) %>%
     xtable::xtable()
-  all_idealpoint_models_lmertest<-all_idealpoint_models
-  all_idealpoint_models_robust<-all_idealpoint_models
+  all_idealpoint_models_lmertest<-idealpoint_models
+  all_idealpoint_models_robust<-idealpoint_models
   #check distribution
   merged_acrossed_surveys_list[[1]]$policyidealpoint_cos_similarity_to_median_scaled %>%
     fitdistrplus::descdist(discrete=FALSE)

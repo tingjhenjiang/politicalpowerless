@@ -942,7 +942,7 @@ mergedf_votes_bills_surveyanswer <- dplyr::distinct(legislators_with_elections,t
   dplyr::left_join(., { #此處設計一個政黨壓力指標並串連加入
     dplyr::group_by(., votedecision, billid_myown, legislator_party) %>%
       dplyr::summarise(samepartysamepositioncounts=n()) %>%
-      dplyr::arrange(billid_myown, legislator_party, desc(samepartysamepositioncounts), votedecision) %>%
+      dplyr::arrange(billid_myown, legislator_party, dplyr::desc(samepartysamepositioncounts), votedecision) %>%
       dplyr::group_by(billid_myown, legislator_party) %>%
       dplyr::summarise(party_pressure=(max(samepartysamepositioncounts)-sum(samepartysamepositioncounts)+max(samepartysamepositioncounts))/sum(samepartysamepositioncounts)) 
   })  %>%
