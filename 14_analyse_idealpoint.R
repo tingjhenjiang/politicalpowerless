@@ -221,8 +221,9 @@ if (usingpackage=="svylme") {
 } else {
   idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, modelvars, ...) {
     needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
-    library(lme4)
+    #library(lme4)
     #library(robustlmm)
+    library(lmerTest)
     t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>% #datadf[[needrow$needimp]] %>%
       {list(formula=as.formula(needrow$formula), data=. )} %>% #, weights=.$myown_wr
       #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))

@@ -189,7 +189,7 @@ if ({avoid_run_duplicated_models<-FALSE;avoid_run_duplicated_models}) {
   distincted_survey_parallelfa_arguments_df_runonly<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, !(runmirt_store_key %in% !!processed_idealpoint_mirt_keys) )
 }
 
-if (FALSE) {
+if (TRUE) {
   load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
   survey_idealpoints_mirt_models<-distincted_survey_parallelfa_arguments_df_runonly$runmirt_store_key %>%
     magrittr::set_names(custom_parallel_lapply(., function(fikey, ...) {
@@ -219,20 +219,25 @@ if (FALSE) {
       to_explor_IRT_data<-needsurveydatadf[,to_explor_IRT_itemtypes$ID] %>%
         dplyr::mutate_all(unclass)
       mirtmethod<-if (as.integer(needrow$ncomp)>=3) "QMCEM" else "EM"
+      load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
       parsv <- try({
         mirt::mod2values(survey_idealpoints_mirt_models[[fikey]])
       })
-      if(is(parsv, 'try-error')) {
+      if(is(parsv, 'try-error') | grepl(pattern="2016citizen", x=fikey)) {
         parsv<-NULL
       }
-      explor_mirt_model<-mirt::mirt(
+      library(mirt)
+      mirtCluster(parallel::detectCores())
+      explor_mirt_model<-mirt(
         to_explor_IRT_data,
         model=as.integer(needrow$ncomp),
         itemtype=to_explor_IRT_itemtypes$itemtype,
-        technical=list(NCYCLES=250,MAXQUAD=40000),
+        technical=list(NCYCLES=150,MAXQUAD=40000),
         survey.weights = needsurveydatadf[,c("myown_wr")],
-        dentype = "Gaussian", #"Davidian-6",
-        method=mirtmethod , SE=TRUE,
+        dentype = "Gaussian", #"", empiricalhist
+        method=mirtmethod,
+        #SE=TRUE,
+        #SE.type="sandwich",
         pars=parsv
       )
       tryn<-1
@@ -255,7 +260,7 @@ if (FALSE) {
     term_related_q=term_related_q,
     distincted_survey_parallelfa_arguments_df_runonly=distincted_survey_parallelfa_arguments_df_runonly,
     survey_idealpoints_mirt_models_file=survey_idealpoints_mirt_models_file,
-    method=parallel_method, mc.cores=12
+    method=parallel_method, mc.cores=1 #1
     ), .) 
   save(survey_idealpoints_mirt_models, file=survey_idealpoints_mirt_models_backup_file)
 }

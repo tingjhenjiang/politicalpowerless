@@ -973,7 +973,7 @@ mergedf_votes_bills_surveyanswer <- mergedf_votes_bills_surveyanswer %>%
   mutate_cond( (opiniondirectionfromconstituent!=opiniondirectionfrombill & opiniondirectionfromconstituent != "x" & opiniondirectionfromconstituent != "b") & (billresult=="Passed"), success_on_bill=0 ) %>%
   mutate_cond( (opiniondirectionfromconstituent!=opiniondirectionfrombill & opiniondirectionfromconstituent != "x" & opiniondirectionfromconstituent != "b") & (billresult=="NotPassed"), success_on_bill=1 ) %>%
   mutate_cond(votedecision=="贊成", opiniondirectionfromlegislator=opiniondirectionfrombill) %>%
-  mutate_cond(votedecision=="反對", opiniondirectionfromlegislator=recode(opiniondirectionfrombill,
+  mutate_cond(votedecision=="反對", opiniondirectionfromlegislator=dplyr::recode(opiniondirectionfrombill,
     "n"="m","m"="n",
     "cpg"="NOTcpg","NOTcpg"="cpg","envenerg"="NOTenvenerg","NOTenvenerg"="envenerg","nuenerg"="NOTnuenerg","NOTnuenerg"="nuenerg",
     "crop"="NOTcrop","NOTcrop"="crop","otherenerg"="NOTotherenerg","NOTotherenerg"="otherenerg",
@@ -1001,7 +1001,13 @@ mergedf_votes_bills_surveyanswer <- mergedf_votes_bills_surveyanswer %>%
   dplyr::select(-tidyselect::any_of(c("legislator_age","incumbent","legislator_party","legislator_sex","seniority","votedecision"))) %>%
   dplyr::mutate_at(c("legislator_name","salient","billid_myown"), as.factor) %>%
   dplyr::mutate_at(dplyr::vars(tidyselect::contains("billarea0")), ~as.factor(as.character(.))) %>%
-  {.[!sapply(., function (x) all(is.na(x)))]} # drop all empty columns
+  {
+    needcolumns_notallempty<-sapply(. , function(x) all(is.na(x))) %>%
+      .[.==FALSE] %>%
+      names()
+    dplyr::select(., !!needcolumns_notallempty)
+    #.[!sapply(., function (x) all(is.na(x)))]
+  } # drop all empty columns
 
 #if (unique(mergedf_votes_bills_surveyanswer$))
 
