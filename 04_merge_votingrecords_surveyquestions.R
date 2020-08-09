@@ -234,13 +234,19 @@ myown_vote_record_df_wide_billidascol <- lapply(names(myown_vote_record_df_wide)
   magrittr::set_names(names(myown_vote_record_df_wide))
 
 myown_vote_record_df_wide_billidascol_selected<-lapply(1:length(myown_vote_record_df_wide_billidascol$notagendavoting), function(key, ...) {
-  t<-reshape2::dcast(myown_vote_record_df_wide_billidascol$notagendavoting[[key]], widedata_formula, fun.aggregate=paste0, value.var="votedecision", fill="") %>%
-    dplyr::mutate_all(.funs=function (X){X<-ifelse(X=="",NA,X)} )
-  colnames_t<-colnames(t)
-  dplyr::mutate_at(t,.vars=dplyr::setdiff(colnames_t, widedata_preserve_vars), function (X) {
-    ordered(X, levels = newlevel_of_voting)
+  t_df<-try({
+    t<-reshape2::dcast(myown_vote_record_df_wide_billidascol$notagendavoting[[key]], widedata_formula, fun.aggregate=paste0, value.var="votedecision", fill="") %>%
+      dplyr::mutate_all(.funs=function (X){X<-ifelse(X=="",NA,X)} )
+    colnames_t<-colnames(t)
+    dplyr::mutate_at(t,.vars=dplyr::setdiff(colnames_t, widedata_preserve_vars), function (X) {
+      ordered(X, levels = newlevel_of_voting)
     })  %>%
-    magrittr::set_rownames(.$legislator_name)
+      magrittr::set_rownames(.$legislator_name)
+  })
+  if (is(t_df,"try-error")) {
+    t_df<-data.frame()
+  }
+  return(t_df)
 }, myown_vote_record_df_wide_billidascol=myown_vote_record_df_wide_billidascol, widedata_preserve_vars=widedata_preserve_vars, widedata_formula=widedata_formula)
 
 
@@ -331,22 +337,32 @@ parallelfa_result_n_factor <- dplyr::left_join(parallelfa_n_factors_args_df,
 #http://www.hmwu.idv.tw/web/R/C01-hmwu_R-DimensionReduction.pdf
 
 # * EFA by mirt on mixed effect --------------------------------
-testdata<-myown_vote_record_df_wide_billidascol_selected[[1]] %>%
+testdata<-myown_vote_record_df_wide_billidascol_selected[[3]] %>%
   .[complete.cases(.), ] %>%
   dplyr::mutate_at("legislator_party", as.factor)
 billidcolnames<-colnames(testdata) %>% base::setdiff(widedata_preserve_vars)
-renamed_billidcolnames<-sapply(billidcolnames, customgsub, pattern="-", replacement="_") %>% unname()
+renamed_billidcolnames<-sapply(billidcolnames, customgsub, pattern="-", replacement="_") %>% unname() %>%
+  stringi::stri_replace_all_fixed(.,
+    c("0","1","2","3","4","5","6","7","8","9"),
+    c("zero","one","two","three","four","five","six","seven","eight","nine"),
+    vectorize_all=FALSE)
 #rndformula<-paste0(renamed_billidcolnames,collapse="+") %>%
 #  paste0("|legislator_party")
-testdata<-dplyr::mutate_at(testdata, billidcolnames, unclass) %>%
-  dplyr::rename_with(~ (gsub("-", "_", .x, fixed = TRUE)))
 testdata_cov<-data.frame(legislator_party=testdata$legislator_party)
+testdata_compute<-dplyr::mutate_at(testdata, billidcolnames, unclass) %>%
+  dplyr::select(-tidyselect::any_of(widedata_preserve_vars)) %>%
+  magrittr::set_colnames(renamed_billidcolnames)
+lrfix_formula<-paste0(names(testdata_compute), collapse=" + ") %>%
+  paste0("~",.) %>%
+  as.formula()
 mirt::mirtCluster()
-t<-mirt::mixedmirt(testdata[,renamed_billidcolnames], covdata=testdata_cov,
+t<-mirt::mixedmirt(testdata_compute, covdata=testdata_cov,
                    model=3, fixed = ~ 0 + legislator_party,
                    random = list(~ 1|legislator_party),
+                   lr.fixed=~legislator_party,
                    itemtype = "graded")
-
+scores_randompart<-mirt::randef(t)$Theta
+scores_fixpart<-mirt::fixef(t)
 # * EFA by MCMC --------------------------------
 res.MCMCefas <- list()
 resMCMCefasfile <- paste0(dataset_in_scriptsfile_directory, "res.MCMCefas.RData")
