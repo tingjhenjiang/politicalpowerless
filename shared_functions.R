@@ -333,8 +333,8 @@ custommessage<-function(v,existingDF=data.frame()) {
   message(v)
   message("-----------\n")
 }
-custom_plot<-function(df, fvar, weightvar="", usingsurveypkg=FALSE, fillcolor="", ...) {
-  n_bins<-350
+custom_plot<-function(df, fvar, weightvar="", usingsurveypkg=FALSE, fillcolor="", fillvar="", n_bins="", ...) {
+  n_bins<-if(n_bins=="") 500 else n_bins
   singleclass<-class(magrittr::extract2(df, fvar))
   discri_class<-paste0(singleclass,collapse="")
   randomcolors<-ggsci::pal_npg("nrc", alpha = 0.7)(10)
@@ -365,11 +365,11 @@ custom_plot<-function(df, fvar, weightvar="", usingsurveypkg=FALSE, fillcolor=""
     #if (weightvar!="") mappingopt<-rlist::list.append(mappingopt, weight = ggplotweight)
     mapping <-ggplot2::aes(
       x=.data[[fvar]],
+      fill={if(fillvar=="") fillcolor else .data[[fillvar]]},
       weight={if (weightvar=="") 1 else ggplotweight} #.data[[weightvar]]
     )
     ggplotinit<-ggplot2::ggplot(df)
     statlayeropt<-list(mapping=mapping,
-                       fill = fillcolor,
                        bins=n_bins,
                        alpha=0.5)
     statlayer<-do.call(switch(discri_class,
@@ -390,7 +390,13 @@ custom_plot<-function(df, fvar, weightvar="", usingsurveypkg=FALSE, fillcolor=""
            "numeric"=ggplot2::scale_fill_distiller(palette = "Pastel2"),#scale_fill_continuous(type = "gradient"),
            "factor"=ggplot2::scale_fill_brewer(palette = "Pastel2")
     )
-    return(ggplotinit+statlayer+ggplotlab) #+geom_func+scale_colour_brewer()+ggp_scale
+    # if (histogramlegend=="") {
+    #   return(ggplotinit+statlayer+ggplotlab) #+geom_func+scale_colour_brewer()+ggp_scale
+    # } else {
+    #   ggplot_scalelab<-do.call(ggplot2::scale_fill_manual, args=histogramlegend)
+    #   return(ggplotinit+statlayer+ggplotlab+ggplot_scalelab) #+geom_func+scale_colour_brewer()+ggp_scale
+    # }
+    return(ggplotinit+statlayer+ggplotlab)
   }
 }
 custom_notdfplot<-function(srcvector, weight=NULL, usingsurveypkg=FALSE, fillcolor="", ...) {
@@ -1078,6 +1084,7 @@ ret_merged_for_idealpoint_and_pp_df_list<-function(survey_data_imputed, dataset_
         dplyr::mutate(myown_factoredparticip_overallscaled=as.numeric(scale(myown_factoredparticip)) ) %>%
         dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age)) ) %>%
         dplyr::mutate(myown_factoredparticip_ordinal=cut(myown_factoredparticip,breaks=c(-10,-2,-1.5,-1.3,-0.65,-0.4,-0.15,0.15,0.7,1.3,1.8,10),right=TRUE,include.lowest=TRUE,ordered_result=TRUE)) %>%
+        dplyr::mutate(policyidealpoint_cos_similarity_to_median_ordinal=cut(policyidealpoint_cos_similarity_to_median,breaks=17,right=TRUE,include.lowest=TRUE,ordered_result=TRUE)) %>%
         dplyr::mutate_if(is.factor, droplevels)
       if (minuspolicy==TRUE) {
         needdf %<>% dplyr::select(-dplyr::contains("policy"))

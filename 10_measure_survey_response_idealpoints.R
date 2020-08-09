@@ -189,9 +189,9 @@ if ({avoid_run_duplicated_models<-FALSE;avoid_run_duplicated_models}) {
   distincted_survey_parallelfa_arguments_df_runonly<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, !(runmirt_store_key %in% !!processed_idealpoint_mirt_keys) )
 }
 
-if (TRUE) {
+if (FALSE) {
   load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
-  survey_idealpoints_mirt_models<-distincted_survey_parallelfa_arguments_df_runonly$runmirt_store_key %>%
+  survey_idealpoints_mirt_models<-distincted_survey_parallelfa_arguments_df_runonly$runmirt_store_key[1:24] %>% #[45:25]
     magrittr::set_names(custom_parallel_lapply(., function(fikey, ...) {
       message(paste("now in",fikey))
       needrow<-dplyr::filter(distincted_survey_parallelfa_arguments_df_runonly, runmirt_store_key==!!fikey)
@@ -223,7 +223,7 @@ if (TRUE) {
       parsv <- try({
         mirt::mod2values(survey_idealpoints_mirt_models[[fikey]])
       })
-      if(is(parsv, 'try-error') | grepl(pattern="2016citizen", x=fikey)) {
+      if(is(parsv, 'try-error')) { # | fikey %in% c("2016citizen_imp22_ncompnfact12","2016citizen_imp23_ncompnfact12","2016citizen_imp24_ncompnfact12")
         parsv<-NULL
       }
       library(mirt)
@@ -232,7 +232,7 @@ if (TRUE) {
         to_explor_IRT_data,
         model=as.integer(needrow$ncomp),
         itemtype=to_explor_IRT_itemtypes$itemtype,
-        technical=list(NCYCLES=150,MAXQUAD=40000),
+        technical=list(NCYCLES=3000,MAXQUAD=40000),
         survey.weights = needsurveydatadf[,c("myown_wr")],
         dentype = "Gaussian", #"", empiricalhist
         method=mirtmethod,

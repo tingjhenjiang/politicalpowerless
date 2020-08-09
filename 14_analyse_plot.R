@@ -41,10 +41,14 @@ if (FALSE) {
   )
   for (plotvar in plotvars) {
     message(plotvar)
-    resplot<-custom_plot(overall_nonagenda_df, fvar=plotvar, weightvar="myown_wr")
-    targetsavefilename<-here::here(paste0("plot/responsiveness/",plotvar,".png"))
-    ggplot2::ggsave(filename=targetsavefilename, plot=resplot)
-    print(resplot)
+    n_bins<-if(plotvar %in% c("party_pressure_overallscaled","seniority_overallscaled")) 100 else ""
+    for (weightvar in c("myown_wr","")) {
+      filename_prefix<-if(weightvar=="") paste0(plotvar,"_before_wr") else plotvar
+      resplot<-custom_plot(overall_nonagenda_df, fvar=plotvar, weightvar=weightvar, fillvar="respondopinion", n_bins=n_bins)
+      targetsavefilename<-here::here(paste0("plot/responsiveness/",filename_prefix,".png"))
+      ggplot2::ggsave(filename=targetsavefilename, plot=resplot)
+      print(resplot)
+    }
   }
 }
 
@@ -58,11 +62,15 @@ plotvars<-base::intersect(plotvars, names(merged_acrossed_surveys_list[[1]])) %>
   c("policyidealpoint_cos_similarity_to_median_scaled", "policyidealpoint_eucli_distance_to_median_scaled")
 for (plotvar in plotvars) {
   message(plotvar)
-  resplot<-dplyr::filter(merged_acrossed_surveys_list[[1]]) %>%
-    custom_plot(., fvar=plotvar, weightvar="")#myown_wr
-  targetsavefilename<-here::here(paste0("plot/idp_pp/",plotvar,"_before_wr.png"))
-  ggplot2::ggsave(filename=targetsavefilename, plot=resplot)
-  print(resplot)
+  for (usingweightvar in c("myown_wr","")) {
+    if_wr_filename_suffix<-if(usingweightvar=="myown_wr") "" else "_before_wr"
+    n_bins<-if(plotvar %in% c("myown_age_overallscaled")) 80 else ""
+    resplot<-dplyr::filter(merged_acrossed_surveys_list[[1]]) %>%
+      custom_plot(., fvar=plotvar, weightvar=usingweightvar, fillvar="myown_factoredparticip_ordinal", n_bins=n_bins)
+    targetsavefilename<-here::here(paste0("plot/idp_pp/",plotvar,if_wr_filename_suffix,".png"))
+    ggplot2::ggsave(filename=targetsavefilename, plot=resplot)
+    print(resplot)
+  }
 }
 
 # plotting for different issues ----------------
