@@ -99,24 +99,24 @@ needimps_with_construct_nclass<-needimps %>%
 formula_reduction_args<-dplyr::bind_rows(
   data.frame("survey"="2016citizen","construct"=c("a1","a2","a3","a4","a5","a6","a7","a8","a9","a10","a11","a12"),
              "modelformula"=c(
-               "cbind(d5b,d5e,d6f,d6g,d7a,d7b,d7c,d7d,d7e,d7f,d7g,d7h,d7i,d7j,d7k)~1",
-               "cbind(c12,c13,f3,f4,f5)~1",
-               "cbind(d11b,d13a,d13b,d14a,d14b,d14c)~1",
-               "cbind(d2a,d2b,d3a,d3b)~1",
-               "cbind(c1a,c1b,c1c,c1d,c1e,c2,c3)~1",
-               "cbind(d7d,d7j,d8a,d8b)~1",
-               "cbind(c12,c13)~1",
-               "cbind(d7j,d5b,d7a,d7f,d5f,d17c,d5e,d6f,d6g)~1",
-               "cbind(d14b,d14c,d14a,d11a,d11b,d13a)~1",
-               "cbind(d6e,d6f,d6g,d6h,d6d,d6a,d6b,d6c)~1",
-               "cbind(d5a,d5b,d5d)~1",
-               "cbind(d17c,c10,d17a)~1"
+               "cbind(d5f,d6b,d5e,d5b,d7j,d6f,d7k,d7b,d6g,d7g,d7e,d7a,d7h,d7i,d7c,d7f,d7d)~1",
+               "cbind(d2a,d2b,d3b,d3a)~1",
+               "cbind(d13a,d13b,d14b,d11b,d14a)~1",
+               "cbind(c12,c13,f3,f5,f4)~1",
+               "cbind(c2,c3,c1a,c1b,c1c,c1e,c1d)~1",
+               "cbind()~1",
+               "cbind(d6g,d17c,d6f,d5e,d5f,c1a)~1",
+               "cbind(d17a,d5c,c10,c3,d7f,d7i,d7k,d7b,d7g,d7j)~1",
+               "cbind(d14b,d14a,d14c,d11b,d13a,d11a,d13b)~1",
+               "cbind(d6c,d6b,d6a,d6d,d6g,d6h,d6f,d6e)~1",
+               "cbind(c4,d7b,d5a,d7j,d5b,d5d)~1",
+               "cbind(d5c,c13,c12)~1"
              )),
   data.frame("survey"="2010overall","construct"=c("a2","a3","a4","a5","a6"),
              "modelformula"=c(
-               "cbind(v78d,v78e,v78f,v78g,v78h)~1",
-               "cbind(v39d,v39e)~1",
-               "cbind(v78a,v78e,v78b)~1",
+               "cbind(v78e,v78h,v78d,v78g,v78f)~1",
+               "cbind(v78i,v78a,v78e,v78b)~1",
+               "cbind(v39e,v39d)~1",
                "cbind(v40,v27b)~1",
                "cbind(v78d,v78c,v39c)~1"
              ))
@@ -485,6 +485,64 @@ if ({record_myown_religion<-FALSE; record_myown_religion}) {
     .ordered = FALSE)
 }
 
+# test：CDM::slca ====================
+need_formula_reduction_args <- needimps %>%
+  dplyr::mutate(storekey=paste0(survey,"_imp",imp))
+loopargdf<-need_formula_reduction_args
+polca_models_2016policy<-custom_apply_thr_argdf(need_formula_reduction_args, "storekey", function(fikey, loopargdf, datadf, ...) {
+  needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
+  tmpdata<-dplyr::filter(datadf[[needrow$survey]], .imp==!!needrow$imp) %>% dplyr::select(-tidyselect::ends_with("NA"))
+  modelinginputdata<-tmpdata %>%
+    dplyr::select( tidyselect::any_of(c("v91","v90r","v92",
+                                        "v78e","v78h","v78d","v78g","v78f"
+                                      ))) %>%
+    dplyr::mutate_all(unclass) %>%
+    as.matrix()
+  I<-ncol(modelinginputdata)
+  #Design matrix for x_{ijh} with q_{ihjv} entries. 
+  #must be an array with four dimensions referring to
+  #items (i), categories (h), latent classes (j) and λ parameters (v).
+  #needrow$nclass
+  nclass<-3
+  ncatg<-2
+  #nclass<-2
+  #ncatg<-2
+  desmatr<-array(0, dim=c(I,ncatg,nclass,ncatg*I) ) #I+nclass
+  dimnames(desmatr)[[1]] <- colnames(modelinginputdata)
+  dimnames(desmatr)[[2]] <- paste0("Cat", 1:ncatg )
+  dimnames(desmatr)[[3]] <- paste0("Class", 1:nclass )
+  dimnames(desmatr)[[4]] <-paste0( colnames(modelinginputdata)) %>%
+    sapply(paste0, paste0("Cat",1:ncatg) ) %>% c() %>%
+    sapply(paste0, paste0("Class",1:nclass) ) %>% c()
+  # items, categories, classes, parameters
+  for (ii in 1:I){
+    # define theta design and item discriminations
+    # for (hh in 1:(maxK-1) ){
+    #   Xdes[ii, hh + 1,, NXlam ] <- hh * theta.k
+    # }
+    # item intercepts
+    # for (ii in 1:I){
+    #   for (hh in 1:(maxK-1) ){
+    #     # ii <- 1  # Item    # hh <- 1  # category
+    #     Xdes[ii,hh+1,, ( ii - 1)*(maxK-1) + hh] <- 1
+    #   }
+    # }
+    for (hh in 1:(ncatg-1) ){
+      for (nclassi in 1:nclass) {
+        desmatr[ ii, hh+1, nclassi, ii+(ncatg-1)*I ] <- 1    # probabilities class 1
+      }
+    }
+  }
+  lcaarg<-list(
+    data=modelinginputdata,
+    group=NULL,
+    weights=tmpdata$myown_wr,
+    Xdes=desmatr
+  )
+  retmodel<-try( do.call(CDM::slca, args=lcaarg) )
+  return(retmodel)
+  #custom_generate_LCA_model(X, n_latentclasses=3, nrep=30, maxiter=1000, modelformula=NA)
+}, datadf=survey_data_imputed, mc.cores=1)
 
 
 #save(survey_data_imputed,file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"))
