@@ -1084,6 +1084,7 @@ ret_merged_for_idealpoint_and_pp_df_list<-function(survey_data_imputed, dataset_
         dplyr::mutate(myown_factoredparticip_overallscaled=as.numeric(scale(myown_factoredparticip)) ) %>%
         dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age)) ) %>%
         dplyr::mutate(myown_factoredparticip_ordinal=cut(myown_factoredparticip,breaks=c(-10,-2,-1.5,-1.3,-0.65,-0.4,-0.15,0.15,0.7,1.3,1.8,10),right=TRUE,include.lowest=TRUE,ordered_result=TRUE)) %>%
+        dplyr::rename(policyidealpoint_cos_similarity_to_median=policyidealpoint_cos_similarity_to_median_policy_idealpoint,policyidealpoint_euclid_distance_to_median=policyidealpoint_euclid_distance_to_median_policy_idealpoint) %>%
         dplyr::mutate(policyidealpoint_cos_similarity_to_median_ordinal=cut(policyidealpoint_cos_similarity_to_median,breaks=17,right=TRUE,include.lowest=TRUE,ordered_result=TRUE)) %>%
         dplyr::mutate_if(is.factor, droplevels)
       if (minuspolicy==TRUE) {

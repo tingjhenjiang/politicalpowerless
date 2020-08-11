@@ -190,11 +190,12 @@ if (usingpackage=="brms" & running_bigdata_computation) {
     }
   }, datadf=rundatadf, mc.cores=1)
     
-# * ordinal part -------------------
+# * MuMIn part -------------------
 } else if (usingpackage=="MuMIn_dredge") {
   load(file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/respondmodels.corrected_obs_fixhalfyrbill_simple1_rndintconly.RData"), verbose=TRUE)
   dredgeres<-MuMIn::dredge(respondmodels)
   save(dredgeres, file=paste0( save_dataset_in_scriptsfile_directory,"analyse_res/respondmodels.dredgeres.RData"  ))
+# * ordinal part -------------------
 } else {
   # "respondopinion~1+(1|billid_myown)",
   # "respondopinion~1+(1|id_wth_survey)",
@@ -317,11 +318,12 @@ if (usingpackage=="brms" & running_bigdata_computation) {
   #"7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27","9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98"
   respondmodel_args<-data.frame("formula"=c(
     #"respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+days_diff_survey_bill_overallscaled*myown_sex+days_diff_survey_bill_overallscaled*myown_selfid+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+(issuefield|billid_myown)+(myown_factoredses_overallscaled|admindistrict/id_wth_survey)+(myown_sex|admindistrict/id_wth_survey)+(myown_selfid|admindistrict/id_wth_survey)+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+(1|admindistrict/id_wth_survey)+(seniority_overallscaled|partyGroup/legislator_name)+(cluster_kamila|admindistrict/id_wth_survey)+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY",
-    "respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+(days_diff_survey_bill_overallscaled|admindistrict/adminvillage/id_wth_survey)+(1|billid_myown)+issuefield+(1|admindistrict/adminvillage/id_wth_survey)+seniority_overallscaled+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY",
-    "respondopinion~1+(1|billid_myown)+(1|partyGroup/legislator_name)+(1|admindistrict/adminvillage/id_wth_survey)+SURVEY"
+    "respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+days_diff_survey_bill_overallscaled*myown_sex+days_diff_survey_bill_overallscaled*myown_selfid+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+(days_diff_survey_bill_overallscaled|adminvillage/id_wth_survey)+(1|billid_myown)+issuefield+seniority_overallscaled+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY"#,
+    #"respondopinion~1+(1|billid_myown)+(1|partyGroup/legislator_name)+(1|adminvillage/id_wth_survey)+SURVEY"
   ),stringsAsFactors=FALSE) %>%
-    cbind(., withindays = rep(c(1095,80), each = nrow(.) )) %>% #183
-    dplyr::mutate(storekey=paste0(c("2ndcorrected_obs_basemod_4levels","null"),withindays)) %>%
+    #cbind(., withindays = rep(c(1095,80), each = nrow(.) )) %>% #183
+    #dplyr::mutate(storekey=paste0(c("2ndcorrected_obs_basemod_4levels","null"),withindays)) %>%
+    dplyr::mutate(storekey=paste0(c("2ndcorrected_obs_basemod_3levels_noadmindistrict"))) %>%
     dplyr::mutate(file = paste0(respondmodels_file,storekey,".RData")) %>%
     dplyr::filter(!(formula %in% !!all_respondmodels_keys))
   if (FALSE) { #test
@@ -329,7 +331,7 @@ if (usingpackage=="brms" & running_bigdata_computation) {
       dplyr::mutate(respondopinion_conti=as.integer(respondopinion)) %>%
       dplyr::mutate_if(is.factor, droplevels)
   }
-  fi<-3
+  fi<-1
   fikey<-respondmodel_args$storekey[fi]
   loopargdf<-respondmodel_args
   #respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
@@ -347,15 +349,15 @@ if (usingpackage=="brms" & running_bigdata_computation) {
                                          )) %>%
     droplevels() %>%
     {list(formula=as.formula(argrow$formula), data=., weights=magrittr::use_series(., "myown_wr"),
-          control = ordinal::clmm.control(maxIter = 300, maxLineIter = 300),
-          Hess=TRUE, model = TRUE, link = "logit", threshold = "flexible")} %>%
+          control=ordinal::clmm.control(maxIter=2000, maxLineIter=2000, innerCtrl = "noWarn"),
+          Hess=TRUE, model=TRUE, link="logit", threshold="flexible")} %>%
     do.call(ordinal::clmm, args=.) %>%
     try() 
   tryn<-1
   while (TRUE) {
     loadsavestatus<-try({
       load(file=argrow$file, verbose=TRUE)
-      all_respondmodels<- respondmodels %>%
+      all_respondmodels<-respondmodels %>%
         list() %>%
         magrittr::set_names(argrow$storekey) %>%
         rlist::list.merge(all_respondmodels, .)

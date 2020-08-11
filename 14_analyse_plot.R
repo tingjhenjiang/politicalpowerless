@@ -62,14 +62,14 @@ plotvars<-base::intersect(plotvars, names(merged_acrossed_surveys_list[[1]])) %>
   c("policyidealpoint_cos_similarity_to_median_scaled", "policyidealpoint_eucli_distance_to_median_scaled")
 for (plotvar in plotvars) {
   message(plotvar)
-  fillvar<-"policyidealpoint_cos_similarity_to_median_ordinal"
   fillvar<-"myown_factoredparticip_ordinal"
+  fillvar<-"policyidealpoint_cos_similarity_to_median_ordinal"
   for (usingweightvar in c("myown_wr","")) {
     if_wr_filename_suffix<-if(usingweightvar=="myown_wr") "" else "_before_wr"
     n_bins<-if(plotvar %in% c("myown_age_overallscaled")) 80 else ""
     resplot<-dplyr::filter(merged_acrossed_surveys_list[[1]]) %>%
       custom_plot(., fvar=plotvar, weightvar=usingweightvar, fillvar=fillvar, n_bins=n_bins)
-    targetsavefilename<-here::here(paste0("plot/idp_pp/",plotvar,"_fill_",fillvar,if_wr_filename_suffix,".png"))
+    targetsavefilename<-here::here(paste0("plot/idp_pp/idp/",plotvar,"_fill_",fillvar,if_wr_filename_suffix,".png"))
     ggplot2::ggsave(filename=targetsavefilename, plot=resplot)
     print(resplot)
   }
@@ -78,30 +78,45 @@ for (plotvar in plotvars) {
 # boxplot and scatter and trend plot --------
 for (plotvar in plotvars) {
   fillvar<-"myown_factoredparticip_overallscaled"
-  fillvar<-"policyidealpoint_cos_similarity_to_median_scaled"
+  fillvar<-"policyidealpoint_cos_similarity_to_median"
   fillvar_title<-if(fillvar=="myown_factoredparticip_overallscaled") "political participation" else "ideal point(cosine similarity to L1median)"
   plotvar_title<-gsub(pattern="myown_",replacement="",plotvar)
-  usingweightvar<-"myown_wr"
-  if_wr_filename_suffix<-if(usingweightvar=="myown_wr") "" else "_before_wr"
-  message(paste("now in",plotvar))
-  if ("factor" %in% class(merged_acrossed_surveys_list[[1]][,plotvar])) {
-    outputplot<-ggplot2::ggplot(merged_acrossed_surveys_list[[1]],ggplot2::aes(x=.data[[plotvar]],y=.data[[fillvar]],colour=.data[[plotvar]]))+#,weight=.data[[usingweightvar]]
-      ggplot2::geom_boxplot(width=.5,outlier.shape = 1)+
-      ggplot2::labs(title=paste("Boxplot of",fillvar_title,"by",plotvar_title))+
-      ggplot2::theme(plot.title=ggplot2::element_text(hjust = 0.5,face="bold",size=11))
-  } else if ("numeric" %in% class(merged_acrossed_surveys_list[[1]][,plotvar])) {
-    outputplot<-ggplot2::ggplot(merged_acrossed_surveys_list[[1]],ggplot2::aes(x=.data[[plotvar]],y=.data[[fillvar]],weight=.data[[usingweightvar]] ))+
-      ggplot2::geom_point()+
-      ggplot2::geom_smooth()+
-      ggplot2::labs(title=paste("Scatter plot of",fillvar_title,"and",plotvar_title))+
-      ggplot2::theme(plot.title=ggplot2::element_text(hjust = 0.5,face="bold",size=12))
+  for (usingweightvar in c("","myown_wr")) {
+    if_wr_filename_suffix<-if(usingweightvar=="myown_wr") "" else "_before_wr"
+    if (usingweightvar!="") {
+      df_weight<-magrittr::extract2(merged_acrossed_surveys_list[[1]],usingweightvar)
+      sum_df_weight<-sum(df_weight)
+      ggplotweight<-df_weight/sum_df_weight
+    }
+    message(paste("now in",plotvar,"and weight is",usingweightvar))
+    if ("factor" %in% class(merged_acrossed_surveys_list[[1]][,plotvar])) {
+      outputplot<-ggplot2::ggplot(merged_acrossed_surveys_list[[1]],ggplot2::aes(
+        x=.data[[plotvar]],
+        y=.data[[fillvar]],
+        colour=.data[[plotvar]],
+        weight={if (usingweightvar=="") 1 else ggplotweight}
+        ))+#,weight=.data[[usingweightvar]]
+        ggplot2::geom_boxplot(width=.5,outlier.shape = 1)+
+        ggplot2::labs(title=paste("Boxplot of",fillvar_title,"by",plotvar_title))+
+        ggplot2::theme(plot.title=ggplot2::element_text(hjust = 0.5,face="bold",size=11))
+    } else if ("numeric" %in% class(merged_acrossed_surveys_list[[1]][,plotvar])) {
+      outputplot<-ggplot2::ggplot(merged_acrossed_surveys_list[[1]],ggplot2::aes(
+        x=.data[[plotvar]],
+        y=.data[[fillvar]],
+        weight={if (usingweightvar=="") 1 else ggplotweight}
+        ))+
+        ggplot2::geom_point()+
+        ggplot2::geom_smooth()+
+        ggplot2::labs(title=paste("Scatter plot of",fillvar_title,"and",plotvar_title))+
+        ggplot2::theme(plot.title=ggplot2::element_text(hjust = 0.5,face="bold",size=12))
+    }
+    targetsavefilename<-here::here(paste0("plot/idp_pp/inf_plot_idealpoint/infplot_",fillvar,"_by_",plotvar,if_wr_filename_suffix,".png"))
+    ggplot2::ggsave(filename=targetsavefilename, plot=outputplot)
+    print(outputplot)
   }
-  targetsavefilename<-here::here(paste0("plot/idp_pp/inf_plot_idealpoint/infplot_",fillvar,"_by_",plotvar,if_wr_filename_suffix,".png"))
-  ggplot2::ggsave(filename=targetsavefilename, plot=outputplot)
-  print(outputplot)
 }
 
-for (needfvar in c("policyidealpoint_cos_similarity_to_median","policyidealpoint_eucli_distance_to_median")) {
+for (needfvar in c("policyidealpoint_cos_similarity_to_median","policyidealpoint_euclid_distance_to_median")) {
   outputplot<-custom_plot(merged_acrossed_surveys_list[[1]], fvar=needfvar, weightvar="myown_wr")
   targetsavefilename<-here::here(paste0("plot/idealpoints/",needfvar,".png"))
   ggplot2::ggsave(filename=targetsavefilename, plot=outputplot)

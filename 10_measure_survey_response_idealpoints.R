@@ -525,6 +525,7 @@ survey_with_idealpoint_name<-paste0(save_dataset_in_scriptsfile_directory, "mice
 # merge fscore data --------------------------------
 if (FALSE) {
   load(file=mirtfscores_similarity_scoresdf_file, verbose=TRUE)
+  load(file=mirtfscores_similarity_scoresdf_backupfile, verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
   for (survey in names(survey_data_imputed)) {
     needsvykeys<-grep(pattern=survey, x=names(mirtfscores_similarity_scoresdf), value=TRUE)
@@ -536,8 +537,9 @@ if (FALSE) {
     dplyr::mutate_at(X, dplyr::vars(dplyr::contains("_more_similar")), as.factor)
   })
   load(file=paste0(dataset_in_scriptsfile_directory, "kamila_clustering_parameters.Rdata"), verbose=TRUE)
-  filterstddf<-custom_ret_appro_kamila_clustering_parameters()
-  survey_data_imputed %<>% lapply(dplyr::semi_join, filterstddf) %>%
+  filterstddf<-custom_ret_appro_kamila_clustering_parameters() %>%
+    dplyr::rename(SURVEY=survey)
+  survey_data_imputed <- lapply(survey_data_imputed, dplyr::semi_join, filterstddf) %>%
     lapply(dplyr::left_join, filterstddf) %>%
     lapply(function(X) {dplyr::select(X,-.imp,-imp) %>% dplyr::rename(.imp=newimp)})
   #save(survey_data_imputed, file=survey_with_idealpoint_name)

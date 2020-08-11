@@ -148,16 +148,20 @@ all_idealpoint_models_keys<-if (is(all_idealpoint_models_keys,'try-error')) c() 
 # "policyidealpoint_eucli_distance_to_median~(1|admindistrict)",
 # "policyidealpoint_eucli_distance_to_median~(1|admincity)"#,
 
+# * set model ------------------
+
 idealpoint_models_args<-data.frame("formula"=c(
   #"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_sex+myown_selfid+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)",
-  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_sex+myown_selfid+myown_factoredses_overallscaled+myown_age_overallscaled+myown_religion+myown_areakind+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)"
+  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+myown_sex+myown_selfid+myown_factoredses_overallscaled+myown_age_overallscaled+myown_religion+myown_areakind+(1|admincity/admindistrict/adminvillage)" #+(1|admincity) #myown_areakind/ #+(1|cluster_kamila)
 ), stringsAsFactors=FALSE) %>%
   cbind(., needimp = rep(1, each = nrow(.)), stringsAsFactors=FALSE) %>%
   dplyr::mutate(storekey=paste0(needimp,formula)) %>%
   dplyr::filter(!(formula %in% !!all_idealpoint_models_keys))
 
+usingpackage<-"robustlmm"
 usingpackage<-"lmertest"
-savemodelfilename<-"base_no_marriage_unweighted_full"
+savemodelfilename<-"base_no_marriage_weighted_full_catchadmincity" %>%
+  paste0("(",usingpackage,")",.)
 
 if (usingpackage=="svylme") {
   library(svylme)
@@ -222,19 +226,27 @@ if (usingpackage=="svylme") {
   idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, modelvars, ...) {
     needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
     #library(lme4)
-    #library(robustlmm)
-    library(lmerTest)
-    t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>% #datadf[[needrow$needimp]] %>%
-      {list(formula=as.formula(needrow$formula), data=. )} %>% #, weights=.$myown_wr
+    #library(lmerTest)
+    t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA"))
+    if (usingpackage=="lmertest") {
+      docallfunc<-lmerTest::lmer
+      obsweight<-if (grepl(pattern="unweighted",x=savemodelfilename)) NULL else t$myown_wr
+    } else if (usingpackage=="robustlmm") {
+      library(robustlmm)
+      docallfunc<-robustlmm::rlmer
+      obsweight<-NULL
+    }
+    t<- list(formula=as.formula(needrow$formula), data=t, weights=obsweight) %>% #, weights=.$myown_wr
       #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
+      do.call(docallfunc, args=.) %>%
       #do.call(robustlmm::rlmer, args=.) %>%
-      do.call(lmerTest::lmer, args=.) %>%
+      #do.call(lmerTest::lmer, args=.) %>%
       #do.call(svylme::svy2lme, args=.)
       #lmerTest::lmer(formula=f, data=datadf[[needrow$needimp]], weights=datadf[[needrow$needimp]]$myown_wr) %>%
       #do.call(lme4::lmer, args=.) %>%
       #{magrittr::use_series(., "myown_wr")} %>%
       try()
-  }, datadf=merged_acrossed_surveys_list)
+  }, datadf=merged_acrossed_surveys_list, usingpackage=usingpackage, savemodelfilename=savemodelfilename)
 }
 
 
@@ -264,22 +276,42 @@ if (FALSE) {
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(robustlmm_final_efficient).RData"), verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lmertest_final_efficient).RData"), verbose=TRUE)
   
+  idpmodfilenamepattern<-"idealpoint_models_\\(lmertest\\)"
+  idpmodfilenamepattern<-"(unweighted_full|unweighted_noagereligionareakind)"
+  idpmodfiles_prefix<-here::here("data/work1/analyse_res/")
+  idpmodfiles<-list.files(idpmodfiles_prefix) %>%
+    grep(pattern=idpmodfilenamepattern, x=., value=TRUE) %>%
+    grep(pattern="unweighted", x=., invert=FALSE, value=TRUE) %>%
+    paste0(idpmodfiles_prefix,.)
+  idpmods_list<-custom_parallel_lapply(idpmodfiles, function(idpmodfile) {
+    load(file=idpmodfile, verbose=TRUE)
+    return(idealpoint_models[[1]])
+  }, method=parallel_method) %>% magrittr::set_names(idpmodfiles)
+  t1<-eval(parse(text=paste("anova(",paste("idpmods_list[[",1:length(idpmods_list),"]]",sep="",collapse=","),")"))) %>%
+    data.frame(name=rownames(.), .)
+  t2<-eval(parse(text=paste("AIC(",paste("idpmods_list[[",1:length(idpmods_list),"]]",sep="",collapse=","),")"))) %>%
+    data.frame(name=rownames(.), .)
+  t3<-data.frame(name=paste0("idpmods_list[[",1:length(idpmodfiles),"]]"), filename=stringi::stri_replace(str=idpmodfiles, replacement="", regex=idpmodfiles_prefix))
+  dplyr::left_join(t1, t2, by=c("name")) %>%
+    dplyr::left_join(t3, ., by=c("name")) %>%
+    write.csv("TMP.csv")
   
-  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_full.RData"), verbose=TRUE)
+  
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_(lmertest)base_no_marriage_unweighted_full.RData"), verbose=TRUE)
   basemodel<-idealpoint_models[[1]]
-  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noage.RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_(lmertest)base_no_marriage_unweighted_noage.RData"), verbose=TRUE)
   model_noage<-idealpoint_models[[1]]
-  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noageareakind.RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_(lmertest)base_no_marriage_unweighted_noageareakind.RData"), verbose=TRUE)
   model_noageareakind<-idealpoint_models[[1]]
-  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noagereligion.RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_(lmertest)base_no_marriage_unweighted_noagereligion.RData"), verbose=TRUE)
   model_noagereligion<-idealpoint_models[[1]]
-  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noagereligionareakind.RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_(lmertest)base_no_marriage_unweighted_noagereligionareakind.RData"), verbose=TRUE)
   model_noagereligionareakind<-idealpoint_models[[1]]
-  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noareakind.RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_(lmertest)base_no_marriage_unweighted_noareakind.RData"), verbose=TRUE)
   model_noareakind<-idealpoint_models[[1]]
-  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noreligion.RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_(lmertest)base_no_marriage_unweighted_noreligion.RData"), verbose=TRUE)
   model_noreligion<-idealpoint_models[[1]]
-  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_base_no_marriage_weighted_noreligionareakind.RData"), verbose=TRUE)
+  load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models_(lmertest)base_no_marriage_unweighted_noreligionareakind.RData"), verbose=TRUE)
   model_noreligionareakind<-idealpoint_models[[1]]
   AIC(basemodel,model_noage,model_noageareakind,model_noagereligion,model_noagereligionareakind,model_noareakind,model_noreligion,model_noreligionareakind)
   anova(basemodel,model_noage,model_noageareakind,model_noagereligion,model_noagereligionareakind,model_noareakind,model_noreligion,model_noreligionareakind)
@@ -307,6 +339,7 @@ if (FALSE) {
     dplyr::mutate(pvalue=2*pt(abs(t.value), dfs, lower=FALSE) )
   coefs.robust[,"Std..Error"]<-coef(summary(all_idealpoint_models_robust[[1]]))[,2]
   coefs.robust %<>% cbind(confint.rlmerMod(all_idealpoint_models_robust[[1]]))
+  write.csv(coefs.robust, "TMP.csv")
   sigma(all_idealpoint_models_robust[[1]])
   
   
