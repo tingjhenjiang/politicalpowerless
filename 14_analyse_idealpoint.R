@@ -166,7 +166,7 @@ savemodelfilename<-"base_no_marriage_weighted_full_catchadmincity" %>%
 if (usingpackage=="svylme") {
   library(svylme)
   needformula<-as.formula(idealpoint_models_args[1,"formula"])
-  needformula<-"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_sex+myown_selfid+myown_age_overallscaled+(1|admincity)+(1|admindistrict)+(1|adminvillage)+(1|myown_areakind)" #+(1|cluster_kamila)
+  needformula<-"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+myown_factoredses_overallscaled+myown_sex+myown_selfid+(1|adminvillage)" #+(1|cluster_kamila)
   #single
   #des <- survey::svydesign(ids=~1, weight=~myown_wr, data=merged_acrossed_surveys_list[[1]])
   #t<-svylme::svy2lme(needformula, design=des, sterr=TRUE, return.devfun=FALSE, method="general")
@@ -175,6 +175,7 @@ if (usingpackage=="svylme") {
     survey::svydesign(ids=~1, weight=~myown_wr, data=.)
   all_idealpoint_models_svy<-survey:::with.svyimputationList(des,svylme::svy2lme(needformula, sterr=TRUE, return.devfun=FALSE, method="general"),multicore=TRUE)
   save(all_idealpoint_models_svy, file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models(svylme_simple).RData"))
+  save(all_idealpoint_models_svy, file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models(svylme).RData"))
   load(paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models(svylme).RData"), verbose=TRUE)
   load(paste0(save_dataset_in_scriptsfile_directory,"analyse_res/idealpoint_models(svylme_simple).RData"), verbose=TRUE)
   combined_all_idealpoint_models_svy<-mitools::MIcombine(all_idealpoint_models_svy)
@@ -204,12 +205,12 @@ if (usingpackage=="svylme") {
       c(dummyc_catg_vars)
     t<-dplyr::select(datadf[[needrow$needimp]], -tidyselect::ends_with("NA")) %>%
       dummycode_of_a_dataframe(catgvars=dummyc_catg_vars) %>%
-      dplyr::select(tidyselect::starts_with(c(allmodelvars,"policyidealpoint_cos_similarity_to_median_scaled","adminvillage")), -myown_selfid_population) %>%
+      dplyr::select(tidyselect::starts_with(c(allmodelvars,"policyidealpoint_cos_similarity_to_median","adminvillage")), -myown_selfid_population) %>%
       #{ .[complete.cases(.), ]} %>%
       {
-        targetx<-dplyr::select(., -policyidealpoint_cos_similarity_to_median_scaled, -adminvillage) %>%
-          dplyr::select(-tidyselect::contains(c("myown_marriage"))) #,"myown_religion","myown_areakind"
-        list(x=as.matrix(targetx) , y=.$policyidealpoint_cos_similarity_to_median_scaled, block=.$adminvillage, var.type="sandwich")
+        targetx<-dplyr::select(., -tidyselect::contains(c("policyidealpoint","particip")), -adminvillage) %>% # policyidealpoint_cos_similarity_to_median, -policyidealpoint_cos_similarity_to_median_ordinal
+          dplyr::select(-tidyselect::contains(c("myown_marriage","myown_religion","myown_areakind", "myown_age_overallscaled"))) #
+        list(x=as.matrix(targetx) , y=.$policyidealpoint_cos_similarity_to_median, block=.$adminvillage, var.type="sandwich")
       } %>%
       do.call(customjrfit, args=.) %>%
       try()
