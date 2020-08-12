@@ -191,11 +191,10 @@ if (usingpackage=="svylme") {
     )
   write.csv(cbind(mitools_summary_table, summary(miceaddspooled)),"TMP.csv")
 } else if (usingpackage=="jrfit") {
-  idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, modelvars, ...) {
+  jrfit_idealpoint_model_inputs<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, modelvars, ...) {
     needrow<-dplyr::filter(loopargdf, storekey==!!fikey)
     #modelvars[["modelvars_ex_catg"]] %<>% base::setdiff("myown_marriage")
     #jrfit part
-    library(jrfit)
     dummyc_catg_vars<-unlist(modelvars[c("modelvars_ex_catg","modelvars_clustervars","modelvars_controllclustervars")]) %>%
       base::intersect(names(datadf[[needrow$needimp]]), .)
     greppattern_allmodelgvars<-dummyc_catg_vars %>%
@@ -209,10 +208,9 @@ if (usingpackage=="svylme") {
       #{ .[complete.cases(.), ]} %>%
       {
         targetx<-dplyr::select(., -tidyselect::contains(c("policyidealpoint","particip")), -adminvillage) %>% # policyidealpoint_cos_similarity_to_median, -policyidealpoint_cos_similarity_to_median_ordinal
-          dplyr::select(-tidyselect::contains(c("myown_marriage","myown_religion","myown_areakind"))) #, "myown_age_overallscaled"
+          dplyr::select(-tidyselect::contains(c("myown_marriage"))) #, "myown_age_overallscaled","myown_religion","myown_areakind"
         list(x=as.matrix(targetx) , y=.$policyidealpoint_cos_similarity_to_median, block=.$adminvillage, var.type="sandwich")
       } %>%
-      do.call(customjrfit, args=.) %>%
       try()
     return(t)
   }, datadf=merged_acrossed_surveys_list, modelvars=list(
@@ -221,16 +219,35 @@ if (usingpackage=="svylme") {
     "modelvars_latentrelated"=modelvars_latentrelated,
     "modelvars_clustervars"=modelvars_clustervars,
     "modelvars_controllclustervars"=modelvars_controllclustervars ),
-  mc.cores=1
+    mc.cores=1
   )
+  idealpoint_models<-custom_parallel_lapply(jrfit_idealpoint_model_inputs, function(X) {
+    library(jrfit)
+    do.call(customjrfit, args=X) %>% return()
+  },method=parallel_method)
   
+  #df is weired
+  library(jrfit)
+  jrfitvcovs<-custom_parallel_lapply(names(idealpoint_models), function(X, ...) {
+    jrfit::tcs(ehat=idealpoint_models[[X]]$residuals,
+               X=cbind("Intercept"=1, jrfit_idealpoint_model_inputs[[X]]$x),
+               block=idealpoint_models[[X]]$block)
+  },idealpoint_models=idealpoint_models,jrfit_idealpoint_model_inputs=jrfit_idealpoint_model_inputs,method=parallel_method)
+  jrfitcoefs<-custom_parallel_lapply(idealpoint_models, function(X) {summary(X) %>% .$coefficients %>% .[,"Estimate"]}, method=parallel_method)
+  combined_all_idealpoint_models_jrfit<-mitools:::MIcombine(results=jrfitcoefs,variances=jrfitvcovs)
+  mitools_summary_table_jrfit<-cbind(summary(combined_all_idealpoint_models_jrfit), combined_all_idealpoint_models_jrfit$df)
+
   miceaddspooled<-miceadds::pool_mi(
-    qhat=lapply(idealpoint_models, function(X) { summary(X) %>% .$coefficients %>% .[,1]}),
-    u=lapply(idealpoint_models, function(X) { summary(X) %>% .$coefficients %>% .[,1]}),
-    #se="List of vector of standard errors. Either u or se must be provided.",
-    #dfcom="Degrees of freedom of statistical analysis",
-    #all_idealpoint_models_svy_mira$analyses
+    qhat=lapply(idealpoint_models, function(X) { summary(X) %>% .$coefficients %>% .[,"Estimate"] }),
+    u=lapply(idealpoint_models, function(X) { X$varhat }),
+    se=lapply(idealpoint_models, function(X) { summary(X) %>% .$coefficients %>% .[,"Std. Error"] }),
+    #dfcom=idealpoint_models[[1]]$DF, #"Degrees of freedom of statistical analysis",
+    method="largesample"
   )
+  summary(miceaddspooled) %>% write.csv("TMP.csv")
+  randomeffectofjrfit<-lapply(idealpoint_models, function(X) {
+    jrfit::vee(ehat=X$residuals, center=X$block)
+    })
   
 } else {
   idealpoint_models<-custom_apply_thr_argdf(idealpoint_models_args, "storekey", function(fikey, loopargdf, datadf, modelvars, ...) {
@@ -250,11 +267,9 @@ if (usingpackage=="svylme") {
       #WeMix::mix(formula=f, data=datadf, weights=c("myown_wr","secondweight"))
       do.call(docallfunc, args=.) %>%
       #do.call(robustlmm::rlmer, args=.) %>%
-      #do.call(lmerTest::lmer, args=.) %>%
-      #do.call(svylme::svy2lme, args=.)
+      #do.call(lmerTest::lmer, args=.)
       #lmerTest::lmer(formula=f, data=datadf[[needrow$needimp]], weights=datadf[[needrow$needimp]]$myown_wr) %>%
       #do.call(lme4::lmer, args=.) %>%
-      #{magrittr::use_series(., "myown_wr")} %>%
       try()
   }, datadf=merged_acrossed_surveys_list, usingpackage=usingpackage, savemodelfilename=savemodelfilename)
 }
