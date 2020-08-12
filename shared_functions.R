@@ -1342,6 +1342,136 @@ ret_robust_models<-function(list_of_models, datadf, clustervar="myown_areakind",
   return(coefsrobust_mods)
 }
 
+
+myown_robustlmm_as.data.frame.VarCorr.rlmerMod<-function (x, row.names = NULL, optional = FALSE, order = c("cov.last", "lower.tri"), ...) {
+  order <- match.arg(order)
+  tmpf <- function(v, grp) {
+    vcov <- c(diag(v), v[lt.v <- lower.tri(v, diag = FALSE)])
+    sdcor <- c(attr(v, "stddev"), attr(v, "correlation")[lt.v])
+    nm <- rownames(v)
+    n <- nrow(v)
+    dd <- data.frame(grp = grp, var1 = nm[c(seq(n), col(v)[lt.v])], 
+                     var2 = c(rep(NA, n), nm[row(v)[lt.v]]), vcov, sdcor, 
+                     stringsAsFactors = FALSE)
+    if (order == "lower.tri") {
+      m <- matrix(NA, n, n)
+      diag(m) <- seq(n)
+      m[lower.tri(m)] <- (n + 1):(n * (n + 1)/2)
+      dd <- dd[m[lower.tri(m, diag = TRUE)], ]
+    }
+    dd
+  }
+  r <- do.call(rbind, c(mapply(tmpf, x, names(x), SIMPLIFY = FALSE), 
+                        deparse.level = 0))
+  if (attr(x, "useSc")) {
+    ss <- attr(x, "sc")
+    r <- rbind(r, data.frame(grp = "Residual", var1 = NA, 
+                             var2 = NA, vcov = ss^2, sdcor = ss), deparse.level = 0)
+  }
+  rownames(r) <- NULL
+  r
+}
+
+
+myown_robustlmm_vcov2<-function(object, level = 0.95, ...) {
+  fit0 <- fit <- object
+  object <- robustlmm:::VarCorr.rlmerMod(fit)
+  vdd <- myown_robustlmm_as.data.frame.VarCorr.rlmerMod(object, order = "lower.tri")
+  pars <- vdd[, "sdcor"]
+  nms <- apply(vdd[, 1:3], 1, function(x) paste(na.omit(x), 
+                                                collapse = "."))
+  names(pars) <- nms
+  Vcov <- as.matrix(vcov(fit0, useScale = FALSE))
+  betas <- robustlmm:::fixef.rlmerMod(fit0)
+  np_fixed <- length(betas)
+  np_random <- length(pars)
+  np <- np_fixed + np_random
+  random <- list(coef = pars, vcov = NULL)
+  fixed <- list(coef = betas, vcov = Vcov)
+  coef1 <- c(fixed$coef, random$coef)
+  ind_fixed <- 1:np_fixed
+  ind_random <- ind <- np_fixed + 1:np_random
+  se <- c(sqrt(diag(fixed$vcov)), rep(NA, np_random))
+  np <- np_fixed + np_random
+  dfr <- data.frame(index = 1:np, type = c(rep("fixed", np_fixed), 
+                                           rep("random", np_random)))
+  s1 <- strsplit(names(random$coef), split = ".", fixed = TRUE)
+  s1 <- unlist(lapply(s1, FUN = function(ll) {
+    hh <- length(ll)
+    label <- "SD"
+    if (hh == 3) {
+      label <- "Cor"
+    }
+    return(label)
+  }))
+  dfr$stat <- c(rep("Beta", np_fixed), s1)
+  dfr$parm <- names(coef1)
+  dfr$est <- coef1
+  dfr$se <- se
+  dfr <- sirt::parmsummary_extend(dfr = dfr, level = level, 
+                                  est_label = "est", se_label = "se")
+  res <- list(par_summary = dfr, coef = coef1, se = se, fixed = fixed, 
+              random = random, np = np, np_random = np_random, np_fixed = np_fixed, 
+              ind_fixed = ind_fixed, ind_random = ind_random)
+  #class(res) <- "lmer_vcov"
+  return(res)
+}
+myown_robustlmm_pool<-function(models, level = 0.95, FUN = myown_robustlmm_vcov2, ...) 
+{
+  M <- length(models)
+  qhat <- list()
+  se <- list()
+  NMI <- FALSE
+  for (mm in 1:M) {
+    args <- list(object = models[[mm]], level = level)
+    res_mm <- do.call(what = FUN, args = args)
+    qhat[[mm]] <- res_mm$coef
+    se[[mm]] <- res_mm$se
+  }
+  res <- miceadds::pool_nmi(qhat = qhat, u = NULL, se = se, NMI = NMI, 
+                            comp_cov = TRUE, is_list = TRUE, method = 1)
+  if (!NMI) {
+    res$lambda_Between <- NA
+    res$lambda_Within <- NA
+  }
+  #class(res) <- "lmer_pool"
+  return(res)
+}
+
+
+myown_robustlmm_summary_pooledres<-function (object, digits = 4, file = NULL, ...) 
+{
+  CDM::osink(file = file, suffix = paste0("__SUMMARY.Rout"))
+  x <- object
+  table <- data.frame(est = x$qbar)
+  table$se <- sqrt(diag(x$Tm))
+  table$t <- table[, 1]/table[, 2]
+  table$df <- x$df
+  table$p <- 2 * (1 - stats::pt(abs(table$t), x$df))
+  table$`lo 95` <- table$est - stats::qt(0.975, x$df) * table$se
+  table$`hi 95` <- table$est + stats::qt(0.975, x$df) * table$se
+  table$fmi <- x$lambda
+  table$fmi_Betw <- x$lambda_Between
+  table$fmi_Within <- x$lambda_Within
+  table <- as.data.frame(table)
+  if (is.na(table$se)[1]) {
+    table$df <- NA
+  }
+  if (!is.null(object$u_NULL)) {
+    if (object$u_NULL) {
+      table <- table[, "est", drop = FALSE]
+    }
+  }
+  table0 <- table
+  for (vv in seq(1, ncol(table))) {
+    table[, vv] <- round(table[, vv], digits = digits)
+  }
+  print(table)
+  return(table0)
+  CDM::csink(file = file)
+}
+
+
 customjrfit<-function (x, y, block, yhat0 = NULL, scores = wscores, fitint = NULL, 
                        var.type = "sandwich", fitblock = FALSE, tuser = NULL, ...) 
 {
