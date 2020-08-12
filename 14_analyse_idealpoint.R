@@ -154,7 +154,7 @@ idealpoint_models_args<-data.frame("formula"=c(
   #"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_sex+myown_selfid+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)",
   "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+myown_sex+myown_selfid+myown_factoredses_overallscaled+myown_age_overallscaled+myown_religion+myown_areakind+(1|admincity/admindistrict/adminvillage)" #+(1|admincity) #myown_areakind/ #+(1|cluster_kamila)
 ), stringsAsFactors=FALSE) %>%
-  cbind(., needimp = rep(1, each = nrow(.)), stringsAsFactors=FALSE) %>%
+  cbind(., needimp = rep(1:6, each = nrow(.)), stringsAsFactors=FALSE) %>%
   dplyr::mutate(storekey=paste0(needimp,formula)) %>%
   dplyr::filter(!(formula %in% !!all_idealpoint_models_keys))
 
@@ -166,7 +166,7 @@ savemodelfilename<-"base_no_marriage_weighted_full_catchadmincity" %>%
 if (usingpackage=="svylme") {
   library(svylme)
   needformula<-as.formula(idealpoint_models_args[1,"formula"])
-  needformula<-"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+myown_factoredses_overallscaled+myown_sex+myown_selfid+(1|adminvillage)" #+(1|cluster_kamila)
+  needformula<-"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+myown_factoredses_overallscaled+myown_sex+myown_selfid+myown_age_overallscaled+myown_religion+myown_areakind+(1|adminvillage)" #+(1|cluster_kamila)
   #single
   #des <- survey::svydesign(ids=~1, weight=~myown_wr, data=merged_acrossed_surveys_list[[1]])
   #t<-svylme::svy2lme(needformula, design=des, sterr=TRUE, return.devfun=FALSE, method="general")
@@ -209,7 +209,7 @@ if (usingpackage=="svylme") {
       #{ .[complete.cases(.), ]} %>%
       {
         targetx<-dplyr::select(., -tidyselect::contains(c("policyidealpoint","particip")), -adminvillage) %>% # policyidealpoint_cos_similarity_to_median, -policyidealpoint_cos_similarity_to_median_ordinal
-          dplyr::select(-tidyselect::contains(c("myown_marriage","myown_religion","myown_areakind", "myown_age_overallscaled"))) #
+          dplyr::select(-tidyselect::contains(c("myown_marriage","myown_religion","myown_areakind"))) #, "myown_age_overallscaled"
         list(x=as.matrix(targetx) , y=.$policyidealpoint_cos_similarity_to_median, block=.$adminvillage, var.type="sandwich")
       } %>%
       do.call(customjrfit, args=.) %>%
@@ -220,7 +220,16 @@ if (usingpackage=="svylme") {
     "modelvars_ex_catg"=modelvars_ex_catg,
     "modelvars_latentrelated"=modelvars_latentrelated,
     "modelvars_clustervars"=modelvars_clustervars,
-    "modelvars_controllclustervars"=modelvars_controllclustervars )
+    "modelvars_controllclustervars"=modelvars_controllclustervars ),
+  mc.cores=1
+  )
+  
+  miceaddspooled<-miceadds::pool_mi(
+    qhat=lapply(idealpoint_models, function(X) { summary(X) %>% .$coefficients %>% .[,1]}),
+    u=lapply(idealpoint_models, function(X) { summary(X) %>% .$coefficients %>% .[,1]}),
+    #se="List of vector of standard errors. Either u or se must be provided.",
+    #dfcom="Degrees of freedom of statistical analysis",
+    #all_idealpoint_models_svy_mira$analyses
   )
   
 } else {
