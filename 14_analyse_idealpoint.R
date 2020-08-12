@@ -337,7 +337,7 @@ if (FALSE) {
   lmertest_res_pooled_summary<-summary(lmertest_res_pooled)
   robustlmm_res_pooled<-myown_robustlmm_pool(all_idealpoint_models_robust)
   robustlmm_res_pooled_summary<-myown_robustlmm_summary_pooledres(robustlmm_res_pooled, digits=3)
-  write.csv(coefs.robust, "TMP.csv")
+  write.csv(robustlmm_res_pooled_summary, "TMP.csv")
   
   #single imp res summary
   robustlmm:::VarCorr.rlmerMod(all_idealpoint_models_robust[[1]])
