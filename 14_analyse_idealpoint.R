@@ -152,15 +152,15 @@ all_idealpoint_models_keys<-if (is(all_idealpoint_models_keys,'try-error')) c() 
 
 idealpoint_models_args<-data.frame("formula"=c(
   #"policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+(1|cluster_kamila)+myown_factoredses_overallscaled+myown_marriage+myown_age_overallscaled+myown_sex+myown_selfid+(1|myown_areakind/admindistrict/adminvillage)+(1|admincity)",
-  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+myown_sex+myown_selfid+myown_factoredses_overallscaled+myown_age_overallscaled+myown_religion+myown_areakind+(1|admincity/admindistrict/adminvillage)" #+(1|admincity) #myown_areakind/ #+(1|cluster_kamila)
+  "policyidealpoint_cos_similarity_to_median~1+SURVEY+cluster_kamila+myown_sex+myown_selfid+myown_factoredses_overallscaled+myown_age_overallscaled+(1|admincity/admindistrict/adminvillage)" #+(1|admincity) #myown_areakind/ #+(1|cluster_kamila)
 ), stringsAsFactors=FALSE) %>%
   cbind(., needimp = rep(1:6, each = nrow(.)), stringsAsFactors=FALSE) %>%
   dplyr::mutate(storekey=paste0(needimp,formula)) %>%
   dplyr::filter(!(formula %in% !!all_idealpoint_models_keys))
 
-usingpackage<-"robustlmm"
 usingpackage<-"lmertest"
-savemodelfilename<-"base_no_marriage_weighted_full_catchadmincity" %>%
+usingpackage<-"robustlmm"
+savemodelfilename<-"base_no_marriage_unweighted_noreligionareakind_catchadmincity" %>%
   paste0("(",usingpackage,")",.)
 
 if (usingpackage=="svylme") {
@@ -286,12 +286,12 @@ if (FALSE) {
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(robustlmm_final_efficient).RData"), verbose=TRUE)
   load(file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(lmertest_final_efficient).RData"), verbose=TRUE)
   
-  idpmodfilenamepattern<-"idealpoint_models_\\(lmertest\\)"
+  idpmodfilenamepattern<-"idealpoint_models_\\(lmertest\\).+_weighted.+catchadmincity"
   idpmodfilenamepattern<-"(unweighted_full|unweighted_noagereligionareakind)"
   idpmodfiles_prefix<-here::here("data/work1/analyse_res/")
   idpmodfiles<-list.files(idpmodfiles_prefix) %>%
     grep(pattern=idpmodfilenamepattern, x=., value=TRUE) %>%
-    grep(pattern="unweighted", x=., invert=FALSE, value=TRUE) %>%
+    #grep(pattern="unweighted", x=., invert=FALSE, value=TRUE) %>%
     paste0(idpmodfiles_prefix,.)
   idpmods_list<-custom_parallel_lapply(idpmodfiles, function(idpmodfile) {
     load(file=idpmodfile, verbose=TRUE)
@@ -341,6 +341,14 @@ if (FALSE) {
   merged_acrossed_surveys_list[[1]]$policyidealpoint_cos_similarity_to_median_scaled %>%
     fitdistrplus::descdist(discrete=FALSE)
   
+  #pooled summary
+  lmertest_res_pooled<-miceadds:::lmer_pool(all_idealpoint_models_lmertest)
+  lmertest_res_pooled_summary<-summary(lmertest_res_pooled)
+  robustlmm_res_pooled<-myown_robustlmm_pool(all_idealpoint_models_robust)
+  robustlmm_res_pooled_summary<-myown_robustlmm_summary_pooledres(robustlmm_res_pooled, digits=3)
+  write.csv(coefs.robust, "TMP.csv")
+  
+  #single imp res summary
   robustlmm:::VarCorr.rlmerMod(all_idealpoint_models_robust[[1]])
   robustlmm::getME(all_idealpoint_models_robust[[1]],"theta")
   #try on rlmer
@@ -365,58 +373,51 @@ if (FALSE) {
   }
   
   
-  
-  imputeFEs <- ldply(mods, FEsim, nsims = 1000)
-  t<-miceadds::lmer_vcov(all_idealpoint_models[[1]], level=.95, use_reml=FALSE)
-  miceadds::lmer_vcov(all_idealpoint_models[[1]])
-  miceadds::lmer_vcov(all_idealpoint_models_robust[[1]])
-  miceadds:::lmer_pool_wrapper
-  myown_robustlmm_pool<-function(models, level = 0.95, FUN = lmer_vcov2, ...) 
-  {
-    M <- length(models)
-    qhat <- list()
-    se <- list()
-    NMI <- FALSE
-    for (mm in 1:M) {
-      args <- list(object = models[[mm]], level = level)
-      res_mm <- do.call(what = FUN, args = args)
-      qhat[[mm]] <- res_mm$coef
-      se[[mm]] <- res_mm$se
-    }
-    res <- miceadds::pool_nmi(qhat = qhat, u = NULL, se = se, NMI = NMI, 
-                    comp_cov = TRUE, is_list = TRUE, method = 1)
-    if (!NMI) {
-      res$lambda_Between <- NA
-      res$lambda_Within <- NA
-    }
-    class(res) <- "lmer_pool"
-    return(res)
+  if (FALSE) { #trial and backup
+    imputeFEs <- ldply(mods, FEsim, nsims = 1000)
+    t<-miceadds::lmer_vcov(all_idealpoint_models[[1]], level=.95, use_reml=FALSE)
+    miceadds::lmer_vcov(all_idealpoint_models[[1]])
+    miceadds::lmer_vcov(all_idealpoint_models_robust[[1]])
+    t<-miceadds:::lmer_pool(all_idealpoint_models)
+    summary(t)
+    miceadds:::lmer_pool_wrapper
+    t<-miceadds::lmer_vcov2(all_idealpoint_models_lmertest[[1]])
+    miceadds::lmer_vcov2(all_idealpoint_models_robust[[1]])
+    t<-VarCorr(all_idealpoint_models_lmertest[[1]])
+    as.data.frame(t, order = "lower.tri")
+    t<-VarCorr(all_idealpoint_models_robust[[1]])
+    t<-as.list(t) %>%
+      lapply(as.data.frame) %>%
+      plyr::rbind.fill()
+    vcov(all_idealpoint_models_robust[[1]])
+    
+    t<-merTools::FEsim(all_idealpoint_models[[1]])
+    t<-mice::as.mira(all_idealpoint_models)
+    t<-mitools::imputationList(all_idealpoint_models)
+    
+    miceadds::lmer_pool
+    miceadds:::lmer_pool_wrapper
+    mires<-mitools::MIcombine(t$imputations)
+    #try on lme
+    all_idealpoint_models<-all_idealpoint_models[7:12]
+    t<-mice::as.mira(all_idealpoint_models)
+    coefs <- data.frame(coef(summary(all_idealpoint_models[[1]])))
+    confint(all_idealpoint_models[[1]])
+    coefs<-ret_robust_models(all_idealpoint_models, merged_acrossed_surveys_list, clustervar="myown_areakind", vcov="CR1", method=parallel_method, mc.cores=1)
+    mitml::testEstimates(t$analyses, var.comp=TRUE)
+    pv<-mice::pool(t)
+    summary(pv)
+    #save(all_idealpoint_models, file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(very_precious_efficient).RData"))
+    clubSandwich::coef_test
+    
+    
+    breads<-custom_parallel_lapply(idealpoint_models, merDeriv::bread.lmerMod, method=parallel_method)
+    #estfuns:Models with weights specification is currently not supported
+    #estfuns<-custom_parallel_lapply(idealpoint_models, merDeriv::estfun.lmerMod, method=parallel_method)
   }
   
   
-  t<-merTools::FEsim(all_idealpoint_models[[1]])
-  t<-mice::as.mira(all_idealpoint_models)
-  t<-mitools::imputationList(all_idealpoint_models)
   
-  miceadds::lmer_pool
-  miceadds:::lmer_pool_wrapper
-  mires<-mitools::MIcombine(t$imputations)
-  #try on lme
-  all_idealpoint_models<-all_idealpoint_models[7:12]
-  t<-mice::as.mira(all_idealpoint_models)
-  coefs <- data.frame(coef(summary(all_idealpoint_models[[1]])))
-  confint(all_idealpoint_models[[1]])
-  coefs<-ret_robust_models(all_idealpoint_models, merged_acrossed_surveys_list, clustervar="myown_areakind", vcov="CR1", method=parallel_method, mc.cores=1)
-  mitml::testEstimates(t$analyses, var.comp=TRUE)
-  pv<-mice::pool(t)
-  summary(pv)
-  #save(all_idealpoint_models, file=paste0(save_dataset_in_scriptsfile_directory, "analyse_res/idealpoint_models(very_precious_efficient).RData"))
-  clubSandwich::coef_test
-  
-
-  breads<-custom_parallel_lapply(idealpoint_models, merDeriv::bread.lmerMod, method=parallel_method)
-  #estfuns:Models with weights specification is currently not supported
-  #estfuns<-custom_parallel_lapply(idealpoint_models, merDeriv::estfun.lmerMod, method=parallel_method)
 
   
   lapply(all_idealpoint_models, try(performance::icc))
