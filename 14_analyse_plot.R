@@ -60,64 +60,103 @@ load(file=survey_with_idealpoint_name, verbose=TRUE)
 merged_acrossed_surveys_list<-ret_merged_for_idealpoint_and_pp_df_list(survey_data_imputed, dataset_in_scriptsfile_directory, minuspolicy=FALSE)
 plotvars<-base::intersect(plotvars, names(merged_acrossed_surveys_list[[1]])) %>%
   c("policyidealpoint_cos_similarity_to_median_scaled", "policyidealpoint_eucli_distance_to_median_scaled")
+#https://cran.r-project.org/web/packages/srvyr/vignettes/srvyr-vs-survey.html
+#https://dcava.github.io/wpp/production_code.html
+
+if (FALSE) {
+  implist<-mitools::imputationList(merged_acrossed_surveys_list)
+  des<-survey::svydesign(ids=~1,weight=~myown_wr,data=implist)
+  
+  custom_return_var_from_svyimp<-function (formula, design, breaks = "Sturges", include.lowest = TRUE, 
+                                           right = TRUE, xlab = NULL, main = NULL, probability = TRUE, 
+                                           freq = !probability, ...)  {
+    mf <- stats::model.frame(
+      formula,
+      stats::model.frame(design),
+      na.action = na.pass)
+    #if (ncol(mf) > 1) 
+    #  stop("Only one variable allowed.")
+    variable <- mf[, 1]
+    varname <- names(mf)
+    return(variable)
+  }
+  t<-survey:::with.svyimputationList(des,custom_return_var_from_svyimp(~myown_age_overallscaled))
+  t<-survey:::with.svyimputationList(des,survey::svyhist(~policyidealpoint_cos_similarity_to_median,freq=TRUE))
+  t<-survey:::with.svyimputationList(des,survey::svyboxplot(myown_factoredparticip~myown_factoredses_scaled))
+  plot(t)
+  
+}
+
+
+sourcedatadf<-merged_acrossed_surveys_list[[1]]
+sourcedatadf<-lapply(merged_acrossed_surveys_list, dplyr::select, -policyidealpoint_cos_similarity_to_median_ordinal) %>%
+  plyr::rbind.fill()  %>%
+  dplyr::mutate(policyidealpoint_cos_similarity_to_median_ordinal=cut(policyidealpoint_cos_similarity_to_median,breaks=17,right=TRUE,include.lowest=TRUE,ordered_result=TRUE))
+
 for (plotvar in plotvars) {
   message(plotvar)
-  fillvar<-"myown_factoredparticip_ordinal"
-  fillvar<-"policyidealpoint_cos_similarity_to_median_ordinal"
-  for (usingweightvar in c("myown_wr","")) {
-    if_wr_filename_suffix<-if(usingweightvar=="myown_wr") "" else "_before_wr"
-    n_bins<-if(plotvar %in% c("myown_age_overallscaled")) 80 else ""
-    resplot<-dplyr::filter(merged_acrossed_surveys_list[[1]]) %>%
-      custom_plot(., fvar=plotvar, weightvar=usingweightvar, fillvar=fillvar, n_bins=n_bins)
-    targetsavefilename<-here::here(paste0("plot/idp_pp/idp/",plotvar,"_fill_",fillvar,if_wr_filename_suffix,".png"))
-    ggplot2::ggsave(filename=targetsavefilename, plot=resplot)
-    print(resplot)
+  for (fillvar in c("policyidealpoint_cos_similarity_to_median_ordinal","myown_factoredparticip_ordinal")) {
+    savepath_after<-if (fillvar=="policyidealpoint_cos_similarity_to_median_ordinal") "idp/" else "pp/"
+    for (usingweightvar in c("myown_wr","")) {
+      if_wr_filename_suffix<-if(usingweightvar=="myown_wr") "" else "_before_wr"
+      n_bins<-if(plotvar %in% c("myown_age_overallscaled")) 80 else ""
+      resplot<-sourcedatadf %>%
+        custom_plot(., fvar=plotvar, weightvar=usingweightvar, fillvar=fillvar, n_bins=n_bins)
+      targetsavefilename<-here::here(paste0("plot/idp_pp/",savepath_after,plotvar,"_fill_",fillvar,if_wr_filename_suffix,".png"))
+      message(paste("saving to",targetsavefilename))
+      ggplot2::ggsave(filename=targetsavefilename, plot=resplot)
+      print(resplot)
+    }
   }
 }
 
 # boxplot and scatter and trend plot --------
 for (plotvar in plotvars) {
-  fillvar<-"myown_factoredparticip_overallscaled"
-  fillvar<-"policyidealpoint_cos_similarity_to_median"
-  fillvar_title<-if(fillvar=="myown_factoredparticip_overallscaled") "political participation" else "ideal point(cosine similarity to L1median)"
-  plotvar_title<-gsub(pattern="myown_",replacement="",plotvar)
-  for (usingweightvar in c("","myown_wr")) {
-    if_wr_filename_suffix<-if(usingweightvar=="myown_wr") "" else "_before_wr"
-    if (usingweightvar!="") {
-      df_weight<-magrittr::extract2(merged_acrossed_surveys_list[[1]],usingweightvar)
-      sum_df_weight<-sum(df_weight)
-      ggplotweight<-df_weight/sum_df_weight
-    }
-    message(paste("now in",plotvar,"and weight is",usingweightvar))
-    if ("factor" %in% class(merged_acrossed_surveys_list[[1]][,plotvar])) {
-      outputplot<-ggplot2::ggplot(merged_acrossed_surveys_list[[1]],ggplot2::aes(
-        x=.data[[plotvar]],
-        y=.data[[fillvar]],
-        colour=.data[[plotvar]],
-        weight={if (usingweightvar=="") 1 else ggplotweight}
+  for (fillvar in c("myown_factoredparticip_overallscaled","policyidealpoint_cos_similarity_to_median")) {
+    savepath_after<-if (fillvar=="myown_factoredparticip_overallscaled") "pp/" else "idp/"
+    fillvar_title<-if(fillvar=="myown_factoredparticip_overallscaled") "political participation" else "ideal point(cosine similarity to L1median)"
+    plotvar_title<-gsub(pattern="myown_",replacement="",plotvar)
+    for (usingweightvar in c("","myown_wr")) {
+      if_wr_filename_suffix<-if(usingweightvar=="myown_wr") "" else "_before_wr"
+      if (usingweightvar!="") {
+        df_weight<-sourcedatadf %>%
+          magrittr::extract2(.,usingweightvar)
+        sum_df_weight<-sum(df_weight)
+        ggplotweight<-df_weight/sum_df_weight
+      }
+      message(paste("now in",plotvar,"and weight is",usingweightvar))
+      if ("factor" %in% class(sourcedatadf[,plotvar])) {
+        outputplot<-ggplot2::ggplot(sourcedatadf,ggplot2::aes(
+          x=.data[[plotvar]],
+          y=.data[[fillvar]],
+          colour=.data[[plotvar]],
+          weight={if (usingweightvar=="") 1 else ggplotweight}
         ))+#,weight=.data[[usingweightvar]]
-        ggplot2::geom_boxplot(width=.5,outlier.shape = 1)+
-        ggplot2::labs(title=paste("Boxplot of",fillvar_title,"by",plotvar_title))+
-        ggplot2::theme(plot.title=ggplot2::element_text(hjust = 0.5,face="bold",size=11))
-    } else if ("numeric" %in% class(merged_acrossed_surveys_list[[1]][,plotvar])) {
-      outputplot<-ggplot2::ggplot(merged_acrossed_surveys_list[[1]],ggplot2::aes(
-        x=.data[[plotvar]],
-        y=.data[[fillvar]],
-        weight={if (usingweightvar=="") 1 else ggplotweight}
-        ))+
-        ggplot2::geom_point()+
-        ggplot2::geom_smooth()+
-        ggplot2::labs(title=paste("Scatter plot of",fillvar_title,"and",plotvar_title))+
-        ggplot2::theme(plot.title=ggplot2::element_text(hjust = 0.5,face="bold",size=12))
+          ggplot2::geom_boxplot(width=.5,outlier.shape = 1)+
+          ggplot2::labs(title=paste("Boxplot of",fillvar_title,"by",plotvar_title))+
+          ggplot2::theme(plot.title=ggplot2::element_text(hjust = 0.5,face="bold",size=11))
+      } else if ("numeric" %in% class(sourcedatadf[,plotvar])) {
+        outputplot<-sourcedatadf %>%
+          ggplot2::ggplot(.,ggplot2::aes(
+            x=.data[[plotvar]],
+            y=.data[[fillvar]],
+            weight={if (usingweightvar=="") 1 else ggplotweight}
+          ))+
+          ggplot2::geom_point()+
+          ggplot2::geom_smooth()+
+          ggplot2::labs(title=paste("Scatter plot of",fillvar_title,"and",plotvar_title))+
+          ggplot2::theme(plot.title=ggplot2::element_text(hjust = 0.5,face="bold",size=12))
+      }
+      targetsavefilename<-here::here(paste0("plot/idp_pp/inf_plot_",savepath_after,"infplot_",fillvar,"_by_",plotvar,if_wr_filename_suffix,".png"))
+      message(paste("saving to",targetsavefilename))
+      ggplot2::ggsave(filename=targetsavefilename, plot=outputplot)
+      print(outputplot)
     }
-    targetsavefilename<-here::here(paste0("plot/idp_pp/inf_plot_idealpoint/infplot_",fillvar,"_by_",plotvar,if_wr_filename_suffix,".png"))
-    ggplot2::ggsave(filename=targetsavefilename, plot=outputplot)
-    print(outputplot)
   }
 }
 
 for (needfvar in c("policyidealpoint_cos_similarity_to_median","policyidealpoint_euclid_distance_to_median")) {
-  outputplot<-custom_plot(merged_acrossed_surveys_list[[1]], fvar=needfvar, weightvar="myown_wr")
+  outputplot<-custom_plot(sourcedatadf, fvar=needfvar, weightvar="myown_wr")
   targetsavefilename<-here::here(paste0("plot/idealpoints/",needfvar,".png"))
   ggplot2::ggsave(filename=targetsavefilename, plot=outputplot)
   print(outputplot)

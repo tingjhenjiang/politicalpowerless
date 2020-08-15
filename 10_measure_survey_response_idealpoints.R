@@ -291,16 +291,26 @@ if (FALSE) {
 }
 if (FALSE) {
   load(file=survey_idealpoints_mirt_models_file, verbose=TRUE)
-  for (mirt_model_on_survey_key in names(survey_idealpoints_mirt_models)) {
-    mirtsurveyresult<-custom_mirt_coef_to_df(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], printSE = TRUE)
-    write.csv(mirtsurveyresult, file="TMP.csv")
+  needimps<-custom_ret_appro_kamila_clustering_parameters()
+  need_survey_idealpoints_mirt_models_keys<-names(survey_idealpoints_mirt_models)
+  need_survey_idealpoints_mirt_models_keys<-dplyr::semi_join(distincted_survey_parallelfa_arguments_df_runonly,needimps) %>%
+    magrittr::use_series("runmirt_store_key")
+  mirtsurveyresults<-list()
+  for (mirt_model_on_survey_key in need_survey_idealpoints_mirt_models_keys) {
+    mirtsurveyresult<-custom_mirt_coef_to_df(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], printSE = TRUE) %>%
+      data.frame(key=mirt_model_on_survey_key, .)
+    mirtsurveyresults[[mirt_model_on_survey_key]]<-mirtsurveyresult
     #View(mirtsurveyresult)
-    mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="none") %>% print()
-    readline(paste("now in",mirt_model_on_survey_key,"unrotated, continue?"))
-    mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="varimax") %>% print()
-    #mirt::itemfit(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>% print()
-    readline(paste("now in",mirt_model_on_survey_key,"rotated, continue?"))
+    if (FALSE) {
+      mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="none") %>% print()
+      readline(paste("now in",mirt_model_on_survey_key,"unrotated, continue?"))
+      mirt:::summary(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], rotate="varimax") %>% print()
+      #mirt::itemfit(survey_idealpoints_mirt_models[[mirt_model_on_survey_key]], QMC=TRUE) %>% print()
+      readline(paste("now in",mirt_model_on_survey_key,"rotated, continue?"))
+    }
   }
+  plyr::rbind.fill(mirtsurveyresults) %>%
+    write.csv(file="TMP.csv")
 }
 
 # checking which model is better among different dimensions --------------------------------

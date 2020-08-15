@@ -99,26 +99,26 @@ needimps_with_construct_nclass<-needimps %>%
 formula_reduction_args<-dplyr::bind_rows(
   data.frame("survey"="2016citizen","construct"=c("a1","a2","a3","a4","a5","a6","a7","a8","a9","a10","a11","a12"),
              "modelformula"=c(
-               "cbind(d5f,d6b,d5e,d5b,d7j,d6f,d7k,d7b,d6g,d7g,d7e,d7a,d7h,d7i,d7c,d7f,d7d)~1",
+               "cbind(d5e,d5b,d7j,d6f,d7k,d7b,d6g,d7g,d7e,d7a,d7h,d7i,d7c,d7f,d7d)~1",
                "cbind(d2a,d2b,d3b,d3a)~1",
                "cbind(d13a,d13b,d14b,d11b,d14a)~1",
-               "cbind(c12,c13,f3,f5,f4)~1",
+               "cbind(c12,f3,f5,f4)~1",
                "cbind(c2,c3,c1a,c1b,c1c,c1e,c1d)~1",
-               "cbind()~1",
-               "cbind(d6g,d17c,d6f,d5e,d5f,c1a)~1",
-               "cbind(d17a,d5c,c10,c3,d7f,d7i,d7k,d7b,d7g,d7j)~1",
-               "cbind(d14b,d14a,d14c,d11b,d13a,d11a,d13b)~1",
+               "cbind(d8a,d8b)~1",
+               "cbind(d6g,d17c,d6f,d5e,d5f)~1",
+               "cbind(d17a,c10,d7g,d7j)~1",
+               "cbind(d14b,d14a,d14c,d11b,d13a)~1",
                "cbind(d6c,d6b,d6a,d6d,d6g,d6h,d6f,d6e)~1",
-               "cbind(c4,d7b,d5a,d7j,d5b,d5d)~1",
-               "cbind(d5c,c13,c12)~1"
+               "cbind(d5a,d5b,d5d)~1"#,
+               #"cbind( )~1"
              )),
   data.frame("survey"="2010overall","construct"=c("a2","a3","a4","a5","a6"),
              "modelformula"=c(
-               "cbind(v78e,v78h,v78d,v78g,v78f)~1",
+               "cbind(v78i,v68g,v78b,v39c,v78c,v78e,v78h,v78d,v78g,v78f)~1",
                "cbind(v78i,v78a,v78e,v78b)~1",
                "cbind(v39e,v39d)~1",
                "cbind(v40,v27b)~1",
-               "cbind(v78d,v78c,v39c)~1"
+               "cbind(v78d,v78c)~1"
              ))
 ) %>%
   cbind(., imp = rep(imps, each = nrow(.))) %>%
@@ -484,6 +484,16 @@ if ({record_myown_religion<-FALSE; record_myown_religion}) {
     `9`="[9] 其他,請說明",
     .ordered = FALSE)
 }
+
+# pick common factor ====
+
+vec1<-stri_split("v78d	v78c	v39c	v68g", regex="\\t") %>% unlist()
+vec2<-stri_split("v78h	v78i	v78a	v78e	v78b", regex="\\t") %>% unlist()
+vec3<-stri_split("v78h	v78i	v78a	v78e	v78b", regex="\\t") %>% unlist()
+vec4<-stri_split("v78b	v78e	v78a	v78i	v78h", regex="\\t") %>% unlist()
+vec5<-stri_split("v78g	v78i	v78a	v78e	v78b", regex="\\t") %>% unlist()
+vec6<-stri_split("v78h	v78i	v78a	v78e	v78b", regex="\\t") %>% unlist()
+Reduce(base::intersect, list(vec1,vec2,vec3,vec4,vec5,vec6)) %>% paste0(sep=",") %>% message()
 
 # test：CDM::slca ====================
 need_formula_reduction_args <- needimps %>%

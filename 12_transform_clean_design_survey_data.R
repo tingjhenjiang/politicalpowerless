@@ -471,7 +471,7 @@ complete_survey_dataset <- mapply(function(X,Y) {
   dplyr::select(-tidyselect::any_of(c("zip","village","wave","qtype","myown_industry","myown_job","villagefullname","myown_family_income_ingroup","SURVEYQUESTIONID"))) %>%
   dplyr::select(-tidyselect::any_of(c("term1","term2","year","year_m","sm"))) %>%#,-sd,-myown_int_pol_efficacy,-myown_ext_pol_efficacy,-myown_constituency_party_vote
   dplyr::select(!dplyr::ends_with("NA")) %>%
-  dplyr::select(-tidyselect::any_of(c("myown_eduyr","myown_occp","myown_ses","myown_income","myown_family_income","myown_dad_ethgroup","myown_mom_ethgroup","myown_working_status","myown_job_status","myown_familymembers_num","myown_selfid_population","myown_hire_people_no","myown_manage_people_no","myown_constituency_party_vote","myown_online_time"))) %>%
+  dplyr::select(-tidyselect::any_of(c("myown_eduyr","myown_occp","myown_ses","myown_dad_ethgroup","myown_mom_ethgroup","myown_working_status","myown_job_status","myown_familymembers_num","myown_selfid_population","myown_hire_people_no","myown_manage_people_no","myown_constituency_party_vote","myown_online_time"))) %>%
   dplyr::mutate_at(c("SURVEY","admincity","admindistrict","adminvillage","value_on_q_variable"),as.factor) %>%
   dplyr::mutate_at("id", as.integer) %>%
   dplyr::mutate_at(c("stratum","psu","ssu"), as.factor) %>%
