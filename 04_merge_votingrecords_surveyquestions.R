@@ -934,12 +934,12 @@ for (key in names(myown_vote_record_df_wide)) {
 
 # 第三部分：立法委員資料與投票資料合併  -------------------------------------------
 
-mergedf_votes_bills_surveyanswer <- dplyr::distinct(legislators_with_elections,term,legislator_name,legislator_party,legislator_sex,seniority,legislator_age,incumbent,elec_dist_type) %>%
+mergedf_votes_bills_surveyanswer <- dplyr::distinct(as.data.frame(legislators_with_elections),term,legislator_name,legislator_party,legislator_sex,seniority,legislator_age,incumbent,elec_dist_type) %>%
   dplyr::mutate_at("term", as.numeric) %>%
   #dplyr::mutate_at(c("seniority"), ~as.numeric(scale(.))) %>%
-  dplyr::left_join(myown_vote_record_df, ., by=c("term","legislator_name")) %>%
+  dplyr::left_join(as.data.frame(myown_vote_record_df), ., by=c("term","legislator_name")) %>%
   dplyr::distinct(votedecision,legislator_name,billid_myown,legislator_party,legislator_sex,seniority,legislator_age,incumbent,elec_dist_type) %>%
-  dplyr::left_join(dplyr::filter(myown_vote_record_df, term %in% terms), .) %>%
+  dplyr::left_join(dplyr::filter(as.data.frame(myown_vote_record_df), term %in% terms), .) %>%
   dplyr::filter(!is.na(legislator_party)) %>% 
 
   #above are myown_vote_record_df_with_party
@@ -990,13 +990,13 @@ mergedf_votes_bills_surveyanswer <- mergedf_votes_bills_surveyanswer %>%
   mutate_cond( (opiniondirectionfromconstituent!=opiniondirectionfrombill & opiniondirectionfromconstituent != "x" & opiniondirectionfromconstituent != "b") & (billresult=="NotPassed"), success_on_bill=1 ) %>%
   mutate_cond(votedecision=="贊成", opiniondirectionfromlegislator=opiniondirectionfrombill) %>%
   mutate_cond(votedecision=="反對", opiniondirectionfromlegislator=dplyr::recode(opiniondirectionfrombill,
-    "n"="m","m"="n",
-    "cpg"="NOTcpg","NOTcpg"="cpg","envenerg"="NOTenvenerg","NOTenvenerg"="envenerg","nuenerg"="NOTnuenerg","NOTnuenerg"="nuenerg",
-    "crop"="NOTcrop","NOTcrop"="crop","otherenerg"="NOTotherenerg","NOTotherenerg"="otherenerg",
-    "NOTgovpushrichpeoplemore"="govpushrichpeoplemore","NOTgovmore"="govmore","NOTnoint"="noint","NOTpoorontheirown"="poorontheirown",
-    "govpushrichpeoplemore"="NOTgovpushrichpeoplemore","govmore"="NOTgovmore","noint"="NOTnoint","poorontheirown"="NOTpoorontheirown",
-    "bygov"="NOTbygov","byent"="NOTbyent","bynpo"="NOTbynpo","byrelg"="NOTbyrelg","byfamily"="NOTbyfamily",
-    "NOTbygov"="bygov","NOTbyent"="byent","NOTbynpo"="bynpo","NOTbyrelg"="byrelg","NOTbyfamily"="byfamily"
+    "n"="m","m"="n"#,
+    # "cpg"="NOTcpg","NOTcpg"="cpg","envenerg"="NOTenvenerg","NOTenvenerg"="envenerg","nuenerg"="NOTnuenerg","NOTnuenerg"="nuenerg",
+    # "crop"="NOTcrop","NOTcrop"="crop","otherenerg"="NOTotherenerg","NOTotherenerg"="otherenerg",
+    # "NOTgovpushrichpeoplemore"="govpushrichpeoplemore","NOTgovmore"="govmore","NOTnoint"="noint","NOTpoorontheirown"="poorontheirown",
+    # "govpushrichpeoplemore"="NOTgovpushrichpeoplemore","govmore"="NOTgovmore","noint"="NOTnoint","poorontheirown"="NOTpoorontheirown",
+    # "bygov"="NOTbygov","byent"="NOTbyent","bynpo"="NOTbynpo","byrelg"="NOTbyrelg","byfamily"="NOTbyfamily",
+    # "NOTbygov"="bygov","NOTbyent"="byent","NOTbynpo"="bynpo","NOTbyrelg"="byrelg","NOTbyfamily"="byfamily"
   )) %>%
   # 反對核電怎麼編碼？
   mutate_cond(opiniondirectionfromconstituent!=opiniondirectionfromlegislator, respondopinion=0) %>%
@@ -1012,9 +1012,10 @@ mergedf_votes_bills_surveyanswer <- mergedf_votes_bills_surveyanswer %>%
   dplyr::select(-tidyselect::any_of(c("url.x","url.y","pp_keyword.x","pp_keyword.y","billcontent.x","billcontent.y","SURVEYANSWERVALUE","LABEL","QUESTION"))) %>%
   dplyr::select(-tidyselect::any_of(c("yrmonth","pp_groupbased","pp_propose_advanceforagenda","period","temp_meeting_no","meetingno","billn","billresult","opinionstrength","issue_field_importance"))) %>%
   #dplyr::select(!dplyr::starts_with("billarea0")) %>%
-  dplyr::select(!starts_with("opiniondirection")) %>%
-  dplyr::select(!starts_with("opinionfrom")) %>%
-  dplyr::select(-tidyselect::any_of(c("legislator_age","incumbent","legislator_party","legislator_sex","seniority","votedecision"))) %>%
+  dplyr::select(!dplyr::starts_with("opiniondirection")) %>%
+  dplyr::select(!dplyr::starts_with("opinionfrom")) %>%
+  dplyr::select(-tidyselect::any_of(c("votedecision"))) %>%
+  dplyr::select(-tidyselect::any_of(c("legislator_age","incumbent","legislator_party","legislator_sex","seniority"))) %>%
   dplyr::mutate_at(c("legislator_name","salient","billid_myown"), as.factor) %>%
   dplyr::mutate_at(dplyr::vars(tidyselect::contains("billarea0")), ~as.factor(as.character(.))) %>%
   {
