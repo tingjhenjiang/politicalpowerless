@@ -108,7 +108,7 @@ if (TRUE) {
 
 if ({mergingoverlldf<-FALSE; mergingoverlldf & running_bigdata_computation}) {
   load(paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"), verbose=TRUE)
-  complete_survey_dataset %<>% dplyr::filter(newimp==1) %>%
+  complete_survey_dataset %<>% dplyr::filter(newimp %in% 1:6) %>%
     dplyr::mutate(id_wth_survey=paste0(SURVEY,id)) %>%
     dplyr::mutate_at("id_wth_survey", as.factor)
   load(paste0(dataset_in_scriptsfile_directory, "mergedf_votes_bills_surveyanswer.RData"), verbose=TRUE)
@@ -199,7 +199,7 @@ if (mergingoverlldf & running_bigdata_computation) {
 
 if (running_bigdata_computation & loadbigdatadf) {
   if (FALSE) {
-    tinycolumns<-c("myown_wr","admindistrict","adminvillage","billid_myown","cluster_kamila","days_diff_survey_bill","days_diff_survey_bill_overallscaled","elec_dist_type","id_wth_survey","issuefield","legislator_name","myown_age_overallscaled","myown_areakind","myown_factoredparticip_overallscaled","myown_factoredses_overallscaled","myown_marriage","myown_selfid","myown_sex","myown_religion","seniority_overallscaled","party_pressure_overallscaled","partyGroup","partysize","adminparty","respondopinion","similarity_distance_overallscaled","SURVEY") %>%
+    tinycolumns<-c("myown_wr","admindistrict","adminvillage","billid_myown","cluster_kamila","days_diff_survey_bill","days_diff_survey_bill_overallscaled","elec_dist_type","id_wth_survey","issuefield","legislator_name","myown_age_overallscaled","myown_areakind","myown_factoredparticip_overallscaled","myown_factoredses_overallscaled","myown_income_scaled","myown_marriage","myown_selfid","myown_sex","myown_religion","seniority_overallscaled","party_pressure_overallscaled","partyGroup","partysize","adminparty","respondopinion","similarity_distance_overallscaled","SURVEY","newimp") %>%
       base::setdiff(c("elec_dist_type","admincity"))
     overall_nonagenda_df %<>% dplyr::select(!!tinycolumns)
     try(save(overall_nonagenda_df, file=paste0(save_dataset_in_scriptsfile_directory, "overall_nonagenda_df_tiny.RData")))

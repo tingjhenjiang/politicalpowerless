@@ -41,7 +41,8 @@ if (FALSE) {
   )
   for (plotvar in plotvars) {
     message(plotvar)
-    n_bins<-if(plotvar %in% c("party_pressure_overallscaled","seniority_overallscaled")) 100 else ""
+    n_bins<-if(plotvar %in% c("party_pressure_overallscaled","seniority_overallscaled")) 80 else ""
+    n_bins<-if(plotvar %in% c("myown_age_overallscaled")) 80 else ""
     for (weightvar in c("myown_wr","")) {
       filename_prefix<-if(weightvar=="") paste0(plotvar,"_before_wr") else plotvar
       resplot<-custom_plot(overall_nonagenda_df, fvar=plotvar, weightvar=weightvar, fillvar="respondopinion", n_bins=n_bins)

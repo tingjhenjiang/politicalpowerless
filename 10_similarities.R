@@ -63,8 +63,7 @@ similarities_bet_pp_ly_longdf<-custom_apply_thr_argdf(people_legislator_match, "
 }, datadf=survey_data_imputed, legislators_sim_basis=legislators_sim_basis, method=parallel_method) %>%
   plyr::rbind.fill() %>%
   dplyr::semi_join(needimps) %>%
-  dplyr::left_join(needimps) %>%
-  dplyr::filter(newimp==1)
+  dplyr::left_join(needimps)# %>% dplyr::filter(newimp %in% 1)
 
 
 #similarities_bet_pp_ly_longdf %<>% data.table::as.data.table()

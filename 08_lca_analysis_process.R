@@ -184,7 +184,8 @@ polca_models_inf<-return_polca_models_inf(polca_models,formula_reduction_args)
 
 shrink_polca_models_inf<-dplyr::arrange(polca_models_inf, bic, aic) %>%
   dplyr::mutate_at(c(".imp"), as.integer) %>%
-  dplyr::semi_join(needimps_with_construct_nclass) %>%
+  dplyr::semi_join(needimps_with_construct_nclass %>%
+                     dplyr::mutate_at(c("nclass","imp",".imp"), as.integer)) %>%
   dplyr::group_by(survey, construct, imp) %>%
   dplyr::slice(1) %>%
   dplyr::ungroup() %>%
@@ -275,13 +276,37 @@ for (rowi in 1:nrow(shrink_polca_models_inf)) { #needpoLCAsurveys_with_imp
     }
     recode_constructclass_list[[survey_with_imp]][[needrow$construct]]<-tmp_recode_list
     if (readline("Next?")=="Y") {
-      save(shrink_polca_models_inf, recode_constructclass_list, file=paste0(dataset_in_scriptsfile_directory,"shrink_polca_models_inf.RData"))
+      #save(shrink_polca_models_inf, recode_constructclass_list, file=paste0(dataset_in_scriptsfile_directory,"shrink_polca_models_inf.RData"))
       break
     } else {
       recode_constructclass_list[[survey_with_imp]][[needrow$construct]]<-NULL
     }
   }
 }
+
+# output probability table ---------
+
+needrows<-dplyr::filter(shrink_polca_models_inf, customgrepl(storekey, pattern="(2010overall_imp2_|2016citizen_imp1_)" ) )
+neednewlst<-list()
+for (rowi in 1:nrow(needrows)) {
+  needrow<-needrows[rowi, ]
+  survey_with_imp<-paste0(needrow$survey,needrow$imp)
+  prefixinfstr<-paste("now in imp", needrow$imp, "c:", needrow$construct, needrow$constructname, "number of class is",needrow$nclass)
+  model<-needrow$storekey %>%
+    magrittr::extract2(polca_models, .)
+  lst<-model$probs
+  lst<-lst[order(names(lst))]
+  classdisplayname<-recode_constructclass_list[[survey_with_imp]][[needrow$construct]] %>% unlist()
+  newlst<-lapply(names(lst), function(X,lst,cdname,needrow) {
+    #data.frame("cdname"=cdname,X)
+    as.data.frame(lst[[X]]) %>%
+      cbind("cdname"=cdname,"construct"=X,"constructname"=as.character(needrow$constructname),.)
+  },lst=lst,cdname=classdisplayname,needrow=needrow) %>%
+    dplyr::bind_rows()
+  neednewlst[[rowi]]<-newlst
+}
+dplyr::bind_rows(neednewlst) %>% write.csv("TMP.csv")
+  
 
 need_shrink_polca_models_inf<-shrink_polca_models_inf
 #need_shrink_polca_models_inf %<>% dplyr::semi_join(t)

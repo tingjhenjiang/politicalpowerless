@@ -318,12 +318,19 @@ if (usingpackage=="brms" & running_bigdata_computation) {
   #"7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27","9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98"
   respondmodel_args<-data.frame("formula"=c(
     #"respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+days_diff_survey_bill_overallscaled*myown_sex+days_diff_survey_bill_overallscaled*myown_selfid+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+(issuefield|billid_myown)+(myown_factoredses_overallscaled|admindistrict/id_wth_survey)+(myown_sex|admindistrict/id_wth_survey)+(myown_selfid|admindistrict/id_wth_survey)+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+(1|admindistrict/id_wth_survey)+(seniority_overallscaled|partyGroup/legislator_name)+(cluster_kamila|admindistrict/id_wth_survey)+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY",
-    "respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+days_diff_survey_bill_overallscaled*myown_sex+days_diff_survey_bill_overallscaled*myown_selfid+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+issuefield+seniority_overallscaled+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY"#,
+    #basemod
+    #"respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+days_diff_survey_bill_overallscaled*similarity_distance_overallscaled+days_diff_survey_bill_overallscaled*myown_sex+days_diff_survey_bill_overallscaled*myown_selfid+similarity_distance_overallscaled*myown_factoredparticip_overallscaled+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+issuefield+seniority_overallscaled+(1|partyGroup/legislator_name)+party_pressure_overallscaled+partysize+SURVEY"#,
+    #simplemod
+    "respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+days_diff_survey_bill_overallscaled*cluster_kamila+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+issuefield+(1|partyGroup/legislator_name)+party_pressure_overallscaled+SURVEY"#,
+    #nullmod
     #"respondopinion~1+(1|billid_myown)+(1|partyGroup/legislator_name)+(1|adminvillage/id_wth_survey)+SURVEY"
+    #simp3mod
+    #"respondopinion~1+days_diff_survey_bill_overallscaled*myown_factoredparticip_overallscaled+days_diff_survey_bill_overallscaled*myown_factoredses_overallscaled+(days_diff_survey_bill_overallscaled|admindistrict/id_wth_survey)+(1|billid_myown)+(1|partyGroup/legislator_name)+party_pressure_overallscaled+SURVEY"#,
   ),stringsAsFactors=FALSE) %>%
+    cbind(., newimp = rep(1:6, each = nrow(.) )) %>%
     #cbind(., withindays = rep(c(1095,80), each = nrow(.) )) %>% #183
     #dplyr::mutate(storekey=paste0(c("2ndcorrected_obs_basemod_4levels","null"),withindays)) %>%
-    dplyr::mutate(storekey=paste0(c("2ndcorrected_obs_basemod_3levels_toadmindistrict_noadminvillage"))) %>%
+    dplyr::mutate(storekey=paste0("2ndcorrected_obs_simpmod_3levels_toadmindistrict_noadminvillage_imp",newimp)) %>%
     dplyr::mutate(file = paste0(respondmodels_file,storekey,".RData")) %>%
     dplyr::filter(!(formula %in% !!all_respondmodels_keys))
   if (FALSE) { #test
@@ -331,64 +338,64 @@ if (usingpackage=="brms" & running_bigdata_computation) {
       dplyr::mutate(respondopinion_conti=as.integer(respondopinion)) %>%
       dplyr::mutate_if(is.factor, droplevels)
   }
-  fi<-1
-  fikey<-respondmodel_args$storekey[fi]
-  loopargdf<-respondmodel_args
-  #respondmodels<-custom_apply_thr_argdf(respondmodel_args, "storekey", function(fikey, loopargdf, datadf, ...) {
-  argrow<-dplyr::filter(loopargdf, storekey==!!fikey)
-  
+  fi<-5:6
+  respondmodel_args_needed<-respondmodel_args[fi,]
+  respondmodels<-custom_apply_thr_argdf(respondmodel_args_needed, "storekey", function(fikey, loopargdf, datadf, ...) {
+    #loopargdf<-respondmodel_args
+    #fikey<-"storekey"
+    argrow<-dplyr::filter(loopargdf, storekey==!!fikey)
   #dplyr::filter(overall_nonagenda_df) %>% #, days_diff_survey_bill<=!!argrow$withindays
   #"7-7-0-17-3","7-7-0-17-4","7-7-0-17-22","7-7-0-17-27","7-7-0-17-29","7-7-0-17-30",
   #,"9-3-0-10-1","9-3-0-15-1","9-3-1-2-1","9-3-1-2-2","9-3-1-2-3","9-3-1-2-4","9-3-1-2-5","9-3-1-2-6","9-3-1-2-7","9-3-1-2-8","9-3-1-3-4","9-3-1-3-5","9-3-1-3-6","9-3-1-3-8","9-3-1-3-11","9-3-1-3-12","9-3-1-3-13","9-3-1-3-14","9-3-1-3-15","9-3-1-3-16","9-3-1-3-17","9-3-1-3-18","9-3-1-3-20","9-3-1-3-21","9-3-1-3-22","9-3-1-3-23","9-3-1-3-24","9-3-1-3-25","9-3-1-3-26","9-3-1-3-28"
   #reason for 3823: older bills 許添財 賴清德
-  
-  respondmodels<-dplyr::select(overall_nonagenda_df, -tidyselect::ends_with("NA")) %>%
-    dplyr::filter( billid_myown %in% !!c("7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27",
-                                         "7-6-0-15-8","7-6-0-15-11","7-6-0-15-12",
-                                         "9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98","9-2-0-17-34","9-2-0-17-35","9-2-0-17-36","9-2-0-17-37","9-2-0-17-38","9-2-0-17-39","9-2-0-17-41","9-2-0-17-61","9-2-1-1-2","9-2-1-1-4","9-2-1-1-5","9-2-1-2-1","9-2-1-2-2","9-2-1-2-3","9-2-1-2-4","9-2-1-2-5","9-2-1-2-14","9-2-1-2-18","9-2-1-2-42","9-2-1-2-47","9-2-1-2-53","9-2-1-2-55","9-2-1-2-58"
-                                         )) %>%
-    droplevels() %>%
-    {list(formula=as.formula(argrow$formula), data=., weights=magrittr::use_series(., "myown_wr"),
-          control=ordinal::clmm.control(maxIter=2000, maxLineIter=2000, innerCtrl = "noWarn"),
-          Hess=TRUE, model=TRUE, link="logit", threshold="flexible")} %>%
-    do.call(ordinal::clmm, args=.) %>%
-    try() 
-  tryn<-1
-  while (TRUE) {
-    loadsavestatus<-try({
-      load(file=argrow$file, verbose=TRUE)
-      all_respondmodels<-respondmodels %>%
-        list() %>%
-        magrittr::set_names(argrow$storekey) %>%
-        rlist::list.merge(all_respondmodels, .)
-      save(all_respondmodels, file=argrow$file)
-    })
-    tryn<-tryn+1
-    if(!is(loadsavestatus, 'try-error') | tryn>10) break
-  }
-  
-  # return(retmodel[[1]]) }, datadf=overall_nonagenda_df, mc.cores=1)
-  
-  if (FALSE) {
-    lapply(all_respondmodels, function(X) {try(ordinal:::summary.clmm(X))})
-    ordinal:::summary.clmm(all_respondmodels[[1]])
-  }
+    if (TRUE) {
+      
+      respondmodel<-dplyr::select(datadf, -tidyselect::ends_with("NA")) %>%
+        dplyr::filter( billid_myown %in% !!c("7-6-0-14-3","7-6-0-14-9","7-6-0-14-24","7-6-0-14-27",
+                                             "7-6-0-15-8","7-6-0-15-11","7-6-0-15-12",
+                                             "9-2-0-13-1","9-2-0-13-2","9-2-0-13-4","9-2-0-13-5","9-2-0-13-6","9-2-0-13-7","9-2-0-13-8","9-2-0-13-9","9-2-0-16-12","9-2-0-16-15","9-2-0-16-16","9-2-0-16-53","9-2-0-16-57","9-2-0-16-58","9-2-0-16-62","9-2-0-16-64","9-2-0-16-65","9-2-0-16-66","9-2-0-16-67","9-2-0-16-68","9-2-0-16-70","9-2-0-16-72","9-2-0-16-80","9-2-0-16-96","9-2-0-16-98","9-2-0-17-34","9-2-0-17-35","9-2-0-17-36","9-2-0-17-37","9-2-0-17-38","9-2-0-17-39","9-2-0-17-41","9-2-0-17-61","9-2-1-1-2","9-2-1-1-4","9-2-1-1-5","9-2-1-2-1","9-2-1-2-2","9-2-1-2-3","9-2-1-2-4","9-2-1-2-5","9-2-1-2-14","9-2-1-2-18","9-2-1-2-42","9-2-1-2-47","9-2-1-2-53","9-2-1-2-55","9-2-1-2-58"
+        ),
+        newimp==!!argrow$newimp) %>%
+        droplevels() %>%
+        {list(formula=as.formula(argrow$formula), data=., weights=magrittr::use_series(., "myown_wr"),
+              control=ordinal::clmm.control(maxIter=2000, maxLineIter=2000, innerCtrl = "noWarn"),
+              Hess=TRUE, model=TRUE, link="logit", threshold="flexible")} %>%
+        do.call(ordinal::clmm, args=.) %>%
+        try()
+      tryn<-1
+      while (FALSE) {
+        loadsavestatus<-try({
+          load(file=argrow$file, verbose=TRUE)
+          all_respondmodels<-respondmodels %>%
+            list() %>%
+            magrittr::set_names(argrow$storekey) %>%
+            rlist::list.merge(all_respondmodels, .)
+          save(all_respondmodels, file=argrow$file)
+        })
+        tryn<-tryn+1
+        if(!is(loadsavestatus, 'try-error') | tryn>10) break
+      }
+      return(respondmodel)
+    }
+  }, respondmodel_args_needed=respondmodel_args_needed, datadf=overall_nonagenda_df)
+
 }
 
 
 
 
   
-
-load(file=respondmodels_file, verbose=TRUE)
-if (length(all_respondmodels)==0 | identical(all_respondmodels, list(a=1))) {
-  all_respondmodels<-respondmodels
-} else {
-  all_respondmodels<-rlist::list.merge(all_respondmodels,respondmodels)
+if (FALSE) {
+  load(file=respondmodels_file, verbose=TRUE)
+  if (length(all_respondmodels)==0 | identical(all_respondmodels, list(a=1))) {
+    all_respondmodels<-respondmodels
+  } else {
+    all_respondmodels<-rlist::list.merge(all_respondmodels,respondmodels)
+  }
+  save(all_respondmodels,file=respondmodels_file)
 }
-save(all_respondmodels,file=respondmodels_file)
-message(respondmodel_args$file[fi])
-save(respondmodels,file=respondmodel_args$file[fi])
+message(respondmodel_args$file[fi][1])
+save(respondmodels,file=respondmodel_args$file[fi][1])
 
 # * model selection part -------------------
 if (FALSE) {
@@ -417,4 +424,34 @@ if (FALSE) {
   write.csv(cbind(t$coefficients,confint(respondmodels)), "TMP.csv")
   t$info
   coeft<-coef(summary(respondmodels))
+  
+  respmods<-list()
+  for (modimp in c(1:6)) {
+    try({
+      #load(file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/respondmodels.RData2ndcorrected_obs_basemod_3levels_toadmindistrict_noadminvillage_imp",modimp,".RData" ), verbose=TRUE)
+      load(file=paste0(save_dataset_in_scriptsfile_directory,"analyse_res/respondmodels.RData2ndcorrected_obs_simpmod_3levels_toadmindistrict_noadminvillage_imp",modimp,".RData" ), verbose=TRUE)
+      respmods[[as.character(modimp)]]<-respondmodels
+    })
+  }
+  needrespmods<-respmods#[c(1,3,4,5,6)]
+  t<-mice::as.mira(needrespmods)
+  pv<-mice::pool(t)
+  pooledppres<-pooling.clmm(t$analyses)
+  summarytable<-cbind(summary(pv), pooledppres$fixed_effects)
+  print(summarytable)
+  write.csv(summarytable, "TMP.csv")
+  print(pooledppres$random_dist)
+  lapply(respmods, function(X) {print(X$info$AIC)})
+  r_effect<-lapply(needrespmods, magrittr::extract2, "ST") %>%
+    unlist(unlist)
+  r_effect<-lapply(needrespmods, magrittr::extract2, "ST") %>%
+    {lapply(names(.[[1]]), function(key, list_of_reffect_result) {
+      lapply(list_of_reffect_result, function(Y,key) {magrittr::extract2(Y,key)}, key=key) %>%
+        {purrr::reduce(.,magrittr::add)/length(list_of_reffect_result)} %>%
+        as.data.frame()# %>%
+        #cbind("group"=key,.)
+    }, list_of_reffect_result=.)} %>%
+    {magrittr::set_names(.,names(needrespmods[[1]]$ST))} %>%
+    dplyr::bind_rows()
+    
 }
