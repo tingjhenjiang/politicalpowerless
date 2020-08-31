@@ -15,4 +15,6 @@
 
 # 原始碼與資源
 
-*   01_fetch_ly_meeting_record.R 此檔案中程式碼可用來爬下立法院議事錄中的投票紀錄。
+*   01_fetch_ly_meeting_record.R 此檔案中程式碼可用來爬下立法院議事錄HTML檔案。
+*   02_fetch_ly_decision_and_votes.R 此檔案中程式碼可用來解析結構化立法委員在每個議案的投票紀錄。
+*   02_fetch_ly_decision_and_votes_term56older.R 此檔案中程式碼可用來解析結構化較早屆次與會期中立法委員在每個議案的投票紀錄，涵蓋範圍自 立法院第5屆第5會期第1次臨時會第1次會議紀錄 至 立法院第6屆第3會期第10次會議紀錄。
