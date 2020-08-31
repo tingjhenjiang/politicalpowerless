@@ -1,0 +1,18 @@
+<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="創用 CC 授權條款" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/80x15.png" /></a><br /><span xmlns:dct="http://purl.org/dc/terms/" property="dct:title">平等權中政治上無力的概念、理論與測量</span>由<a xmlns:cc="http://creativecommons.org/ns#" href="https://doi.org/10.6342/NTU202003889" property="cc:attributionName" rel="cc:attributionURL">Ting-Jhen Jiang</a>創作，以<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">創用CC 姓名標示-非商業性 4.0 國際 授權條款</a>釋出。
+
+# Introduction
+
+這裡包含了所有「江廷振（2020）。〈平等權中政治上無力的概念、理論與測量〉（碩士論文）。國立臺灣大學法律學系，台北市。https://doi.org/10.6342/NTU202003889 」論文中的更正與補充，以及論文中使用的原始碼以及資源。
+原始碼以上述CC條款釋出，歡迎利用，但請依據CC條款標示姓名並且不得用以商業利用。違反者就全部所得利益數額有賠償義務。
+
+# 論文更正與補充
+
+*   頁55第1段：可能存在／不存在~~的二個~~<u>等</u>捷思」。
+*   頁12註解50：各種見解請參照下述章節~~錯誤! 找不到參照來源~~<u>2.2.2、3.1</u>部分。
+*   頁96註解280：請見各資料如註~~錯誤! 尚未定義書籤。~~244、245所示的資料使用說明及報告書」
+*   頁137 表六-7：選區立法委員回應性的回應性分析結果<u>（六個多重填補模型合併結果）</u>
+*   頁156 ：黃昭元 （著）（2017）。〈從平等理論的演進檢討實質平等觀在憲法適用上的難題〉。收於李建良（主編），《憲法解釋之理論與實務》<u>[Evolution of Equality Theory and Difficulties Concerning the Constitutional Application of the Conception of Substantive Equality]</u>，第九冊，頁 271-312。 臺北市： 中央研究院法律學研究所。 取自 http://publication.iias.sinica.edu.tw/72217161.pdf 。
+
+# 原始碼與資源
+
+*   01_fetch_ly_meeting_record.R 此檔案中程式碼可用來爬下立法院議事錄中的投票紀錄。
