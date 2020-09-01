@@ -1,8 +1,8 @@
-<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="創用 CC 授權條款" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/80x15.png" /></a><br /><span xmlns:dct="http://purl.org/dc/terms/" property="dct:title">平等權中政治上無力的概念、理論與測量</span>由<a xmlns:cc="http://creativecommons.org/ns#" href="https://doi.org/10.6342/NTU202003889" property="cc:attributionName" rel="cc:attributionURL">Ting-Jhen Jiang</a>創作，以<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">創用CC 姓名標示-非商業性 4.0 國際 授權條款</a>釋出。
+<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/"><img alt="創用 CC 授權條款" style="border-width:0" src="https://i.creativecommons.org/l/by-nc/4.0/80x15.png" /></a><br /><span xmlns:dct="http://purl.org/dc/terms/" property="dct:title">平等權中政治上無力的概念、理論與測量</span>論文與相關程式碼由<a xmlns:cc="http://creativecommons.org/ns#" href="https://doi.org/10.6342/NTU202003889" property="cc:attributionName" rel="cc:attributionURL">Ting-Jhen Jiang</a>創作，以<a rel="license" href="http://creativecommons.org/licenses/by-nc/4.0/">創用CC 姓名標示-非商業性 4.0 國際 授權條款</a>釋出。
 
 # Introduction
 
-這裡包含了所有「江廷振（2020）。〈平等權中政治上無力的概念、理論與測量〉（碩士論文）。國立臺灣大學法律學系，台北市。https://doi.org/10.6342/NTU202003889 」論文中的更正與補充，以及論文中使用的原始碼以及資源。
+這裡包含了所有「江廷振（2020）。〈平等權中政治上無力的概念、理論與測量〉（碩士論文）。國立臺灣大學法律學系，台北市。https://doi.org/10.6342/NTU202003889 」論文中的更正與補充，以及論文中使用的原始碼以及資源。若上述doi網址顯示無資料（因為學校尚未建檔完成關係），[可先連結至此](https://1drv.ms/b/s!AjdlodN9seQ5gvgCcNlBicptM1SrRg?e=UsVWOT)。
 原始碼以上述CC條款釋出，歡迎利用，但請依據CC條款標示姓名並且不得用以商業利用。違反者就全部所得利益數額有賠償義務。
 
 # 論文更正與補充
