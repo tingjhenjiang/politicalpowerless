@@ -10,6 +10,7 @@
 *   頁55第1段：可能存在／不存在~~的二個~~ <ins>等</ins>捷思」。
 *   頁12註解50：各種見解請參照下述章節~~錯誤! 找不到參照來源~~ <ins>2.2.2、3.1</ins>部分。
 *   頁96註解280：請見各資料如註 ~~錯誤! 尚未定義書籤。~~ 244、245所示的資料使用說明及報告書」
+*   頁117：以及立法委員回應受訪者意見的資料（以下稱回應性資料，~~第一個填補資料集結果~~ <ins>六個多重填補資料集合併結果</ins>）
 *   頁137 表六-7：選區立法委員回應性的回應性分析結果<ins>（六個多重填補模型合併結果）</ins>
 *   頁156 ：黃昭元 （著）（2017）。〈從平等理論的演進檢討實質平等觀在憲法適用上的難題〉。收於李建良（主編），《憲法解釋之理論與實務》<ins>[Evolution of Equality Theory and Difficulties Concerning the Constitutional Application of the Conception of Substantive Equality]</ins>，第九冊，頁 271-312。 臺北市： 中央研究院法律學研究所。 取自 http://publication.iias.sinica.edu.tw/72217161.pdf 。
 
