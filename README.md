@@ -8,7 +8,7 @@
 # 論文更正與補充
 
 *   頁VII：Abstract：and summarizes the assumption<ins>s</ins> related to political~~ly~~ powerlessness
-*   頁XII圖目錄：圖五-~~3~~ <ins>1</ins>：多層次~~關係研究問題~~<ins>資料總體迴歸、分層迴歸、隨機截距與斜率的不同</ins>示意圖
+*   頁XII圖目錄：圖五-~~3~~<ins>1</ins>：多層次~~關係研究問題~~<ins>資料總體迴歸、分層迴歸、隨機截距與斜率的不同</ins>示意圖
 *   頁XII圖目錄：圖五-~~3~~<ins>2</ins>：<ins>追蹤資料的</ins>多層次~~關係研究問題~~<ins>結構</ins>示意圖
 *   頁XII圖目錄：圖五-3：多層次~~資料總體迴歸、分層迴歸、隨機截距與斜率的不同~~關係<ins>研究問題</ins>示意圖
 *   頁12註解50：各種見解請參照下述章節~~錯誤! 找不到參照來源~~ <ins>2.2.2、3.1</ins>部分。
@@ -21,6 +21,7 @@
 *   頁117：以及立法委員回應受訪者意見的資料（以下稱回應性資料，~~第一個填補資料集結果~~ <ins>六個多重填補資料集合併結果</ins>）
 *   頁137 表六-7：選區立法委員回應性的回應性分析結果<ins>（六個多重填補模型合併結果）</ins>
 *   頁156 ：黃昭元 （著）（2017）。〈從平等理論的演進檢討實質平等觀在憲法適用上的難題〉。收於李建良（主編），《憲法解釋之理論與實務》<ins>[Evolution of Equality Theory and Difficulties Concerning the Constitutional Application of the Conception of Substantive Equality]</ins>，第九冊，頁 271-312。 臺北市： 中央研究院法律學研究所。 取自 http://publication.iias.sinica.edu.tw/72217161.pdf 。
+*   頁199 ：附表 ~~8~~<ins>9</ins>：臺灣社會變遷調查2010綜合與2016公民問卷政策意向以不同的因素與主成分個數進行探索性試題反應理論因素分析後模型資訊參數
 
 # 原始碼與資源
 
