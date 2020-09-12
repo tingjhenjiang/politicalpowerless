@@ -22,6 +22,7 @@
 *   頁117：以及立法委員回應受訪者意見的資料（以下稱回應性資料，~~第一個填補資料集結果~~ <ins>六個多重填補資料集合併結果</ins>）
 *   頁137 表六-7：選區立法委員回應性的回應性分析結果<ins>（六個多重填補模型合併結果）</ins>
 *   頁156 ：黃昭元 （著）（2017）。〈從平等理論的演進檢討實質平等觀在憲法適用上的難題〉。收於李建良（主編），《憲法解釋之理論與實務》<ins>[Evolution of Equality Theory and Difficulties Concerning the Constitutional Application of the Conception of Substantive Equality]</ins>，第九冊，頁 271-312。 臺北市： 中央研究院法律學研究所。 取自 http://publication.iias.sinica.edu.tw/72217161.pdf 。
+*   頁166 ：Harksen v. Lane NO and Others, 1997 (11) Butterworths Constitutional Law Reports 1489 [1997] ZACC 12; 1998 (1) SA 300 (1997). Constitu<ins>t</ins>ional Court of South Africa. Retrieved from http://www.saflii.org/za/cases/ZACC/1997/12.html
 *   頁199 ：附表 ~~9~~<ins>8</ins>：臺灣社會變遷調查2010綜合與2016公民問卷政策意向以不同的因素與主成分個數進行探索性試題反應理論因素分析後模型資訊參數
 *   頁202 ：附表 ~~10~~<ins>9</ins>：2010綜合問卷政策意向試題反應理論構面分析結果（以第五填補資料集為例）
 *   頁204 ：附表 ~~11~~<ins>10</ins>：2016公民問卷政策意向試題反應理論構面分析結果（以第一填補資料集為例）
