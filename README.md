@@ -12,7 +12,10 @@
 *   頁XII圖目錄：圖五-~~3~~<ins>2</ins>：<ins>追蹤資料的</ins>多層次~~關係研究問題~~<ins>結構</ins>示意圖
 *   頁XII圖目錄：圖五-3：多層次~~資料總體迴歸、分層迴歸、隨機截距與斜率的不同~~關係<ins>研究問題</ins>示意圖
 *   頁12註解50：各種見解請參照下述章節~~錯誤! 找不到參照來源~~ <ins>2.2.2、3.1</ins>部分。
+*   頁13註解62：Harksen v. Lane NO and Others, 1997 (11) BCLR 1489, [1997] ZACC 12; 1998 (1) SA 300 (1997) (Constitu<ins>t</ins>ional Court of South Africa)
+*   頁14註解65：Larbi-Odam and Others v. Member of the Executive Council for Education, 1997 (12) BCLR 1655, [1997] ZACC 16; 1998 (1) SA 745 (1997) (Constitu<ins>t</ins>ional Court of South Africa)
 *   頁36：作為「自己很大方仁慈」的樣~~版~~<ins>板</ins>宣稱而已
+*   頁37註解116：Larbi-Odam and Others v. Member of the Executive Council for Education, 1997 (12) BCLR 1655, [1997] ZACC 16; 1998 (1) SA 745 (1997) (Constitu<ins>t</ins>ional Court of South Africa)
 *   頁55第1段：可能存在／不存在~~的二個~~ <ins>等</ins>捷思。
 *   頁62第1段：所有人的偏好加總起來是一個類似常態分布的單峰曲線~~政策~~。
 *   頁96註解280：請見各資料如註 ~~錯誤! 尚未定義書籤。~~ 244、245所示的資料使用說明及報告書」
@@ -23,6 +26,7 @@
 *   頁137 表六-7：選區立法委員回應性的回應性分析結果<ins>（六個多重填補模型合併結果）</ins>
 *   頁156 ：黃昭元 （著）（2017）。〈從平等理論的演進檢討實質平等觀在憲法適用上的難題〉。收於李建良（主編），《憲法解釋之理論與實務》<ins>[Evolution of Equality Theory and Difficulties Concerning the Constitutional Application of the Conception of Substantive Equality]</ins>，第九冊，頁 271-312。 臺北市： 中央研究院法律學研究所。 取自 http://publication.iias.sinica.edu.tw/72217161.pdf 。
 *   頁166 ：Harksen v. Lane NO and Others, 1997 (11) Butterworths Constitutional Law Reports 1489 [1997] ZACC 12; 1998 (1) SA 300 (1997). Constitu<ins>t</ins>ional Court of South Africa. Retrieved from http://www.saflii.org/za/cases/ZACC/1997/12.html
+*   頁167 ：Larbi-Odam and Others v. Member of the Executive Council for Education, 1997 (12) Butterworths Constitutional Law Reports 1655 [1997] ZACC 16; 1998 (1) SA 745 (1997). Constitu<ins>t</ins>ional Court of South Africa. Retrieved from http://www.saflii.org/za/cases/ZACC/1997/12.html
 *   頁199 ：附表 ~~9~~<ins>8</ins>：臺灣社會變遷調查2010綜合與2016公民問卷政策意向以不同的因素與主成分個數進行探索性試題反應理論因素分析後模型資訊參數
 *   頁202 ：附表 ~~10~~<ins>9</ins>：2010綜合問卷政策意向試題反應理論構面分析結果（以第五填補資料集為例）
 *   頁204 ：附表 ~~11~~<ins>10</ins>：2016公民問卷政策意向試題反應理論構面分析結果（以第一填補資料集為例）
