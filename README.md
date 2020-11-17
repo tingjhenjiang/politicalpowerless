@@ -7,6 +7,7 @@
 
 # 論文更正與補充
 
+*   頁VII：Abstract：This research therefore will focus <ins>on</ins> the conceptual and theoretical issues and empirical measurement of political powerlessness.
 *   頁VII：Abstract：and summarizes the assumption<ins>s</ins> related to political~~ly~~ powerlessness
 *   頁XII圖目錄：圖五-~~3~~<ins>1</ins>：多層次~~關係研究問題~~<ins>資料總體迴歸、分層迴歸、隨機截距與斜率的不同</ins>示意圖
 *   頁XII圖目錄：圖五-~~3~~<ins>2</ins>：<ins>追蹤資料的</ins>多層次~~關係研究問題~~<ins>結構</ins>示意圖
