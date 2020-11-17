@@ -26,6 +26,8 @@
 *   頁117：以及立法委員回應受訪者意見的資料（以下稱回應性資料，~~第一個填補資料集結果~~ <ins>六個多重填補資料集合併結果</ins>）
 *   頁137 表六-7：選區立法委員回應性的回應性分析結果<ins>（六個多重填補模型合併結果）</ins>
 *   頁156 ：黃昭元 （著）（2017）。〈從平等理論的演進檢討實質平等觀在憲法適用上的難題〉。收於李建良（主編），《憲法解釋之理論與實務》<ins>[Evolution of Equality Theory and Difficulties Concerning the Constitutional Application of the Conception of Substantive Equality]</ins>，第九冊，頁 271-312。 臺北市： 中央研究院法律學研究所。 取自 http://publication.iias.sinica.edu.tw/72217161.pdf 。
+*   頁156 ：鍾麗娜＆徐世榮（2012）。〈從權力的觀點審視土地徵收之結構性問題〉[Examining the Political-Economic Structure of Land Expropriation: From the Viewpoint of Power]。《社會科學論叢》，第6卷第2期，頁 69-99 。 ~~取自 https://nccur.lib.nccu.edu.tw/bitstream/140.119/70447/1/69100.pdf~~ <ins>https://doi.org/10.30401/RSS.201210_6(2).0003</ins>
+*   頁163 ：Poole, Keith T＆Rosenthal, Howard. (1985). A Spatial Model for Legislative Roll Call Analysis. American Journal of Political Science, 357-384. <ins>https://doi.org/10.2307/2111172</ins>
 *   頁166 ：Harksen v. Lane NO and Others, 1997 (11) Butterworths Constitutional Law Reports 1489 [1997] ZACC 12; 1998 (1) SA 300 (1997). Constitu<ins>t</ins>ional Court of South Africa. Retrieved from http://www.saflii.org/za/cases/ZACC/1997/12.html
 *   頁167 ：Larbi-Odam and Others v. Member of the Executive Council for Education, 1997 (12) Butterworths Constitutional Law Reports 1655 [1997] ZACC 16; 1998 (1) SA 745 (1997). Constitu<ins>t</ins>ional Court of South Africa. Retrieved from http://www.saflii.org/za/cases/ZACC/1997/12.html
 *   頁199 ：附表 ~~9~~<ins>8</ins>：臺灣社會變遷調查2010綜合與2016公民問卷政策意向以不同的因素與主成分個數進行探索性試題反應理論因素分析後模型資訊參數
