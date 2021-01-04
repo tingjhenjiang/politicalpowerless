@@ -2,7 +2,7 @@
 
 # Introduction
 
-這裡包含了所有「江廷振（2020）。〈平等權中政治上無力的概念、理論與測量〉（碩士論文）。國立臺灣大學法律學系，台北市。https://doi.org/10.6342/NTU202003889 」論文中的更正與補充，以及論文中使用的原始碼以及資源。若上述doi網址顯示無資料（因為學校尚未建檔完成關係），[可先連結至此](https://1drv.ms/b/s!AjdlodN9seQ5gvgCcNlBicptM1SrRg?e=UsVWOT)或[華藝線上圖書館](https://www.airitilibrary.com/Publication/alDetailedMesh1?DocID=U0001-1708202023555600)。
+這裡包含了所有「江廷振（2020）。〈平等權中政治上無力的概念、理論與測量〉（碩士論文）。國立臺灣大學法律學系，台北市。[https://doi.org/10.6342/NTU202003889](https://doi.org/10.6342/NTU202003889) 」論文中的更正與補充，以及論文中使用的原始碼以及資源。若上述doi網址顯示無資料（因為學校尚未建檔完成關係），[可先連結至此](https://1drv.ms/b/s!AjdlodN9seQ5gvgCcNlBicptM1SrRg?e=UsVWOT)或[華藝線上圖書館](https://www.airitilibrary.com/Publication/alDetailedMesh1?DocID=U0001-1708202023555600)。
 原始碼以上述CC條款釋出，歡迎利用，但請依據CC條款標示姓名並且不得用以商業利用。違反者就全部所得利益數額有賠償義務。
 
 # 論文更正與補充
