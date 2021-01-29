@@ -18,6 +18,7 @@
 *   頁36：作為「自己很大方仁慈」的樣~~版~~<ins>板</ins>宣稱而已
 *   頁37註解116：Larbi-Odam and Others v. Member of the Executive Council for Education, 1997 (12) BCLR 1655, [1997] ZACC 16; 1998 (1) SA 745 (1997) (Constitu<ins>t</ins>ional Court of South Africa)
 *   頁55第1段：可能存在／不存在~~的二個~~ <ins>等</ins>捷思。
+*   頁57第2段：也會使得議員本身在遵循民意與遵循黨意之間切~~斷~~ <ins>換</ins>變動。
 *   頁62第1段：所有人的偏好加總起來是一個類似常態分布的單峰曲線~~政策~~。
 *   頁76：~~。~~ 最後，近年來政治不平等最多被引用的重要研究
 *   頁88：先計算出資料間距離後，~~在~~<ins>再</ins>進行分群方法併行演算
