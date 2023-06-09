@@ -8,7 +8,7 @@
 #}
 #Sys.setenv(R_INSTALL_STAGED = FALSE)
 #lib<-c("stringi","stringr","XML","xml2","rvest","htmltidy","curl","RCurl","gdata","readr","DBI","lazyeval","dplyr","rmarkdown","rticles","knitr","data.table","ggplot2","scales","reshape2","janitor","stargazer","xtable","apa","tesseract","pdftools","tiff","schoolmath","jsonlite","foreign","MASS","class","caret","tm","kernlab","jiebaR","RTextTools","tmcn","text2vec","RODBC","xlsx")
-
+#conda install -c conda-forge r-bestnormalize r-sandwich r-desctools r-feather r-rcpparmadillo r-gtools r-here r-hmisc r-mice r-miceadds r-mirt r-openxlsx r-psych r-quantreg r-sparklyr r-survey r-benchmarkme
 lib<-c("stringi","readr","plyr","dplyr","magrittr","parallel") #,"openxlsx","XML","xml2","rvest","data.table","dtplyr"
 #install.packages("xml2", dependencies=TRUE, INSTALL_opts = c('--no-lock'))
 #,"Rcmdr"
@@ -36,50 +36,35 @@ parallel_method<-ifelse(check_if_windows(),"socks","fork")
 
 driverletter_prefixes <- c("C","D","E","F","G","V","X","Y","Z")
 filespath <- ifelse(check_if_windows(),
-  paste(driverletter_prefixes, ":\\Software\\scripts\\R\\vote_record\\",sep="", collapse=","),
+  file.path(paste0(driverletter_prefixes, ":"), "Software","scripts","R","vote_record"),
   "/home/j/rscripts/vote_record/"
   ) %>%
-  stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]}
+  stri_split(regex=",") %>% unlist() %>% c(.,here::here()) %>% {.[sapply(.,dir.exists)]}
 dataset_file_directory <- ifelse(
   check_if_windows(),
-  paste0(driverletter_prefixes, ":\\Users\\dowba\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",sep="", collapse=","),
+  file.path(paste0(driverletter_prefixes, ":"), "Users","dowba","OneDrive","OnedriveDocuments","NTU","Work","thesis","dataset(2004-2016)"),
   paste0(c(
-    paste0("/mnt/", tolower(driverletter_prefixes), "/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",sep=""),
-    paste0("/mnt/", tolower(driverletter_prefixes), "/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",sep="")
+    file.path("/mnt",tolower(driverletter_prefixes),"OneDrive","OnedriveDocuments","NTU","Work","thesis","dataset(2004-2016)"),
+    file.path("/mnt",tolower(driverletter_prefixes),"Users","dowba","OneDrive","OnedriveDocuments","NTU","Work","thesis","dataset(2004-2016)")
     ),collapse=",")
   ) %>%
   stri_split(regex=",") %>% unlist() %>% {.[sapply(.,dir.exists)]} %>%
-  ifelse(gtools::invalid(.), paste0(here::here(),slash,"data",slash), .)
-dataset_file_directory_rdata <- paste0(dataset_file_directory,"rdata",slash)
-#filespath<-switch(
-#  t_sessioninfo_running_with_cpu,
-#  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
-#  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="E:\\Software\\scripts\\R\\vote_record\\",
-#  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
-#  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/e/Software/scripts/R/vote_record/",
-#  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
-#  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/home/j/rscripts/vote_record/",
-#  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"=paste0(correct_driveletter,":\\Software\\scripts\\R\\vote_record\\"),
-#  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"=paste0(correct_driveletter,":\\Software\\scripts\\R\\vote_record\\"),
-#  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"=paste0(correct_driveletter,":\\Software\\scripts\\R\\vote_record\\"),
-#  "Windows10x64build17134Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"=paste0(correct_driveletter,":\\Software\\scripts\\R\\vote_record\\")
-#)
-
-
+  ifelse(gtools::invalid(.), file.path(here::here(),"data"), .)
+dataset_file_directory_rdata <- file.path(dataset_file_directory,"rdata")
 dataset_in_scriptsfile_directory <- switch(
   t_sessioninfo_running_with_cpu,
-  "Ubuntu18.04.3LTSIntel(R) Core(TM) i7-9750H CPU @ 2.60GHz"=paste0(filespath, "data", slash),
-  "Windows8x64build9200Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz"=paste0(filespath, "data", slash),
-  "Windows10x64build19041Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz"=paste0(filespath, "data", slash),
-  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
-  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=paste0(filespath, "data", slash),
-  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=paste0(filespath, "data", slash),
-  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=paste0(filespath, "data", slash),
-  "Ubuntu18.04.3LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=paste0(filespath, "data", slash),
-  "Ubuntu18.04.4LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=paste0(filespath, "data", slash),
-  "Ubuntu16.04.6LTSIntel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz"=paste0(here::here(),slash,"data",slash),
+  "Ubuntu18.04.3LTSIntel(R) Core(TM) i7-9750H CPU @ 2.60GHz"=file.path(filespath, "data"),
+  "Windows8x64build9200Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz"=file.path(filespath, "data"),
+  "Windows10x64build19041Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz"=file.path(filespath, "data"),
+  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=file.path(filespath, "data"),
+  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=file.path(filespath, "data"),
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=file.path(filespath, "data"),
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"=file.path(filespath, "data"),
+  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=file.path(filespath, "data"),
+  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=file.path(filespath, "data"),
+  "Ubuntu18.04.3LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=file.path(filespath, "data"),
+  "Ubuntu18.04.4LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"=file.path(filespath, "data"),
+  "Ubuntu16.04.6LTSIntel(R) Xeon(R) Platinum 8124M CPU @ 3.00GHz"=file.path(here::here(),"data"),
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\",
   "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\",
   "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\DOWNLOADS\\vote_record\\data\\",
@@ -96,23 +81,8 @@ dataset_in_scriptsfile_directory <- switch(
     } else if(is(., 'try-error')) {
       returnhere<-TRUE
     }
-    if (returnhere==TRUE) paste0(here::here(),slash,"data",slash) else NA
+    if (returnhere==TRUE) file.path(here::here(),"data") else NA
   }
-  #{ifelse((gtools::invalid(.) | !dir.exists(.) | !file.exists(paste0(., "shared_functions.R") )), paste0(here::here(),slash,"data",slash), .)}
-
-#dataset_file_directory <- switch(
-#  t_sessioninfo_running_with_cpu,
-#  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="C:\\Users\\r03a21033\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-#  "Windows7x64build7601ServicePack1Intel(R) Xeon(R) CPU E5-2660 v4 @ 2.00GHz"="C:\\Users\\r03a21033\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-#  "Windows8x64build9200Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="Y:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-#  "Windows10x64build17134Intel(R) Xeon(R) CPU E5-2650 v3 @ 2.30GHz"="Z:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-#  "Windows8x64build9200Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz" = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-#  "Windows10x64build17763Intel(R) Core(TM) i5-4210U CPU @ 1.70GHz" = "D:\\OneDrive\\OnedriveDocuments\\NTU\\Work\\thesis\\dataset(2004-2016)\\",
-#  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
-#  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/d/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
-#  "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/g/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/",
-#  "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/g/Users/dowba/OneDrive/OnedriveDocuments/NTU/Work/thesis/dataset(2004-2016)/"
-#)
 if (nchar(Sys.getenv("SPARK_HOME")) < 1) {
   Sys.setenv(SPARK_HOME = "/usr/local/spark")
 }
@@ -424,7 +394,7 @@ custom_read_file<-function(url, locale = default_locale()) {
     message(URLdecode(url))
     retryterm<-'(Timeout|403)'
     content<-tryCatch({
-      read_file(url,locale) #要執行的指令放這裡
+      readr::read_file(url,locale) #要執行的指令放這裡
     },warning = function(war){
       message("MY_WARNING:  ",war) #如果有warning則輸出warning,"MY_WARNING:  "這一行可以自己改
       if (customgrepl(war$message,retryterm)) {
