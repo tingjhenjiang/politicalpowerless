@@ -411,6 +411,13 @@ custom_read_file<-function(url, locale = default_locale()) {
     return(content)
   }
 }
+cbind.fill<-function(...){
+  nm <- list(...) 
+  nm<-lapply(nm, as.matrix)
+  n <- max(sapply(nm, nrow)) 
+  do.call(cbind, lapply(nm, function (x) 
+    rbind(x, matrix(, n-nrow(x), ncol(x))))) 
+}
 not_empty_filter <- function(x) {
   x<-as.character(x)
   notna<-!is.na(x)
@@ -444,11 +451,83 @@ insert.at <- function(vect, pos, elems){
   return(vect)
   #insert.at(c(1,2,3,4,5),c(1,2,3,5),c("a","b","c","d"))
 }
-mutate_cond <- function(.data, condition, ..., envir = parent.frame()) {
-  condition <- eval(substitute(condition), .data, envir)
-  condition[is.na(condition)] = FALSE
-  .data[condition, ] <- .data[condition, ] %>% dplyr::mutate(...)
-  .data
+debugprint <- function(ob) {
+  objname <- deparse(substitute(ob))
+  message("object is: ",objname)
+  tryCatch({
+    message("  class is: ",class(ob))
+  }, error = function(e) {
+    message("  error in getting class: ",conditionMessage(e))
+  })
+  tryCatch({
+    message("  typeof is: ",typeof(ob))
+  }, error = function(e) {
+    message("  error in typeof: ",conditionMessage(e))
+  })
+  tryCatch({
+    message("  sloop ftype is: ",sloop::ftype(ob))
+  }, error = function(e) {
+    message("  error in getting sloop ftype: ",conditionMessage(e))
+  })
+  tryCatch({
+    message("  length of is: ",length(ob))
+  }, error = function(e) {
+    message("  error in getting length: ",conditionMessage(e))
+  })
+  tryCatch({
+    message("  names of is: ",names(ob))
+  }, error = function(e) {
+    message("  error in getting names: ",conditionMessage(e))
+  })
+  tryCatch({
+    message("  print is: ")
+    print(ob)
+  }, error = function(e) {
+    message("  error in printing: ",conditionMessage(e))
+  })
+  tryCatch({
+    message("  content is: ")
+    cat(ob)
+  }, error = function(e) {
+    message("  error in catting: ",conditionMessage(e))
+  })
+}
+
+
+
+
+
+
+mutate_cond <- function(data, condition, ..., envir = parent.frame()) {
+  if (inherits(data, what=c("data.table"))) {
+    message("mutate_cond in data.table mode")
+    # https://stackoverflow.com/questions/70969830/how-do-i-correctly-use-the-env-variable-for-data-tables-within-a-function
+    # dots <- eval(substitute(alist(...)), envir = envir)
+    subsetcondition <- eval(substitute(condition), data, envir)
+    subsetcondition[is.na(subsetcondition)] <- FALSE
+    j_call <- substitute(`:=`(...))
+    targetEnv <- envir
+    targetEnv$data <- data
+    targetEnv$.i <- subsetcondition
+    targetEnv$.j <- j_call
+    dtq <- substitute(data[.i, .j],targetEnv)
+    eval(dtq)
+    data
+  } else if (inherits(data, what=c("dtplyr_step"))) {
+    message("mutate_cond in dtplyr_step mode")
+    # message("condition is ",ls(envir))
+    # .data <- dtplyr::mutate.dtplyr_step(RNrow_number=dplyr::row_number())
+    # newcond <- dtplyr::filter.dtplyr_step(.data, condition) %>%
+    #   dtplyr::select.dtplyr_step(RNrow_number)
+    #   dtplyr::slice.dtplyr_step	
+    #   #eval(substitute(condition), .data, envir)
+    # .data[newcond, ]
+  } else {
+    condition <- eval(substitute(condition), data, envir)
+    condition[is.na(condition)] = FALSE
+    data[condition, ] <- data[condition, ] %>% dplyr::mutate(...)
+    data
+  }
 }
 #DF %>% mutate_cond(measure == 'exit', qty.exit = qty, cf = 0, delta.watts = 13)
 mutate_last <- function(.data, ...) {
@@ -546,19 +625,15 @@ custom_df_replaceinto_db<-function(dbconnect_info, db_table_name, with_df, colum
   DBI::dbClearResult(replacesql)  # release the prepared statement
   DBI::dbDisconnect(con)
 }
-
+data.table::setDTthreads(parallel::detectCores())
 custom_parallel_lapply<-function(X=list(), FUN=FUN, ..., method="socks", exportlib=c("base","magrittr","parallel"), exportvar=c(), outfile="", verbose=TRUE, mc.cores=parallel::detectCores()  ) {
   if (mc.cores==1) {
     return(lapply(X, FUN=FUN, ...))
   } else {
     result<-switch(method,
-     #as.character(grepl("Ubuntu",sessionInfo()$running)),
-     "fork"=#function (X=list(), FUN, ..., mc.cores=parallel::detectCores() ) {
-       mclapply(X=X, FUN=FUN, ..., mc.cores=mc.cores,mc.preschedule=FALSE )
-     #  return(result)
-     #}
-     ,
-     "socks" = {#function ( X=list(), FUN, ... ) {
+     "fork"=
+       mclapply(X=X, FUN=FUN, ..., mc.cores=mc.cores,mc.preschedule=FALSE ),
+     "socks" = {
        argumentstopass<-list(...)
        tryCatch({stopCluster(cl)},
                 # 遇到 warning 時的自訂處理函數
@@ -619,7 +694,7 @@ select_and_fill_nonexistcol <- function(fundf,colVec) {
 }
 
 list_of_vec_asmanyrows_to_df <- function(X) {
-  needdf <- as.data.frame(
+  needdf <- data.table::data.table(
           matrix(
             data=unlist( X ), nrow=length(X), ncol=length(X[[1]]), byrow=T,
             dimnames=list(NULL, names( X[[1]] ) )

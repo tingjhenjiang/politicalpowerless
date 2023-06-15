@@ -26,10 +26,7 @@ lymeetingfetcher_class <- R6::R6Class("lymeetingfetcher", public = list(
       meetingurldata_urlrange<-self$meetingurldata_urlrange #需要的欄位
       big5headpattern<-'text/html; charset=big5'
       utf8headpattern<-'text/html; charset=utf-8'
-      #parallel_method<-"socks"
       meetingurldata<-self$get_filtered_meetingurldata()
-      
-      # library(parallel)
       fetchmeetingdata<-meetingurldata[,meetingurldata_urlrange] %>%
         split(.,seq(nrow(.))) %>%
         custom_parallel_lapply(
