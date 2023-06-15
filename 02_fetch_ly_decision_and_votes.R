@@ -1,794 +1,986 @@
-if (!("benchmarkme" %in% rownames(installed.packages()))) try(install.packages("benchmarkme"))
-t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
-t_sessioninfo_running_with_cpu<-try(paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model))
-t_sessioninfo_running_with_cpu_locale<-try(gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2])))
-source_sharedfuncs_r_path<-try(here::here())
-if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
-source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
-no_rollcall<-c()
 
-load(paste0(dataset_in_scriptsfile_directory, "meetingdata.RData"), verbose=TRUE)
-load(file=paste0(dataset_in_scriptsfile_directory, "elections_df.RData"), verbose=TRUE)
-urlarr<-as.character(meetingdata$url) %>% unique()
-error_vote_record_from_name <- read.xlsx(paste(dataset_in_scriptsfile_directory, "error_vote_record_from_name.xlsx", sep = ""), sheet = 1)
-error_leave_and_attend_legislators <- read.xlsx(paste(dataset_in_scriptsfile_directory, "leave_and_attend_legislators.xlsx", sep = ""), sheet = 1) %>%
-  mutate_cond(is.na(replace_with),replace_with="")
-
-myown_vote_record_df<-data.frame()
-replace_troublesome_names<-function(replacedf) {
-  replacedf <- replacedf %>%
-    mutate_cond(customgrepl(legislator_name,"邱　毅"),legislator_name="邱毅") %>%
-    mutate_cond(customgrepl(legislator_name,"薛　凌"),legislator_name="薛凌") %>%
-    mutate_cond(customgrepl(legislator_name,"陳　瑩"),legislator_name="陳瑩") %>%
-    mutate_cond(customgrepl(legislator_name,"余　天"),legislator_name="余天") %>%
-    mutate_cond(customgrepl(legislator_name,"陳　杰"),legislator_name="陳杰") %>%
-    mutate_cond(customgrepl(legislator_name,".?Kolas"),legislator_name="谷辣斯．尤達卡Kolas．Yotaka") %>%
-    mutate_cond(customgrepl(legislator_name,"金素梅"),legislator_name="高金素梅") %>%
-    mutate_cond(term %in% c(8,9) & customgrepl(legislator_name,"鄭天財"),legislator_name="鄭天財Sra．Kacaw") %>%
-    mutate_cond(term %in% c(8,9) & customgrepl(legislator_name,"簡東明"),legislator_name="簡東明Uliw．Qaljupayare") %>%
-    mutate_cond(term %in% c(9) & customgrepl(legislator_name,"廖國棟"),legislator_name="廖國棟Sufin．Siluko") %>%
-    mutate_cond(term==9 & customgrepl(legislator_name,"高潞"),legislator_name="高潞．以用．巴魕剌Kawlo．Iyun．Pacidal") %>%
-    mutate_cond(term==9 & customgrepl(legislator_name,"陳秀霞"),legislator_name="周陳秀霞")
-  return(replacedf) #10 謝衣 游錫
-}
-anti_join_with_nrow_zero<-function(X,Y,by=c()) {
-  if (nrow(Y)>0) {
-    return(anti_join(X,Y,by))
-  } else {
-    return(X)
-  }
-}
-
-rest_work_on_attendlegislator<-function (X,title='出席委員') {
-  X<-strsplit(X, paste0(title,'　')) %>%
-    unlist() %>%
-    strsplit('　　') %>%
-    unlist() %>%
-    #strsplit(' ') %>%
-    #unlist() %>%
-    customgrep("[\u4e00-\u9fa5a-zA-Z]",value=TRUE) %>%
-    stri_replace_all_fixed("　","") %>%
-    trimws() %>%
-    .[!(. %in% c("主","席","列","院","長","記","錄","院長","副院 長","秘 書 長","院 長","副 院 長",""," ",character(0)))]
-  return(X)
-}
-#mutate(leave_and_attend_legislators,chichrcount=stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}") ) %>% View()
-#filter(leave_and_attend_legislators,stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}")>3 ) %>%
-#  filter(!is.element(legislator_name, c("高金素梅","周陳秀霞","張廖萬堅","陳賴素美","鄭天財Sra．Kacaw","簡東明Uliw．Qaljupayare","廖國棟Sufin．Siluko","鄭天財Sra．Kacaw","高潞．以用．巴魕剌Kawlo．Iyun．Pacidal","Kolas Yotaka")) | 
-#           customgrepl(legislator_name,"(　|　|　| | )")) %>%
-#  View()
-#  write_csv(path="leave_and_attend_legislators.csv")
-#第九會期從377開始 //problem:108
-
-# 定義結構化處理會議紀錄成為投票紀錄的函數 -------------------
-
-fetch_ly_decision_and_vote <- function(urln, meetingdata, urlarr, ...) { #length(urlarr) #, dataset_file_directory=dataset_file_directory, ret_std_legislators_data=ret_std_legislators_data, elections_df=elections_df
-#for (urln in 1:length(urlarr)) { 
-  # urln=394 393
-  onemeetingdata<-meetingdata[urln,]
-  #urln<-which(urlarr==onemeetingdata$url)
-  #url<-urlarr[urln]
-  #url<-Y
-  #urln<-58 #Kolas出現問題的地方
-  if ({debug_func_mode<-FALSE; debug_func_mode}) {
-    onemeetingdata<-meetingdata[urln,]
-    # onemeetingdata %<>% #20:114 term9 #meetingdata[249,] dplyr::filter(meetingdata, term==6, period==3, meetingno==8)
-    #   {
-    #     namesofdf<-names(.)
-    #     magrittr::set_rownames(as.data.frame(t(.)), namesofdf)
-    #   } %>%
-    #   .[,1]
-  }
-  # {
-  #   names_of_items<-names(onemeetingdata)
-  #   onemeetingdata %<>% lapply(as.character) %>%
-  #     magrittr::set_names(names_of_items)
-  # }
-
-  if (gtools::invalid(onemeetingdata$url)) {
-    if (debug_func_mode==TRUE) {
-      next
+source(file = "01_fetch_ly_meeting_record.R")
+lyvotes_class <- R6::R6Class("lyvotes", inherit=lymeetingfetcher_class, public = list(
+  filespath = NULL,
+  dataset_in_scriptsfile_directory = NULL,
+  myown_vote_record_df_filepath = NULL,
+  legislatorsxlsxpath = NULL,
+  dataset_file_directory = NULL,
+  debug_func_mode = NULL,
+  error_vote_record_from_name_filepath = NULL,
+  error_leave_and_attend_legislators_filepath = NULL,
+  mccores = NULL,
+  initialize = function(dataset_in_scriptsfile_directory="/mnt", filespath="/mnt", dataset_file_directory="/mnt", debug_func_mode=FALSE) {
+    super$initialize(dataset_in_scriptsfile_directory)
+    self$filespath <- filespath
+    self$myown_vote_record_df_filepath <- file.path(dataset_in_scriptsfile_directory,"myown_vote_record_df.rds")
+    self$legislatorsxlsxpath <- file.path(dataset_file_directory, "legislators.xlsx")
+    self$dataset_file_directory <- dataset_file_directory
+    self$debug_func_mode <- debug_func_mode
+    self$error_vote_record_from_name_filepath <- file.path(dataset_in_scriptsfile_directory, "error_vote_record_from_name.xlsx")
+    self$error_leave_and_attend_legislators_filepath <- file.path(dataset_in_scriptsfile_directory, "leave_and_attend_legislators.xlsx")
+    self$mccores <- base::ifelse(self$debug_func_mode==TRUE, 1, parallel::detectCores())
+  },
+  get_voting_records = function(loadExisted=TRUE,save=FALSE,startUrlN=1) {
+    myown_vote_record_df_filepath <- self$myown_vote_record_df_filepath
+    if (loadExisted==TRUE) {
+      myown_vote_record_df <- readRDS(self$myown_vote_record_df_filepath)
     } else {
-      return(data.frame())
+      myown_vote_record_df <- self$parse_votingrecords(startUrlN=startUrlN)
+      if (save==TRUE) {
+        saveRDS(myown_vote_record_df,file=myown_vote_record_df_filepath)
+      }
+      return (myown_vote_record_df)
     }
-  }
-  # | !(urln %in% c(469,475))
-  #urln=478是一堆有表決結果名單附(n)至(n)形式的，暫存函式如下:
-  #customgsub(test, "(.+?[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1}[(（]{0,1}\\s{0,1}([—○一二三四五六七八九十\\d]{0,})\\s{0,1}[)）]{0,1}至{1}[(（]{0,1}([—○一二三四五六七八九十\\d]{0,})[)）]{0,1}[〕】）]{0,}[；。]{0,1}).+?", "\\2:\\3;", perl = TRUE)
-  myown_vote_record_df<-data.frame()
-  leave_and_attend_legislators<-data.frame()
-  term<-onemeetingdata$term
-  period<-onemeetingdata$period
-  meetingno<-onemeetingdata$meetingno
-  temp_meeting_no<-onemeetingdata$temp_meeting_no
-  date<-trimws(onemeetingdata$date)
-  if (gtools::invalid(temp_meeting_no) | as.character(temp_meeting_no)=="NA") {
-    temp_meeting_no<-0
-  }
-  #content<-read_file(url)
-  content<-trimws(onemeetingdata$content)
-  
-  #直接跳過不妨礙（又因為直接跳過省去篩選麻煩
-  if (term==6 & period==4 & meetingno==17) {
-    #尾部沒有討論事項記名表決，但是有其他事項表決，卻沒有詳細有人名的名單
-    if (debug_func_mode==TRUE) {
-      next
-    } else {
-      return(data.frame())
-    }
-  }
-  
-  #clean data 特別處理
-  if (term==7 & period==1 & meetingno==19) {
-    #有一次的表決少了贊成者和棄權者的文字，補上
-    content<-readr::read_file(paste(filespath,"processed_ly_meeting_record",slash,"LCEWC03_070119.htm", sep = ""))
-  }
-  if (term==7 & period==2 & meetingno==17) {
-    #有一次的表決少了贊成者和棄權者的文字，補上
-    content<-readr::read_file(paste(filespath,"processed_ly_meeting_record",slash,"LCEWC03_070217.htm", sep = ""))
-  }
-  if (term==7 & period==3 & meetingno==5) {
-    #表決案數字亂碼修正
-    content<-readr::read_file(paste(filespath,"processed_ly_meeting_record",slash,"LCEWC03_070305.htm", sep = ""))
-  }
-  if (term==7 & period==3 & meetingno==8) {
-    #立法院第7屆第3會期第8次會議議事錄有二個表決紀錄的敘述被合併
-    content<-readr::read_file(paste(filespath,"processed_ly_meeting_record",slash,"LCEWC03_070308.htm", sep = ""))
-  }
-  
-  #paragraph_list[roll_call_list_block_sp:paragraph_list_length]<-customgsub(paragraph_list[roll_call_list_block_sp:paragraph_list_length],"高金素梅　","高金素梅　　")
-  content<-customgsub(content,"高金素梅　","高金素梅　　") %>%
-    customgsub("Kolas Yotaka　　　　　","Kolas Yotaka　　") %>%
-    customgsub("傅.萁","傅崐萁") %>%
-    customgsub("瓦歷斯.貝林","瓦歷斯．貝林") %>%
-    customgsub("王雪.","王雪峰") %>%
-    customgsub("陳賴素美　","陳賴素美　　") %>%
-    customgsub("張廖萬堅　","張廖萬堅　　") %>%
-    customgsub("周陳秀霞　","周陳秀霞　　") %>%
-    customgsub("廖國棟Sufin．Siluko　","廖國棟Sufin．Siluko　　") %>%
-    customgsub("鄭天財Sra Kacaw　　　","鄭天財Sra Kacaw　　") %>%
-    customgsub("簡東明Uliw．Qaljupayare　　　　","簡東明Uliw．Qaljupayare　　") %>%
-    customgsub("(高潞‧以用‧巴魕剌Kawlo．Iyun．Pacidal)(\\s| |　)+","\\1　　") %>%
-    customgsub("高潞‧以用‧巴魕剌Kawlo．Iyun．Pacidal　","高潞‧以用‧巴魕剌Kawlo．Iyun．Pacidal　　") %>%
-    customgsub(" ","")
-
-
+  },
+  replace_troublesome_names = function(replacedf) {
+    replacedf <- replacedf %>%
+      mutate_cond(customgrepl(legislator_name,"邱　毅"),legislator_name="邱毅") %>%
+      mutate_cond(customgrepl(legislator_name,"薛　凌"),legislator_name="薛凌") %>%
+      mutate_cond(customgrepl(legislator_name,"陳　瑩"),legislator_name="陳瑩") %>%
+      mutate_cond(customgrepl(legislator_name,"余　天"),legislator_name="余天") %>%
+      mutate_cond(customgrepl(legislator_name,"陳　杰"),legislator_name="陳杰") %>%
+      mutate_cond(customgrepl(legislator_name,".?Kolas"),legislator_name="谷辣斯．尤達卡Kolas．Yotaka") %>%
+      mutate_cond(customgrepl(legislator_name,"金素梅"),legislator_name="高金素梅") %>%
+      mutate_cond(term %in% c(8,9) & customgrepl(legislator_name,"鄭天財"),legislator_name="鄭天財Sra．Kacaw") %>%
+      mutate_cond(term %in% c(8,9) & customgrepl(legislator_name,"簡東明"),legislator_name="簡東明Uliw．Qaljupayare") %>%
+      mutate_cond(term %in% c(9) & customgrepl(legislator_name,"廖國棟"),legislator_name="廖國棟Sufin．Siluko") %>%
+      mutate_cond(term==9 & customgrepl(legislator_name,"高潞"),legislator_name="高潞．以用．巴魕剌Kawlo．Iyun．Pacidal") %>%
+      mutate_cond(term==9 & customgrepl(legislator_name,"陳秀霞"),legislator_name="周陳秀霞")
+    return(replacedf) #10 謝衣 游錫
+  },
+  return_empty_df = function() {
+    return(data.frame())
+  },
+  replace_troublesome_meeting_record_content = function(content, term=7, period=1, meetingno=1, temp_meeting_no=0) {
     
-  ##立法院第6屆第6會期第16次會議議事錄
-  if (term==6 & period==6 & meetingno==16) {
-    content<-customgsub(content,
-                        '決議：離島建設條例第十條之一、第十七條之一及第十七條之二條文，均不予增訂；第十條、第十六條、第十七條條文，均不予修正。〔其中第十條之一經表決不予增訂，表決結果名單附後',
-                        '決議：離島建設條例第十條之一、第十七條之一及第十七條之二條文，均不予增訂；第十條、第十六條、第十七條條文，均不予修正。〔其中第十條之一經記名表決不予增訂，表決結果名單附後'
-    )
-  }
-  if (term==7 & period==2 & meetingno==1 & temp_meeting_no==1) {
-    content<-customgsub(content,
-                        '】本次會議表決結果名單：',
-                        '】</p><p>本次會議表決結果名單：'
-    )
-  }
-  if (term==9 & period==4 & meetingno==14) {
-    #立法院第9屆第4會期第14次會議議事錄
-    #決議表決結果附後(8)至(12)】
-    content<-customgsub(content,
-                        '(<p{1}.+?決議：)(交通部鐵道局組織法)(草案修正通過。)(〔二讀時，名稱及條文均照審查會名稱及條文通過【其中)第二條至第六條均經記名表決結果，予以通過，表決結果附後{1}.+?>】；',
-                        '\\1\\2\\3\\4\\2第二條照審查會條文經記名表決結果予以通過，表決結果名單附後(8)；\\2第三條照審查會條文經記名表決結果予以通過，表決結果名單附後(9)；\\2第四條照審查會條文經記名表決結果予以通過，表決結果名單附後(10)；\\2第五條照審查會條文記名表決結果予以通過，表決結果名單附後(11)；\\2第六條照審查會條文記名表決結果予以通過，表決結果名單附後(12)】；'
-    )
-  }
-  if (term==9 & period==4 & meetingno==11) {
-    content<-customgsub(content,
-                        '「討論事項第一案促進轉型正義條例於二讀後繼續進行三讀予以通過」',
-                        '「討論事項第一案促進轉型正義條例於二讀後繼續進行三讀予以通過」部分：'
-    )
-  }
-  if (term==9 & period==4 & meetingno==15) {
-    #立法院第9屆第4會期第15次會議議事錄
-    #表決結果附後(1)、(2)
-    content<-customgsub(content,
-                        "(<p [\\w\\W]+決議：)(金融科技發展與創新實驗條例)(草案修正通過。)(〔二讀時，第六條及第十六條均照民進黨黨團修正動議條文通過【)經記名表決結果，均予以通過，表決結果附後([\\w\\W]+?)>】；",
-                        "\\1\\2\\3\\4\\2第六條照民進黨黨團修正動議經記名表決結果予以通過，表決結果名單附後(1)；\\2第十六條照民進黨黨團修正動議經記名表決結果予以通過，表決結果名單附後(2)】；",
-                        perl=TRUE)
-  }
-  if (term == 9 & period == 1 & meetingno == 1 & temp_meeting_no == 1) {
-    content <- customgsub(content,
-                          "多數通過；並採記表決方式",
-                          "多數通過；並採記名表決方式"
-    )
-  }
-  if (term == 9 & period == 3 & meetingno == 3 & temp_meeting_no == 1) {
-    content <- customgsub(content,
-                          "多數通過；並採記表決方式",
-                          "多數通過；並採記名表決方式"
-    )
-  }
-  
-  #doc <- read_xml(content,as_html = TRUE)
-  doc <- xml2::read_html(content,encoding="UTF-8")
-  #xpath<-"//p[(contains(.,'次會議議事錄'))]"
-  #meetingname<-xml_find_all(doc, xpath) %>%
-  #  xml_text() %>% getElement(1)
-  meetingname<-onemeetingdata$termmeetingtime
-  #xpath<-"//p[(contains(.,'時　　間'))]"
-  #meetingtimeanddata<-xml_find_all(doc, xpath) %>%
-  #  xml_text() %>% getElement(1)
-  #xpath<-"//p[(contains(.,'請假委員　'))]"
-  message("urln=",urln,"| 1 | ", meetingname, onemeetingdata$url)
-  
-  xpath<-"//p"
-  paragraph_list<-xml2::xml_find_all(doc, xpath) %>%
-    xml2::xml_text()
-  #paragraph_list_length<-length(paragraph_list)
-  
-  check_leave_and_attend_legislator_chr_paragraph<-paragraph_list[1:15] %>%
-    customgsub("(Siluko){1} {0,1}　{1} {0,1}","Siluko　　") %>%
-    customgsub("(Kacaw){1} {0,1}　{1} {0,1}","Kacaw　　") %>%
-    customgsub("(Yotaka){1} {0,1}　{1} {0,1}","Yotaka　　") %>%
-    customgsub("(Pacidal|Pacida){1} {0,1}　{1} {0,1}","Pacidal　　") %>%
-    customgsub("(Pacidal)( |　)+","\\1　　") %>%
-    customgsub("(Kolas){1}\\r\\n(Yotaka){1}([\u4e00-\u9fa5A-aZ-z]+)", "\\1 \\2　　\\3") %>%
-    customgsub("許舒博（尚未報到）","許舒博") %>%
-    customgsub("徐國勇（9月30日）","徐國勇") %>%
-    customgsub("邱泰源（10月4日）","邱泰源") %>%
-    customgsub("Kolas Yotaka周陳秀霞","Kolas Yotaka　　周陳秀霞")
-  #顏清標投票紀錄很怪，雖然待整個會期，但並沒有完整的投票紀錄，很多缺席
-  replace_leave_and_attend_legislator_pattern<-dplyr::filter(error_leave_and_attend_legislators,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no))
-  if (nrow(replace_leave_and_attend_legislator_pattern)>0) {
-    check_leave_and_attend_legislator_chr_paragraph <- stri_replace_all_fixed(
-      check_leave_and_attend_legislator_chr_paragraph,
-      replace_leave_and_attend_legislator_pattern$legislator_name,
-      replace_leave_and_attend_legislator_pattern$replace_with,vectorize_all=FALSE
-    )
-  }
-  
-  leavelegislator<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"請假委員",value=TRUE)
-  leavelegislator<-(if (identical(leavelegislator,as.character())) {
-      data.frame()
-    } else {
-      tmpleavelegislator<-leavelegislator %>%
-        rest_work_on_attendlegislator(title='請假委員')
-      data.frame(
-        "legislator_name"=tmpleavelegislator,
-        "term"=term,
-        "period"=period,
-        "temp_meeting_no"=temp_meeting_no,
-        "meetingno"=meetingno,
-        "url"=onemeetingdata$url,
-        "urln"=urln,
-        "date"=date,
-        stringsAsFactors=FALSE
-      ) %>%
-        replace_troublesome_names() %>%
-        dplyr::mutate_at(c("legislator_name","term","period","meetingno","temp_meeting_no","url","date"),as.character) %>%
-        mutate_at(c("term","period","meetingno","temp_meeting_no"),as.integer)
-    })
-
-  #20200311 這邊檢查到有時候會有斷行的情形導致有出席卻沒列入
-  #correct_std_legislators_list<-paste0(dataset_file_directory, "legislators.xlsx") %>%
-  #  ret_std_legislators_data(legislatorsxlsxpath=., terms=term, elections_df=elections_df) %>%
-  #  magrittr::use_series(legislator_name) %>%
-  #  unique()
-  attendlegislator_one<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"出席委員",value=TRUE) %>%
-    rest_work_on_attendlegislator(title='出席委員') %>%
-    unique()
-  attendlegislator_two<-customgrepl(check_leave_and_attend_legislator_chr_paragraph,"(議事錄|中華民國|星期|議場|委員出席|請假|缺席|院長|上午|下午|列席|秘書長|主席|行政院|議事處|分）|審計|編審|預算|部長|報告|質詢)", perl=TRUE) %>%
-    sapply(isFALSE) %>%
-    magrittr::extract(check_leave_and_attend_legislator_chr_paragraph, .) %>%
-    rest_work_on_attendlegislator(title='出席委員') %>%
-    unique()
-  attendlegislator<-dplyr::union(attendlegislator_one,attendlegislator_two)
-  attendlegislator<-data.frame(
-    "legislator_name"=attendlegislator,
-    "term"=term,
-    "period"=period,
-    "temp_meeting_no"=temp_meeting_no,
-    "meetingno"=meetingno,
-    "url"=onemeetingdata$url,
-    "urln"=urln,
-    "date"=date,
-    stringsAsFactors=FALSE
-  ) %>%
-    dplyr::mutate_at(c("legislator_name","term","period","meetingno","temp_meeting_no"),as.character) %>%
-    dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no"),as.integer) %>%
-    replace_troublesome_names()
-  if (length(attendlegislator_one)!=length(attendlegislator_two)) {
-    diff_between_attendlegislator<-dplyr::union(attendlegislator_two, attendlegislator_one) %>%
-      dplyr::setdiff(attendlegislator_one)
-    if (!identical(diff_between_attendlegislator, character(0)) & length(diff_between_attendlegislator)>0) {
-      #curl::new_handle(verbose = TRUE) %>%
-      #  curl::handle_setopt(copypostfields = {
-      #    paste0("term=", term,
-      #           "&period=", period,
-      #           "&meetingno=", meetingno,
-      #           "&temp_meeting_no=", temp_meeting_no,
-      #           "&attlistone=", length(attendlegislator_one),
-      #           "&attlisttwo=", length(attendlegislator_two),
-      #           "&attlist=", nrow(attendlegislator),
-      #           "&leavelegis=", nrow(leavelegislator),
-      #           "&diff=", paste0(diff_between_attendlegislator, collapse=",")
-      #    )
-      #  }) %>%
-      #  curl::curl_fetch_memory(url="http://192.168.10.200/scripts/check_vote_records.php", handle=.)
-      #curl::handle_setopt(h, customrequest = "PUT")
-      #curl::handle_setform(h,
-      list(
-        term = as.character(term), 
-        period = as.character(period),
-        meetingno= as.character(meetingno),
-        temp_meeting_no = as.character(temp_meeting_no),
-        attlistone = as.character(length(attendlegislator_one)),
-        attlisttwo = as.character(length(attendlegislator_two)),
-        attlist = as.character(nrow(attendlegislator)),
-        leavelegis = as.character(nrow(leavelegislator)),
-        diff = paste0(diff_between_attendlegislator, collapse=",")
-        ) %>%
-        httr::GET("http://192.168.10.200/scripts/check_vote_records.php", query=.)
+    #clean data 特別處理
+    if (term==7 & period==1 & meetingno==19) {
+      #有一次的表決少了贊成者和棄權者的文字，補上
+      content<-readr::read_file(file.path(filespath,"processed_ly_meeting_record","LCEWC03_070119.htm"))
     }
-  }
-  
-  leave_and_attend_legislators<-dplyr::bind_rows(leave_and_attend_legislators,leavelegislator,attendlegislator)
-  #message(leavelegislator,"\n\r",attendegislator,"\n\r")
-  #attendegislator
-  #next()
-  
-  #特別處理
-  ##立法院第6屆第2會期第19次會議議事錄
-  if (term==6 & period==2 & meetingno==19) {
-    paragraph_list<-c(paragraph_list[1:3161],"各項記名表決結果名單",paragraph_list[3162:length(paragraph_list)])
-    #(customgrepl(paragraph_list,'贊成者：'))-2 %>% which.min()
-    #取代模式
-    #paragraph_list<-sapply(paragraph_list,
-    #                       customgsub,
-    #                       '一、本院無黨團結聯盟黨團提議，將無黨團結聯盟黨團擬具之「公教人員保險法增訂第十五條之一條文草案」由法制委員會抽出，逕付二讀，並由無黨團結聯盟黨團負責召集協商，經表決未獲通過。【在場委員',
-    #                       '一、本院無黨團結聯盟黨團提議，將無黨團結聯盟黨團擬具之「公教人員保險法增訂第十五條之一條文草案」由法制委員會抽出，逕付二讀，並由無黨團結聯盟黨團負責召集協商，經記名表決未獲通過。表決結果名單附後(十)【在場委員'
-    #)
-  }
-  if (term==7 & period==5 & meetingno==16) {
-    paragraph_list<-gsub("附後[\\r\\n\\s]+", "附後", paragraph_list, perl=TRUE)
-    replaceidx<-grep("62-1", paragraph_list)
-    paragraph_list[replaceidx]<-gsub("62-1", "62.1", paragraph_list[replaceidx])
-  }
-  
-  message("urln=",urln," | 2 RegularExpression 處理前面的投票表決議案詳細說明 ", meetingname, onemeetingdata$url)
-  #xpath<-"//p[(contains(.,'記名表決')) and (contains(.,'表決結果名單附後') or contains(.,'表決結果名單附件') or contains(.,'表決結果附後') or contains(.,'表決結果名單及時程表附後'))   ]"
-  #bill_list<-xml_find_all(doc, xpath) %>%
-  #xml_text() %>%
-  
-  #把 附後(21)、(22) 或 (59)及(60)這種形式的紀錄改為附後(21)至(22)
-  paragraph_list %<>% customgsub("(附後)([﹙\\(（]{1}\\d+[）\\)﹚]{1})[、及]([﹙\\(（]{1}\\d+[）\\)﹚]{1})","\\1\\2至\\3",perl=TRUE)#、(\(\d+\))
-  #paragraph_list[65]
-  #開始處理【經記名表決結果，均予以通過，表決結果附後(2)至(5)】這種形式的紀錄
-  for (bill_list_exec_check_i in 1:2) {
-    bill_list_target<-customgrep(paragraph_list,'記名表決',value=TRUE) %>%
-      customgrep("表決結果名單附後|表決結果名單附件|表決結果附後|表決結果名單及時程表附後",value=TRUE)
-    if (bill_list_exec_check_i==2 | identical(bill_list_target,character(0))) break
-    #bill_list_need_modify_part_matches<-stri_match_all(bill_list_target,regex="(【經記名表決結果，{1}?均{0,1}.+?通過，{1}[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1})?([(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)]{1}至{1}[(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)]{1}){1}[〕】）]{0,}[；。]{0,1}")
-    bill_list_need_modify_part_matches<-stringi::stri_match_all(bill_list_target,regex="([^；()（）﹙﹚【】〔〕]*[(（﹙【〔][其中第|經記名表決結果，]{1}?均{0,1}[^；()（）﹙﹚【】〔〕]+?通過，{1}?[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1})?([﹙(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)﹚]{1}至{1}[﹙(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)﹚]{1}){1}?[〕】）﹚]{0,}[；。]{0,1}")
-    if (length(bill_list_need_modify_part_matches)==1) { #no result from checking
-      if (nrow(bill_list_need_modify_part_matches[[1]])<1) { #有時候在同一段裡面會連續出現(x)至(y)的情形
-        break
+    if (term==7 & period==2 & meetingno==17) {
+      #有一次的表決少了贊成者和棄權者的文字，補上
+      content<-readr::read_file(file.path(filespath,"processed_ly_meeting_record","LCEWC03_070217.htm"))
+    }
+    if (term==7 & period==3 & meetingno==5) {
+      #表決案數字亂碼修正
+      content<-readr::read_file(file.path(filespath,"processed_ly_meeting_record","LCEWC03_070305.htm"))
+    }
+    if (term==7 & period==3 & meetingno==8) {
+      #立法院第7屆第3會期第8次會議議事錄有二個表決紀錄的敘述被合併
+      content<-readr::read_file(file.path(filespath,"processed_ly_meeting_record","LCEWC03_070308.htm"))
+    }
+
+    #paragraph_list[roll_call_list_block_sp:paragraph_list_length]<-customgsub(paragraph_list[roll_call_list_block_sp:paragraph_list_length],"高金素梅　","高金素梅　　")
+    content<-customgsub(content,"高金素梅　","高金素梅　　") %>%
+      customgsub("Kolas Yotaka　　　　　","Kolas Yotaka　　") %>%
+      customgsub("傅.萁","傅崐萁") %>%
+      customgsub("瓦歷斯.貝林","瓦歷斯．貝林") %>%
+      customgsub("王雪.","王雪峰") %>%
+      customgsub("陳賴素美　","陳賴素美　　") %>%
+      customgsub("張廖萬堅　","張廖萬堅　　") %>%
+      customgsub("周陳秀霞　","周陳秀霞　　") %>%
+      customgsub("廖國棟Sufin．Siluko　","廖國棟Sufin．Siluko　　") %>%
+      customgsub("鄭天財Sra Kacaw　　　","鄭天財Sra Kacaw　　") %>%
+      customgsub("簡東明Uliw．Qaljupayare　　　　","簡東明Uliw．Qaljupayare　　") %>%
+      customgsub("(高潞‧以用‧巴魕剌Kawlo．Iyun．Pacidal)(\\s| |　)+","\\1　　") %>%
+      customgsub("高潞‧以用‧巴魕剌Kawlo．Iyun．Pacidal　","高潞‧以用‧巴魕剌Kawlo．Iyun．Pacidal　　") %>%
+      customgsub(" ","")
+    
+    ##立法院第6屆第6會期第16次會議議事錄
+    if (term==6 & period==6 & meetingno==16) {
+      content<-customgsub(content,
+                          '決議：離島建設條例第十條之一、第十七條之一及第十七條之二條文，均不予增訂；第十條、第十六條、第十七條條文，均不予修正。〔其中第十條之一經表決不予增訂，表決結果名單附後',
+                          '決議：離島建設條例第十條之一、第十七條之一及第十七條之二條文，均不予增訂；第十條、第十六條、第十七條條文，均不予修正。〔其中第十條之一經記名表決不予增訂，表決結果名單附後'
+      )
+    }
+    if (term==7 & period==2 & meetingno==1 & temp_meeting_no==1) {
+      content<-customgsub(content,
+                          '】本次會議表決結果名單：',
+                          '】</p><p>本次會議表決結果名單：'
+      )
+    }
+    if (term==9 & period==4 & meetingno==14) {
+      #立法院第9屆第4會期第14次會議議事錄
+      #決議表決結果附後(8)至(12)】
+      content<-customgsub(content,
+                          '(<p{1}.+?決議：)(交通部鐵道局組織法)(草案修正通過。)(〔二讀時，名稱及條文均照審查會名稱及條文通過【其中)第二條至第六條均經記名表決結果，予以通過，表決結果附後{1}.+?>】；',
+                          '\\1\\2\\3\\4\\2第二條照審查會條文經記名表決結果予以通過，表決結果名單附後(8)；\\2第三條照審查會條文經記名表決結果予以通過，表決結果名單附後(9)；\\2第四條照審查會條文經記名表決結果予以通過，表決結果名單附後(10)；\\2第五條照審查會條文記名表決結果予以通過，表決結果名單附後(11)；\\2第六條照審查會條文記名表決結果予以通過，表決結果名單附後(12)】；'
+      )
+    }
+    if (term==9 & period==4 & meetingno==11) {
+      content<-customgsub(content,
+                          '「討論事項第一案促進轉型正義條例於二讀後繼續進行三讀予以通過」',
+                          '「討論事項第一案促進轉型正義條例於二讀後繼續進行三讀予以通過」部分：'
+      )
+    }
+    if (term==9 & period==4 & meetingno==15) {
+      #立法院第9屆第4會期第15次會議議事錄
+      #表決結果附後(1)、(2)
+      content<-customgsub(content,
+                          "(<p [\\w\\W]+決議：)(金融科技發展與創新實驗條例)(草案修正通過。)(〔二讀時，第六條及第十六條均照民進黨黨團修正動議條文通過【)經記名表決結果，均予以通過，表決結果附後([\\w\\W]+?)>】；",
+                          "\\1\\2\\3\\4\\2第六條照民進黨黨團修正動議經記名表決結果予以通過，表決結果名單附後(1)；\\2第十六條照民進黨黨團修正動議經記名表決結果予以通過，表決結果名單附後(2)】；",
+                          perl=TRUE)
+    }
+    if (term == 9 & period == 1 & meetingno == 1 & temp_meeting_no == 1) {
+      content <- customgsub(content,
+                            "多數通過；並採記表決方式",
+                            "多數通過；並採記名表決方式"
+      )
+    }
+    if (term == 9 & period == 3 & meetingno == 3 & temp_meeting_no == 1) {
+      content <- customgsub(content,
+                            "多數通過；並採記表決方式",
+                            "多數通過；並採記名表決方式"
+      )
+    }
+    return(content)
+  },
+  rest_work_on_attendlegislator = function (X,title='出席委員') {
+    X<-strsplit(X, paste0(title,'　')) %>%
+      unlist() %>%
+      strsplit('　　') %>%
+      unlist() %>%
+      #strsplit(' ') %>%
+      #unlist() %>%
+      customgrep("[\u4e00-\u9fa5a-zA-Z]",value=TRUE) %>%
+      stri_replace_all_fixed("　","") %>%
+      trimws() %>%
+      .[!(. %in% c("主","席","列","院","長","記","錄","院長","副院 長","秘 書 長","院 長","副 院 長",""," ",character(0)))]
+    return(X)
+  },
+  preprocess_paragraph_list = function() {
+    
+  },
+  anti_join_with_nrow_zero = function(X,Y,by=c()) {
+    if (nrow(Y)>0) {
+      return(anti_join(X,Y,by))
+    } else {
+      return(X)
+    }
+  },
+  cn2num = function(string){
+    cn2num <- self$cn2num
+    if(is.numeric(string)){
+      return(string)
+    }
+    if(!is.na(as.numeric(string))) {
+      return(as.numeric(string))
+    }
+    # '仟' => '千','佰' => '百','拾' => '十',
+    string = gsub('仟', '千', string)
+    string = gsub('佰', '百', string)
+    string = gsub('拾', '十', string)
+    num = 0
+    wan = unlist(strsplit(string, '萬'))
+    if (length(wan) > 1) {
+      num = num+cn2num(wan[1]) * 10000
+      string = wan[2]
+    }
+    qian = unlist(strsplit(string, '千'))
+    if (length(qian) > 1) {
+      num = num+cn2num(qian[1]) * 1000
+      string = qian[2]
+    }
+    bai = unlist(strsplit(string, '百'))
+    if (length(bai) > 1) {
+      num = num+cn2num(bai[1]) * 100
+      string = bai[2]
+    }
+    shi = unlist(strsplit(string, '十'))
+    if (length(shi) > 1) {
+      #num = num+cn2num(shi[1] ? shi[1] : '一') * 10
+      num = num+cn2num(
+        ifelse(gtools::invalid(shi[1]), '一', shi[1])
+      )*10
+      #string = shi[2] ? shi[2] : '零'
+      string = ifelse(gtools::invalid(shi[2]), '零', shi[2])
+    }
+    ling = unlist(strsplit(string,'零'))
+    if (length(ling) > 1) {
+      string = ling[2]
+    }
+    d <- list(
+      "一" = 1,"二" = 2,"三" = 3,"四" = 4,"五" = 5,"六" = 6,"七" = 7,"八" = 8,"九" = 9,
+      "壹" = 1,"貳" = 2,"參" = 3,"肆" = 4,"伍" = 5,"陸" = 6,"柒" = 7,"捌" = 8,"玖" = 9,
+      "贰" = 2,"叁" = 3,"陆" = 6,"两" = 2,
+      "零" = 0,"0" = 0,"O" = 0,"o" = 0,"兩" = 2
+    )
+    return(num + d[[string]])
+  },
+  fetch_ly_decision_and_vote = function(urln, meetingdata, urlarr, error_leave_and_attend_legislators, error_vote_record_from_name, ...) { #length(urlarr) #, dataset_file_directory=dataset_file_directory, ret_std_legislators_data=ret_std_legislators_data, elections_df=elections_df
+    debug_func_mode <- self$debug_func_mode
+    rest_work_on_attendlegislator <- self$rest_work_on_attendlegislator
+    anti_join_with_nrow_zero <- self$anti_join_with_nrow_zero
+    replace_troublesome_names <- self$replace_troublesome_names
+    cn2num <- self$cn2num
+    mccores <- self$mccores
+    no_rollcall<-c()
+    #for (urln in 1:length(urlarr)) { 
+    # urln=394 393
+    onemeetingdata<-meetingdata[urln,]
+    #urln<-which(urlarr==onemeetingdata$url)
+    #url<-urlarr[urln]
+    #url<-Y
+    #urln<-58 #Kolas出現問題的地方
+    if (debug_func_mode) {
+      onemeetingdata<-meetingdata[urln,]
+      # onemeetingdata %<>% #20:114 term9 #meetingdata[249,] dplyr::filter(meetingdata, term==6, period==3, meetingno==8)
+      #   {
+      #     namesofdf<-names(.)
+      #     magrittr::set_rownames(as.data.frame(t(.)), namesofdf)
+      #   } %>%
+      #   .[,1]
+    }
+    # {
+    #   names_of_items<-names(onemeetingdata)
+    #   onemeetingdata %<>% lapply(as.character) %>%
+    #     magrittr::set_names(names_of_items)
+    # }
+    
+    if (gtools::invalid(onemeetingdata$url)) {
+      if (debug_func_mode==TRUE) {
+        # next
+        message("議案沒有URL, skip")
+        return(data.frame())
+      } else {
+        return(data.frame())
       }
     }
-    tmpbilllist_rawrecordn_nrows<-nrow(bill_list_need_modify_part_matches[[1]])
-    tmpbilllist_rawrecordn_check_value_exist_target<-lapply(bill_list_need_modify_part_matches,is.na) %>% #試著找出有匹配到的結果在哪一個list當中
-      lapply(is.element,FALSE) %>%
-      lapply(unique)
-    tmpbilllist_rawrecordn_check_value_exist_result<-which(sapply(tmpbilllist_rawrecordn_check_value_exist_target,function (e) is.element(TRUE,e) ))
-    if (identical(tmpbilllist_rawrecordn_check_value_exist_result,integer(0))) break
-    tmpbilllist_rawrecordn_targetn<-tmpbilllist_rawrecordn_check_value_exist_result #避免重複輸出，變成如(1,1,1,1)的檢查結果
-    #tmpbilllist_rawrecordn_tmpcheckresult<-is.na(bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,4]) %>%
-    #  getElement(1)
-    # & !(tmpbilllist_rawrecordn_tmpcheckresult)
-    if (tmpbilllist_rawrecordn_nrows>0) {
-      #tmpbilllist_rawrecordn_start<-as.integer(bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,4])
-      #工作要在這裡除錯
-      tmpbilllist_rawrecordn_start<-sapply(bill_list_need_modify_part_matches[tmpbilllist_rawrecordn_targetn],function(x,matrixcolumn) x[,matrixcolumn],matrixcolumn=4) %>% unlist()
-      tmpbilllist_rawrecordn_end<-sapply(bill_list_need_modify_part_matches[tmpbilllist_rawrecordn_targetn],function(x,matrixcolumn) x[,matrixcolumn],matrixcolumn=5) %>% unlist()
-      tmpbilllist_rawrecordn_prefix<-sapply(bill_list_need_modify_part_matches[tmpbilllist_rawrecordn_targetn],function(x,matrixcolumn) x[,matrixcolumn],matrixcolumn=2) %>% unlist()
-      tmpbilllist_rawrecordn_original<-sapply(bill_list_need_modify_part_matches[tmpbilllist_rawrecordn_targetn],function(x,matrixcolumn) x[,matrixcolumn],matrixcolumn=1) %>% unlist()
-      tmpbilllist_supplementlist<-mapply(function(prefix,beginnum,endnum) {
-        tmpbilllist_supplementlist_range<-seq(beginnum,endnum)
-        sapply(tmpbilllist_supplementlist_range, function(X) paste0(prefix,"(",X,")】；")) %>%
-          custompaste0()
-      }, prefix=tmpbilllist_rawrecordn_prefix, beginnum=tmpbilllist_rawrecordn_start, endnum=tmpbilllist_rawrecordn_end, USE.NAMES=FALSE)
-      paragraph_list<-stringi::stri_replace_all_fixed(paragraph_list, tmpbilllist_rawrecordn_original, tmpbilllist_supplementlist, vectorize_all=FALSE)
+    # | !(urln %in% c(469,475))
+    #urln=478是一堆有表決結果名單附(n)至(n)形式的，暫存函式如下:
+    #customgsub(test, "(.+?[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1}[(（]{0,1}\\s{0,1}([—○一二三四五六七八九十\\d]{0,})\\s{0,1}[)）]{0,1}至{1}[(（]{0,1}([—○一二三四五六七八九十\\d]{0,})[)）]{0,1}[〕】）]{0,}[；。]{0,1}).+?", "\\2:\\3;", perl = TRUE)
+    myown_vote_record_df<-list()#data.frame()
+    leave_and_attend_legislators<-data.frame()
+    term<-onemeetingdata$term
+    period<-onemeetingdata$period
+    meetingno<-onemeetingdata$meetingno
+    temp_meeting_no<-onemeetingdata$temp_meeting_no
+    date<-trimws(onemeetingdata$date)
+    if (gtools::invalid(temp_meeting_no) | as.character(temp_meeting_no)=="NA") {
+      temp_meeting_no<-0
     }
-  }
-  
-  #7-5-0-16-62, 7-5-0-16-63有特異的表決名單編號：(62-1)「營業部分財政委員會主審第二十四案予以通過」部分：重編時要注意
-  
-  bill_list<-bill_list_target %>%
-    customgsub("(.+?[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1}[(（]{0,1}\\s{0,1}[—○一二三四五六七八九十\\d\\.]{0,}\\s{0,1}[)）]{0,1}[〕】）]{0,}[；。]{0,1})","\\1 </endofp>",perl=TRUE) %>% 
-    strsplit('</endofp>') %>% unlist() %>%
-    customgrep("[表決]{0,1}[結果]{0,1}[名單]{0,1}附{1}[後|件]{1}",perl=TRUE,value=TRUE)
-  #以下適用於多個案子共享一個表決名單編號（重複編號）的情形
-  bill_list_tmp_billn <- stringi::stri_match_all(bill_list, regex="([^；()（）﹙﹚【】〔〕]*[(（﹙【〔][其中第|經記名表決結果，]{1}?均{0,1}[^；()（）﹙﹚【】〔〕]+?通過，{1}?[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1})?([﹙(（]{1}([—○一二三四五六七八九十\\d\\.]{0,})[）)﹚]{1}){1}?[〕】）﹚]{0,}[；。]{0,1}") %>%
-    sapply(function (X) {
-      return(X[nrow(X),4])
-    }) %>%
-    sapply(cn2num) %>%
-    as.numeric() #取得每一個表決敘述的對照名單編號
-  #有一些原始HTML表決編號是亂碼，直接用數字取代
-  if (term==7 & period==3 & meetingno==12) {
-    bill_list_tmp_billn<-1:length(bill_list)
-  }
-  bill_list <- bill_list[order(bill_list_tmp_billn)] #重新根據編號排列表決的議案
-  bill_list_tmp_billn <- sort(bill_list_tmp_billn)
-  duplicated_bill_list_tmp_billn <- duplicated(bill_list_tmp_billn) %>%
-    which(.==TRUE) %>%
-    sort(decreasing = TRUE) #找到是哪些重複(bill_list的第x案重複，並非文本中的編號)
-  if (length(duplicated_bill_list_tmp_billn)>0) {
-    bill_list_exclude_v <- c()
-    for (duplicated_billn in duplicated_bill_list_tmp_billn) {
-      duplicated_billn_corresponding_v <- bill_list_tmp_billn[duplicated_billn] #bill_list的第x案重複時文本中的編號是多少
-      duplicated_billn_corresponding_billdescription_v <- bill_list[duplicated_billn]
-      firstelement_to_pad_n <- which(bill_list_tmp_billn==duplicated_billn_corresponding_v)[1]
-      bill_list[firstelement_to_pad_n] <- paste0(bill_list[firstelement_to_pad_n], duplicated_billn_corresponding_billdescription_v)
-      bill_list_exclude_v <- c(bill_list_exclude_v, duplicated_billn_corresponding_billdescription_v)
-    } #重複的把他加回去第一次出現的地方合併起來
-    bill_list <- bill_list[!bill_list %in% bill_list_exclude_v]
-  }
-  bill_list %<>% trimws()
-  
-  #立法院第9屆第3會期第3次臨時會第2次會議議事錄
-  #https://lci.ly.gov.tw/LyLCEW/html/agendarec1/03/09/03/03/02/LCEWC03_09030302.htm
-  #前瞻計畫紀錄的案由正規表達式還要再修
-  #0302: 筆數可以對上但是文字被切割太多的版本
-  #(.+?[表決]{0,1}[結果]{0,1}[名單]{0,1}附{0,1}[後|件]{0,1}。{0,1}[(（]{0,1}\\s{0,1}[—○一二三四五六七八九十\\d]{0,}\\s{0,1}[)）]{0,1}[〕】）]{0,}[；。]{0,1})
-  
-  #反覆測試regexp
-  #customgsub(test,"(.+[表決]{0,1}[結果]{0,1}[名單]{0,1}附{0,1}[後|件]{0,1}。{0,1}[(（]{0,1}\\s{0,1}[—○一二三四五六七八九十\\d]{0,}\\s{0,1}[)）]{0,1}[〕】）]{0,}[；。]{0,1})","\\1 </endofp>",perl=TRUE)
-  #特別處理：立法院第6屆第2會期第9次會議議事錄
-  if (term==6 & period==2 & meetingno==9) {
-    merge<-list(c(2,3),c(4,5),c(6,7),c(8,9),c(10,11),c(12,13),c(14,15))
-    new_bill_list<-c()
-    for (merge_n in 1:length(merge)) {
-      new_bill_list<-c(new_bill_list,paste0(bill_list[merge[[merge_n]]],sep="",collapse=""))
+    #content<-read_file(url)
+    content<-trimws(onemeetingdata$content)
+    
+    #直接跳過不妨礙（又因為直接跳過省去篩選麻煩
+    if (term==6 & period==4 & meetingno==17) {
+      #尾部沒有討論事項記名表決，但是有其他事項表決，卻沒有詳細有人名的名單
+      if (debug_func_mode==TRUE) {
+        # next
+        message("沒有表決議案 term ",term," period ",period," meetingno ",meetingno," skip")
+        return(data.frame())
+      } else {
+        return(data.frame())
+      }
     }
-    bill_list<-c(bill_list[c(1,2)],new_bill_list)
-  }
-  #特別處理：立法院第6屆第3會期第10次會議議事錄
-  if (term==6 & period==3 & meetingno==10) {
-    merge<-list(c(10,11,12))
-    new_bill_list<-c()
-    for (merge_n in 1:length(merge)) {
-      new_bill_list<-c(new_bill_list,paste0(bill_list[merge[[merge_n]]],sep="",collapse=""))
+    content <- self$replace_troublesome_meeting_record_content(content, term=term, period=period, meetingno=meetingno, temp_meeting_no=temp_meeting_no)
+    
+    #doc <- read_xml(content,as_html = TRUE)
+    doc <- xml2::read_html(content,encoding="UTF-8")
+    #xpath<-"//p[(contains(.,'次會議議事錄'))]"
+    #meetingname<-xml_find_all(doc, xpath) %>%
+    #  xml_text() %>% getElement(1)
+    meetingname<-onemeetingdata$termmeetingtime
+    #xpath<-"//p[(contains(.,'時　　間'))]"
+    #meetingtimeanddata<-xml_find_all(doc, xpath) %>%
+    #  xml_text() %>% getElement(1)
+    #xpath<-"//p[(contains(.,'請假委員　'))]"
+    message("urln=",urln,"| 1 | ", meetingname, onemeetingdata$url)
+    
+    xpath<-"//p"
+    paragraph_list<-xml2::xml_find_all(doc, xpath) %>%
+      xml2::xml_text()
+    #paragraph_list_length<-length(paragraph_list)
+    
+    check_leave_and_attend_legislator_chr_paragraph<-paragraph_list[1:15] %>%
+      customgsub("(Siluko){1} {0,1}　{1} {0,1}","Siluko　　") %>%
+      customgsub("(Kacaw){1} {0,1}　{1} {0,1}","Kacaw　　") %>%
+      customgsub("(Yotaka){1} {0,1}　{1} {0,1}","Yotaka　　") %>%
+      customgsub("(Pacidal|Pacida){1} {0,1}　{1} {0,1}","Pacidal　　") %>%
+      customgsub("(Pacidal)( |　)+","\\1　　") %>%
+      customgsub("(Kolas){1}\\r\\n(Yotaka){1}([\u4e00-\u9fa5A-aZ-z]+)", "\\1 \\2　　\\3") %>%
+      customgsub("許舒博（尚未報到）","許舒博") %>%
+      customgsub("徐國勇（9月30日）","徐國勇") %>%
+      customgsub("邱泰源（10月4日）","邱泰源") %>%
+      customgsub("Kolas Yotaka周陳秀霞","Kolas Yotaka　　周陳秀霞")
+    #顏清標投票紀錄很怪，雖然待整個會期，但並沒有完整的投票紀錄，很多缺席
+    replace_leave_and_attend_legislator_pattern<-dplyr::filter(error_leave_and_attend_legislators,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no))
+    if (nrow(replace_leave_and_attend_legislator_pattern)>0) {
+      check_leave_and_attend_legislator_chr_paragraph <- stringi::stri_replace_all_fixed(
+        check_leave_and_attend_legislator_chr_paragraph,
+        replace_leave_and_attend_legislator_pattern$legislator_name,
+        replace_leave_and_attend_legislator_pattern$replace_with,vectorize_all=FALSE
+      )
     }
-    bill_list<-c(bill_list[c(1:9)],new_bill_list)
-  }
-  
-  ##立法院第9屆第3會期第3次臨時會第2次會議議事錄
-  if (term==9 & period==3 & temp_meeting_no==3 & meetingno==2) {
-    #stop("test if skip 立法院第9屆第3會期第3次臨時會第2次會議議事錄")
-    paragraph_list<-c(paragraph_list[1:876],
-                      "棄權者：0人",
-                      "(97)「討論事項第一案通案部分黨團、委員提案第96項不予通過」部分：",
-                      paragraph_list[878:2090],
-                      "棄權者：0人",
-                      "(298)「討論事項第一案歲出部分第3款第4項黨團、委員提案第725項復議不通過」部分：",
-                      paragraph_list[2092:2725],
-                      "棄權者：0人",
-                      "(399)「討論事項第一案歲出部分第7款第4項黨團、委員提案第559項予以通過」部分：",
-                      paragraph_list[2727:length(paragraph_list)]
-    )
-  }
-  #特別處理：立法院第7屆第1會期第19次會議議事錄, 這裡很奇怪, https 和 http 版本不一樣
-  if (term==7 & period==1 & temp_meeting_no==0 & meetingno==19) {
-    paragraph_list <- c(paragraph_list[1:1449],
-                        "二、上開決定除國民年金法部分條文修正草案，提出於本（第19）次會議處理外，其餘均照原決定通過。",
-                        "各項記名表決結果名單",
-                        paragraph_list[1451:1637],
-                        "反對者：0人",
-                        #"棄權者：0人",
-                        paragraph_list[1639:length(paragraph_list)]
-    )
-  }
-  if (term == 9 & period == 1 & temp_meeting_no == 1 & meetingno == 1) {
-    paragraph_list <- c(paragraph_list[1:1458],
-                        "棄權者：0人",
-                        "(141)「討論事項第二案營業部分台灣中油股份有限公司有黨團、委員提案第十九項不予通過」部分：",
-                        paragraph_list[1460:length(paragraph_list)]
-    )
-  }
-  
-  message("urln=",urln," | 3 處理記名表決區域 ", meetingname, onemeetingdata$url)
-  roll_call_list_block_sp<-customgrep(paragraph_list,'各項記名表決結果名單|本次會議記名表決結果名單|本次會議表決結果名單|本次會議各項記名表決名單')
-  if (length(roll_call_list_block_sp)<1) {##沒有表決名單的區域
-    no_rollcall<-c(no_rollcall,url)
-    if (debug_func_mode==TRUE) {
-      next
-    } else {
-      return(data.frame())
-    }
-  } else if (length(roll_call_list_block_sp)>2) {
-    stop("Error at ", meetingname, url)
-  }
-  #roll_call_list_block<-paragraph_list[roll_call_list_block_sp:length(paragraph_list)]
-  
-  search_agree_pattern<-'贊成者[:：]{0,1}'
-  agree_record_times<-count_value_times_in_vector(paragraph_list[roll_call_list_block_sp:length(paragraph_list)],search_agree_pattern)
 
-  if (is.null(bill_list) | agree_record_times<1) {
-    if (debug_func_mode==TRUE) {
-      next
+    leavelegislator<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"請假委員",value=TRUE)
+    if ( identical(leavelegislator,as.character()) ) {
+      leavelegislator<-c()
     } else {
-      return(data.frame())
+      leavelegislator<-rest_work_on_attendlegislator(leavelegislator, title='請假委員')
     }
-  }
-  
-  #檢查抓到的前半部詳細案由是否和後半部表決紀錄筆數是否對得上
-  if (agree_record_times!=length(bill_list))
-    stop("Error at ", meetingname, url, "bill lists and agree times does not match!")
-  
-  #定位投票紀錄區域
-  for (locate_vote_record in 1:2) {
-    #抓到 贊成者： 下一行
-    agree_voters<-grep(search_agree_pattern,paragraph_list[roll_call_list_block_sp:length(paragraph_list)])+roll_call_list_block_sp
-    #預防投票人數等於零，加上空白元素
-    if (locate_vote_record==1) {
-      paragraph_list<-insert.at(paragraph_list,agree_voters-1,rep("",agree_record_times))
-    }
-    #抓到bill short title, 有時候會因為只有一個表決案，沒有列案由，抓不到
-    vote_bill_short_title<-grep('」部分',paragraph_list[roll_call_list_block_sp:length(paragraph_list)])+roll_call_list_block_sp-1
-    if (length(vote_bill_short_title)<1) {
-      vote_bill_short_title<-agree_voters-2
-    }
-    #抓到 反對者： 下一行
-    dissent_voters<-grep('反對者[:：]',paragraph_list[roll_call_list_block_sp:length(paragraph_list)])+roll_call_list_block_sp
-    #預防投票人數等於零，加上空白元素
-    if (locate_vote_record==1) {
-      paragraph_list<-insert.at(paragraph_list,dissent_voters-1,rep("",length(dissent_voters)))
-    }
-    #抓到 棄權者： 下一行
-    giveup_voters<-grep('棄權者[:：]',paragraph_list[roll_call_list_block_sp:length(paragraph_list)])+roll_call_list_block_sp
-    #giveup_voters<-setdiff(grep('棄權者：',roll_call_list_block),grep('棄權者：0人',roll_call_list_block))+roll_call_list_block_sp
-    #預防投票人數等於零，加上空白元素
-    if (locate_vote_record==1) {
-      paragraph_list<-insert.at(paragraph_list,giveup_voters-1,rep("",length(giveup_voters)))
-    }
-  }
-  
-  #paragraph_list_length<-length(paragraph_list)
-  
-  
-  
-  for (billn in (1:length(agree_voters))) {
-    message("billn=",billn)
-    #每一案掃描的範圍
-    scan_area_start<-vote_bill_short_title[billn]+1
-    scan_area_end<-if (is.na(vote_bill_short_title[billn+1])) {
-      length(paragraph_list)
-    } else {vote_bill_short_title[billn+1]-1}
-    scan_area<-seq(from=scan_area_start,to=scan_area_end)
-    #贊成者區域
-    agree_voter_area_start<-intersect(agree_voters,scan_area)
-    agree_voter_area_end<-intersect(dissent_voters-2,scan_area)
-    agree_voter_area<-seq(from=agree_voter_area_start, to=agree_voter_area_end )
-    #反對者區域
-    dissent_voter_area_start<-intersect(dissent_voters,scan_area)
-    dissent_voter_area_end<-intersect(giveup_voters-2,scan_area)
-    dissent_voter_area<-seq(from=dissent_voter_area_start,to=dissent_voter_area_end)
-    #棄權者區域
-    giveup_voter_area_start<-intersect(giveup_voters,scan_area)
-    giveup_voter_area_end<-scan_area_end
+    # leavelegislator<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"請假委員",value=TRUE)
+    # leavelegislator<-(if (identical(leavelegislator,as.character())) {
+    #   data.frame()
+    # } else {
+    #   tmpleavelegislator<-leavelegislator %>%
+    #     rest_work_on_attendlegislator(title='請假委員')
+    #   data.frame(
+    #     "legislator_name"=tmpleavelegislator,
+    #     "term"=term,
+    #     "period"=period,
+    #     "temp_meeting_no"=temp_meeting_no,
+    #     "meetingno"=meetingno,
+    #     "url"=onemeetingdata$url,
+    #     "urln"=urln,
+    #     "date"=date,
+    #     stringsAsFactors=FALSE
+    #   ) %>%
+    #     replace_troublesome_names() %>%
+    #     dplyr::mutate_at(c("legislator_name","term","period","meetingno","temp_meeting_no","url","date"),as.character) %>%
+    #     dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no"),as.integer)
+    # })
     
-    #特別處理沒有適當組織的議事錄
-    if (term==6 & period==3 & meetingno==10 & billn %in% c(3,4)) {
-      #立法院第6屆第3會期第10次會議議事錄有二個表決紀錄名單空白只有一個
-      #test:myown_vote_record_df[myown_vote_record_df$billn==4,]
-      paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],"薛　凌\\s{1,2}田秋堇","薛　凌　田秋堇") %>%
-        customgsub("　{1}([\u4e00-\u9fa5]{1}　{0,1}[\u4e00-\u9fa5]{1,2})","　　\\1")
-    }
-    modify_wrong_record_target<-dplyr::filter(error_vote_record_from_name,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no),billn==UQ(billn))
-    nrow_modify_wrong_record_target<-nrow(modify_wrong_record_target)
-    if (nrow_modify_wrong_record_target>0) {
-      message("urln=",urln," | 4 除錯：原議事錄投票區塊第",billn,"案有文字結構錯誤處 modify ",nrow_modify_wrong_record_target," times. ", meetingname, onemeetingdata$url)
-      paragraph_list[scan_area]<-stri_replace_all_fixed(paragraph_list[scan_area],modify_wrong_record_target$legislator_name,modify_wrong_record_target$correct_legislator_name, vectorize_all=FALSE)
-    }
-    paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],"(Kolas Yotaka).+?([\u4e00-\u9fa5]{3})","\\1　　\\2")
-    paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],"(高潞)(.+)?(Pacidal{1}).+?([\u4e00-\u9fa5]{3})","\\1\\2\\3　　\\4")
-
-    
-    if (length(giveup_voter_area_start)==0) {
-      exact_giveup_voter<-c()
-    } else {
-      giveup_voter_area<-seq(from=giveup_voter_area_start,to=giveup_voter_area_end)
-      message("urln=",urln," | 5 有棄權者 ", meetingname, onemeetingdata$url)
-      exact_giveup_voter<-paragraph_list[giveup_voter_area] %>%
-        strsplit('　　') %>% unlist() %>% trimws() %>%
-        customgsub("[\r\n]+","") %>%
-        customgrep("[\u4e00-\u9fa5]",value=TRUE) %>%
-        stri_replace_all_fixed("　","") %>%
-        trimws()
-    }
-    message("urln=",urln," | 6 抓取同意者及反對者（第", billn, "案）", meetingname, onemeetingdata$url)
-    exact_agree_voter<-paragraph_list[agree_voter_area] %>%
-      strsplit('　　') %>% unlist() %>% trimws() %>%
-      customgsub("[\r\n]+","") %>%
-      customgrep("[a-zA-Z\u4e00-\u9fa5]",value=TRUE) %>%
-      stri_replace_all_fixed("　","") %>%
-      trimws()
-    
-    exact_dissent_voter<-paragraph_list[dissent_voter_area] %>%
-      strsplit('　　') %>% unlist() %>% trimws() %>%
-      customgsub("[\r\n]+","") %>%
-      customgrep("[a-zA-Z\u4e00-\u9fa5]",value=TRUE) %>%
-      stri_replace_all_fixed("　","") %>%
-      trimws()
-    #exact_giveup_voter<-intersect(giveup_voters,checkarea) #沒有交集會傳回integer(0)
-    #exact_dissent_voter<-dissent_voters[n]
-    #exact_giveup_voter<-ifelse(is.integer(exact_giveup_voter),
-    #                           FALSE,
-    #                           str_split(paragraph_list[exact_giveup_voter],'　　')
-    #)
-    billresult<-ifelse(length(exact_agree_voter)>length(exact_dissent_voter),"Passed","NotPassed")
-    exact_giveup_voter_df<-if (length(exact_giveup_voter)==0) {
-      data.frame()
-    } else {
-      data.frame("votedecision"="棄權",
-                "legislator_name"=exact_giveup_voter,
-                "term"=term,
-                "period"=period,
-                "meetingno"=meetingno,
-                "temp_meeting_no"=temp_meeting_no,
-                "billn"=billn,
-                "billcontent"=bill_list[billn],
-                "billresult"=billresult,
-                "url"=onemeetingdata$url,
-                "urln"=urln,
-                "date"=date
-      ) %>%
-        dplyr::mutate_all(as.character) %>%
-        dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
-        dplyr::mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
-        replace_troublesome_names()
-    }
-    
-    exact_agree_voter_df<-if (length(exact_agree_voter)==0) {
-      data.frame()
-    } else {
-      data.frame("votedecision"="贊成",
-                "legislator_name"=exact_agree_voter,
-                "term"=term,
-                "period"=period,
-                "meetingno"=meetingno,
-                "temp_meeting_no"=temp_meeting_no,
-                "billn"=billn,
-                "billcontent"=bill_list[billn],
-                "billresult"=billresult,
-                "url"=onemeetingdata$url,
-                "urln"=urln,
-                "date"=date
-      )  %>%
-        dplyr::mutate_all(as.character) %>%
-        dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
-        dplyr::mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
-        replace_troublesome_names()
-    }
-    exact_dissent_voter_df<-if (length(exact_dissent_voter)==0) {
-      data.frame()
-    } else {
-      data.frame("votedecision"="反對",
-                "legislator_name"=exact_dissent_voter,
-                "term"=term,
-                "period"=period,
-                "meetingno"=meetingno,
-                "temp_meeting_no"=temp_meeting_no,
-                "billn"=billn,
-                "billcontent"=bill_list[billn],
-                "billresult"=billresult,
-                "url"=onemeetingdata$url,
-                "urln"=urln,
-                "date"=date
-    ) %>%
-      dplyr::mutate_all(as.character) %>%
-      dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
-      dplyr::mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
-      replace_troublesome_names()
-    }
-    
-    #exact_agree_voter<-paragraph_list[from] %>%
-    #  strsplit('　　') %>% getElement(1)
-    #exact_dissent_voter<-paragraph_list[exact_dissent_voter] %>%
-    #  strsplit('　　') %>% getElement(1)
-    attend_but_not_vote_df<-data.frame(
+    #20200311 這邊檢查到有時候會有斷行的情形導致有出席卻沒列入
+    #correct_std_legislators_list<-paste0(dataset_file_directory, "legislators.xlsx") %>%
+    #  ret_std_legislators_data(legislatorsxlsxpath=., terms=term, elections_df=elections_df) %>%
+    #  magrittr::use_series(legislator_name) %>%
+    #  unique()
+    attendlegislator_one<-customgrep(check_leave_and_attend_legislator_chr_paragraph,"出席委員",value=TRUE) %>%
+      rest_work_on_attendlegislator(title='出席委員') %>%
+      unique()
+    attendlegislator_two<-customgrepl(check_leave_and_attend_legislator_chr_paragraph,"(議事錄|中華民國|星期|議場|委員出席|請假|缺席|院長|上午|下午|列席|秘書長|主席|行政院|議事處|分）|審計|編審|預算|部長|報告|質詢)", perl=TRUE) %>%
+      sapply(isFALSE) %>%
+      magrittr::extract(check_leave_and_attend_legislator_chr_paragraph, .) %>%
+      rest_work_on_attendlegislator(title='出席委員') %>%
+      unique()
+    attendlegislator<-dplyr::union(attendlegislator_one,attendlegislator_two)
+    attendlegislator<-data.frame(
+      "legislator_name"=attendlegislator,
       "term"=term,
       "period"=period,
-      "meetingno"=meetingno,
       "temp_meeting_no"=temp_meeting_no,
-      "billn"=billn,
-      "billcontent"=bill_list[billn],
-      "billresult"=billresult
+      "meetingno"=meetingno,
+      "url"=onemeetingdata$url,
+      "urln"=urln,
+      "date"=date,
+      stringsAsFactors=FALSE
     ) %>%
-      dplyr::mutate_all(as.character) %>%
-      dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),as.integer) %>%
-      dplyr::right_join(attendlegislator) %>%
-      dplyr::mutate("votedecision"="未投票") %>%
-      anti_join_with_nrow_zero(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-      anti_join_with_nrow_zero(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-      anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-      dplyr::mutate_all(as.character) %>%
-      dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
-      dplyr::mutate_at(c("billcontent","url"),stringi::stri_trim_both)
-
-    leavelegislator_df<-if(nrow(leavelegislator)>0) {
-      data.frame(
-        "term"=term,
-        "period"=period,
-        "meetingno"=meetingno,
-        "temp_meeting_no"=temp_meeting_no,
-        "billn"=billn,
-        "billcontent"=bill_list[billn],
-        "billresult"=billresult
-      ) %>%
-        dplyr::mutate_all(as.character) %>%
-        dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),as.integer) %>%
-        dplyr::right_join(leavelegislator) %>%
-        dplyr::mutate("votedecision"="請假") %>%
-        anti_join_with_nrow_zero(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-        anti_join_with_nrow_zero(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-        anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
-        dplyr::mutate_all(as.character) %>%
-        dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
-        dplyr::mutate_at(c("billcontent","url"),stringi::stri_trim_both)
-    } else {
-      data.frame()
+      dplyr::mutate_at(c("legislator_name","term","period","meetingno","temp_meeting_no"),as.character) %>%
+      dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no"),as.integer) %>%
+      replace_troublesome_names()
+    if (length(attendlegislator_one)!=length(attendlegislator_two)) {
+      diff_between_attendlegislator<-dplyr::union(attendlegislator_two, attendlegislator_one) %>%
+        dplyr::setdiff(attendlegislator_one)
+      if (!identical(diff_between_attendlegislator, character(0)) & length(diff_between_attendlegislator)>0) {
+        # debugprint(attendlegislator_one)
+        # debugprint(attendlegislator_two)
+        # debugprint(diff_between_attendlegislator)
+        #curl::new_handle(verbose = TRUE) %>%
+        #  curl::handle_setopt(copypostfields = {
+        #    paste0("term=", term,
+        #           "&period=", period,
+        #           "&meetingno=", meetingno,
+        #           "&temp_meeting_no=", temp_meeting_no,
+        #           "&attlistone=", length(attendlegislator_one),
+        #           "&attlisttwo=", length(attendlegislator_two),
+        #           "&attlist=", nrow(attendlegislator),
+        #           "&leavelegis=", nrow(leavelegislator),
+        #           "&diff=", paste0(diff_between_attendlegislator, collapse=",")
+        #    )
+        #  }) %>%
+        #  curl::curl_fetch_memory(url="http://192.168.10.200/scripts/check_vote_records.php", handle=.)
+        #curl::handle_setopt(h, customrequest = "PUT")
+        #curl::handle_setform(h,
+        # list(
+        #   term = as.character(term), 
+        #   period = as.character(period),
+        #   meetingno= as.character(meetingno),
+        #   temp_meeting_no = as.character(temp_meeting_no),
+        #   attlistone = as.character(length(attendlegislator_one)),
+        #   attlisttwo = as.character(length(attendlegislator_two)),
+        #   attlist = as.character(nrow(attendlegislator)),
+        #   leavelegis = as.character(nrow(leavelegislator)),
+        #   diff = paste0(diff_between_attendlegislator, collapse=",")
+        # ) %>%
+        #   httr::GET("http://192.168.10.200/scripts/check_vote_records.php", query=.)
+      }
     }
-    myown_vote_record_df<-dplyr::bind_rows(
-      myown_vote_record_df,
-      exact_agree_voter_df,
-      exact_dissent_voter_df,
-      exact_giveup_voter_df,
-      attend_but_not_vote_df,
-      leavelegislator_df
-    )
+    
+    # leave_and_attend_legislators<-dplyr::bind_rows(leave_and_attend_legislators,leavelegislator,attendlegislator)
+    #message(leavelegislator,"\n\r",attendegislator,"\n\r")
+    #attendegislator
+    #next()
+    
+    #特別處理
+    ##立法院第6屆第2會期第19次會議議事錄
+    if (term==6 & period==2 & meetingno==19) {
+      paragraph_list<-c(paragraph_list[1:3161],"各項記名表決結果名單",paragraph_list[3162:length(paragraph_list)])
+      #(customgrepl(paragraph_list,'贊成者：'))-2 %>% which.min()
+      #取代模式
+      #paragraph_list<-sapply(paragraph_list,
+      #                       customgsub,
+      #                       '一、本院無黨團結聯盟黨團提議，將無黨團結聯盟黨團擬具之「公教人員保險法增訂第十五條之一條文草案」由法制委員會抽出，逕付二讀，並由無黨團結聯盟黨團負責召集協商，經表決未獲通過。【在場委員',
+      #                       '一、本院無黨團結聯盟黨團提議，將無黨團結聯盟黨團擬具之「公教人員保險法增訂第十五條之一條文草案」由法制委員會抽出，逕付二讀，並由無黨團結聯盟黨團負責召集協商，經記名表決未獲通過。表決結果名單附後(十)【在場委員'
+      #)
+    }
+    if (term==7 & period==5 & meetingno==16) {
+      paragraph_list<-gsub("附後[\\r\\n\\s]+", "附後", paragraph_list, perl=TRUE)
+      replaceidx<-grep("62-1", paragraph_list)
+      paragraph_list[replaceidx]<-gsub("62-1", "62.1", paragraph_list[replaceidx])
+    }
+    
+    message("urln=",urln," | 2 RegularExpression 處理前面的投票表決議案詳細說明 ", meetingname, onemeetingdata$url)
+    #xpath<-"//p[(contains(.,'記名表決')) and (contains(.,'表決結果名單附後') or contains(.,'表決結果名單附件') or contains(.,'表決結果附後') or contains(.,'表決結果名單及時程表附後'))   ]"
+    #bill_list<-xml_find_all(doc, xpath) %>%
+    #xml_text() %>%
+    
+    #把 附後(21)、(22) 或 (59)及(60)這種形式的紀錄改為附後(21)至(22)
+    paragraph_list %<>% customgsub("(附後)([﹙\\(（]{1}\\d+[）\\)﹚]{1})[、及]([﹙\\(（]{1}\\d+[）\\)﹚]{1})","\\1\\2至\\3",perl=TRUE)#、(\(\d+\))
+    #paragraph_list[65]
+    #開始處理【經記名表決結果，均予以通過，表決結果附後(2)至(5)】這種形式的紀錄
+    for (bill_list_exec_check_i in 1:2) {
+      bill_list_target<-customgrep(paragraph_list,'記名表決',value=TRUE) %>%
+        customgrep("表決結果名單附後|表決結果名單附件|表決結果附後|表決結果名單及時程表附後",value=TRUE)
+      if (bill_list_exec_check_i==2 | identical(bill_list_target,character(0))) break
+      #bill_list_need_modify_part_matches<-stri_match_all(bill_list_target,regex="(【經記名表決結果，{1}?均{0,1}.+?通過，{1}[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1})?([(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)]{1}至{1}[(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)]{1}){1}[〕】）]{0,}[；。]{0,1}")
+      bill_list_need_modify_part_matches<-stringi::stri_match_all(bill_list_target,regex="([^；()（）﹙﹚【】〔〕]*[(（﹙【〔][其中第|經記名表決結果，]{1}?均{0,1}[^；()（）﹙﹚【】〔〕]+?通過，{1}?[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1})?([﹙(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)﹚]{1}至{1}[﹙(（]{1}([—○一二三四五六七八九十\\d]{0,})[）)﹚]{1}){1}?[〕】）﹚]{0,}[；。]{0,1}")
+      if (length(bill_list_need_modify_part_matches)==1) { #no result from checking
+        if (nrow(bill_list_need_modify_part_matches[[1]])<1) { #有時候在同一段裡面會連續出現(x)至(y)的情形
+          break
+        }
+      }
+      tmpbilllist_rawrecordn_nrows<-nrow(bill_list_need_modify_part_matches[[1]])
+      tmpbilllist_rawrecordn_check_value_exist_target<-lapply(bill_list_need_modify_part_matches,is.na) %>% #試著找出有匹配到的結果在哪一個list當中
+        lapply(is.element,FALSE) %>%
+        lapply(unique)
+      tmpbilllist_rawrecordn_check_value_exist_result<-which(sapply(tmpbilllist_rawrecordn_check_value_exist_target,function (e) is.element(TRUE,e) ))
+      if (identical(tmpbilllist_rawrecordn_check_value_exist_result,integer(0))) break
+      tmpbilllist_rawrecordn_targetn<-tmpbilllist_rawrecordn_check_value_exist_result #避免重複輸出，變成如(1,1,1,1)的檢查結果
+      #tmpbilllist_rawrecordn_tmpcheckresult<-is.na(bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,4]) %>%
+      #  getElement(1)
+      # & !(tmpbilllist_rawrecordn_tmpcheckresult)
+      if (tmpbilllist_rawrecordn_nrows>0) {
+        #tmpbilllist_rawrecordn_start<-as.integer(bill_list_need_modify_part_matches[[tmpbilllist_rawrecordn_targetn]][,4])
+        #工作要在這裡除錯
+        tmpbilllist_rawrecordn_start<-sapply(bill_list_need_modify_part_matches[tmpbilllist_rawrecordn_targetn],function(x,matrixcolumn) x[,matrixcolumn],matrixcolumn=4) %>% unlist()
+        tmpbilllist_rawrecordn_end<-sapply(bill_list_need_modify_part_matches[tmpbilllist_rawrecordn_targetn],function(x,matrixcolumn) x[,matrixcolumn],matrixcolumn=5) %>% unlist()
+        tmpbilllist_rawrecordn_prefix<-sapply(bill_list_need_modify_part_matches[tmpbilllist_rawrecordn_targetn],function(x,matrixcolumn) x[,matrixcolumn],matrixcolumn=2) %>% unlist()
+        tmpbilllist_rawrecordn_original<-sapply(bill_list_need_modify_part_matches[tmpbilllist_rawrecordn_targetn],function(x,matrixcolumn) x[,matrixcolumn],matrixcolumn=1) %>% unlist()
+        tmpbilllist_supplementlist<-mapply(function(prefix,beginnum,endnum) {
+          tmpbilllist_supplementlist_range<-seq(beginnum,endnum)
+          sapply(tmpbilllist_supplementlist_range, function(X) paste0(prefix,"(",X,")】；")) %>%
+            custompaste0()
+        }, prefix=tmpbilllist_rawrecordn_prefix, beginnum=tmpbilllist_rawrecordn_start, endnum=tmpbilllist_rawrecordn_end, USE.NAMES=FALSE)
+        paragraph_list<-stringi::stri_replace_all_fixed(paragraph_list, tmpbilllist_rawrecordn_original, tmpbilllist_supplementlist, vectorize_all=FALSE)
+      }
+    }
+    
+    #7-5-0-16-62, 7-5-0-16-63有特異的表決名單編號：(62-1)「營業部分財政委員會主審第二十四案予以通過」部分：重編時要注意
+    
+    bill_list<-bill_list_target %>%
+      customgsub("(.+?[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1}[(（]{0,1}\\s{0,1}[—○一二三四五六七八九十\\d\\.]{0,}\\s{0,1}[)）]{0,1}[〕】）]{0,}[；。]{0,1})","\\1 </endofp>",perl=TRUE) %>% 
+      strsplit('</endofp>') %>% unlist() %>%
+      customgrep("[表決]{0,1}[結果]{0,1}[名單]{0,1}附{1}[後|件]{1}",perl=TRUE,value=TRUE)
+    #以下適用於多個案子共享一個表決名單編號（重複編號）的情形
+    bill_list_tmp_billn <- stringi::stri_match_all(bill_list, regex="([^；()（）﹙﹚【】〔〕]*[(（﹙【〔][其中第|經記名表決結果，]{1}?均{0,1}[^；()（）﹙﹚【】〔〕]+?通過，{1}?[表決]{0,2}[結果]{0,2}[名單]{0,2}附{1}[後件]{0,1}。{0,1})?([﹙(（]{1}([—○一二三四五六七八九十\\d\\.]{0,})[）)﹚]{1}){1}?[〕】）﹚]{0,}[；。]{0,1}") %>%
+      sapply(function (X) {
+        return(X[nrow(X),4])
+      }) %>%
+      sapply(cn2num) %>%
+      as.numeric() #取得每一個表決敘述的對照名單編號
+    #有一些原始HTML表決編號是亂碼，直接用數字取代
+    if (term==7 & period==3 & meetingno==12) {
+      bill_list_tmp_billn<-1:length(bill_list)
+    }
+    bill_list <- bill_list[order(bill_list_tmp_billn)] #重新根據編號排列表決的議案
+    bill_list_tmp_billn <- sort(bill_list_tmp_billn)
+    duplicated_bill_list_tmp_billn <- duplicated(bill_list_tmp_billn) %>%
+      which(.==TRUE) %>%
+      sort(decreasing = TRUE) #找到是哪些重複(bill_list的第x案重複，並非文本中的編號)
+    if (length(duplicated_bill_list_tmp_billn)>0) {
+      bill_list_exclude_v <- c()
+      for (duplicated_billn in duplicated_bill_list_tmp_billn) {
+        duplicated_billn_corresponding_v <- bill_list_tmp_billn[duplicated_billn] #bill_list的第x案重複時文本中的編號是多少
+        duplicated_billn_corresponding_billdescription_v <- bill_list[duplicated_billn]
+        firstelement_to_pad_n <- which(bill_list_tmp_billn==duplicated_billn_corresponding_v)[1]
+        bill_list[firstelement_to_pad_n] <- paste0(bill_list[firstelement_to_pad_n], duplicated_billn_corresponding_billdescription_v)
+        bill_list_exclude_v <- c(bill_list_exclude_v, duplicated_billn_corresponding_billdescription_v)
+      } #重複的把他加回去第一次出現的地方合併起來
+      bill_list <- bill_list[!bill_list %in% bill_list_exclude_v]
+    }
+    bill_list %<>% trimws()
+    
+    #立法院第9屆第3會期第3次臨時會第2次會議議事錄
+    #https://lci.ly.gov.tw/LyLCEW/html/agendarec1/03/09/03/03/02/LCEWC03_09030302.htm
+    #前瞻計畫紀錄的案由正規表達式還要再修
+    #0302: 筆數可以對上但是文字被切割太多的版本
+    #(.+?[表決]{0,1}[結果]{0,1}[名單]{0,1}附{0,1}[後|件]{0,1}。{0,1}[(（]{0,1}\\s{0,1}[—○一二三四五六七八九十\\d]{0,}\\s{0,1}[)）]{0,1}[〕】）]{0,}[；。]{0,1})
+    
+    #反覆測試regexp
+    #customgsub(test,"(.+[表決]{0,1}[結果]{0,1}[名單]{0,1}附{0,1}[後|件]{0,1}。{0,1}[(（]{0,1}\\s{0,1}[—○一二三四五六七八九十\\d]{0,}\\s{0,1}[)）]{0,1}[〕】）]{0,}[；。]{0,1})","\\1 </endofp>",perl=TRUE)
+    #特別處理：立法院第6屆第2會期第9次會議議事錄
+    if (term==6 & period==2 & meetingno==9) {
+      merge<-list(c(2,3),c(4,5),c(6,7),c(8,9),c(10,11),c(12,13),c(14,15))
+      new_bill_list<-c()
+      for (merge_n in 1:length(merge)) {
+        new_bill_list<-c(new_bill_list,paste0(bill_list[merge[[merge_n]]],sep="",collapse=""))
+      }
+      bill_list<-c(bill_list[c(1,2)],new_bill_list)
+    }
+    #特別處理：立法院第6屆第3會期第10次會議議事錄
+    if (term==6 & period==3 & meetingno==10) {
+      merge<-list(c(10,11,12))
+      new_bill_list<-c()
+      for (merge_n in 1:length(merge)) {
+        new_bill_list<-c(new_bill_list,paste0(bill_list[merge[[merge_n]]],sep="",collapse=""))
+      }
+      bill_list<-c(bill_list[c(1:9)],new_bill_list)
+    }
+    
+    ##立法院第9屆第3會期第3次臨時會第2次會議議事錄
+    if (term==9 & period==3 & temp_meeting_no==3 & meetingno==2) {
+      #stop("test if skip 立法院第9屆第3會期第3次臨時會第2次會議議事錄")
+      paragraph_list<-c(paragraph_list[1:876],
+                        "棄權者：0人",
+                        "(97)「討論事項第一案通案部分黨團、委員提案第96項不予通過」部分：",
+                        paragraph_list[878:2090],
+                        "棄權者：0人",
+                        "(298)「討論事項第一案歲出部分第3款第4項黨團、委員提案第725項復議不通過」部分：",
+                        paragraph_list[2092:2725],
+                        "棄權者：0人",
+                        "(399)「討論事項第一案歲出部分第7款第4項黨團、委員提案第559項予以通過」部分：",
+                        paragraph_list[2727:length(paragraph_list)]
+      )
+    }
+    #特別處理：立法院第7屆第1會期第19次會議議事錄, 這裡很奇怪, https 和 http 版本不一樣
+    if (term==7 & period==1 & temp_meeting_no==0 & meetingno==19) {
+      paragraph_list <- c(paragraph_list[1:1449],
+                          "二、上開決定除國民年金法部分條文修正草案，提出於本（第19）次會議處理外，其餘均照原決定通過。",
+                          "各項記名表決結果名單",
+                          paragraph_list[1451:1637],
+                          "反對者：0人",
+                          #"棄權者：0人",
+                          paragraph_list[1639:length(paragraph_list)]
+      )
+    }
+    if (term == 9 & period == 1 & temp_meeting_no == 1 & meetingno == 1) {
+      paragraph_list <- c(paragraph_list[1:1458],
+                          "棄權者：0人",
+                          "(141)「討論事項第二案營業部分台灣中油股份有限公司有黨團、委員提案第十九項不予通過」部分：",
+                          paragraph_list[1460:length(paragraph_list)]
+      )
+    }
+    
+    message("urln=",urln," | 3 處理記名表決區域 ", meetingname, onemeetingdata$url)
+    roll_call_list_block_sp<-customgrep(paragraph_list,'各項記名表決結果名單|本次會議記名表決結果名單|本次會議表決結果名單|本次會議各項記名表決名單')
+    if (length(roll_call_list_block_sp)<1) {##沒有表決名單的區域
+      no_rollcall<-c(no_rollcall,url)
+      if (debug_func_mode==TRUE) {
+        # next
+        message("沒有表決名單的區域, skip")
+        return(data.frame())
+      } else {
+        return(data.frame())
+      }
+    } else if (length(roll_call_list_block_sp)>2) {
+      stop("Error at ", meetingname, url)
+    }
+    #roll_call_list_block<-paragraph_list[roll_call_list_block_sp:length(paragraph_list)]
+    
+    search_agree_pattern<-'贊成者[:：]{0,1}'
+    agree_record_times<-count_value_times_in_vector(paragraph_list[roll_call_list_block_sp:length(paragraph_list)],search_agree_pattern)
+    
+    if (is.null(bill_list) | agree_record_times<1) {
+      if (debug_func_mode==TRUE) {
+        # next
+        message("沒有議案, skip")
+        return(data.frame())
+      } else {
+        return(data.frame())
+      }
+    }
+    
+    #檢查抓到的前半部詳細案由是否和後半部表決紀錄筆數是否對得上
+    if (agree_record_times!=length(bill_list))
+      stop("Error at ", meetingname, url, "bill lists and agree times does not match!")
+    
+    #定位投票紀錄區域
+    for (locate_vote_record in 1:2) {
+      #抓到 贊成者： 下一行
+      agree_voters<-grep(search_agree_pattern,paragraph_list[roll_call_list_block_sp:length(paragraph_list)])+roll_call_list_block_sp
+      #預防投票人數等於零，加上空白元素
+      if (locate_vote_record==1) {
+        paragraph_list<-insert.at(paragraph_list,agree_voters-1,rep("",agree_record_times))
+      }
+      #抓到bill short title, 有時候會因為只有一個表決案，沒有列案由，抓不到
+      vote_bill_short_title<-grep('」部分',paragraph_list[roll_call_list_block_sp:length(paragraph_list)])+roll_call_list_block_sp-1
+      if (length(vote_bill_short_title)<1) {
+        vote_bill_short_title<-agree_voters-2
+      }
+      #抓到 反對者： 下一行
+      dissent_voters<-grep('反對者[:：]',paragraph_list[roll_call_list_block_sp:length(paragraph_list)])+roll_call_list_block_sp
+      #預防投票人數等於零，加上空白元素
+      if (locate_vote_record==1) {
+        paragraph_list<-insert.at(paragraph_list,dissent_voters-1,rep("",length(dissent_voters)))
+      }
+      #抓到 棄權者： 下一行
+      giveup_voters<-grep('棄權者[:：]',paragraph_list[roll_call_list_block_sp:length(paragraph_list)])+roll_call_list_block_sp
+      #giveup_voters<-setdiff(grep('棄權者：',roll_call_list_block),grep('棄權者：0人',roll_call_list_block))+roll_call_list_block_sp
+      #預防投票人數等於零，加上空白元素
+      if (locate_vote_record==1) {
+        paragraph_list<-insert.at(paragraph_list,giveup_voters-1,rep("",length(giveup_voters)))
+      }
+    }
+    
+    #paragraph_list_length<-length(paragraph_list)
+    
+    
+    
+    for (billn in (1:length(agree_voters))) {
+      message("billn=",billn)
+      #每一案掃描的範圍
+      scan_area_start<-vote_bill_short_title[billn]+1
+      scan_area_end<-if (is.na(vote_bill_short_title[billn+1])) {
+        length(paragraph_list)
+      } else {vote_bill_short_title[billn+1]-1}
+      scan_area<-seq(from=scan_area_start,to=scan_area_end)
+      #贊成者區域
+      agree_voter_area_start<-intersect(agree_voters,scan_area)
+      agree_voter_area_end<-intersect(dissent_voters-2,scan_area)
+      agree_voter_area<-seq(from=agree_voter_area_start, to=agree_voter_area_end )
+      #反對者區域
+      dissent_voter_area_start<-intersect(dissent_voters,scan_area)
+      dissent_voter_area_end<-intersect(giveup_voters-2,scan_area)
+      dissent_voter_area<-seq(from=dissent_voter_area_start,to=dissent_voter_area_end)
+      #棄權者區域
+      giveup_voter_area_start<-intersect(giveup_voters,scan_area)
+      giveup_voter_area_end<-scan_area_end
+      
+      #特別處理沒有適當組織的議事錄
+      if (term==6 & period==3 & meetingno==10 & billn %in% c(3,4)) {
+        #立法院第6屆第3會期第10次會議議事錄有二個表決紀錄名單空白只有一個
+        #test:myown_vote_record_df[myown_vote_record_df$billn==4,]
+        paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],"薛　凌\\s{1,2}田秋堇","薛　凌　田秋堇") %>%
+          customgsub("　{1}([\u4e00-\u9fa5]{1}　{0,1}[\u4e00-\u9fa5]{1,2})","　　\\1")
+      }
+      modify_wrong_record_target<-dplyr::filter(error_vote_record_from_name,term==UQ(term),period==UQ(period),meetingno==UQ(meetingno),temp_meeting_no==UQ(temp_meeting_no),billn==UQ(billn))
+      nrow_modify_wrong_record_target<-nrow(modify_wrong_record_target)
+      if (nrow_modify_wrong_record_target>0) {
+        message("urln=",urln," | 4 除錯：原議事錄投票區塊第",billn,"案有文字結構錯誤處 modify ",nrow_modify_wrong_record_target," times. ", meetingname, onemeetingdata$url)
+        paragraph_list[scan_area]<-stri_replace_all_fixed(paragraph_list[scan_area],modify_wrong_record_target$legislator_name,modify_wrong_record_target$correct_legislator_name, vectorize_all=FALSE)
+      }
+      paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],"(Kolas Yotaka).+?([\u4e00-\u9fa5]{3})","\\1　　\\2")
+      paragraph_list[scan_area]<-customgsub(paragraph_list[scan_area],"(高潞)(.+)?(Pacidal{1}).+?([\u4e00-\u9fa5]{3})","\\1\\2\\3　　\\4")
+      
+      
+      if (length(giveup_voter_area_start)==0) {
+        exact_giveup_voter<-c()
+      } else {
+        giveup_voter_area<-seq(from=giveup_voter_area_start,to=giveup_voter_area_end)
+        message("urln=",urln," | 5 有棄權者 ", meetingname, onemeetingdata$url)
+        exact_giveup_voter<-paragraph_list[giveup_voter_area] %>%
+          strsplit('　　') %>% unlist() %>% trimws() %>%
+          customgsub("[\r\n]+","") %>%
+          customgrep("[\u4e00-\u9fa5]",value=TRUE) %>%
+          stri_replace_all_fixed("　","") %>%
+          trimws()
+      }
+      message("urln=",urln," | 6 抓取同意者及反對者（第", billn, "案）", meetingname, onemeetingdata$url)
+      exact_agree_voter<-paragraph_list[agree_voter_area] %>%
+        strsplit('　　') %>% unlist() %>% trimws() %>%
+        customgsub("[\r\n]+","") %>%
+        customgrep("[a-zA-Z\u4e00-\u9fa5]",value=TRUE) %>%
+        stri_replace_all_fixed("　","") %>%
+        trimws()
+      
+      exact_dissent_voter<-paragraph_list[dissent_voter_area] %>%
+        strsplit('　　') %>% unlist() %>% trimws() %>%
+        customgsub("[\r\n]+","") %>%
+        customgrep("[a-zA-Z\u4e00-\u9fa5]",value=TRUE) %>%
+        stri_replace_all_fixed("　","") %>%
+        trimws()
+      #exact_giveup_voter<-intersect(giveup_voters,checkarea) #沒有交集會傳回integer(0)
+      #exact_dissent_voter<-dissent_voters[n]
+      #exact_giveup_voter<-ifelse(is.integer(exact_giveup_voter),
+      #                           FALSE,
+      #                           str_split(paragraph_list[exact_giveup_voter],'　　')
+      #)
+      billresult <- ifelse(length(exact_agree_voter)>length(exact_dissent_voter),"Passed","NotPassed")
+      leavelegislator <- base::setdiff(leavelegislator, c(exact_giveup_voter,exact_agree_voter,exact_dissent_voter) )
+      attend_but_not_vote_legislators <- base::setdiff(attendlegislator,c(exact_giveup_voter,exact_agree_voter,exact_dissent_voter) )
+      various_voting_behavior_df <- list(
+        "棄權"=exact_giveup_voter,
+        "贊成"=exact_agree_voter,
+        "反對"=exact_dissent_voter,
+        "未投票"=attend_but_not_vote_legislators,
+        "請假"=leavelegislator
+      )
+      various_voting_behavior_df <- custom_parallel_lapply(
+        names(various_voting_behavior_df),
+        FUN=function(behavior) {
+          voters_this_behavior <- various_voting_behavior_df[[behavior]]
+          if (length(voters_this_behavior)==0) {
+            return(data.table::data.table())
+          } else {
+            data.table::data.table(
+              "votedecision"=behavior,
+              "legislator_name"=voters_this_behavior,
+              "term"=term,
+              "period"=period,
+              "meetingno"=meetingno,
+              "temp_meeting_no"=temp_meeting_no,
+              "billn"=billn,
+              "billcontent"=bill_list[billn],
+              "billresult"=billresult,
+              "url"=onemeetingdata$url,
+              "urln"=urln,
+              "date"=date
+            ) %>%
+              dplyr::mutate_all(as.character) %>%
+              dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
+              dplyr::mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
+              replace_troublesome_names() %>%
+              return()
+            }
+        },
+        method=parallel_method,
+        exportvar=c("meetingurldata","various_voting_behavior_df","term","period","meetingno","temp_meeting_no","billn","bill_list","billresult","onemeetingdata","url","urln","date"),
+        exportlib=c("base",lib),
+        outfile=file.path(dataset_file_directory, "rdata", paste0("parallel_handling_process-", t_sessioninfo_running_with_cpu, ".txt") ),
+        mc.cores=mccores
+        )
+      
+      # exact_giveup_voter_df<-if (length(exact_giveup_voter)==0) {
+      #   data.frame()
+      # } else {
+      #   data.frame("votedecision"="棄權",
+      #              "legislator_name"=exact_giveup_voter,
+      #              "term"=term,
+      #              "period"=period,
+      #              "meetingno"=meetingno,
+      #              "temp_meeting_no"=temp_meeting_no,
+      #              "billn"=billn,
+      #              "billcontent"=bill_list[billn],
+      #              "billresult"=billresult,
+      #              "url"=onemeetingdata$url,
+      #              "urln"=urln,
+      #              "date"=date
+      #   ) %>%
+      #     dplyr::mutate_all(as.character) %>%
+      #     dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
+      #     dplyr::mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
+      #     replace_troublesome_names()
+      # }
+      
+      # exact_agree_voter_df<-if (length(exact_agree_voter)==0) {
+      #   data.frame()
+      # } else {
+      #   data.frame("votedecision"="贊成",
+      #              "legislator_name"=exact_agree_voter,
+      #              "term"=term,
+      #              "period"=period,
+      #              "meetingno"=meetingno,
+      #              "temp_meeting_no"=temp_meeting_no,
+      #              "billn"=billn,
+      #              "billcontent"=bill_list[billn],
+      #              "billresult"=billresult,
+      #              "url"=onemeetingdata$url,
+      #              "urln"=urln,
+      #              "date"=date
+      #   )  %>%
+      #     dplyr::mutate_all(as.character) %>%
+      #     dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
+      #     dplyr::mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
+      #     replace_troublesome_names()
+      # }
 
-  }
-  
-  if (debug_func_mode!=TRUE) {
+      # exact_dissent_voter_df<-if (length(exact_dissent_voter)==0) {
+      #   data.frame()
+      # } else {
+      #   data.frame("votedecision"="反對",
+      #              "legislator_name"=exact_dissent_voter,
+      #              "term"=term,
+      #              "period"=period,
+      #              "meetingno"=meetingno,
+      #              "temp_meeting_no"=temp_meeting_no,
+      #              "billn"=billn,
+      #              "billcontent"=bill_list[billn],
+      #              "billresult"=billresult,
+      #              "url"=onemeetingdata$url,
+      #              "urln"=urln,
+      #              "date"=date
+      #   ) %>%
+      #     dplyr::mutate_all(as.character) %>%
+      #     dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
+      #     dplyr::mutate_at(c("billcontent","url"),stringi::stri_trim_both) %>%
+      #     replace_troublesome_names()
+      # }
+      
+      #exact_agree_voter<-paragraph_list[from] %>%
+      #  strsplit('　　') %>% getElement(1)
+      #exact_dissent_voter<-paragraph_list[exact_dissent_voter] %>%
+      #  strsplit('　　') %>% getElement(1)
+
+      # attend_but_not_vote_df<-data.frame(
+      #   "term"=term,
+      #   "period"=period,
+      #   "meetingno"=meetingno,
+      #   "temp_meeting_no"=temp_meeting_no,
+      #   "billn"=billn,
+      #   "billcontent"=bill_list[billn],
+      #   "billresult"=billresult
+      # ) %>%
+      #   dplyr::mutate_all(as.character) %>%
+      #   dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),as.integer) %>%
+      #   dplyr::right_join(attendlegislator) %>%
+      #   dplyr::mutate("votedecision"="未投票") %>%
+      #   anti_join_with_nrow_zero(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+      #   anti_join_with_nrow_zero(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+      #   anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+      #   dplyr::mutate_all(as.character) %>%
+      #   dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
+      #   dplyr::mutate_at(c("billcontent","url"),stringi::stri_trim_both)
+
+      # leavelegislator_df<-if(nrow(leavelegislator)>0) {
+      #   data.frame(
+      #     "term"=term,
+      #     "period"=period,
+      #     "meetingno"=meetingno,
+      #     "temp_meeting_no"=temp_meeting_no,
+      #     "billn"=billn,
+      #     "billcontent"=bill_list[billn],
+      #     "billresult"=billresult
+      #   ) %>%
+      #     dplyr::mutate_all(as.character) %>%
+      #     dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn"),as.integer) %>%
+      #     dplyr::right_join(leavelegislator) %>%
+      #     dplyr::mutate("votedecision"="請假") %>%
+      #     anti_join_with_nrow_zero(exact_giveup_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+      #     anti_join_with_nrow_zero(exact_agree_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+      #     anti_join_with_nrow_zero(exact_dissent_voter_df,by=c("term","period","meetingno","temp_meeting_no","billn","legislator_name")) %>%
+      #     dplyr::mutate_all(as.character) %>%
+      #     dplyr::mutate_at(c("term","period","meetingno","temp_meeting_no","billn","urln"),as.integer) %>%
+      #     dplyr::mutate_at(c("billcontent","url"),stringi::stri_trim_both)
+      # } else {
+      #   data.frame()
+      # }
+      # myown_vote_record_df<-dplyr::bind_rows(
+      #   myown_vote_record_df,
+      #   exact_agree_voter_df,
+      #   exact_dissent_voter_df,
+      #   exact_giveup_voter_df,
+      #   attend_but_not_vote_df,
+      #   leavelegislator_df
+      # )
+      myown_vote_record_df <- c(myown_vote_record_df, various_voting_behavior_df)
+      
+    }
+    myown_vote_record_df <- data.table::rbindlist(myown_vote_record_df)
+    
+    if (debug_func_mode==TRUE) {
+      message("complete myown_vote_record_df ",nrow(myown_vote_record_df)," rows.")
+    }
     return(myown_vote_record_df)
+  },
+  parse_votingrecords = function(startUrlN=1) {
+    myown_vote_record_df_filepath <- self$myown_vote_record_df_filepath
+    filespath <- self$filespath
+    replace_troublesome_names<-self$replace_troublesome_names
+    anti_join_with_nrow_zero<-self$anti_join_with_nrow_zero
+    error_vote_record_from_name_filepath <- self$error_vote_record_from_name_filepath
+    error_leave_and_attend_legislators_filepath <- self$error_leave_and_attend_legislators_filepath
+    fetch_ly_decision_and_vote <- self$fetch_ly_decision_and_vote
+    error_vote_record_from_name <- openxlsx::read.xlsx(error_vote_record_from_name_filepath, sheet = 1)
+    error_leave_and_attend_legislators <- openxlsx::read.xlsx(error_leave_and_attend_legislators_filepath, sheet = 1) %>%
+      mutate_cond(is.na(replace_with),replace_with="")
+
+    mccores <- self$mccores
+    # load(paste0(dataset_in_scriptsfile_directory, "meetingdata.RData"), verbose=TRUE)
+    meetingdata <- tryCatch({
+      self$get_meetingdata(loadExisted=TRUE,preparedata=TRUE)
+    },  error = function(e) {
+      self$get_meetingdata(loadExisted=FALSE,preparedata=FALSE)
+    })
+    message("all ",nrow(meetingdata)," rows")
+    
+    
+    urlarr<-as.character(meetingdata$url) %>% unique()
+    
+    myown_vote_record_df<-data.frame()
+    
+    #mutate(leave_and_attend_legislators,chichrcount=stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}") ) %>% View()
+    #filter(leave_and_attend_legislators,stri_count(legislator_name,regex="[\u4e00-\u9fa5A-aZ-z]{1}")>3 ) %>%
+    #  filter(!is.element(legislator_name, c("高金素梅","周陳秀霞","張廖萬堅","陳賴素美","鄭天財Sra．Kacaw","簡東明Uliw．Qaljupayare","廖國棟Sufin．Siluko","鄭天財Sra．Kacaw","高潞．以用．巴魕剌Kawlo．Iyun．Pacidal","Kolas Yotaka")) | 
+    #           customgrepl(legislator_name,"(　|　|　| | )")) %>%
+    #  View()
+    #  write_csv(path="leave_and_attend_legislators.csv")
+    #第九會期從377開始 //problem:108
+    
+    # 定義結構化處理會議紀錄成為投票紀錄的函數 -------------------
+
+    #----- 開始執行 -----
+    #fetch_ly_decision_and_vote<-function(onemeetingdata,...) {
+    #  names_of_items<-names(onemeetingdata)
+    #  onemeetingdata %<>% lapply(as.character) %>%
+    #    set_names(names_of_items)
+    #  colnames(onemeetingdata)
+    #}
+    myown_vote_record_df <- meetingdata %>% #20:114 term9 58,
+      #dplyr::filter(term==8, period==1, meetingno==6) %>%
+      #magrittr::set_rownames(as.data.frame(t(myown_vote_record_df)), names(myown_vote_record_df))# %>%
+      #dplyr::mutate_all(myown_vote_record_df, as.character)
+      {
+        magrittr::set_names(
+          custom_parallel_lapply(
+            startUrlN:nrow(.),
+            FUN=fetch_ly_decision_and_vote,
+            meetingdata=.,
+            error_leave_and_attend_legislators=error_leave_and_attend_legislators,
+            error_vote_record_from_name=error_vote_record_from_name,
+            method=parallel_method,
+            exportvar=c("slash","filespath","no_rollcall","insert.at","count_value_times_in_vector","custompaste0","customgsub","customgrep","customgrepl","mutate_cond","error_leave_and_attend_legislators","error_vote_record_from_name","replace_troublesome_names","anti_join_with_nrow_zero","rest_work_on_attendlegislator","cn2num","ret_std_legislators_data"),
+            exportlib=c("base",lib),
+            urlarr=urlarr,
+            outfile=file.path(dataset_file_directory,"rdata",paste0("parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt")),
+            mc.set.seed = TRUE,
+            mc.cores=mccores
+          ),
+          .$termmeetingtime[startUrlN:nrow(.)]
+        )
+      } %>%
+      data.table::rbindlist(fill=TRUE) %>%
+      .[!is.na(legislator_name),] %>%
+      mutate_cond(term==9 & customgrepl(legislator_name,"簡東明"),legislator_name="簡東明Uliw．Qaljupayare") %>%
+      mutate_cond(term==9 & customgrepl(legislator_name,"廖國棟"),legislator_name="廖國棟Sufin．Siluko") %>%
+      mutate_cond(term==9 & customgrepl(legislator_name,"鄭天財"),legislator_name="鄭天財Sra．Kacaw") %>%
+      mutate_cond(term==9 & customgrepl(legislator_name,"高潞"),legislator_name="高潞．以用．巴魕剌Kawlo．Iyun．Pacidal") %>%
+      mutate_cond(term==9 & customgrepl(legislator_name,"陳秀霞"),legislator_name="周陳秀霞")
+
+    return(myown_vote_record_df)
+  },
+  narrow_voting_records_df = function(df, terms=5:9, elections_df=elections_df) {
+    # load(file=paste0(dataset_in_scriptsfile_directory, "elections_df.RData"), verbose=TRUE)
+    df %>%
+      dplyr::semi_join({
+        ret_std_legislators_data(legislatorsxlsxpath = self$legislatorsxlsxpath, terms=terms, elections_df=elections_df) %>%
+          dplyr::distinct(term, legislator_name)
+      })
   }
+))
+
+
+if (FALSE) {
+  ly_decision_vote_fetcher <- lyvotes_class$new(
+    dataset_in_scriptsfile_directory=dataset_in_scriptsfile_directory,
+    filespath=filespath,
+    dataset_file_directory=dataset_file_directory,
+    debug_func_mode=TRUE
+  )
+  testdf <- ly_decision_vote_fetcher$get_voting_records(loadExisted=FALSE,save=FALSE,startUrlN=400) #59948
 }
-
-
-#----- 開始執行 -----
-library(parallel)
-#fetch_ly_decision_and_vote<-function(onemeetingdata,...) {
-#  names_of_items<-names(onemeetingdata)
-#  onemeetingdata %<>% lapply(as.character) %>%
-#    set_names(names_of_items)
-#  colnames(onemeetingdata)
-#}
-myown_vote_record_df <- meetingdata %>% #20:114 term9 58,
-  #dplyr::filter(term==8, period==1, meetingno==6) %>%
-  #magrittr::set_rownames(as.data.frame(t(myown_vote_record_df)), names(myown_vote_record_df))# %>%
-  #dplyr::mutate_all(myown_vote_record_df, as.character)
-  {
-    magrittr::set_names(custom_parallel_lapply(1:nrow(.),
-      FUN=fetch_ly_decision_and_vote,
-      meetingdata=.,
-      method=parallel_method,
-      exportvar=c("slash","filespath","no_rollcall","insert.at","count_value_times_in_vector","custompaste0","customgsub","customgrep","customgrepl","mutate_cond","error_leave_and_attend_legislators","error_vote_record_from_name","replace_troublesome_names","anti_join_with_nrow_zero","rest_work_on_attendlegislator","cn2num","ret_std_legislators_data"),
-      exportlib=c("base",lib),
-      urlarr=urlarr,
-      outfile=paste0(dataset_file_directory,"rdata",slash,"parallel_handling_process-",t_sessioninfo_running_with_cpu,".txt"),
-      mc.set.seed = TRUE,
-      mc.cores=parallel::detectCores() # #
-    ), .$termmeetingtime)
-  } %>%
-  plyr::rbind.fill() %>% # %>%
-  dplyr::filter(!is.na(legislator_name)) %>%
-  mutate_cond(term==9 & customgrepl(legislator_name,"簡東明"),legislator_name="簡東明Uliw．Qaljupayare") %>%
-  mutate_cond(term==9 & customgrepl(legislator_name,"廖國棟"),legislator_name="廖國棟Sufin．Siluko") %>%
-  mutate_cond(term==9 & customgrepl(legislator_name,"鄭天財"),legislator_name="鄭天財Sra．Kacaw") %>%
-  mutate_cond(term==9 & customgrepl(legislator_name,"高潞"),legislator_name="高潞．以用．巴魕剌Kawlo．Iyun．Pacidal") %>%
-  mutate_cond(term==9 & customgrepl(legislator_name,"陳秀霞"),legislator_name="周陳秀霞") %>%
-  dplyr::semi_join({
-    ret_std_legislators_data(legislatorsxlsxpath = paste0(dataset_file_directory, "legislators.xlsx"), terms=5:9, elections_df=elections_df) %>%
-      dplyr::distinct(term, legislator_name)
-  })
-
-myown_vote_record_df %<>% data.table::as.data.table()
-save(myown_vote_record_df,file=paste0(dataset_in_scriptsfile_directory, "myown_vote_record_df.RData"))
 
 #myown_vote_record_df<-do.call("rbind",custom_parallel_lapply(
 #  urlarr[20:114],

@@ -177,7 +177,6 @@ lyterm56votes_class <- R6::R6Class("lyterm56votes", public = list(
       }
       paragraph_list<-customgsub(paragraph_list,"\n","")
       bill_list<-customgrep(paragraph_list,"報告表決結果|報告重付表決結果|報告本案表決結果",value=TRUE)
-      #write_file(paste0(paragraph_list,collapse="\n"), path=paste(dataset_file_directory, "rdata", slash,  "checkcontent.txt", sep = ""), append = FALSE)
       if (i==5) {
         #移除未記名表決
         bill_list<-bill_list[c(1:69,72:76)]

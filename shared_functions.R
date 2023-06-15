@@ -154,7 +154,7 @@ ntuspace_file_directory <- switch(
   "Ubuntu18.04.2LTSIntel(R) Core(TM) i5-4210U CPU @ 1.70GHz"="/mnt/d/NTUSpace/",
   "Ubuntu18.04.1LTSIntel(R) Core(TM) i5-7400 CPU @ 3.00GHz"="/mnt/g/NTUSpace/"
 )
-ggplotapatheme=ggplot2::theme_bw()+
+ggplotapatheme <- ggplot2::theme_bw()+
   ggplot2::theme(panel.grid.major = ggplot2::element_blank(),
         panel.grid.minor = ggplot2::element_blank(),
         panel.background = ggplot2::element_blank(),
@@ -209,66 +209,6 @@ custompaste0<-function(str,connect=c(),reverse=FALSE,sep="",collapse="") {
   }
   return(paste(str,sep=sep,collapse=collapse))
 }
-customtidyhtml<-function(str) {
-  opts <- list(
-    TidyDocType="auto",
-    TidyMakeClean=TRUE,
-    TidyHideComments=TRUE,
-    TidyIndentContent=TRUE,
-    TidyWrapLen=200,
-    TidyXhtmlOut=TRUE,
-    TidyHtmlOut=FALSE,
-    TidyDropEmptyElems=TRUE,
-    TidyDropEmptyParas=TRUE,
-    TidyFixBackslash=TRUE
-  )
-  return(tidy_html(str, option=opts))
-}
-customcurl<-function(url,async=length(url),encoding="UTF-8") {
-  opt<-curlOptions(followlocation=TRUE,verbose=TRUE,autoreferer=TRUE,maxredirs=999,timeout=3000,ssl.verifypeer=FALSE)
-  return(getURI(url, .opts=opt, async=async, .encoding=encoding, curl=getCurlHandle(), .mapUnicode = TRUE))
-}
-customrecursivecurl<-function(url,failedpattern="NA",async=length(url),encoding="UTF-8") {
-  firstresult<-customcurl(url)
-  failedresultpos_one<-grepl(failedpattern,firstresult,perl=TRUE)
-  failedresultpos_two<-(firstresult=="")
-  failedresultpos<-(failedresultpos_one | failedresultpos_two)
-  correctresultpos<-!failedresultpos
-  if (length(firstresult[failedresultpos])>0) {
-    continuefetchresult<-customrecursivecurl(url[failedresultpos],failedpattern=failedpattern,async=async,encoding=encoding)
-    return(c(firstresult[correctresultpos],continuefetchresult))
-  } else {
-    return(firstresult[correctresultpos])
-  }
-}
-customcurluntilnoerror<-function(url,fetchencoding="BIG-5",curl=curl) {
-  #recursive fetch webpages umtil there is no error
-  results<-customcurl(url,fetchencoding=fetchencoding) %>%
-    sapply(strsplit,"<div class=\"leg03_body\">") %>%
-    sapply(`[`,2) %>%
-    sapply(custompaste0,"<div class=\"leg03_body\">",reverse=TRUE) %>%
-    sapply(strsplit,"<td class=\"contentbgtop06\">") %>%
-    sapply(`[`,1) %>%
-    sapply(customgsub,pattern="&nbsp;",replacement="") %>%
-    #sapply(customgsub,pattern="排版用表格",replacement="test_arrange") %>%
-    sapply(customtidyhtml)
-  wrongitems<-(grepl("NA",results))
-  correctitems<-!wrongitems
-  correctresults<-results[correctitems]
-  fetchagainurl<-url[wrongitems]
-  message(custompaste0(c("fetching following URL...",url)))
-  if (length(fetchagainurl)>0) {
-    adjresults<-customcurluntilnoerror(fetchagainurl,fetchencoding)
-    return(c(correctresults,adjresults))
-  } else {
-    return(correctresults)
-  }
-}
-custom_strsplit<-function(str, pattern, returnnum=1) {
-  resultlist<-strsplit(as.character(str),pattern)
-  target<-unlist(extract(resultlist,returnnum))
-  return(resultlist)
-}
 customgrep<-function(x,pattern,ignore.case=FALSE,perl=FALSE,value=FALSE,fixed=FALSE,useBytes=FALSE,invert=FALSE) {
   return(grep(pattern,x,ignore.case,perl,value,fixed,useBytes,invert))
 }
@@ -278,11 +218,29 @@ customgrepl<-function(x,pattern,ignore.case=FALSE,perl=FALSE,value=FALSE,fixed=F
 customgsub<-function(x,pattern,replacement,ignore.case = FALSE, perl = FALSE, fixed = FALSE, useBytes = FALSE) {
   return(gsub(pattern, replacement, x, ignore.case, perl, fixed, useBytes))
 }
-customreadfile<-function(targetfile,encoding="UTF-8") {
-  connection<-file(targetfile,encoding=encoding)
-  result<-sapply(connection,readLines) %>%
-    sapply(custompaste0)
-  return(result)
+custom_read_file<-function(url, locale = default_locale()) {
+  if (is.na(url)) {
+    return(NULL)
+  } else {
+    message(URLdecode(url))
+    retryterm<-'(Timeout|403)'
+    content<-tryCatch({
+      readr::read_file(url,locale) #要執行的指令放這裡
+    },warning = function(war){
+      message("MY_WARNING:  ",war) #如果有warning則輸出warning,"MY_WARNING:  "這一行可以自己改
+      if (customgrepl(war$message,retryterm)) {
+        war<-custom_read_file(url)
+      }
+      return(war)
+    },error = function(err) {
+      message("MY_ERROR:  ",err)   #如果有error則輸出error,"MY_Error:  "這一行可以自己改
+      if (customgrepl(err$message,retryterm)) {
+        err<-custom_read_file(url)
+      }
+      return(err)
+    })
+    return(content)
+  }
 }
 custom_shift_sqrt<-function(x) {
   minx<-min(x)
@@ -293,15 +251,6 @@ custom_shift_sqrt<-function(x) {
   midpoint<-mean(y)
   y<-y-midpoint
   return(y)
-}
-custominsertRow <- function(newrow, existingDF, r=nrow(existingDF)) {
-  existingDF[seq(r+1,nrow(existingDF)+1),] <- existingDF[seq(r,nrow(existingDF)),]
-  existingDF[r,] <- newrow
-  existingDF
-}
-custommessage<-function(v,existingDF=data.frame()) {
-  message(v)
-  message("-----------\n")
 }
 custom_plot<-function(df, fvar, weightvar="", usingsurveypkg=FALSE, fillcolor="", fillvar="", n_bins="", ...) {
   n_bins<-if(n_bins=="") 500 else n_bins
@@ -381,35 +330,55 @@ custom_notdfplot<-function(srcvector, weight=NULL, usingsurveypkg=FALSE, fillcol
   }
   return(custom_plot(df, fvar="targetvector", weightvar=weight, usingsurveypkg=usingsurveypkg, fillcolor=fillcolor, ...))
 }
+
+ret_merged_for_idealpoint_and_pp_df_list<-function(survey_data_imputed, dataset_in_scriptsfile_directory, directlyload=FALSE, transform_pp_data_to_normal=FALSE, minuspolicy=FALSE, ...) {
+  needimps<-custom_ret_appro_kamila_clustering_parameters()
+  doneimps<-unique(survey_data_imputed$`2016citizen`$.imp)
+  need_svytitle<-names(survey_data_imputed)
+  merged_acrossed_surveys_list_with_normality_filepath<-paste0(dataset_in_scriptsfile_directory,"merged_acrossed_surveys_list_with_normality.RData")
+  if (directlyload==FALSE) {
+    merged_acrossed_surveys_list_with_normality<-lapply(doneimps, function(imp, normalize=FALSE, ...) {
+      needdf<-survey_data_imputed[need_svytitle] %>%
+        custom_parallel_lapply(FUN=function(X,nimp) {dplyr::filter(X, .imp==!!nimp) %>% dplyr::select(-myown_indp_atti)}, nimp=imp, method = parallel_method) %>%
+        dplyr::bind_rows() %>%
+        dplyr::mutate_at("SURVEY", as.factor) %>%
+        dplyr::mutate_at("cluster_kamila", as.ordered)  %>%
+        dplyr::mutate(id=as.factor(paste0(SURVEY,id))) %>%
+        dplyr::mutate_at("adminvillage", ~paste0(admincity,admindistrict,adminvillage)) %>%
+        dplyr::mutate_at("admindistrict", ~paste0(admincity,admindistrict)) %>%
+        dplyr::mutate_at(c("myown_areakind","admincity","admindistrict","adminvillage"), as.factor) %>%
+        dplyr::mutate(myown_factoredses_overallscaled=as.numeric(scale(myown_factoredses)) ) %>%
+        dplyr::mutate(myown_factoredparticip_overallscaled=as.numeric(scale(myown_factoredparticip)) ) %>%
+        dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age)) ) %>%
+        dplyr::mutate(myown_factoredparticip_ordinal=cut(myown_factoredparticip,breaks=c(-10,-2,-1.5,-1.3,-0.65,-0.4,-0.15,0.15,0.7,1.3,1.8,10),right=TRUE,include.lowest=TRUE,ordered_result=TRUE)) %>%
+        dplyr::rename(policyidealpoint_cos_similarity_to_median=policyidealpoint_cos_similarity_to_median_policy_idealpoint,policyidealpoint_euclid_distance_to_median=policyidealpoint_euclid_distance_to_median_policy_idealpoint) %>%
+        dplyr::mutate(policyidealpoint_cos_similarity_to_median_ordinal=cut(policyidealpoint_cos_similarity_to_median,breaks=17,right=TRUE,include.lowest=TRUE,ordered_result=TRUE)) %>%
+        dplyr::mutate_if(is.factor, droplevels)
+      if (minuspolicy==TRUE) {
+        needdf %<>% dplyr::select(-dplyr::contains("policy"))
+      }
+      #C L Q E4 E5
+      #dplyr::mutate_at("cluster_kamila", ~dplyr::recode_factor(., `1` = "A", `2` = "B", `3` = "C", `4` = "D", `5` = "E", `6` = "F", .ordered =TRUE) ) %>%
+      if (normalize==TRUE) {
+        transform_normality<-bestNormalize::bestNormalize(needdf$myown_factoredparticip)
+        needdf$myown_factoredparticip_normalized<-transform_normality$x.t
+      } else {
+        transform_normality<-NA
+      }
+      return(list(needdf, transform_normality))
+    }, survey_data_imputed=survey_data_imputed, need_svytitle=need_svytitle, normalize=transform_pp_data_to_normal, minuspolicy=minuspolicy)
+    merged_acrossed_surveys_list<-lapply(merged_acrossed_surveys_list_with_normality, function(X) {X[[1]]})
+    save(merged_acrossed_surveys_list, merged_acrossed_surveys_list_with_normality,file=merged_acrossed_surveys_list_with_normality_filepath)
+  } else {
+    load(merged_acrossed_surveys_list_with_normality_filepath,verbose=TRUE)
+  }
+  return(merged_acrossed_surveys_list)
+}
 count_value_times_in_vector<-function(arr,checkv,completematch=FALSE) {
   length_one<-grepl(checkv,arr)
   length_two<-(arr==checkv)
   length<-ifelse(completematch,sum(length_two),sum(length_one))
   return(length)
-}
-custom_read_file<-function(url, locale = default_locale()) {
-  if (is.na(url)) {
-    return(NULL)
-  } else {
-    message(URLdecode(url))
-    retryterm<-'(Timeout|403)'
-    content<-tryCatch({
-      readr::read_file(url,locale) #要執行的指令放這裡
-    },warning = function(war){
-      message("MY_WARNING:  ",war) #如果有warning則輸出warning,"MY_WARNING:  "這一行可以自己改
-      if (customgrepl(war$message,retryterm)) {
-        war<-custom_read_file(url)
-      }
-      return(war)
-    },error = function(err) {
-      message("MY_ERROR:  ",err)   #如果有error則輸出error,"MY_Error:  "這一行可以自己改
-      if (customgrepl(err$message,retryterm)) {
-        err<-custom_read_file(url)
-      }
-      return(err)
-    })
-    return(content)
-  }
 }
 cbind.fill<-function(...){
   nm <- list(...) 
@@ -417,16 +386,6 @@ cbind.fill<-function(...){
   n <- max(sapply(nm, nrow)) 
   do.call(cbind, lapply(nm, function (x) 
     rbind(x, matrix(, n-nrow(x), ncol(x))))) 
-}
-not_empty_filter <- function(x) {
-  x<-as.character(x)
-  notna<-!is.na(x)
-  notnull<-!is.null(x)
-  notempty<-!(x=="")
-  not_length_zero<-x[length(x)>0]
-  x<-x[notna]
-  x<-x[notnull]
-  return(x)
 }
 insert.at <- function(vect, pos, elems){
   #dots <- list(...)
@@ -530,12 +489,7 @@ mutate_cond <- function(data, condition, ..., envir = parent.frame()) {
   }
 }
 #DF %>% mutate_cond(measure == 'exit', qty.exit = qty, cf = 0, delta.watts = 13)
-mutate_last <- function(.data, ...) {
-  n <- n_groups(.data)
-  indices <- attr(.data, "indices")[[n]] + 1
-  .data[indices, ] <- .data[indices, ] %>% mutate(...)
-  .data
-}
+
 #DF %>% 
 #  group_by(is.exit = measure == 'exit') %>%
 #  mutate_last(qty.exit = qty, cf = 0, delta.watts = 13) %>%
@@ -597,9 +551,6 @@ if (check_if_windows()) {
   #library("xlsx")
   try(library("openxlsx"))
 }
-as_factor_to_integer<-function(f) {
-  as.numeric(levels(f))[f]
-}
 
 t_sessioninfo_running_platformcore<-customgsub(sessionInfo()$running," ","") %>%
   customgsub("[>=()]","") %>%
@@ -635,23 +586,24 @@ custom_parallel_lapply<-function(X=list(), FUN=FUN, ..., method="socks", exportl
        mclapply(X=X, FUN=FUN, ..., mc.cores=mc.cores,mc.preschedule=FALSE ),
      "socks" = {
        argumentstopass<-list(...)
-       tryCatch({stopCluster(cl)},
-                # 遇到 warning 時的自訂處理函數
-                warning = function(msg) {
-                  message("tryCatch Original warning message while stopCluster:")
-                  message(paste0(msg,"\n"))
-                },
-                # 遇到 error 時的自訂處理函數
-                error = function(msg) {
-                  message("tryCatch Original error message while stopCluster:")
-                  message(paste0(msg,"\n"))
-                }
-       )
+       tryCatch(
+         {stopCluster(cl)},
+         # 遇到 warning 時的自訂處理函數
+         warning = function(msg) {
+           message("tryCatch Original warning message while stopCluster:")
+           message(paste0(msg,"\n"))
+           },
+         # 遇到 error 時的自訂處理函數
+         error = function(msg) {
+           message("tryCatch Original error message while stopCluster:")
+           message(paste0(msg,"\n"))
+           }
+         )
        #library(MASS)
        if (verbose) {
          message("<===== at custom_parallel_lapply exportlib is ", exportlib, " and exportvar is ", exportvar, " and outfile is ", outfile, "=====>")
        }
-       cl <- makeCluster(parallel::detectCores(),outfile=outfile)
+       cl <- parallel::makeCluster(parallel::detectCores(),outfile=outfile)
        sapply(exportlib,function(needlib,cl) {
          if (verbose) {message("cluster calling ", needlib, " at ", substr(as.character(cl),6,13) )}
          clusterCall(cl=cl, library, needlib, character.only=TRUE)
@@ -670,17 +622,31 @@ custom_parallel_lapply<-function(X=list(), FUN=FUN, ..., method="socks", exportl
          #  clusterExport(cl, needvar, envir=environment())
          #},cl=cl)#
        }
-       returndata<-parLapply(
+       returndata<-parallel::parLapply(
          cl,
          X=X,
          fun=FUN,
          ...)
-       stopCluster(cl)
+       parallel::stopCluster(cl)
        #return(returndata)
        returndata
      }
     )
   }
+}
+reset_multi_p <- function(t_sessioninfo_running = gsub("[>=()]","",gsub(" ","",sessionInfo()$running)) ) {
+  future::plan(sequential)
+  switch(as.character(customgrepl(t_sessioninfo_running, "Windows")),
+         "TRUE"=future::plan(multisession),
+         "FALSE"=future::plan(multicore) 
+         #"FALSE"=plan(multisession)
+  )
+}
+custom_apply_thr_argdf <- function(argdf, loopstorekey, customfunc, method="fork", datadf=NA, ...) {
+  loopkeys<-as.character(argdf[,loopstorekey])
+  retlist<-custom_parallel_lapply(loopkeys, FUN=customfunc, loopargdf=argdf, method=method, datadf=datadf, ...)
+  retlist<-magrittr::set_names(retlist, loopkeys)
+  return(retlist)
 }
 
 vhead<- function(X) {
@@ -711,39 +677,9 @@ custom_detect_and_transform_utf8<-Vectorize(FUN=function(srcstr) {
     if (isFALSE(checkvaludutf8result)) {
       srcstr <- rvest::repair_encoding(srcstr,from = 'Big5')
     }
-    #srcstr<-stri_split_lines(srcstr)# %>%
-      #lapply(function(srcstr_lines) {
-      #  checkvaludutf8result<-utf8::utf8_valid(srcstr_lines)
-      #  needtorepairlines<-which(isFALSE(checkvaludutf8result))
-      #  srcstr_lines[needtorepairlines] %<>% rvest::repair_encoding(from = 'Big5')
-      #  srcstr<-paste0(srcstr_lines,collapse="\n")
-      #}) %>%
-      #unlist()
-    #ifdeclareutf8<-stri_enc_mark(srcstr)
-    #ifconsistsutf8<-all(stri_enc_isutf8(srcstr))
-    #if ((identical(ifdeclareutf8,"ASCII")) & (identical(ifconsistsutf8,TRUE))) {
-    #  Encoding(srcstr)<-"UTF-8"
-    #} else if(identical(ifconsistsutf8,FALSE)) {
-    #  srcstr<-stri_enc_toutf8(srcstr)
-    #}
   }
   return(srcstr)
 })
-
-list_allcombn_of_model <- function(vars,prefix="1~") {
-  n <- length(vars)
-  id <- unlist(
-    lapply(1:n,
-           function(i)combn(1:n,i,simplify=FALSE)
-    )
-    ,recursive=FALSE)
-  Formulas <- sapply(id,function(i)
-    paste(prefix, paste(vars[i],collapse="+"))
-  )
-  return(Formulas)
-  #gregmisc::combinations
-  #MuMIn::dredge
-}
 
 preserve_warning_tryCatch <- function(expr)
 {
@@ -757,125 +693,10 @@ preserve_warning_tryCatch <- function(expr)
        warning = W)
 }
 
-custom_parallel_expr<-function(expr, name, mc.set.seed = TRUE, silent = FALSE,
-                  mc.affinity = NULL, mc.interactive = FALSE,
-                  detached = FALSE,
-                  wait = TRUE, timeout = 0, intermediate = FALSE) {
-  do_job<-parallel::mcparallel(expr, name, mc.set.seed, silent,
-                     mc.affinity, mc.interactive,
-                     detached)
-  return(parallel::mccollect(do_job, wait, timeout, intermediate))
-}
 
-reset_multi_p <- function(t_sessioninfo_running = gsub("[>=()]","",gsub(" ","",sessionInfo()$running)) ) {
-  future::plan(sequential)
-  switch(as.character(customgrepl(t_sessioninfo_running, "Windows")),
-         "TRUE"=future::plan(multisession),
-         "FALSE"=future::plan(multicore) 
-         #"FALSE"=plan(multisession)
-  )
-}
 
-cn2num<-function(string){
-  if(is.numeric(string)){
-    return(string)
-  }
-  if(!is.na(as.numeric(string))) {
-    return(as.numeric(string))
-  }
-  # '仟' => '千','佰' => '百','拾' => '十',
-  string = gsub('仟', '千', string)
-  string = gsub('佰', '百', string)
-  string = gsub('拾', '十', string)
-  num = 0
-  wan = unlist(strsplit(string, '萬'))
-  if (length(wan) > 1) {
-    num = num+cn2num(wan[1]) * 10000
-    string = wan[2]
-  }
-  qian = unlist(strsplit(string, '千'))
-  if (length(qian) > 1) {
-    num = num+cn2num(qian[1]) * 1000
-    string = qian[2]
-  }
-  bai = unlist(strsplit(string, '百'))
-  if (length(bai) > 1) {
-    num = num+cn2num(bai[1]) * 100
-    string = bai[2]
-  }
-  shi = unlist(strsplit(string, '十'))
-  if (length(shi) > 1) {
-    #num = num+cn2num(shi[1] ? shi[1] : '一') * 10
-    num = num+cn2num(
-      ifelse(gtools::invalid(shi[1]), '一', shi[1])
-    )*10
-    #string = shi[2] ? shi[2] : '零'
-    string = ifelse(gtools::invalid(shi[2]), '零', shi[2])
-  }
-  ling = unlist(strsplit(string,'零'))
-  if (length(ling) > 1) {
-    string = ling[2]
-  }
-  d <- list(
-    "一" = 1,"二" = 2,"三" = 3,"四" = 4,"五" = 5,"六" = 6,"七" = 7,"八" = 8,"九" = 9,
-    "壹" = 1,"貳" = 2,"參" = 3,"肆" = 4,"伍" = 5,"陸" = 6,"柒" = 7,"捌" = 8,"玖" = 9,
-    "贰" = 2,"叁" = 3,"陆" = 6,"两" = 2,
-    "零" = 0,"0" = 0,"O" = 0,"o" = 0,"兩" = 2
-  )
-  return(num + d[[string]])
-}
 
-generate_weight_repeated_data<-function(single_survey_df, weight_reptimes_n_integer=0.5, surveyweightvar="myown_wr", needvars="") {
-  #message(survey)
-  min_myownwr<-min(extract2(single_survey_df, surveyweightvar))
-  min_repeat_times<-1/min_myownwr #要讓最權重最小的觀察值出現一次的重複row倍數
-  min_rep_weighted_myownwr<-extract2(single_survey_df, surveyweightvar)*min_repeat_times #所有觀察值的重複倍數
-  #因為要讓最權重最小的觀察值出現一次的重複row倍數 套用在其他觀察值上 會出現小數，所以現在要計算重複row倍數的最小公倍數
-  n_digits<-max(sapply(min_rep_weighted_myownwr,function (x) nchar(sub('^0+','',sub('\\.','',x)))))
-  #n_digits<-9 #大於9似乎會有問題
-  repeat { #為了防止求最小公倍數時出現問題所以往下求整數
-    #message("n_digits is now ", n_digits)
-    continue_to_minus<-FALSE
-    ten_multiplier<-10^n_digits 
-    tryCatch({
-      integer_min_repeat_times<-min_rep_weighted_myownwr*ten_multiplier
-      integer_min_repeat_times<-round(integer_min_repeat_times,digits = 0)
-      integer_min_repeat_times<-as.integer(integer_min_repeat_times)
-      lcm<-Reduce(f=DescTools::LCM, x=integer_min_repeat_times)
-    }, warning=function (war) {
-      #message(war)
-      continue_to_minus<-TRUE
-      #return(TRUE)
-    }, error=function (err) {
-      #message(err)
-      continue_to_minus<-TRUE
-      #return(TRUE)
-    })
-    n_digits<-n_digits-1
-    if (continue_to_minus==TRUE) next
-    if (is.numeric(lcm) | is.integer(lcm)) break
-  }
-  #message("continue_to_minus is ", continue_to_minus, " and lcm is ", class(lcm))
-  lcm<-abs(lcm)
-  adj_min_repeat_times<-lcm/min_myownwr
-  adj_all_sample_rep_times<-extract2(single_survey_df, surveyweightvar)*adj_min_repeat_times
-  single_survey_df$repeat_sample_times<-adj_all_sample_rep_times
-  #message("adj_all_sample_rep_times is now ", length(adj_all_sample_rep_times))
-  #message("uniq adj_all_sample_rep_times is now ", length(unique(adj_all_sample_rep_times)))
-  weighted_adj_survey_data<-lapply(unique(adj_all_sample_rep_times), function(repeattimes, needvars, weight_reptimes_n_integer=1) {
-    needrows<-which(adj_all_sample_rep_times==repeattimes)
-    log_part<-log10(repeattimes)
-    integers_of_log_part<-trunc(log_part)
-    reptimes<-10^(log_part-integers_of_log_part+weight_reptimes_n_integer)
-    reptimes<-round(reptimes,digits = 0)
-    return(dplyr::slice(single_survey_df[,needvars], rep(needrows,reptimes)))
-  },needvars=needvars, weight_reptimes_n_integer=weight_reptimes_n_integer) %>% dplyr::bind_rows()
-  #needvars=c(clustering_var[[survey]],".imp")
-  #message("weighted_adj_survey_data has ", nrow(weighted_adj_survey_data), " rows")
-  return(weighted_adj_survey_data)
-}
-
-ret_std_legislators_data<-function(legislatorsxlsxpath = paste0(dataset_file_directory, "legislators.xlsx"), terms=5:9, elections_df=elections_df) {
+ret_std_legislators_data<-function(legislatorsxlsxpath = file.path(dataset_file_directory, "legislators.xlsx"), terms=5:9, elections_df=elections_df) {
   openxlsx::read.xlsx(legislatorsxlsxpath, sheet = 1, detectDates = TRUE) %>%
     dplyr::mutate(term=as.integer(term)) %>%  #mutate_at(c("term"), .funs = list(term = ~customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>% 
     dplyr::mutate(onboardDate=as.Date(onboardDate)) %>%
@@ -977,63 +798,9 @@ custom_pickcolnames_accordingtoclass<-function(df,needclass="factor") {
     return()
 }
 
-custom_eucli_similarity<-function(x, y, method="euclidean", ...) {
-  matrix(as.numeric(x),nrow=1) %>%
-    rbind(as.numeric(y)) %>%
-    dist(method=method) %>%
-    as.numeric() %>%
-    return()
-}
-
-#from https://wangcc.me/LSHTMlearningnote/assumptions.html
-Ladder.x <- function(x){
-  data <- data.frame(x^3,x^2,x,sqrt(x),log(x),1/sqrt(x),1/x,1/(x^2),1/(x^3))
-  names(data) <- c("cubic","square","identity","square root","log","1/(square root)",
-                   "inverse","1/square","1/cubic")
-  # options(scipen=5)
-  test1 <- shapiro.test(data$cubic)
-  test2 <- shapiro.test(data$square)
-  test3 <- shapiro.test(data$identity)
-  test4 <- shapiro.test(data$`square root`)
-  test5 <- shapiro.test(data$log)
-  test6 <- shapiro.test(data$`1/(square root)`)
-  test7 <- shapiro.test(data$inverse)
-  test8 <- shapiro.test(data$`1/square`)
-  test9 <- shapiro.test(data$`1/cubic`)
-  W.statistic <- c(test1$statistic,
-                   test2$statistic,
-                   test3$statistic,
-                   test4$statistic,
-                   test5$statistic,
-                   test6$statistic,
-                   test7$statistic,
-                   test8$statistic,
-                   test9$statistic)
-  p.value <- c(test1$p.value,
-               test2$p.value,
-               test3$p.value,
-               test4$p.value,
-               test5$p.value,
-               test6$p.value,
-               test7$p.value,
-               test8$p.value,
-               test9$p.value)
-  Hmisc::format.pval(p.value ,digits=5, eps = 0.00001, scientific = FALSE)
-  Transformation <- c("cubic","square","identity","square root","log","1/(square root)",
-                      "inverse","1/square","1/cubic")
-  Formula <- c("x^3","x^2","x","sqrt(x)","log(x)","1/sqrt(x)","1/x","1/(x^2)","1/(x^3)")
-  (results <- data.frame(Transformation, Formula, W.statistic, p.value))
-}
 
 
-micombineresult<-function(mimodel) {
-  poolresult1<-mitools:::summary.MIresult(mitools::MIcombine(mimodel)) %>%
-    dplyr::select(missInfo)
-  pooresult2<-mice::pool(mimodel) %>%
-    mice:::summary.mipo(conf.int=TRUE)
-  poolresult<-dplyr::bind_cols(poolresult1,pooresult2)
-  return(poolresult)
-}
+
 dummycode_of_a_dataframe<-function(df,catgvars=c()) {
   detectedcatgvars<-custom_pickcolnames_accordingtoclass(df,needclass="factor")
   detectedcatgvars<-detectedcatgvars[(sapply(dplyr::select(df,!!detectedcatgvars), nlevels ))>=2]
@@ -1060,13 +827,6 @@ inflate_df_from_weight<-function(needdf, weightvar="myown_wr", rate=10000, paral
     return()
 }
 
-custom_apply_thr_argdf <- function(argdf, loopstorekey, customfunc, method="fork", datadf=NA, ...) {
-  loopkeys<-as.character(argdf[,loopstorekey])
-  retlist<-custom_parallel_lapply(loopkeys, FUN=customfunc, loopargdf=argdf, method=method, datadf=datadf, ...)
-  retlist<-magrittr::set_names(retlist, loopkeys)
-  return(retlist)
-}
-
 ##use
 # nullmodels<-custom_apply_thr_argdf(nullmodel_args, "formula", function(fikey, loopargdf, datadf, ...) {
 #   dplyr::filter(nullmodel_args, formula==!!fikey) %>%
@@ -1078,99 +838,11 @@ custom_apply_thr_argdf <- function(argdf, loopstorekey, customfunc, method="fork
 # }, datadf=merged_acrossed_surveys_list[[1]])
 
 #https://stats.stackexchange.com/questions/233800/how-can-i-get-confidence-intervals-for-fixed-effects-using-the-rlmer-function-r
-confint.rlmerMod <- function(object,parm,level=0.95) {
-  beta <- fixef(object)
-  if (missing(parm)) parm <- names(beta)
-  se <- sqrt(diag(vcov(object)))
-  z <- qnorm((1+level)/2)
-  ctab <- cbind(beta-z*se,beta+z*se)
-  colnames(ctab) <- stats:::format.perc(c((1-level)/2,(1+level)/2),
-                                        digits=3)
-  return(ctab[parm,])
-}
-confint.rlmerMod <- function(object, level = 0.95) {
-  # Extract beta coefficients
-  beta <- robustlmm:::fixef.rlmerMod(object)
-  # Extract names of coefficients
-  parm <- names(beta)
-  # Extract standard errors for the coefficients
-  #se <- sqrt(diag(robustlmm:::vcov.rlmerMod(object)))
-  se<-coef(summary(object))[,2]
-  # Set level of confidence interval
-  z <- qnorm((1 + level) / 2)
-  # Calculate CI
-  ctab <- cbind(beta - (z * se), 
-                beta + (z * se))
-  # label column names
-  colnames(ctab) <- c(paste(100 * ((1 - level) / 2), '%'),
-                      paste(100 * ((1 + level) / 2), '%'))
-  # Output
-  return(ctab[parm, ])
-}
 
 
-ret_merged_for_idealpoint_and_pp_df_list<-function(survey_data_imputed, dataset_in_scriptsfile_directory, directlyload=FALSE, transform_pp_data_to_normal=FALSE, minuspolicy=FALSE, ...) {
-  needimps<-custom_ret_appro_kamila_clustering_parameters()
-  doneimps<-unique(survey_data_imputed$`2016citizen`$.imp)
-  need_svytitle<-names(survey_data_imputed)
-  merged_acrossed_surveys_list_with_normality_filepath<-paste0(dataset_in_scriptsfile_directory,"merged_acrossed_surveys_list_with_normality.RData")
-  if (directlyload==FALSE) {
-    merged_acrossed_surveys_list_with_normality<-lapply(doneimps, function(imp, normalize=FALSE, ...) {
-      needdf<-survey_data_imputed[need_svytitle] %>%
-        custom_parallel_lapply(FUN=function(X,nimp) {dplyr::filter(X, .imp==!!nimp) %>% dplyr::select(-myown_indp_atti)}, nimp=imp, method = parallel_method) %>%
-        dplyr::bind_rows() %>%
-        dplyr::mutate_at("SURVEY", as.factor) %>%
-        dplyr::mutate_at("cluster_kamila", as.ordered)  %>%
-        dplyr::mutate(id=as.factor(paste0(SURVEY,id))) %>%
-        dplyr::mutate_at("adminvillage", ~paste0(admincity,admindistrict,adminvillage)) %>%
-        dplyr::mutate_at("admindistrict", ~paste0(admincity,admindistrict)) %>%
-        dplyr::mutate_at(c("myown_areakind","admincity","admindistrict","adminvillage"), as.factor) %>%
-        dplyr::mutate(myown_factoredses_overallscaled=as.numeric(scale(myown_factoredses)) ) %>%
-        dplyr::mutate(myown_factoredparticip_overallscaled=as.numeric(scale(myown_factoredparticip)) ) %>%
-        dplyr::mutate(myown_age_overallscaled=as.numeric(scale(myown_age)) ) %>%
-        dplyr::mutate(myown_factoredparticip_ordinal=cut(myown_factoredparticip,breaks=c(-10,-2,-1.5,-1.3,-0.65,-0.4,-0.15,0.15,0.7,1.3,1.8,10),right=TRUE,include.lowest=TRUE,ordered_result=TRUE)) %>%
-        dplyr::rename(policyidealpoint_cos_similarity_to_median=policyidealpoint_cos_similarity_to_median_policy_idealpoint,policyidealpoint_euclid_distance_to_median=policyidealpoint_euclid_distance_to_median_policy_idealpoint) %>%
-        dplyr::mutate(policyidealpoint_cos_similarity_to_median_ordinal=cut(policyidealpoint_cos_similarity_to_median,breaks=17,right=TRUE,include.lowest=TRUE,ordered_result=TRUE)) %>%
-        dplyr::mutate_if(is.factor, droplevels)
-      if (minuspolicy==TRUE) {
-        needdf %<>% dplyr::select(-dplyr::contains("policy"))
-      }
-      #C L Q E4 E5
-      #dplyr::mutate_at("cluster_kamila", ~dplyr::recode_factor(., `1` = "A", `2` = "B", `3` = "C", `4` = "D", `5` = "E", `6` = "F", .ordered =TRUE) ) %>%
-      if (normalize==TRUE) {
-        transform_normality<-bestNormalize::bestNormalize(needdf$myown_factoredparticip)
-        needdf$myown_factoredparticip_normalized<-transform_normality$x.t
-      } else {
-        transform_normality<-NA
-      }
-      return(list(needdf, transform_normality))
-    }, survey_data_imputed=survey_data_imputed, need_svytitle=need_svytitle, normalize=transform_pp_data_to_normal, minuspolicy=minuspolicy)
-    merged_acrossed_surveys_list<-lapply(merged_acrossed_surveys_list_with_normality, function(X) {X[[1]]})
-    save(merged_acrossed_surveys_list, merged_acrossed_surveys_list_with_normality,file=merged_acrossed_surveys_list_with_normality_filepath)
-  } else {
-    load(merged_acrossed_surveys_list_with_normality_filepath,verbose=TRUE)
-  }
-  return(merged_acrossed_surveys_list)
-}
 
 
-custom_find_duplicated_rows<-function(targetdf, cols=c(), findall=FALSE, remove=FALSE) {
-  if (length(cols)<=0) {
-    cols<-names(targetdf)
-  }
-  targetdf %<>% data.table::as.data.table()
-  if (remove==TRUE) {
-    matcheddf<-targetdf[!duplicated(targetdf[,cols]),]
-  } else {
-    if (findall==FALSE) {
-      matcheddf<-targetdf[duplicated(targetdf[,cols]),]
-    } else {
-      matcheddf<-targetdf[duplicated(targetdf[,cols]),] %>%
-        dplyr::semi_join(targetdf)
-    }
-  }
-  return(matcheddf)
-}
+
 
 ##pooling functions for ordinal::clmm, from ordinalimputation
 if (TRUE) {
@@ -1372,239 +1044,144 @@ if (TRUE) {
   }
 }
 
-#from https://www.jepusto.com/mi-with-clubsandwich/
-
-ret_robust_models<-function(list_of_models, datadf, clustervar="myown_areakind", vcov="CR1", method="fork", ...) {
-  coefsrobust_mods<-lapply(1:length(list_of_models), function(fi, ...) {
-    list(obj=list_of_models[[fi]], vcov=vcov, cluster=datadf[[fi]][,clustervar]) %>%
-      return()
-  }, list_of_models=list_of_models, datadf=datadf, clustervar=clustervar, vcov=vcov) %>%
-    custom_parallel_lapply(function(arg) {do.call(clubSandwich::coef_test, args=arg)}, method=method, ... )
-    #function(fi, list_of_models=list_of_models, datadf=datadf, clustervar=clustervar, vcov=vcov, ...) {
-    #clubSandwich::coef_test(list_of_models[[fi]], cluster=magrittr::use_series(datadf[[fi]], clustervar, vcov=vcov)) %>%
-    #  return()
-  #}, list_of_models=list_of_models, datadf=datadf, clustervar=clustervar, vcov=vcov, method=parallel_method, ...)
-  return(coefsrobust_mods)
-}
 
 
-myown_robustlmm_as.data.frame.VarCorr.rlmerMod<-function (x, row.names = NULL, optional = FALSE, order = c("cov.last", "lower.tri"), ...) {
-  order <- match.arg(order)
-  tmpf <- function(v, grp) {
-    vcov <- c(diag(v), v[lt.v <- lower.tri(v, diag = FALSE)])
-    sdcor <- c(attr(v, "stddev"), attr(v, "correlation")[lt.v])
-    nm <- rownames(v)
-    n <- nrow(v)
-    dd <- data.frame(grp = grp, var1 = nm[c(seq(n), col(v)[lt.v])], 
-                     var2 = c(rep(NA, n), nm[row(v)[lt.v]]), vcov, sdcor, 
-                     stringsAsFactors = FALSE)
-    if (order == "lower.tri") {
-      m <- matrix(NA, n, n)
-      diag(m) <- seq(n)
-      m[lower.tri(m)] <- (n + 1):(n * (n + 1)/2)
-      dd <- dd[m[lower.tri(m, diag = TRUE)], ]
-    }
-    dd
+if (FALSE) {
+  customtidyhtml<-function(str) {
+    opts <- list(
+      TidyDocType="auto",
+      TidyMakeClean=TRUE,
+      TidyHideComments=TRUE,
+      TidyIndentContent=TRUE,
+      TidyWrapLen=200,
+      TidyXhtmlOut=TRUE,
+      TidyHtmlOut=FALSE,
+      TidyDropEmptyElems=TRUE,
+      TidyDropEmptyParas=TRUE,
+      TidyFixBackslash=TRUE
+    )
+    return(tidy_html(str, option=opts))
   }
-  r <- do.call(rbind, c(mapply(tmpf, x, names(x), SIMPLIFY = FALSE), 
-                        deparse.level = 0))
-  if (attr(x, "useSc")) {
-    ss <- attr(x, "sc")
-    r <- rbind(r, data.frame(grp = "Residual", var1 = NA, 
-                             var2 = NA, vcov = ss^2, sdcor = ss), deparse.level = 0)
+  customcurl<-function(url,async=length(url),encoding="UTF-8") {
+    opt<-curlOptions(followlocation=TRUE,verbose=TRUE,autoreferer=TRUE,maxredirs=999,timeout=3000,ssl.verifypeer=FALSE)
+    return(getURI(url, .opts=opt, async=async, .encoding=encoding, curl=getCurlHandle(), .mapUnicode = TRUE))
   }
-  rownames(r) <- NULL
-  r
-}
-
-
-myown_robustlmm_vcov2<-function(object, level = 0.95, ...) {
-  fit0 <- fit <- object
-  object <- robustlmm:::VarCorr.rlmerMod(fit)
-  vdd <- myown_robustlmm_as.data.frame.VarCorr.rlmerMod(object, order = "lower.tri")
-  pars <- vdd[, "sdcor"]
-  nms <- apply(vdd[, 1:3], 1, function(x) paste(na.omit(x), 
-                                                collapse = "."))
-  names(pars) <- nms
-  Vcov <- as.matrix(vcov(fit0, useScale = FALSE))
-  betas <- robustlmm:::fixef.rlmerMod(fit0)
-  np_fixed <- length(betas)
-  np_random <- length(pars)
-  np <- np_fixed + np_random
-  random <- list(coef = pars, vcov = NULL)
-  fixed <- list(coef = betas, vcov = Vcov)
-  coef1 <- c(fixed$coef, random$coef)
-  ind_fixed <- 1:np_fixed
-  ind_random <- ind <- np_fixed + 1:np_random
-  se <- c(sqrt(diag(fixed$vcov)), rep(NA, np_random))
-  np <- np_fixed + np_random
-  dfr <- data.frame(index = 1:np, type = c(rep("fixed", np_fixed), 
-                                           rep("random", np_random)))
-  s1 <- strsplit(names(random$coef), split = ".", fixed = TRUE)
-  s1 <- unlist(lapply(s1, FUN = function(ll) {
-    hh <- length(ll)
-    label <- "SD"
-    if (hh == 3) {
-      label <- "Cor"
-    }
-    return(label)
-  }))
-  dfr$stat <- c(rep("Beta", np_fixed), s1)
-  dfr$parm <- names(coef1)
-  dfr$est <- coef1
-  dfr$se <- se
-  dfr <- sirt::parmsummary_extend(dfr = dfr, level = level, 
-                                  est_label = "est", se_label = "se")
-  res <- list(par_summary = dfr, coef = coef1, se = se, fixed = fixed, 
-              random = random, np = np, np_random = np_random, np_fixed = np_fixed, 
-              ind_fixed = ind_fixed, ind_random = ind_random)
-  #class(res) <- "lmer_vcov"
-  return(res)
-}
-myown_robustlmm_pool<-function(models, level = 0.95, FUN = myown_robustlmm_vcov2, ...) 
-{
-  M <- length(models)
-  qhat <- list()
-  se <- list()
-  NMI <- FALSE
-  for (mm in 1:M) {
-    args <- list(object = models[[mm]], level = level)
-    res_mm <- do.call(what = FUN, args = args)
-    qhat[[mm]] <- res_mm$coef
-    se[[mm]] <- res_mm$se
-  }
-  res <- miceadds::pool_nmi(qhat = qhat, u = NULL, se = se, NMI = NMI, 
-                            comp_cov = TRUE, is_list = TRUE, method = 1)
-  if (!NMI) {
-    res$lambda_Between <- NA
-    res$lambda_Within <- NA
-  }
-  #class(res) <- "lmer_pool"
-  return(res)
-}
-
-
-myown_robustlmm_summary_pooledres<-function (object, digits = 4, file = NULL, ...) 
-{
-  CDM::osink(file = file, suffix = paste0("__SUMMARY.Rout"))
-  x <- object
-  table <- data.frame(est = x$qbar)
-  table$se <- sqrt(diag(x$Tm))
-  table$t <- table[, 1]/table[, 2]
-  table$df <- x$df
-  table$p <- 2 * (1 - stats::pt(abs(table$t), x$df))
-  table$`lo 95` <- table$est - stats::qt(0.975, x$df) * table$se
-  table$`hi 95` <- table$est + stats::qt(0.975, x$df) * table$se
-  table$fmi <- x$lambda
-  table$fmi_Betw <- x$lambda_Between
-  table$fmi_Within <- x$lambda_Within
-  table <- as.data.frame(table)
-  if (is.na(table$se)[1]) {
-    table$df <- NA
-  }
-  if (!is.null(object$u_NULL)) {
-    if (object$u_NULL) {
-      table <- table[, "est", drop = FALSE]
+  customrecursivecurl<-function(url,failedpattern="NA",async=length(url),encoding="UTF-8") {
+    firstresult<-customcurl(url)
+    failedresultpos_one<-grepl(failedpattern,firstresult,perl=TRUE)
+    failedresultpos_two<-(firstresult=="")
+    failedresultpos<-(failedresultpos_one | failedresultpos_two)
+    correctresultpos<-!failedresultpos
+    if (length(firstresult[failedresultpos])>0) {
+      continuefetchresult<-customrecursivecurl(url[failedresultpos],failedpattern=failedpattern,async=async,encoding=encoding)
+      return(c(firstresult[correctresultpos],continuefetchresult))
+    } else {
+      return(firstresult[correctresultpos])
     }
   }
-  table0 <- table
-  for (vv in seq(1, ncol(table))) {
-    table[, vv] <- round(table[, vv], digits = digits)
-  }
-  print(table)
-  return(table0)
-  CDM::csink(file = file)
-}
-
-
-customjrfit<-function (x, y, block, yhat0 = NULL, scores = wscores, fitint = NULL, 
-                       var.type = "sandwich", fitblock = FALSE, tuser = NULL, ...) 
-{
-  call <- match.call()
-  if (var.type == "sandwich") {
-    v1 <- jrfit::tsand
-  }
-  if (var.type == "cs") {
-    v1 <- jrfit::tcs
-  }
-  if (var.type == "ind") {
-    v1 <- tind
-  }
-  if (var.type == "user") {
-    if (!exists("tuser")) 
-      stop("tuser not defined")
-    v1 <- tuser
-  }
-  x <- as.matrix(x)
-  x1 <- as.matrix(cbind(rep(1, nrow(x)), x))
-  qrx1 <- base::qr(x1)
-  if (is.null(fitint)) {
-    if (qrx1$rank == ncol(x1)) {
-      x <- x1
-      fitint <- TRUE
-    }
-    else {
-      fitint <- FALSE
+  customcurluntilnoerror<-function(url,fetchencoding="BIG-5",curl=curl) {
+    #recursive fetch webpages umtil there is no error
+    results<-customcurl(url,fetchencoding=fetchencoding) %>%
+      sapply(strsplit,"<div class=\"leg03_body\">") %>%
+      sapply(`[`,2) %>%
+      sapply(custompaste0,"<div class=\"leg03_body\">",reverse=TRUE) %>%
+      sapply(strsplit,"<td class=\"contentbgtop06\">") %>%
+      sapply(`[`,1) %>%
+      sapply(customgsub,pattern="&nbsp;",replacement="") %>%
+      #sapply(customgsub,pattern="排版用表格",replacement="test_arrange") %>%
+      sapply(customtidyhtml)
+    wrongitems<-(grepl("NA",results))
+    correctitems<-!wrongitems
+    correctresults<-results[correctitems]
+    fetchagainurl<-url[wrongitems]
+    message(custompaste0(c("fetching following URL...",url)))
+    if (length(fetchagainurl)>0) {
+      adjresults<-customcurluntilnoerror(fetchagainurl,fetchencoding)
+      return(c(correctresults,adjresults))
+    } else {
+      return(correctresults)
     }
   }
-  else {
-    if (fitint) {
-      x <- x1
+  custom_strsplit<-function(str, pattern, returnnum=1) {
+    resultlist<-strsplit(as.character(str),pattern)
+    target<-unlist(extract(resultlist,returnnum))
+    return(resultlist)
+  }
+  custominsertRow <- function(newrow, existingDF, r=nrow(existingDF)) {
+    existingDF[seq(r+1,nrow(existingDF)+1),] <- existingDF[seq(r,nrow(existingDF)),]
+    existingDF[r,] <- newrow
+    existingDF
+  }
+  custommessage<-function(v,existingDF=data.frame()) {
+    message(v)
+    message("-----------\n")
+  }
+  customreadfile<-function(targetfile,encoding="UTF-8") {
+    connection<-file(targetfile,encoding=encoding)
+    result<-sapply(connection,readLines) %>%
+      sapply(custompaste0)
+    return(result)
+  }
+  not_empty_filter <- function(x) {
+    x<-as.character(x)
+    notna<-!is.na(x)
+    notnull<-!is.null(x)
+    notempty<-!(x=="")
+    not_length_zero<-x[length(x)>0]
+    x<-x[notna]
+    x<-x[notnull]
+    return(x)
+  }
+  mutate_last <- function(.data, ...) {
+    n <- n_groups(.data)
+    indices <- attr(.data, "indices")[[n]] + 1
+    .data[indices, ] <- .data[indices, ] %>% mutate(...)
+    .data
+  }
+  as_factor_to_integer<-function(f) {
+    as.numeric(levels(f))[f]
+  }
+  list_allcombn_of_model <- function(vars,prefix="1~") {
+    n <- length(vars)
+    id <- unlist(
+      lapply(1:n,
+             function(i)combn(1:n,i,simplify=FALSE)
+      )
+      ,recursive=FALSE)
+    Formulas <- sapply(id,function(i)
+      paste(prefix, paste(vars[i],collapse="+"))
+    )
+    return(Formulas)
+    #gregmisc::combinations
+    #MuMIn::dredge
+  }
+  custom_parallel_expr<-function(expr, name, mc.set.seed = TRUE, silent = FALSE,
+                                 mc.affinity = NULL, mc.interactive = FALSE,
+                                 detached = FALSE,
+                                 wait = TRUE, timeout = 0, intermediate = FALSE) {
+    do_job<-parallel::mcparallel(expr, name, mc.set.seed, silent,
+                                 mc.affinity, mc.interactive,
+                                 detached)
+    return(parallel::mccollect(do_job, wait, timeout, intermediate))
+  }
+  custom_find_duplicated_rows<-function(targetdf, cols=c(), findall=FALSE, remove=FALSE) {
+    if (length(cols)<=0) {
+      cols<-names(targetdf)
     }
+    targetdf %<>% data.table::as.data.table()
+    if (remove==TRUE) {
+      matcheddf<-targetdf[!duplicated(targetdf[,cols]),]
+    } else {
+      if (findall==FALSE) {
+        matcheddf<-targetdf[duplicated(targetdf[,cols]),]
+      } else {
+        matcheddf<-targetdf[duplicated(targetdf[,cols]),] %>%
+          dplyr::semi_join(targetdf)
+      }
+    }
+    return(matcheddf)
   }
-  P <- ncol(x)
-  Q <- as.matrix(pbdDMAT::qr.Q(qrx1))
-  q1 <- Q[, 1]
-  xq <- as.matrix(Q[, 2:qrx1$rank])
-  if (fitblock) {
-    z <- model.matrix(~as.factor(block) - 1)
-    z <- z[, 2:ncol(z)]
-    QZ <- cbind(Q, z)
-    qrxz <- pbdDMAT::qr(QZ)
-    Qxz <- pbdDMAT::qr.Q(qrxz)
-    zq <- Qxz[, (qrx1$rank + 1):qrxz$rank]
-    xq <- cbind(xq, zq)
-    x <- cbind(x, zq)
-  }
-  if (is.null(yhat0)) {
-    beta0 <- suppressWarnings(quantreg::rq(y ~ xq - 1)$coef)
-  }
-  else {
-    beta0 <- stats::lsfit(xq, yhat0, intercept = FALSE)$coef
-  }
-  fit <- Rfit::jaeckel(xq, y, beta0, scores = scores)
-  if (fit$convergence != 0) {
-    fit <- Rfit::jaeckel(xq, y, fit$par, scores = scores)
-    if (fit$convergence != 0) 
-      warning("Convergence status not zero in jaeckel")
-  }
-  betahat <- fit$par
-  yhat <- xq %*% betahat
-  ehat <- y - yhat
-  alphahat <- median(ehat)
-  ehat <- ehat - alphahat
-  yhat <- yhat + alphahat
-  bhat <- stats::lsfit(x, yhat, intercept = FALSE)$coefficients
-  tauhat <- Rfit::gettauF0(ehat, ncol(xq), scores)
-  xxpxi <- x %*% base::chol2inv(base::chol(base::crossprod(x)))
-  A1 <- base::crossprod(xxpxi, q1)
-  A2 <- base::crossprod(xxpxi, xq)
-  sigma0 <- jrfit::sigmastar(ehat, block, ncol(xq) + 1)
-  taus <- Rfit::taustar(ehat, ncol(xq) + 1)
-  V1 <- v1(ehat, xq, block, scores = scores)
-  varhat <- sigma0 * taus * taus * Matrix::tcrossprod(A1) + tauhat * 
-    tauhat * Matrix::tcrossprod(A2 %*% V1, A2)
-  DF <- switch(var.type, cs = length(y) - ncol(xq) - 1 - 1, 
-               ind = length(y) - ncol(xq) - 1, sandwich = length(unique(block)), 
-               user = length(unique(block)))
-  res <- list(coefficients = bhat, residuals = ehat, fitted.values = yhat, 
-              varhat = varhat, x = x, y = y, block = block, tauhat = tauhat, 
-              tauhats = taus, qrx1 = qrx1, disp = fit$value, scores = scores, 
-              v1 = v1, fitint = fitint, P = P, var.type = var.type, 
-              DF = DF)
-  res$call <- call
-  class(res) <- "jrfit"
-  res
+  
 }
 #install.packages("~/pbdDMAT_0.5-1.tar.gz", repos = NULL, type="source")
 

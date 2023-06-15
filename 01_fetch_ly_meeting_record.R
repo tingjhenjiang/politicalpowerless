@@ -23,105 +23,111 @@ lymeetingfetcher_class <- R6::R6Class("lymeetingfetcher", public = list(
   },
   get_fetchmeetingdata = function(loadExisted=TRUE,save=FALSE) {
     if (loadExisted==FALSE) {
-      meetingurldata_urlrange<-self$meetingurldata_urlrange #需要的欄位
-      big5headpattern<-'text/html; charset=big5'
-      utf8headpattern<-'text/html; charset=utf-8'
-      meetingurldata<-self$get_filtered_meetingurldata()
-      fetchmeetingdata<-meetingurldata[,meetingurldata_urlrange] %>%
-        split(.,seq(nrow(.))) %>%
-        custom_parallel_lapply(
-          FUN=function (X,...) {
-            returnX<-sapply(X,custom_read_file) %>%
-              as.character() %>%
-              custom_detect_and_transform_utf8()
-            message(" ｜ ")
-            names(returnX)<-paste(names(X),"DATA",sep="")
-            return(returnX)
-          },
-          method=parallel_method,
-          exportvar=c("meetingurldata","meetingurldata_urlrange","custom_read_file","customgrepl","custom_detect_and_transform_utf8"),
-          exportlib=c("base",lib),
-          outfile=file.path(dataset_file_directory, "rdata", paste0("parallel_handling_process-", t_sessioninfo_running_with_cpu, ".txt") ),
-          mc.set.seed = TRUE
-        )  %>%
-        list_of_vec_asmanyrows_to_df() %>%
-        dplyr::mutate_all(as.character)
-      if (save==TRUE) {
-        saveRDS(fetchmeetingdata, file=self$fetchmeetingdata_filepath)
-      }
+      fetchmeetingdata <- self$parse_fetchmeetingdata()
     } else {
       fetchmeetingdata <- readRDS(file=self$fetchmeetingdata_filepath)
     }
+    if (save==TRUE) {
+      saveRDS(fetchmeetingdata, file=self$fetchmeetingdata_filepath)
+    }
+  },
+  parse_fetchmeetingdata = function() {
+    meetingurldata_urlrange<-self$meetingurldata_urlrange #需要的欄位
+    big5headpattern<-'text/html; charset=big5'
+    utf8headpattern<-'text/html; charset=utf-8'
+    meetingurldata<-self$get_filtered_meetingurldata()
+    fetchmeetingdata<-meetingurldata[,meetingurldata_urlrange] %>%
+      split(.,seq(nrow(.))) %>%
+      custom_parallel_lapply(
+        FUN=function (X,...) {
+          returnX<-sapply(X,custom_read_file) %>%
+            as.character() %>%
+            custom_detect_and_transform_utf8()
+          message(" ｜ ")
+          names(returnX)<-paste(names(X),"DATA",sep="")
+          return(returnX)
+        },
+        method=parallel_method,
+        exportvar=c("meetingurldata","meetingurldata_urlrange","custom_read_file","customgrepl","custom_detect_and_transform_utf8"),
+        exportlib=c("base",lib),
+        outfile=file.path(dataset_file_directory, "rdata", paste0("parallel_handling_process-", t_sessioninfo_running_with_cpu, ".txt") ),
+      )  %>%
+      list_of_vec_asmanyrows_to_df() %>%
+      dplyr::mutate_all(as.character)
     fetchmeetingdata
   },
   get_meetingdata = function(loadExisted=TRUE,preparedata=TRUE,save=FALSE,meetingurldata=NA,fetchmeetingdata=NA) {
     if (loadExisted==TRUE) {
       meetingdata <- readRDS(file=self$meetingdata_filepath)
     } else {
-      if (preparedata==TRUE) {
-        meetingurldata <- self$get_filtered_meetingurldata()
-        fetchmeetingdata <- self$get_fetchmeetingdata(loadExisted=TRUE,save=FALSE)
-      }
-      meetingurldata_urlrange<-self$meetingurldata_urlrange
-      meetingdata_range<-self$meetingdata_range
-      meetingdata<-dplyr::bind_cols(meetingurldata,fetchmeetingdata) %>%
-        lapply(1:nrow(.), FUN=function (split_i, dataX,...) {
-          #for (split_i in 1:length(meetingdata)) {  #debug專用，可以有螢幕輸出 #length(meetingdata)
-          #dataX<-meetingdata[[split_i]] #debug專用，可以有螢幕輸出
-          term<-dataX[split_i,"term"]
-          error<-""
-          message("starting! split_i=",split_i,"; term=",dataX[split_i,"term"],"; cols=",length(dataX[split_i,]),"; termmeetingtime=",dataX[split_i,"termmeetingtime"],"; names=",paste0(names(dataX),sep=","))
-          tmpcontent<-dataX[split_i,meetingdata_range]
-          #big5checkresult<-customgrep(as.character(tmpcontent),big5headpattern)
-          #if (length(big5checkresult)>0) {
-          #  for (big5checkresult_i in 1:length(big5checkresult)) {
-          #    #message(big5checkresult_i)
-          #    tmpcontent[big5checkresult[big5checkresult_i]] %<>% customgsub(big5headpattern,utf8headpattern)
-          #  }
-          #}
-          filter_result<-sapply(tmpcontent,function(X) {
-            as.integer(stri_locate_first( X, regex="html|body|span")[,'start'])
-          }) %>% {which(!is.na(.))}
-          length_filter_result<-length(filter_result) #檢查有幾個欄位的網址有抓到資料
-          tmpmeetingtitle<-c()
-          if (dataX$kind[split_i]=="選舉會議") { #會沒有內容，隨便指定
-            filter_result<-1
-          } else if (length_filter_result<1) {
-            stop("Error at ", dataX[split_i,1], dataX[split_i,2], "length<1")
-          } else if (length_filter_result>1 | length_filter_result==1) {
-            need_compare_content<-tmpcontent[filter_result] %>% stringr::str_length() %>% unique()
-            if (length(need_compare_content)>1) {
-              error<-paste0("Error at ", dataX[1], dataX[2], "length>2")
-              #stop("Error at ", i, meetingurldata[i,1], meetingurldata[i,2])
-            }
-            filter_result<-filter_result[1]
-          } else {
-            stop("Error at ", i, dataX[split_i,1], dataX[split_i,2])
-          }
-          needcontent<-tmpcontent[1,filter_result]
-          needurl<-dataX[split_i,meetingurldata_urlrange][filter_result]
-          needelement<-c("kind","termmeetingtime","date","term","period","meetingno","temp_meeting_no")
-          needcvec<-c(dataX[split_i,needelement],needurl,needcontent,error) %>%
-            stringi::stri_trim_both() %>%
-            magrittr::set_names(c(needelement,"url","content","fetchcontenterror"))
-          needcvec['content'] %<>% as.character()
-          #meetingdata_df %<>% rbind(needcvec)
-          #colnames(meetingdata_df)<-names(needcvec)
-          return(needcvec)
-        },
-        dataX=.
-        #meetingurldata=meetingurldata,
-        #meetingurldata_urlrange=meetingurldata_urlrange,
-        #custom_read_file=custom_read_file,
-        #fetchmeetingdata=fetchmeetingdata,
-        #meetingdata_range=meetingdata_range
-        ) %>%
-        list_of_vec_asmanyrows_to_df() %>%
-        dplyr::mutate_at("content", as.character)
-      if (save==TRUE) {
-        saveRDS(meetingdata, file = self$meetingdata_filepath )
-      }
+      meetingdata <- self$parse_meetingdata(preparedata=preparedata,meetingurldata=meetingurldata,fetchmeetingdata=fetchmeetingdata)
     }
+    if (save==TRUE) {
+      saveRDS(meetingdata, file = self$meetingdata_filepath )
+    }
+    meetingdata
+  },
+  parse_meetingdata = function(preparedata=TRUE,meetingurldata=NA,fetchmeetingdata=NA) {
+    if (preparedata==TRUE) {
+      meetingurldata <- self$get_filtered_meetingurldata()
+      fetchmeetingdata <- self$get_fetchmeetingdata(loadExisted=TRUE,save=FALSE)
+    }
+    meetingurldata_urlrange<-self$meetingurldata_urlrange
+    meetingdata_range<-self$meetingdata_range
+    meetingdata<-dplyr::bind_cols(meetingurldata,fetchmeetingdata) %>%
+      lapply(1:nrow(.), FUN=function (split_i, dataX,...) {
+        #for (split_i in 1:length(meetingdata)) {  #debug專用，可以有螢幕輸出 #length(meetingdata)
+        #dataX<-meetingdata[[split_i]] #debug專用，可以有螢幕輸出
+        term<-dataX[split_i,"term"]
+        error<-""
+        message("starting! split_i=",split_i,"; term=",dataX[split_i,"term"],"; cols=",length(dataX[split_i,]),"; termmeetingtime=",dataX[split_i,"termmeetingtime"],"; names=",paste0(names(dataX),sep=","))
+        tmpcontent<-dataX[split_i,meetingdata_range]
+        #big5checkresult<-customgrep(as.character(tmpcontent),big5headpattern)
+        #if (length(big5checkresult)>0) {
+        #  for (big5checkresult_i in 1:length(big5checkresult)) {
+        #    #message(big5checkresult_i)
+        #    tmpcontent[big5checkresult[big5checkresult_i]] %<>% customgsub(big5headpattern,utf8headpattern)
+        #  }
+        #}
+        filter_result<-sapply(tmpcontent,function(X) {
+          as.integer(stri_locate_first( X, regex="html|body|span")[,'start'])
+        }) %>% {which(!is.na(.))}
+        length_filter_result<-length(filter_result) #檢查有幾個欄位的網址有抓到資料
+        tmpmeetingtitle<-c()
+        if (dataX$kind[split_i]=="選舉會議") { #會沒有內容，隨便指定
+          filter_result<-1
+        } else if (length_filter_result<1) {
+          stop("Error at ", dataX[split_i,1], dataX[split_i,2], "length<1")
+        } else if (length_filter_result>1 | length_filter_result==1) {
+          need_compare_content<-tmpcontent[filter_result] %>% stringr::str_length() %>% unique()
+          if (length(need_compare_content)>1) {
+            error<-paste0("Error at ", dataX[1], dataX[2], "length>2")
+            #stop("Error at ", i, meetingurldata[i,1], meetingurldata[i,2])
+          }
+          filter_result<-filter_result[1]
+        } else {
+          stop("Error at ", i, dataX[split_i,1], dataX[split_i,2])
+        }
+        needcontent<-tmpcontent[1,filter_result]
+        needurl<-dataX[split_i,meetingurldata_urlrange][filter_result]
+        needelement<-c("kind","termmeetingtime","date","term","period","meetingno","temp_meeting_no")
+        needcvec<-c(dataX[split_i,needelement],needurl,needcontent,error) %>%
+          stringi::stri_trim_both() %>%
+          magrittr::set_names(c(needelement,"url","content","fetchcontenterror"))
+        needcvec['content'] %<>% as.character()
+        #meetingdata_df %<>% rbind(needcvec)
+        #colnames(meetingdata_df)<-names(needcvec)
+        return(needcvec)
+      },
+      dataX=.
+      #meetingurldata=meetingurldata,
+      #meetingurldata_urlrange=meetingurldata_urlrange,
+      #custom_read_file=custom_read_file,
+      #fetchmeetingdata=fetchmeetingdata,
+      #meetingdata_range=meetingdata_range
+      ) %>%
+      list_of_vec_asmanyrows_to_df() %>%
+      dplyr::mutate_at("content", as.character)
     meetingdata
   },
   #會議記錄文件連結（非議事錄）
