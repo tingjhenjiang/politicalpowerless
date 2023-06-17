@@ -459,7 +459,7 @@ debugprint <- function(ob) {
 
 mutate_cond <- function(data, condition, ..., envir = parent.frame()) {
   if (inherits(data, what=c("data.table"))) {
-    message("mutate_cond in data.table mode")
+    # message("mutate_cond in data.table mode")
     # https://stackoverflow.com/questions/70969830/how-do-i-correctly-use-the-env-variable-for-data-tables-within-a-function
     # dots <- eval(substitute(alist(...)), envir = envir)
     subsetcondition <- eval(substitute(condition), data, envir)
@@ -473,7 +473,7 @@ mutate_cond <- function(data, condition, ..., envir = parent.frame()) {
     eval(dtq)
     data
   } else if (inherits(data, what=c("dtplyr_step"))) {
-    message("mutate_cond in dtplyr_step mode")
+    # message("mutate_cond in dtplyr_step mode")
     # message("condition is ",ls(envir))
     # .data <- dtplyr::mutate.dtplyr_step(RNrow_number=dplyr::row_number())
     # newcond <- dtplyr::filter.dtplyr_step(.data, condition) %>%
