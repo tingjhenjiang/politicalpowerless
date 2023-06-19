@@ -696,44 +696,6 @@ preserve_warning_tryCatch <- function(expr)
 
 
 
-ret_std_legislators_data<-function(legislatorsxlsxpath = file.path(dataset_file_directory, "legislators.xlsx"), terms=5:9, elections_df=elections_df) {
-  openxlsx::read.xlsx(legislatorsxlsxpath, sheet = 1, detectDates = TRUE) %>%
-    dplyr::mutate(term=as.integer(term)) %>%  #mutate_at(c("term"), .funs = list(term = ~customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>% 
-    dplyr::mutate(onboardDate=as.Date(onboardDate)) %>%
-    dplyr::mutate(leaveDate=as.Date(leaveDate)) %>%
-    mutate_cond(customgrepl(name,"簡東明") & term %in% c(8,9), name="簡東明Uliw．Qaljupayare") %>%
-    mutate_cond(customgrepl(name,"Kolas"), name="谷辣斯．尤達卡Kolas．Yotaka") %>%
-    mutate_cond(customgrepl(name,"王雪."), name="王雪峰") %>%
-    mutate_cond(is.na(leaveDate) & term==2, leaveDate=as.Date(c("1996/1/31"))) %>% 
-    mutate_cond(is.na(leaveDate) & term==3, leaveDate=as.Date(c("1999/1/31"))) %>% 
-    mutate_cond(is.na(leaveDate) & term==4, leaveDate=as.Date(c("2002/1/31"))) %>% 
-    mutate_cond(is.na(leaveDate) & term==5, leaveDate=as.Date(c("2005/1/31"))) %>% 
-    mutate_cond(is.na(leaveDate) & term==6, leaveDate=as.Date(c("2008/1/31"))) %>% 
-    mutate_cond(is.na(leaveDate) & term==7, leaveDate=as.Date(c("2012/1/31"))) %>% 
-    mutate_cond(is.na(leaveDate) & term==8, leaveDate=as.Date(c("2016/1/31"))) %>% 
-    mutate_cond(is.na(leaveDate) & term==9, leaveDate=as.Date(c("2016/6/1"))) %>%  #調查開始日當作年資起算日
-    dplyr::mutate(servingdayslong_in_this_term=difftime(leaveDate, onboardDate, units = c("days"))) %>% 
-    dplyr::mutate_at("servingdayslong_in_this_term", as.integer) %>% 
-    dplyr::group_by(name) %>%    #calculate overall service time in previous periods
-    dplyr::mutate(seniority=cumsum(servingdayslong_in_this_term)-servingdayslong_in_this_term) %>%
-    dplyr::ungroup() %>%
-    dplyr::group_by(term) %>%
-    #dplyr::mutate_at("seniority", ~as.numeric(scale(.))) %>%
-    dplyr::ungroup() %>%
-    dplyr::filter(term %in% terms) %>%
-    dplyr::mutate_at(c("term"), as.character) %>%
-    dplyr::inner_join(elections_df, by = c("name", "term", "sex"))  %>%
-    dplyr::rename(legislator_sex=sex,
-           legislator_party=party.x,
-           election_party=party.y,
-           legislator_age=age,
-           legislator_name=name
-    ) %>%
-    dplyr::mutate_at(c("term"), as.numeric) %>%
-    dplyr::mutate_at(c("legislator_sex","legislator_party","partyGroup","areaName","leaveFlag","incumbent","wonelection","election_party","elec_dist_type"), as.factor) %>%
-    return()
-}
-
 custom_ret_survey_book_file<-function(dataset_file_directory, subject="issue") {
   survey_codebook_file<-paste0(dataset_file_directory,"all_survey_questions_englished.xlsx")
   survey_keys <- c("2010overall","2016citizen")
