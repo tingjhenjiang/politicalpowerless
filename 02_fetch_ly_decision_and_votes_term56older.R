@@ -1,11 +1,7 @@
-lyterm56votes_class <- R6::R6Class("lyterm56votes", public = list(
-  filespath = NULL,
-  dataset_in_scriptsfile_directory = NULL,
-  myown_vote_record_detailed_part_df_filepath = NULL,
-  initialize = function(dataset_in_scriptsfile_directory="/mnt",filespath="/mnt") {
-    self$dataset_in_scriptsfile_directory <- dataset_in_scriptsfile_directory
-    self$filespath <- filespath
-    self$myown_vote_record_detailed_part_df_filepath <- file.path(dataset_in_scriptsfile_directory,"myown_vote_record_detailed_part_df.rds")
+source("01_fetch_ly_meeting_record.R")
+lyterm56votes_class <- R6::R6Class("lyterm56votes", inherit=lymeetingfetcher_class, public = list(
+  initialize = function(dataset_in_scriptsfile_directory="/mnt",filespath="/mnt",dataset_file_directory="/mnt") {
+    super$initialize(dataset_in_scriptsfile_directory, filespath=filespath, dataset_file_directory=dataset_file_directory)
   },
   get_term56_voting_records = function(loadExisted=TRUE,save=FALSE) {
     if (loadExisted==TRUE) {
@@ -17,24 +13,9 @@ lyterm56votes_class <- R6::R6Class("lyterm56votes", public = list(
   },
   parse_term56_votingrecords = function(save=FALSE) {
     filespath <- self$filespath
-    ly_meeting_path <- file.path(filespath, "2004_meeting", "original")
+    ly_meeting_path <- self$ly_meeting_path #file.path(filespath, "2004_meeting", "original")
     myown_vote_record_detailed_part_df_filepath <- self$myown_vote_record_detailed_part_df_filepath
-    meetingrecords_filenames<-c(#"立法院第5屆第5會期全院委員談話會紀錄.html",
-      "立法院第5屆第5會期第1次臨時會第1次會議紀錄.html", #OK 九十三年八月十一日 立法院第93卷第36期 (3370)公報 https://lci.ly.gov.tw/LyLCEW/communique/final/pdf/93/36/LCIDC01_933601.pdf
-      "立法院第5屆第5會期第1次臨時會第3次會議紀錄.html", #OK 九十三年八月二十三日 公報 93卷37期公報總號 3371上 https://lci.ly.gov.tw/LyLCEW/communique/final/pdf/93/37/LCIDC01_933701.pdf
-      "立法院第5屆第5會期第1次臨時會第4次會議紀錄.html", #OK 九十三年八月二十四日 公報 93卷37期公報總號 3371上 https://lci.ly.gov.tw/LyLCEW/communique/final/pdf/93/37/LCIDC01_933701.pdf
-      "立法院第5屆第6會期第1次會議紀錄.html", #第93卷 第38期(3372) 公報 九十三年九月十四日 https://lci.ly.gov.tw/LyLCEW/communique/final/pdf/93/38/LCIDC01_933801.pdf
-      "立法院第5屆第6會期第16次會議紀錄.html", #94卷07期 3389號上 九十四年一月二十日（星期四）上午十時、一月二十一日（星期五）上午二時十四分 https://lci.ly.gov.tw/LyLCEW/communique/final/pdf/94/07/LCIDC01_940701.pdf
-      "立法院第6屆第1會期第13次會議紀錄.html", #6
-      "立法院第6屆第1會期第14次會議紀錄.html", #7
-      "立法院第6屆第2會期第3次會議紀錄.html", #8
-      "立法院第6屆第2會期第5次會議紀錄.html", #9
-      "立法院第6屆第2會期第7次會議紀錄.html", #10
-      "立法院第6屆第2會期第9次會議紀錄.html", #11
-      "立法院第6屆第2會期第16次會議紀錄.html", #12
-      "立法院第6屆第2會期第19次會議紀錄.html", #13
-      "立法院第6屆第3會期第8次會議紀錄.html", #14
-      "立法院第6屆第3會期第10次會議紀錄.html") #15
+    meetingrecords_filenames <- self$term56_meetingrecords_filenames
     term<-stringr::str_match(meetingrecords_filenames,pattern="立法院第([[:digit:]]+)屆")[,2] %>% as.integer()
     period<-stringr::str_match(meetingrecords_filenames,pattern="立法院第[[:digit:]]+屆第([[:digit:]]+)會期")[,2] %>% as.integer()
     meetingno<-stringr::str_match(meetingrecords_filenames,pattern="第([[:digit:]]+)次會議紀錄")[,2] %>% as.integer()
@@ -50,7 +31,7 @@ lyterm56votes_class <- R6::R6Class("lyterm56votes", public = list(
       dateparts[1]<-as.integer(dateparts[1])+1911
       return(as.Date(paste(dateparts,collapse="/"),format="%Y/%m/%d"))
     })
-    term56_filepaths <- file.path(ly_meeting_path,meetingrecords_filenames)
+    term56_filepaths <- self$term56_filepaths #file.path(ly_meeting_path,meetingrecords_filenames)
     html<-sapply(term56_filepaths,custom_read_file)
     
     all_legislators <- openxlsx::read.xlsx(file.path(dataset_file_directory, "legislators.xlsx"), sheet = 1, detectDates = TRUE) %>%
@@ -160,12 +141,15 @@ lyterm56votes_class <- R6::R6Class("lyterm56votes", public = list(
         customgsub("陳　瑩","陳瑩") %>%
         trimws()
       if (i==3) {
-        paragraph_list<-c(
-          paragraph_list[1:314],
-          "許登宮程振隆錢林慧君何敏豪　羅志明　周慧瑛李俊毅　柯建銘　湯金全蔡煌瑯　陳建銘　黃宗源廖本煙　林志隆　黃政哲洪奇昌　顏錦福　郭正亮沈富雄　吳東昇　趙永清林豐喜　蔡同榮　鍾金江邱垂貞　許榮淑　林濁水王　拓　湯火聖　周清玉尤　清　林國華　梁牧養王雪峰　曹啟鴻　鄭朝明張清芳　張秀珍　劉俊雄陳景峻　林重謨　張川田江昭儀　蘇嘉富　邱永仁陳茂男　周雅淑　葉宜津唐碧娥　張學舜　李文忠賴清德　林進興　陳勝宏陳朝龍　蘇治芬　郭俊銘李鎮楠　彭添富　謝明源林文郎　侯水盛　盧博基李明憲　陳道明　藍美津魏明谷　陳金德　陳宗義高孟定　蔡啟芳　林育生邱創進　鄭國忠　王淑慧郭玟成　張花冠　郭榮宗簡肇棟　杜文卿　林忠正林岱樺　邱議瑩　蕭美琴段宜康　高志鵬　張俊宏",
-          "二、反對者：一百零五人",
-          paragraph_list[316:length(paragraph_list)]
-        )
+        # paragraph_list<-c(
+        #   paragraph_list[1:314],
+        #   "許登宮程振隆錢林慧君何敏豪　羅志明　周慧瑛李俊毅　柯建銘　湯金全蔡煌瑯　陳建銘　黃宗源廖本煙　林志隆　黃政哲洪奇昌　顏錦福　郭正亮沈富雄　吳東昇　趙永清林豐喜　蔡同榮　鍾金江邱垂貞　許榮淑　林濁水王　拓　湯火聖　周清玉尤　清　林國華　梁牧養王雪峰　曹啟鴻　鄭朝明張清芳　張秀珍　劉俊雄陳景峻　林重謨　張川田江昭儀　蘇嘉富　邱永仁陳茂男　周雅淑　葉宜津唐碧娥　張學舜　李文忠賴清德　林進興　陳勝宏陳朝龍　蘇治芬　郭俊銘李鎮楠　彭添富　謝明源林文郎　侯水盛　盧博基李明憲　陳道明　藍美津魏明谷　陳金德　陳宗義高孟定　蔡啟芳　林育生邱創進　鄭國忠　王淑慧郭玟成　張花冠　郭榮宗簡肇棟　杜文卿　林忠正林岱樺　邱議瑩　蕭美琴段宜康　高志鵬　張俊宏",
+        #   "二、反對者：一百零五人",
+        #   paragraph_list[316:length(paragraph_list)]
+        # )
+        paragraph_list <- customgsub(paragraph_list, pattern="張俊宏二、反對者：一百零五人",replacement="張俊宏|||二、反對者：一百零五人",) %>%
+          strsplit("|||",fixed=TRUE) %>%
+          unlist()
       }
       
       if (i==14) {
@@ -195,17 +179,20 @@ lyterm56votes_class <- R6::R6Class("lyterm56votes", public = list(
       
       bill_list<-stringi::stri_trim_both(bill_list)
       pure_html<-paste(paragraph_list,sep="",collapse="\n\r")
-      match<-stringr::str_match_all(pure_html,votepattern)
+      matchscan<-stringr::str_match_all(pure_html,votepattern)
       #testmatch<-stringr::str_match_all(teststr,votepattern)
-      scan_area<-match[[1]][,1]
+      scan_area<-matchscan[[1]][,1]
       #檢查抓到的前半部詳細案由是否和後半部表決紀錄筆數是否對得上
-      if (length(scan_area)!=length(bill_list))
+      #13 14
+      if (length(scan_area)!=length(bill_list)) {
+        browser()
         stop("Error at ", term56_filepaths[i], "   bill_list and scan_area does not match!")
-      
-      agree_votes_list<-match[[1]][,3] %>%
+      }
+        
+      agree_votes_list<-matchscan[[1]][,3] %>%
         customgsub("\n","")
-      dissent_votes_list<-match[[1]][,5]
-      giveup_votes_list<-match[[1]][,7]
+      dissent_votes_list<-matchscan[[1]][,5]
+      giveup_votes_list<-matchscan[[1]][,7]
       testing_for_check_bill_result_df<-cbind.fill( #rowr::cbind.fill(
         "billn"=seq(1:length(bill_list)),
         "scanarea"=stringi::stri_trim_both(scan_area),

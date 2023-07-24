@@ -1,17 +1,6 @@
-lymeetingfetcher_class <- R6::R6Class("lymeetingfetcher", public = list(
-  dataset_in_scriptsfile_directory = NULL,
-  meetingurldata_filepath = NULL,
-  fetchmeetingdata_filepath = NULL,
-  meetingdata_filepath = NULL,
-  fullmeetingrecordlinks_filepath = NULL,
-  meetingdata_range = NULL,
-  meetingurldata_urlrange = NULL,
-  initialize = function(dataset_in_scriptsfile_directory="/mnt") {
-    self$dataset_in_scriptsfile_directory <- dataset_in_scriptsfile_directory
-    self$meetingurldata_filepath<-file.path(dataset_in_scriptsfile_directory, "meetingrecord.xlsx")
-    self$fetchmeetingdata_filepath <- file.path(dataset_in_scriptsfile_directory, "fetchmeetingdata.rds")
-    self$meetingdata_filepath <- file.path(dataset_in_scriptsfile_directory, "meetingdata.rds")
-    self$fullmeetingrecordlinks_filepath <- file.path(dataset_in_scriptsfile_directory, "fullmeetingrecordlinks.xlsx")
+lymeetingfetcher_class <- R6::R6Class("lymeetingfetcher", inherit=base_r6_class, public = list(
+  initialize = function(dataset_in_scriptsfile_directory="/mnt", filespath="/mnt", dataset_file_directory=dataset_file_directory) {
+    super$initialize(dataset_in_scriptsfile_directory, filespath=filespath, dataset_file_directory=dataset_file_directory)
     self$meetingdata_range <- 19:28
     self$meetingurldata_urlrange <- 4:13
   },
@@ -22,14 +11,16 @@ lymeetingfetcher_class <- R6::R6Class("lymeetingfetcher", public = list(
     filtered_meetingurldata
   },
   get_fetchmeetingdata = function(loadExisted=TRUE,save=FALSE) {
-    if (loadExisted==FALSE) {
-      fetchmeetingdata <- self$parse_fetchmeetingdata()
-    } else {
+    # browser()
+    if (loadExisted==TRUE) {
       fetchmeetingdata <- readRDS(file=self$fetchmeetingdata_filepath)
+    } else {
+      fetchmeetingdata <- self$parse_fetchmeetingdata()
     }
     if (save==TRUE) {
       saveRDS(fetchmeetingdata, file=self$fetchmeetingdata_filepath)
     }
+    fetchmeetingdata
   },
   parse_fetchmeetingdata = function() {
     meetingurldata_urlrange<-self$meetingurldata_urlrange #需要的欄位
@@ -57,6 +48,7 @@ lymeetingfetcher_class <- R6::R6Class("lymeetingfetcher", public = list(
     fetchmeetingdata
   },
   get_meetingdata = function(loadExisted=TRUE,preparedata=TRUE,save=FALSE,meetingurldata=NA,fetchmeetingdata=NA) {
+    # entrance #1
     if (loadExisted==TRUE) {
       meetingdata <- readRDS(file=self$meetingdata_filepath)
     } else {
@@ -69,6 +61,7 @@ lymeetingfetcher_class <- R6::R6Class("lymeetingfetcher", public = list(
   },
   parse_meetingdata = function(preparedata=TRUE,meetingurldata=NA,fetchmeetingdata=NA) {
     if (preparedata==TRUE) {
+      # browser()
       meetingurldata <- self$get_filtered_meetingurldata()
       fetchmeetingdata <- self$get_fetchmeetingdata(loadExisted=TRUE,save=FALSE)
     }

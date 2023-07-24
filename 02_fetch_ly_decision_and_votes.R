@@ -1,15 +1,6 @@
 
 source(file = "01_fetch_ly_meeting_record.R")
-lyvotes_class <- R6::R6Class("lyvotes", inherit=lymeetingfetcher_class, public = list(
-  filespath = NULL,
-  dataset_in_scriptsfile_directory = NULL,
-  myown_vote_record_df_filepath = NULL,
-  legislatorsxlsxpath = NULL,
-  dataset_file_directory = NULL,
-  debug_func_mode = NULL,
-  error_vote_record_from_name_filepath = NULL,
-  error_leave_and_attend_legislators_filepath = NULL,
-  mccores = NULL,
+lyvotes_class <- R6::R6Class("lyvotes", inherit=lyterm56votes_class, public = list( #lymeetingfetcher_class
   meetingdata = NULL,
   scan_leave_and_attend_legislators_area = NULL,
   replace_troublesome_names_pairs = list(
@@ -34,21 +25,14 @@ lyvotes_class <- R6::R6Class("lyvotes", inherit=lymeetingfetcher_class, public =
     "謝衣."="謝衣鳯"
   ),
   initialize = function(dataset_in_scriptsfile_directory="/mnt", filespath="/mnt", dataset_file_directory="/mnt", debug_func_mode=FALSE) {
-    super$initialize(dataset_in_scriptsfile_directory)
-    self$filespath <- filespath
-    self$myown_vote_record_df_filepath <- file.path(dataset_in_scriptsfile_directory,"myown_vote_record_df.rds")
-    self$legislatorsxlsxpath <- file.path(dataset_file_directory, "legislators.xlsx")
-    self$dataset_file_directory <- dataset_file_directory
-    self$debug_func_mode <- debug_func_mode
-    self$error_vote_record_from_name_filepath <- file.path(dataset_in_scriptsfile_directory, "error_vote_record_from_name.xlsx")
-    self$error_leave_and_attend_legislators_filepath <- file.path(dataset_in_scriptsfile_directory, "leave_and_attend_legislators.xlsx")
-    self$mccores <- base::ifelse(self$debug_func_mode==TRUE, 1, parallel::detectCores())
+    super$initialize(dataset_in_scriptsfile_directory, filespath=filespath, dataset_file_directory=dataset_file_directory)
     self$scan_leave_and_attend_legislators_area <- 1:19
   },
   get_voting_records = function(loadExisted=TRUE,save=FALSE,startUrlN=1,endUrlN=-1) {
     myown_vote_record_df_filepath <- self$myown_vote_record_df_filepath
     if (loadExisted==TRUE) {
       myown_vote_record_df <- readRDS(self$myown_vote_record_df_filepath)
+      return (myown_vote_record_df)
     } else {
       myown_vote_record_df <- self$parse_votingrecords(startUrlN=startUrlN,endUrlN=endUrlN)
       if (save==TRUE) {
@@ -174,6 +158,15 @@ lyvotes_class <- R6::R6Class("lyvotes", inherit=lymeetingfetcher_class, public =
     }
     return(content)
   },
+  replace_string_and_append = function(plist, patterns) {
+    final_list <- c()
+    wholepattern <- patterns %>%
+      paste0(sep="",collapse="|") %>%
+      c("(?<=.)(?=",.,")") %>%
+      paste0(sep="",collapse="")
+    final_list <- unlist(strsplit(plist, wholepattern, perl=TRUE))
+    return (final_list)
+  },
   preprocess_paragraph_list = function(paragraph_list, term=7, period=1, meetingno=1, temp_meeting_no=0, billn=NA) {
     scan_leave_and_attend_legislators_area <- self$scan_leave_and_attend_legislators_area
     paragraph_list[scan_leave_and_attend_legislators_area] %<>%
@@ -192,8 +185,10 @@ lyvotes_class <- R6::R6Class("lyvotes", inherit=lymeetingfetcher_class, public =
 
     #特別處理
     ##立法院第6屆第2會期第19次會議議事錄
-    if (term==6 & period==2 & meetingno==19) {
-      paragraph_list<-c(paragraph_list[1:3161],"各項記名表決結果名單",paragraph_list[3162:length(paragraph_list)])
+    if (term==6 & period==2 & meetingno==19) { #urln=511
+      # paragraph_list<-c(paragraph_list[1:3161],"各項記名表決結果名單",paragraph_list[3162:length(paragraph_list)])
+      paragraph_list<-c(paragraph_list[seq(1,2111)],"各項記名表決結果名單",paragraph_list[2112:length(paragraph_list)])
+      
       #(customgrepl(paragraph_list,'贊成者：'))-2 %>% which.min()
       #取代模式
       #paragraph_list<-sapply(paragraph_list,
@@ -228,37 +223,47 @@ lyvotes_class <- R6::R6Class("lyvotes", inherit=lymeetingfetcher_class, public =
     
     #特別處理：立法院第7屆第1會期第19次會議議事錄, 這裡很奇怪, https 和 http 版本不一樣
     if (term==7 & period==1 & temp_meeting_no==0 & meetingno==19) {
-      paragraph_list <- c(paragraph_list[1:1449],
-                          "二、上開決定除國民年金法部分條文修正草案，提出於本（第19）次會議處理外，其餘均照原決定通過。",
+      checkstr <- "二、上開決定除國民年金法部分條文修正草案，提出於本（第19）次會議處理外，其餘均照原決定通過。"
+      error_point_pos <- grepl(checkstr,paragraph_list) %>% which()
+      paragraph_list <- c(paragraph_list[seq(1,error_point_pos-1)],
+                          checkstr,
                           "各項記名表決結果名單",
-                          paragraph_list[1451:1637],
+                          paragraph_list[seq(error_point_pos+1,error_point_pos+187)],
                           "反對者：0人",
                           #"棄權者：0人",
-                          paragraph_list[1639:length(paragraph_list)]
+                          paragraph_list[seq(error_point_pos+189,length(paragraph_list))]
       )
     }
     
     if (term == 9 & period == 1 & temp_meeting_no == 1 & meetingno == 1) {
-      paragraph_list <- c(paragraph_list[1:1458],
-                          "棄權者：0人",
-                          "(141)「討論事項第二案營業部分台灣中油股份有限公司有黨團、委員提案第十九項不予通過」部分：",
-                          paragraph_list[1460:length(paragraph_list)]
-      )
+      # paragraph_list <- c(paragraph_list[1:1458],
+      #                     "棄權者：0人",
+      #                     "(141)「討論事項第二案營業部分台灣中油股份有限公司有黨團、委員提案第十九項不予通過」部分：",
+      #                     paragraph_list[1460:length(paragraph_list)]
+      # )
+      paragraph_list <- self$replace_string_and_append(paragraph_list, c(
+        "\\(141\\)「討論事項第二案營業部分台灣中油股份有限公司有黨團、委員提案第十九項不予通過」部分："
+      ))
     }
     ##立法院第9屆第3會期第3次臨時會第2次會議議事錄
     if (term==9 & period==3 & temp_meeting_no==3 & meetingno==2) {
       #stop("test if skip 立法院第9屆第3會期第3次臨時會第2次會議議事錄")
-      paragraph_list<-c(paragraph_list[1:876],
-                        "棄權者：0人",
-                        "(97)「討論事項第一案通案部分黨團、委員提案第96項不予通過」部分：",
-                        paragraph_list[878:2090],
-                        "棄權者：0人",
-                        "(298)「討論事項第一案歲出部分第3款第4項黨團、委員提案第725項復議不通過」部分：",
-                        paragraph_list[2092:2725],
-                        "棄權者：0人",
-                        "(399)「討論事項第一案歲出部分第7款第4項黨團、委員提案第559項予以通過」部分：",
-                        paragraph_list[2727:length(paragraph_list)]
-      )
+      # paragraph_list<-c(paragraph_list[1:789],#[1:876],
+      #                   "棄權者：0人",
+      #                   "(97)「討論事項第一案通案部分黨團、委員提案第96項不予通過」部分：",
+      #                   paragraph_list[878:2090],
+      #                   "棄權者：0人",
+      #                   "(298)「討論事項第一案歲出部分第3款第4項黨團、委員提案第725項復議不通過」部分：",
+      #                   paragraph_list[2092:2725],
+      #                   "棄權者：0人",
+      #                   "(399)「討論事項第一案歲出部分第7款第4項黨團、委員提案第559項予以通過」部分：",
+      #                   paragraph_list[2727:length(paragraph_list)]
+      # )
+      paragraph_list <- self$replace_string_and_append(paragraph_list, c(
+        "\\(97\\)「討論事項第一案通案部分黨團、委員提案第96項不予通過」部分：",
+        "\\(298\\)「討論事項第一案歲出部分第3款第4項黨團、委員提案第725項復議不通過」部分：",
+        "\\(399\\)「討論事項第一案歲出部分第7款第4項黨團、委員提案第559項予以通過」部分："
+      ))
     }
     #把 附後(21)、(22) 或 (59)及(60)這種形式的紀錄改為附後(21)至(22)
     paragraph_list %<>% customgsub("(附後)([﹙\\(（]{1}\\d+[）\\)﹚]{1})[、及]([﹙\\(（]{1}\\d+[）\\)﹚]{1})","\\1\\2至\\3",perl=TRUE)#、(\(\d+\))
@@ -539,6 +544,11 @@ lyvotes_class <- R6::R6Class("lyvotes", inherit=lymeetingfetcher_class, public =
     paragraph_list<-xml2::xml_find_all(doc, xpath) %>%
       xml2::xml_text()
     message("urln=",urln," | 2 預處理無HTML的文字段落 ", meetingname, onemeetingdata$url)
+    
+    # 232行
+    # paragraph_list[788:790]
+    # t <- preprocess_paragraph_list(paragraph_list, term=term, period=period, meetingno=meetingno, temp_meeting_no=temp_meeting_no)
+    # t[788:793]
     paragraph_list <- preprocess_paragraph_list(paragraph_list, term=term, period=period, meetingno=meetingno, temp_meeting_no=temp_meeting_no)
 
     message("urln=",urln," | 3 取得出席與請假名單 ", meetingname, onemeetingdata$url)
@@ -674,12 +684,20 @@ lyvotes_class <- R6::R6Class("lyvotes", inherit=lymeetingfetcher_class, public =
     }}
     
     #開始處理【經記名表決結果，均予以通過，表決結果附後(2)至(5)】這種形式的紀錄
-    message("urln=",urln," | 4 RegularExpression 處理前面的投票表決議案詳細說明 ", meetingname, onemeetingdata$url)    
+    message("urln=",urln," | 4 RegularExpression 處理前面的投票表決議案詳細說明 ", meetingname, onemeetingdata$url)
+    # if (urln==113) {
+    #   browser()
+    # tp_list_of_paragraph_bill_list$paragraph_list[788:795]
+    # }
     tp_list_of_paragraph_bill_list <- preprocess_bill_list(paragraph_list,term=term,period=period,meetingno=meetingno,temp_meeting_no=temp_meeting_no)
+    paragraph_list_old <- paragraph_list
     paragraph_list <- tp_list_of_paragraph_bill_list$paragraph_list
     bill_list <- tp_list_of_paragraph_bill_list$bill_list
     
     message("urln=",urln," | 5 處理記名表決區域 ", meetingname, onemeetingdata$url)
+    # if (urln==113) {
+    #   browser()
+    # }
     roll_call_list_block_sp<-customgrep(paragraph_list,'各項記名表決結果名單|本次會議記名表決結果名單|本次會議表決結果名單|本次會議各項記名表決名單')
     if (length(roll_call_list_block_sp)<1) {##沒有表決名單的區域
       no_rollcall<-c(no_rollcall,meetingname)
@@ -711,7 +729,9 @@ lyvotes_class <- R6::R6Class("lyvotes", inherit=lymeetingfetcher_class, public =
     
     #檢查抓到的前半部詳細案由是否和後半部表決紀錄筆數是否對得上
     message("urln=",urln," | 6 檢查抓到的前半部詳細案由是否和後半部表決紀錄筆數是否對得上 ", meetingname, onemeetingdata$url)
-    
+    # if (urln==113) {
+    #   browser()
+    # }
     if (agree_record_times!=length(bill_list))
       stop("Error at ", meetingname, url, "bill lists and agree times does not match!")
     

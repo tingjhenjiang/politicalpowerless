@@ -156,14 +156,14 @@ ntuspace_file_directory <- switch(
 )
 ggplotapatheme <- ggplot2::theme_bw()+
   ggplot2::theme(panel.grid.major = ggplot2::element_blank(),
-        panel.grid.minor = ggplot2::element_blank(),
-        panel.background = ggplot2::element_blank(),
-        panel.border = ggplot2::element_blank(),
-        text=ggplot2::element_text(family='Arial'),
-        legend.title=ggplot2::element_blank(),
-        legend.position=c(.7,.8),
-        axis.line.x = ggplot2::element_line(color='black'),
-        axis.line.y = ggplot2::element_line(color='black'))
+                 panel.grid.minor = ggplot2::element_blank(),
+                 panel.background = ggplot2::element_blank(),
+                 panel.border = ggplot2::element_blank(),
+                 text=ggplot2::element_text(family='Arial'),
+                 legend.title=ggplot2::element_blank(),
+                 legend.position=c(.7,.8),
+                 axis.line.x = ggplot2::element_line(color='black'),
+                 axis.line.y = ggplot2::element_line(color='black'))
 ggplotscreeplot <- function(data, dimensionvar, eigenvaluevar) {
   dimensions <- magrittr::extract2(data, dimensionvar)
   breakv <- seq.int(from=min(dimensions), to=max(dimensions))
@@ -306,8 +306,8 @@ custom_plot<-function(df, fvar, weightvar="", usingsurveypkg=FALSE, fillcolor=""
     ggplotlab<-ggplot2::labs(x = paste0("ggplot ",fvar))
     ggp_using_color<-ggplot2::scale_colour_brewer()#scale_color_brewer(palette="Pastel2")
     ggp_scale<-switch(discri_class,
-           "numeric"=ggplot2::scale_fill_distiller(palette = "Pastel2"),#scale_fill_continuous(type = "gradient"),
-           "factor"=ggplot2::scale_fill_brewer(palette = "Pastel2")
+                      "numeric"=ggplot2::scale_fill_distiller(palette = "Pastel2"),#scale_fill_continuous(type = "gradient"),
+                      "factor"=ggplot2::scale_fill_brewer(palette = "Pastel2")
     )
     # if (histogramlegend=="") {
     #   return(ggplotinit+statlayer+ggplotlab) #+geom_func+scale_colour_brewer()+ggp_scale
@@ -535,6 +535,62 @@ gcreset<-function() {
   gc(reset = TRUE)
 }
 
+base_r6_class <- R6::R6Class("base_r6_class", public = list(
+  dataset_file_directory = NULL,
+  dataset_in_scriptsfile_directory = NULL,
+  debug_func_mode = NULL,
+  error_vote_record_from_name_filepath = NULL,
+  error_leave_and_attend_legislators_filepath = NULL,
+  fetchmeetingdata_filepath = NULL,
+  filespath = NULL,
+  fullmeetingrecordlinks_filepath = NULL,
+  legislatorsxlsxpath = NULL,
+  ly_meeting_path = NULL,
+  meetingdata_filepath = NULL,
+  meetingdata_range = NULL,
+  meetingurldata_filepath = NULL,
+  meetingurldata_urlrange = NULL,
+  myown_vote_record_df_filepath = NULL,
+  myown_vote_record_detailed_part_df_filepath = NULL,
+  term56_filepaths = NULL,
+  term56_meetingrecords_filenames = NULL,
+  mccores = 1,
+  initialize = function(dataset_in_scriptsfile_directory="/mnt",filespath="/mnt", dataset_file_directory="/mnt", debug_func_mode=TRUE) {
+    self$dataset_file_directory <- dataset_file_directory
+    self$dataset_in_scriptsfile_directory <- dataset_in_scriptsfile_directory
+    self$debug_func_mode <- debug_func_mode
+    self$error_vote_record_from_name_filepath <- file.path(dataset_in_scriptsfile_directory, "error_vote_record_from_name.xlsx")
+    self$error_leave_and_attend_legislators_filepath <- file.path(dataset_in_scriptsfile_directory, "leave_and_attend_legislators.xlsx")
+    self$filespath <- filespath
+    self$fetchmeetingdata_filepath <- file.path(dataset_in_scriptsfile_directory, "fetchmeetingdata.rds")
+    self$fullmeetingrecordlinks_filepath <- file.path(dataset_in_scriptsfile_directory, "fullmeetingrecordlinks.xlsx")
+    self$legislatorsxlsxpath <- file.path(dataset_file_directory, "legislators.xlsx")
+    self$ly_meeting_path <- file.path(filespath, "2004_meeting", "original")
+    self$mccores <- base::ifelse(self$debug_func_mode==TRUE, 1, parallel::detectCores())
+    self$meetingurldata_filepath<-file.path(dataset_in_scriptsfile_directory, "meetingrecord.xlsx")
+    self$meetingdata_filepath <- file.path(dataset_in_scriptsfile_directory, "meetingdata.rds")
+    self$myown_vote_record_df_filepath <- file.path(dataset_in_scriptsfile_directory,"myown_vote_record_df.rds")
+    self$myown_vote_record_detailed_part_df_filepath <- file.path(dataset_in_scriptsfile_directory,"myown_vote_record_detailed_part_df.rds")
+    self$term56_meetingrecords_filenames<-c(#"立法院第5屆第5會期全院委員談話會紀錄.html",
+      "立法院第5屆第5會期第1次臨時會第1次會議紀錄.html", #OK 九十三年八月十一日 立法院第93卷第36期 (3370)公報 https://lci.ly.gov.tw/LyLCEW/communique/final/pdf/93/36/LCIDC01_933601.pdf
+      "立法院第5屆第5會期第1次臨時會第3次會議紀錄.html", #OK 九十三年八月二十三日 公報 93卷37期公報總號 3371上 https://lci.ly.gov.tw/LyLCEW/communique/final/pdf/93/37/LCIDC01_933701.pdf
+      "立法院第5屆第5會期第1次臨時會第4次會議紀錄.html", #OK 九十三年八月二十四日 公報 93卷37期公報總號 3371上 https://lci.ly.gov.tw/LyLCEW/communique/final/pdf/93/37/LCIDC01_933701.pdf
+      "立法院第5屆第6會期第1次會議紀錄.html", #第93卷 第38期(3372) 公報 九十三年九月十四日 https://lci.ly.gov.tw/LyLCEW/communique/final/pdf/93/38/LCIDC01_933801.pdf
+      "立法院第5屆第6會期第16次會議紀錄.html", #94卷07期 3389號上 九十四年一月二十日（星期四）上午十時、一月二十一日（星期五）上午二時十四分 https://lci.ly.gov.tw/LyLCEW/communique/final/pdf/94/07/LCIDC01_940701.pdf
+      "立法院第6屆第1會期第13次會議紀錄.html", #6
+      "立法院第6屆第1會期第14次會議紀錄.html", #7
+      "立法院第6屆第2會期第3次會議紀錄.html", #8
+      "立法院第6屆第2會期第5次會議紀錄.html", #9
+      "立法院第6屆第2會期第7次會議紀錄.html", #10
+      "立法院第6屆第2會期第9次會議紀錄.html", #11
+      "立法院第6屆第2會期第16次會議紀錄.html", #12
+      "立法院第6屆第2會期第19次會議紀錄.html", #13
+      "立法院第6屆第3會期第8次會議紀錄.html", #14
+      "立法院第6屆第3會期第10次會議紀錄.html") #15
+    self$term56_filepaths <- file.path(self$ly_meeting_path,self$term56_meetingrecords_filenames)
+  }
+  
+))
 
 #rJava安裝前要R CMD javareconf
 if (check_if_windows()) {
@@ -567,10 +623,10 @@ custom_df_replaceinto_db<-function(dbconnect_info, db_table_name, with_df, colum
   replacesql <- paste0('`',columns,'`') %>%
     paste0(collapse=',') %>%
     paste0(
-    'REPLACE INTO `',db_table_name,'` ',
-    '(', ., ') VALUES (',
-    qmarks,
-    ')') %>%
+      'REPLACE INTO `',db_table_name,'` ',
+      '(', ., ') VALUES (',
+      qmarks,
+      ')') %>%
     DBI::dbSendQuery(con, .)
   with_df %>% as.list() %>% unname() %>% DBI::dbBind(replacesql, .)
   DBI::dbClearResult(replacesql)  # release the prepared statement
@@ -582,55 +638,55 @@ custom_parallel_lapply<-function(X=list(), FUN=FUN, ..., method="socks", exportl
     return(lapply(X, FUN=FUN, ...))
   } else {
     result<-switch(method,
-     "fork"=
-       mclapply(X=X, FUN=FUN, ..., mc.cores=mc.cores,mc.preschedule=FALSE ),
-     "socks" = {
-       argumentstopass<-list(...)
-       tryCatch(
-         {stopCluster(cl)},
-         # 遇到 warning 時的自訂處理函數
-         warning = function(msg) {
-           message("tryCatch Original warning message while stopCluster:")
-           message(paste0(msg,"\n"))
-           },
-         # 遇到 error 時的自訂處理函數
-         error = function(msg) {
-           message("tryCatch Original error message while stopCluster:")
-           message(paste0(msg,"\n"))
-           }
-         )
-       #library(MASS)
-       if (verbose) {
-         message("<===== at custom_parallel_lapply exportlib is ", exportlib, " and exportvar is ", exportvar, " and outfile is ", outfile, "=====>")
-       }
-       cl <- parallel::makeCluster(parallel::detectCores(),outfile=outfile)
-       sapply(exportlib,function(needlib,cl) {
-         if (verbose) {message("cluster calling ", needlib, " at ", substr(as.character(cl),6,13) )}
-         clusterCall(cl=cl, library, needlib, character.only=TRUE)
-       },cl=cl)
-       clustersessioninfopkgs<-clusterCall(cl=cl, sessionInfo) %>%
-         sapply(function(X) {
-           return(dplyr::union(X$basePkgs,names(X$otherPkgs)) %>% paste0(collapse=" "))
-         })
-       if (verbose) {message("overall libraries called are ", clustersessioninfopkgs, " at ",substr(as.character(cl),6,13) )    }
-       if (length(exportvar)>0) {
-         if (verbose) {message("cluster exporting: ", paste0(exportvar, collapse=" "), " at ", substr(as.character(cl),6,13) )}
-         clusterExport(cl, varlist=c("exportlib",exportvar,"exportvar","outfile"), envir=environment())#
-       }
-       if (length(argumentstopass)>0) {
-         #lapply(argumentstopass,function(needvar,cl) {
-         #  clusterExport(cl, needvar, envir=environment())
-         #},cl=cl)#
-       }
-       returndata<-parallel::parLapply(
-         cl,
-         X=X,
-         fun=FUN,
-         ...)
-       parallel::stopCluster(cl)
-       #return(returndata)
-       returndata
-     }
+                   "fork"=
+                     mclapply(X=X, FUN=FUN, ..., mc.cores=mc.cores,mc.preschedule=FALSE ),
+                   "socks" = {
+                     argumentstopass<-list(...)
+                     tryCatch(
+                       {stopCluster(cl)},
+                       # 遇到 warning 時的自訂處理函數
+                       warning = function(msg) {
+                         message("tryCatch Original warning message while stopCluster:")
+                         message(paste0(msg,"\n"))
+                       },
+                       # 遇到 error 時的自訂處理函數
+                       error = function(msg) {
+                         message("tryCatch Original error message while stopCluster:")
+                         message(paste0(msg,"\n"))
+                       }
+                     )
+                     #library(MASS)
+                     if (verbose) {
+                       message("<===== at custom_parallel_lapply exportlib is ", exportlib, " and exportvar is ", exportvar, " and outfile is ", outfile, "=====>")
+                     }
+                     cl <- parallel::makeCluster(parallel::detectCores(),outfile=outfile)
+                     sapply(exportlib,function(needlib,cl) {
+                       if (verbose) {message("cluster calling ", needlib, " at ", substr(as.character(cl),6,13) )}
+                       clusterCall(cl=cl, library, needlib, character.only=TRUE)
+                     },cl=cl)
+                     clustersessioninfopkgs<-clusterCall(cl=cl, sessionInfo) %>%
+                       sapply(function(X) {
+                         return(dplyr::union(X$basePkgs,names(X$otherPkgs)) %>% paste0(collapse=" "))
+                       })
+                     if (verbose) {message("overall libraries called are ", clustersessioninfopkgs, " at ",substr(as.character(cl),6,13) )    }
+                     if (length(exportvar)>0) {
+                       if (verbose) {message("cluster exporting: ", paste0(exportvar, collapse=" "), " at ", substr(as.character(cl),6,13) )}
+                       clusterExport(cl, varlist=c("exportlib",exportvar,"exportvar","outfile"), envir=environment())#
+                     }
+                     if (length(argumentstopass)>0) {
+                       #lapply(argumentstopass,function(needvar,cl) {
+                       #  clusterExport(cl, needvar, envir=environment())
+                       #},cl=cl)#
+                     }
+                     returndata<-parallel::parLapply(
+                       cl,
+                       X=X,
+                       fun=FUN,
+                       ...)
+                     parallel::stopCluster(cl)
+                     #return(returndata)
+                     returndata
+                   }
     )
   }
 }
@@ -661,11 +717,11 @@ select_and_fill_nonexistcol <- function(fundf,colVec) {
 
 list_of_vec_asmanyrows_to_df <- function(X) {
   needdf <- data.table::data.table(
-          matrix(
-            data=unlist( X ), nrow=length(X), ncol=length(X[[1]]), byrow=T,
-            dimnames=list(NULL, names( X[[1]] ) )
-          )
-        ) 
+    matrix(
+      data=unlist( X ), nrow=length(X), ncol=length(X[[1]]), byrow=T,
+      dimnames=list(NULL, names( X[[1]] ) )
+    )
+  ) 
   return(needdf)
 }
 
@@ -727,28 +783,28 @@ custom_ret_survey_book_file<-function(dataset_file_directory, subject="issue") {
 custom_mirt_coef_to_df <- function(mirtmodel, rotate="varimax", printSE = FALSE, ...) {
   coefdf <- mirt::coef(mirtmodel, rotate=rotate, as.data.frame=TRUE, printSE=printSE)
   firsttry <- try({coefdf %>%
-    .[grepl("Group",rownames(.))==FALSE,] %>%
-    data.frame(value=., attr={
-      #names(.)
-      stringr::str_extract_all(names(.), "\\..+$") %>%
-        unlist() %>%
-        gsub(pattern="\\.",replacement="",x=.)
-    }, rowvar={
-      stringr::str_extract_all(names(.), ".+\\.") %>%
-        unlist() %>%
-        gsub(pattern="\\.",replacement="",x=.)
-    }) %>%
-    reshape2::dcast(rowvar ~ attr, value.var="value")})
+      .[grepl("Group",rownames(.))==FALSE,] %>%
+      data.frame(value=., attr={
+        #names(.)
+        stringr::str_extract_all(names(.), "\\..+$") %>%
+          unlist() %>%
+          gsub(pattern="\\.",replacement="",x=.)
+      }, rowvar={
+        stringr::str_extract_all(names(.), ".+\\.") %>%
+          unlist() %>%
+          gsub(pattern="\\.",replacement="",x=.)
+      }) %>%
+      reshape2::dcast(rowvar ~ attr, value.var="value")})
   if(!is(firsttry, 'try-error')) {coefdf<-firsttry} else {
     coefdf <- data.frame(coefdf,
-      par_type=rownames(coefdf) %>%
-        stringr::str_extract_all(pattern="\\..+$") %>%
-        unlist() %>%
-        gsub(pattern="\\.",replacement="",x=.),
-      rowvar=rownames(coefdf) %>%
-        stringr::str_extract_all(pattern=".+\\.") %>%
-        unlist() %>%
-        gsub(pattern="\\.",replacement="",x=.)
+                         par_type=rownames(coefdf) %>%
+                           stringr::str_extract_all(pattern="\\..+$") %>%
+                           unlist() %>%
+                           gsub(pattern="\\.",replacement="",x=.),
+                         rowvar=rownames(coefdf) %>%
+                           stringr::str_extract_all(pattern=".+\\.") %>%
+                           unlist() %>%
+                           gsub(pattern="\\.",replacement="",x=.)
     ) %>%
       reshape2::melt(id.vars=c("rowvar","par_type"))
   }
@@ -770,9 +826,9 @@ dummycode_of_a_dataframe<-function(df,catgvars=c()) {
   if (length(catgvars)==0) return(df)
   dplyr::bind_cols(dplyr::select(df, -!!catgvars), custom_parallel_lapply(catgvars, function(factorvar,df,...) {
     psych::dummy.code(dplyr::pull(df,!!factorvar)) %>%
-    {.[,gtools::mixedsort(colnames(.))]} %>%
-    {magrittr::set_colnames(., paste0(factorvar,colnames(.)))} %>%
-    {(.[,2:ncol(.),drop=FALSE])} %>%
+      {.[,gtools::mixedsort(colnames(.))]} %>%
+      {magrittr::set_colnames(., paste0(factorvar,colnames(.)))} %>%
+      {(.[,2:ncol(.),drop=FALSE])} %>%
       return()
   }, df=df, method=parallel_method) %>%
     data.frame() ) %>%
