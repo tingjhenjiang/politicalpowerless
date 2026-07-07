@@ -1,0 +1,9 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+data/*.rds
+node_modules/
+plot/
+docs/*
+node_modules/

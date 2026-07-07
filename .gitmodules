@@ -1,6 +1,6 @@
 [submodule "external/kamila"]
 	path = external/kamila
-	url = https://github.com/ahfoss/kamila
+	url = git@github.com:tingjhenjiang/kamila.git
 [submodule "external/poLCA"]
 	path = external/poLCA
-	url = https://github.com/dlinzer/poLCA
+	url = git@github.com:tingjhenjiang/poLCA.git
