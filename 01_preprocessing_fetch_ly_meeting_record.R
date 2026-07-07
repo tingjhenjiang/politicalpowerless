@@ -1,6 +1,6 @@
 lymeetingfetcher_class <- R6::R6Class("lymeetingfetcher", inherit=base_r6_class, public = list(
-  initialize = function(dataset_in_scriptsfile_directory="/mnt", filespath="/mnt", dataset_file_directory=dataset_file_directory) {
-    super$initialize(dataset_in_scriptsfile_directory, filespath=filespath, dataset_file_directory=dataset_file_directory)
+  initialize = function(dataset_in_scriptsfile_directory="/mnt", filespath="/mnt", dataset_file_directory=dataset_file_directory, debug_func_mode=FALSE) {
+    super$initialize(dataset_in_scriptsfile_directory, filespath=filespath, dataset_file_directory=dataset_file_directory, debug_func_mode=debug_func_mode)
     self$meetingdata_range <- 19:28
     self$meetingurldata_urlrange <- 4:13
   },

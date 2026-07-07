@@ -1,5 +1,5 @@
 
-source(file = "02_fetch_ly_decision_and_votes.R")
+source(file = "02_preprocessing_fetch_ly_decision_and_votes.R")
 legislators_and_elections_parser_class <- R6::R6Class("legislators_and_elections", inherit=lyvotes_class, public = list(
   #選舉資料
   dataset_in_scriptsfile_directory = NULL,
@@ -12,8 +12,6 @@ legislators_and_elections_parser_class <- R6::R6Class("legislators_and_elections
   supplement_election_termeight = c('supp2013taichung2'),# 研究不需要
   supplement_election_termnine = c('supp2019changhua1','supp2019kinmen','supp2019newtaipei3','supp2019taichung5','supp2019tainan2','supp2019taipei2'),
   terms = c(5,6,7,8,9),
-  debug_func_mode = TRUE,
-  mccores = 1,
   elections_df = NULL,
   election_yr_df = NULL,
   zip3_filepath = NULL,
@@ -23,14 +21,8 @@ legislators_and_elections_parser_class <- R6::R6Class("legislators_and_elections
     cbind(a[cj[[1]],],b[cj[[2]],])
   },
   initialize = function(dataset_in_scriptsfile_directory="/mnt", filespath="/mnt", dataset_file_directory="/mnt", debug_func_mode=FALSE) {
-    self$dataset_in_scriptsfile_directory <- dataset_in_scriptsfile_directory
-    self$filespath <- filespath
-    self$dataset_file_directory <- dataset_file_directory
-    self$legislatorsxlsxpath <- file.path(dataset_file_directory, "legislators.xlsx")
-    self$zip3_filepath <- file.path(dataset_file_directory,"zip3.xlsx")
+    super$initialize(dataset_in_scriptsfile_directory=dataset_in_scriptsfile_directory, filespath=filespath, dataset_file_directory=dataset_file_directory, debug_func_mode=debug_func_mode)
     self$legislators_ethicity_json_filepath <- file.path(dataset_file_directory, "legislators_ethicity_originalcollection.txt")
-    self$debug_func_mode <- debug_func_mode
-    self$mccores <- base::ifelse(self$debug_func_mode==TRUE, 1, parallel::detectCores())
     election_yr_df <- list(
         data.table::data.table(term=6,elec_dist_type=self$supplement_election_termsix),
         data.table::data.table(term=7,elec_dist_type=self$supplement_election_termseven),
@@ -177,6 +169,7 @@ legislators_and_elections_parser_class <- R6::R6Class("legislators_and_elections
     slice_rows <- nrow(parsing_target_conditions)
     slice_rows <- seq(from=1,to=slice_rows)
     mccores <- base::ifelse(!identical(mccores,NA) & is.integer(mccores), mccores, self$mccores)
+    message("using ",mccores," cores.")
     elections_df <- custom_parallel_lapply(
       slice_rows,
       FUN=function(rown) {
@@ -276,12 +269,24 @@ legislators_and_elections_parser_class <- R6::R6Class("legislators_and_elections
         !(legislator_name=="邱毅" & legislator_ethnicity=="foreignstates") &
           !(legislator_name=="趙麗雲" & legislator_ethnicity=="hakka") &
           !(legislator_name=="黃昭順" & legislator_ethnicity=="fulo")
-      )
+      ) %>%
+      data.table::as.data.table()
     return(legislators_ethicity_df)
   },
-  ret_std_legislators_data = function(terms=5:9, elections_df=elections_df) {
-    legislatorsxlsxpath <- self$legislatorsxlsxpath
-    openxlsx::read.xlsx(legislatorsxlsxpath, sheet = 1, detectDates = TRUE) %>%
+  check_and_get_elections_df = function(elections_df) {
+    if (identical(elections_df,NA)) {
+      if (identical(self$elections_df, NULL)) {
+        elections_df <- self$parse_elections()
+      } else {
+        elections_df <- self$elections_df
+      }
+    }
+    return(elections_df)
+  },
+  ret_std_legislators_data = function(terms=5:9, elections_df=NA) {
+    elections_df <- self$check_and_get_elections_df(elections_df)
+    std_legislators_df <- openxlsx::read.xlsx(self$legislatorsxlsxpath, sheet = 1, detectDates = TRUE) %>%
+      data.table::as.data.table() %>%
       dplyr::mutate(term=as.integer(term)) %>%  #mutate_at(c("term"), .funs = list(term = ~customgsub(term, "0(\\d{1})", "\\1", perl = TRUE))) %>% 
       dplyr::mutate(onboardDate=as.Date(onboardDate)) %>%
       dplyr::mutate(leaveDate=as.Date(leaveDate)) %>%
@@ -297,15 +302,22 @@ legislators_and_elections_parser_class <- R6::R6Class("legislators_and_elections
       mutate_cond(is.na(leaveDate) & term==8, leaveDate=as.Date(c("2016/1/31"))) %>% 
       mutate_cond(is.na(leaveDate) & term==9, leaveDate=as.Date(c("2016/6/1"))) %>%  #調查開始日當作年資起算日
       dplyr::mutate(servingdayslong_in_this_term=difftime(leaveDate, onboardDate, units = c("days"))) %>% 
-      dplyr::mutate_at("servingdayslong_in_this_term", as.integer) %>% 
-      dplyr::group_by(name) %>%    #calculate overall service time in previous periods
-      dplyr::mutate(seniority=cumsum(servingdayslong_in_this_term)-servingdayslong_in_this_term) %>%
-      dplyr::ungroup() %>%
-      dplyr::group_by(term) %>%
-      #dplyr::mutate_at("seniority", ~as.numeric(scale(.))) %>%
-      dplyr::ungroup() %>%
+      dplyr::mutate_at("servingdayslong_in_this_term", as.integer) %>%
       dplyr::filter(term %in% terms) %>%
-      dplyr::mutate_at(c("term"), as.integer) %>%
+      dplyr::mutate_at(c("term"), as.integer)
+
+    if (inherits(data, what=c("data.table"))) {
+      data.table::setDT(std_legislators_df)[,seniority:=cumsum(servingdayslong_in_this_term)-servingdayslong_in_this_term,by=name]
+    } else {
+      std_legislators_df <- dplyr::group_by(std_legislators_df, name) %>%    #calculate overall service time in previous periods
+        dplyr::mutate(seniority=cumsum(servingdayslong_in_this_term)-servingdayslong_in_this_term)
+        # dplyr::ungroup() %>%
+        # dplyr::group_by(term) %>%
+        # # dplyr::mutate_at("seniority", ~as.numeric(scale(.))) %>%
+        # dplyr::ungroup()
+    }
+    
+    std_legislators_df <- std_legislators_df %>%
       dplyr::inner_join(elections_df, by = c("name", "term", "sex"))  %>% #inner_join目的是要排除沒有當選也沒有遞補進來的立法委員
       dplyr::rename(legislator_sex=sex,
                     legislator_party=party.x,
@@ -314,30 +326,29 @@ legislators_and_elections_parser_class <- R6::R6Class("legislators_and_elections
                     legislator_name=name
       ) %>%
       dplyr::mutate_at(c("term"), as.numeric) %>%
-      dplyr::mutate_at(c("legislator_sex","legislator_party","partyGroup","areaName","leaveFlag","incumbent","wonelection","election_party","elec_dist_type"), as.factor) %>%
-      return()
+      dplyr::mutate_at(c("legislator_sex","legislator_party","partyGroup","areaName","leaveFlag","incumbent","wonelection","election_party","elec_dist_type"), as.factor)
+    
+    return(std_legislators_df)
   },
   get_candidates_legislators_with_elections = function(elections_df=NA) {
     # browser()
     ret_std_legislators_data <- self$ret_std_legislators_data
     legislatorsxlsxpath <- self$legislatorsxlsxpath
     terms <- self$terms
-    if (identical(elections_df,NA)) {
-      if (identical(self$elections_df, NULL)) {
-        elections_df <- self$parse_elections()
-      } else {
-        elections_df <- self$elections_df
-      }
-    }
+    elections_df <- self$check_and_get_elections_df(elections_df)
     candidates_legislators_with_elections <- ret_std_legislators_data(terms=terms, elections_df=elections_df) %>%
       dplyr::select(-ename,-onboardDate,-picUrl,-leaveFlag,-leaveDate,-leaveReason,-ballotid,-committee,-birthday,-birthplace,-plranking)
     return(candidates_legislators_with_elections)
   },
-  get_legislators_attr = function(candidates_legislators_with_elections=NA) {
-    legislators_ethicity_df <- self$get_legislators_ethnicity_df()
+  check_and_get_candidates_legislators_with_elections = function(candidates_legislators_with_elections=NA) {
     if (identical(candidates_legislators_with_elections, NA)) {
       candidates_legislators_with_elections <- self$get_candidates_legislators_with_elections()
     }
+    return (candidates_legislators_with_elections)
+  },
+  get_legislators_attr = function(candidates_legislators_with_elections=NA) {
+    legislators_ethicity_df <- self$get_legislators_ethnicity_df()
+    candidates_legislators_with_elections <- self$check_and_get_candidates_legislators_with_elections(candidates_legislators_with_elections)
     #legislators_additional_attr
     legislators_additional_attr <- candidates_legislators_with_elections %>% #[!is.na(legislators_with_elections$wonelection),]
       #distinct(term, legislator_name, legislator_sex, legislator_party, partyGroup, areaName,
@@ -503,7 +514,8 @@ legislators_and_elections_parser_class <- R6::R6Class("legislators_and_elections
       dplyr::select(-election_type,-wonelection)
     return(legislators_additional_attr)
   },
-  get_legislators_with_elections_df = function() {
+  get_legislators_with_elections_df = function(saving=TRUE) {
+    # browser()
     ret_std_legislators_data <- self$ret_std_legislators_data
     get_all_admin_dist_with_zip <- self$get_all_admin_dist_with_zip
     terms <- self$terms
@@ -516,6 +528,10 @@ legislators_and_elections_parser_class <- R6::R6Class("legislators_and_elections
       dplyr::mutate_at(c("legislator_name","electionarea","admincity","admindistrict","adminvillage"), as.factor) %>%
       dplyr::select(-tidyselect::any_of(c("areaName","election_party","electionarea")))
 
+    if (saving) {
+      message("saving to ",self$legislators_with_elections_filepath)
+      saveRDS(legislators_with_elections, file=self$legislators_with_elections_filepath)
+    }
     return(legislators_with_elections)
   }
 ))

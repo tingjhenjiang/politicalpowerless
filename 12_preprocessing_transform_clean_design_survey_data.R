@@ -1,21 +1,185 @@
-# 第Ｏ部份：環境設定 --------------------------------
-if (!("benchmarkme" %in% rownames(installed.packages()))) try(install.packages("benchmarkme"))
-t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
-t_sessioninfo_running_with_cpu<-try(paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model))
-t_sessioninfo_running_with_cpu_locale<-try(gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2])))
-source_sharedfuncs_r_path<-try(here::here())
-if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
-source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
+source(file = "10_preprocessing_measure_survey_response_idealpoints.R")
+# 第七部份：把問卷資料變形以便串連及行政區、選舉資料 ---------------------------------
+transform_clean_design_survey_class <- R6::R6Class("transform_clean_design_survey", inherit=measure_idealpoints_class, public = list(
+  term_to_survey = NULL,
+  survey_codebook = NULL,
+  complete_survey_dataset_filepath = NULL,
+  initialize = function(dataset_in_scriptsfile_directory="/mnt", filespath="/mnt", dataset_file_directory="/mnt", debug_func_mode=TRUE) {
+    super$initialize(dataset_in_scriptsfile_directory=dataset_in_scriptsfile_directory, filespath=filespath, dataset_file_directory=dataset_file_directory, debug_func_mode=debug_func_mode)
+    #選舉資料
+    self$term_to_survey <- data.frame("term"=c(5,6,7,7,8,8,9), "SURVEY"=c("2004citizen","2004citizen","2010env","2010overall","2010env","2010overall","2016citizen"))
+    self$survey_codebook <- openxlsx::read.xlsx(file.path(dataset_file_directory,"all_survey_questions_englished.xlsx"),sheet = 4)
+    self$complete_survey_dataset_filepath <- file.path(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData")
+  },
+  # 把condensed opinion（LCA construct）併入survey_data_imputed並重新編上碼本標籤
+  get_survey_data_imputed_with_newconstruct = function(survey_data_imputed=NULL, survey_data_with_condensed_opinion=NULL) {
+    if (is.null(survey_data_imputed)) {
+      survey_data_imputed <- self$get_survey_data_imputed_stage(stage="mirt_lca_clustering")
+    }
+    if (is.null(survey_data_with_condensed_opinion)) {
+      load_env <- new.env()
+      load(file=self$survey_data_with_condensed_opinion_filepath, envir=load_env, verbose=TRUE)
+      survey_data_with_condensed_opinion <- load_env$survey_data_with_condensed_opinion
+    }
+    recode_condense_label_basis<-dplyr::filter(self$survey_codebook,grepl(pattern="construct", ID)) %>% dplyr::mutate(newlabel=paste0("[",VALUE,"] ",LABEL))
+    recode_condense_label_basislist<-magrittr::set_names(recode_condense_label_basis$newlabel,recode_condense_label_basis$LABEL)
+    survey_data_imputed_with_newconstruct<-lapply(names(survey_data_imputed), function(surveykey, ...) {
+      retdf<-dplyr::left_join(survey_data_imputed[[surveykey]], survey_data_with_condensed_opinion[[surveykey]])
+      constructcols<-grep(pattern="construct", x=names(retdf), value=TRUE)
+      dplyr::mutate_at(retdf, constructcols, dplyr::recode_factor, !!!recode_condense_label_basislist)
+    }, survey_data_imputed=survey_data_imputed, survey_data_with_condensed_opinion=survey_data_with_condensed_opinion, recode_condense_label_basislist=recode_condense_label_basislist)
+    magrittr::set_names(survey_data_imputed_with_newconstruct, names(survey_data_imputed))
+  },
+  extracting_topicitems_from_survey = function(X,df,oldvec=c(), topickeyword=c("議題","議題（或民主價值與公民意識牽涉群體）","民主價值與公民意識")) {
+    if(identical(oldvec,c())) {
+      oldvec[[X]]=c()
+    }
+    needq<-dplyr::filter(df,SURVEY==X,CATEGORY %in% topickeyword) %>%
+      dplyr::select(ID) %>%
+      unlist() %>%
+      as.character() %>%
+      union(oldvec[[X]])
+    return(needq)
+  },
+  get_survey_q_ids = function() {
+    sapply(survey_data_title,self$extracting_topicitems_from_survey,df=self$survey_imputation_and_measurement)
+  },
+  get_survey_q_on_pp = function() {
+    sapply(survey_data_title,self$extracting_topicitems_from_survey,df=self$survey_imputation_and_measurement, topickeyword=c("參與"))
+  },
+  # test survey reliability --------------
+  test_survey_reliability = function(survey_data_imputed, outputcsv="TMP.csv") {
+    survey_q_ids<-self$get_survey_q_ids()
+    survey_q_on_pp<-self$get_survey_q_on_pp()
+    needimps<-custom_ret_appro_kamila_clustering_parameters() %>%
+      dplyr::rename(SURVEY=survey) %>%
+      dplyr::select(-.imp)
+    reliability_test_res<- custom_parallel_lapply(1:nrow(needimps), function(rowi, ...) {
+      needrow<-needimps[rowi,]
+      adj_survey_q_ids<-grep(pattern="construct", x=survey_q_ids[[needrow$SURVEY]], value=TRUE) %>%
+        base::setdiff(survey_q_ids[[needrow$SURVEY]], .)
+      basesurveydf<-dplyr::filter(survey_data_imputed[[needrow$SURVEY]], .imp==!!needrow$imp)
+      testres_q<-adj_survey_q_ids %>%
+        basesurveydf[,.] %>%
+        dplyr::mutate_all(unclass) %>%
+        psych::alpha(check.keys=TRUE)
+      testres_pp<-survey_q_on_pp[[needrow$SURVEY]] %>%
+        basesurveydf[,.] %>%
+        dplyr::mutate_all(unclass) %>%
+        psych::alpha(check.keys=TRUE)
+      data.frame(survey=needrow$SURVEY, imp=needrow$imp, items=c("policy","pp"), alphares=c(testres_q$total$std.alpha, testres_pp$total$std.alpha))
+    }, survey_data_imputed=survey_data_imputed, needimps=needimps, survey_q_on_pp=survey_q_on_pp, survey_q_ids=survey_q_ids, method=parallel_method) %>%
+      plyr::rbind.fill()
+    if (!is.null(outputcsv)) {
+      write.csv(reliability_test_res, file=outputcsv)
+    }
+    reliability_test_res
+  },
+  # test relation reliability with Krippendorff's alpha --------------
+  test_relation_reliability = function() {
+    newt<-openxlsx::read.xlsx(file.path(dataset_file_directory,"interrater.xlsx"), sheet=2)
+    oldt<-openxlsx::read.xlsx(file.path(dataset_file_directory,"interrater.xlsx"), sheet=4)
+    all_coding_option<-dplyr::bind_rows(newt,oldt)[,1] %>% unique()
+    relation_reliability<-data.frame(both=all_coding_option) %>%
+      dplyr::mutate(in_newt=both %in% !!newt$relation) %>%
+      dplyr::mutate(in_oldt=both %in% !!oldt$relation)
+    as.matrix(relation_reliability[,c("in_newt","in_oldt")]) %>%
+      irr::kripp.alpha(., method="nominal")
+  },
+  # compacting (wide to long) surveys --------------
+  build_complete_survey_dataset = function(survey_data_imputed=NULL, save=FALSE) {
+    if (is.null(survey_data_imputed)) {
+      survey_data_imputed <- self$get_survey_data_imputed_with_newconstruct()
+    }
+    survey_q_ids<-self$get_survey_q_ids()
+    needimps<-custom_ret_appro_kamila_clustering_parameters() %>%
+      dplyr::rename(SURVEY=survey) %>%
+      dplyr::select(-.imp)
+    needsurveys<-names(survey_data_imputed)
+    #survey_data_melted
+    complete_survey_dataset <- mapply(function(X,Y) {
+      survey_data_title<-X$SURVEY[1]
+      X<-dplyr::mutate_at(X,Y,as.character) %>%
+        dplyr::mutate(myown_age_grpscaled=as.numeric(scale(myown_age)))
+      if (survey_data_title=="2010overall") {
+        X %<>% dplyr::mutate(stratum=as.character(paste0("2010overall",stratum2)))
+      }
+      if (survey_data_title=="2016citizen") {
+        X %<>% dplyr::mutate(stratum=as.character(paste0("2016citizen",r_stratum2014))) %>%
+          mutate_cond(is.na(ssu), ssu="花東不抽樣")
+      }
+      if (survey_data_title %in% c("2010overall","2016citizen")) {
+        X %<>% dplyr::mutate_at(c("psu","ssu"),~as.character(paste0(!!survey_data_title,as.character(.))))
+      }
+      if (survey_data_title %in% c("2010overall")) {
+        X %<>% dplyr::mutate_at(c("admindistrict","adminvillage"), as.character)
+        #內湖區 | 内湖區
+        #内湖區    端陽里
+        #板橋市 廣徳里 | 廣德里(legislator_with_elec)
+        #蘆竹鄉    内厝村 | 內厝村(legislator_with_elec)
+        #蘆竹鄉    瓦薰村 | 瓦窯村(legislator_with_elec)
+        #烏日鄉    仁徳村 | 仁德村(legislator_with_elec)
+        #西區    磚瑤里 | 磚磘里(legislator_with_elec)
+        #嘉義市 西區    西榮里 |
+        #内埔鄉    東寧村 | 內埔鄉(legislator_with_elec)
+        #内埔鄉    内田村 | 內埔鄉(legislator_with_elec)
+        #崁頂鄉    圍内村 | 圍內村(legislator_with_elec)
+        #崁頂鄉    炭頂村 | 崁頂村(legislator_with_elec)
+        X %<>% mutate_cond(admindistrict=="内湖區", admindistrict="內湖區") %>%
+          mutate_cond(adminvillage=="端陽里", adminvillage="瑞陽里") %>%
+          mutate_cond(adminvillage=="廣徳里", adminvillage="廣德里") %>%
+          mutate_cond(adminvillage=="内厝村", adminvillage="內厝村") %>%
+          mutate_cond(adminvillage=="瓦薰村", adminvillage="瓦窯村") %>%
+          mutate_cond(adminvillage=="仁徳村", adminvillage="仁德村") %>%
+          mutate_cond(adminvillage=="磚瑤里", adminvillage="磚磘里") %>%
+          mutate_cond(admincity=="嘉義市" & admindistrict=="西區" & adminvillage=="西榮里", adminvillage="西平里") %>%
+          mutate_cond(adminvillage=="廣徳里", adminvillage="廣德里") %>%
+          mutate_cond(admindistrict=="内埔鄉", admindistrict="內埔鄉") %>%
+          mutate_cond(adminvillage=="内田村", adminvillage="內田村") %>%
+          mutate_cond(adminvillage=="圍内村", adminvillage="圍內村") %>%
+          mutate_cond(adminvillage=="炭頂村", adminvillage="崁頂村")
+        X %<>% dplyr::mutate_at(c("admindistrict","adminvillage"), as.factor)
+      }
+      if (survey_data_title %in% c("2016citizen")) {
+        X %<>% dplyr::mutate_at(c("admindistrict","adminvillage"), as.character)
+        X %<>% mutate_cond(admincity=="屏東縣" & admindistrict=="屏東市" & adminvillage=="民權里", adminvillage="光榮里、民權里")
+        #屏東市    民權里 | 光榮里、民權里(legislator_with_elec)
+        X %<>% dplyr::mutate_at(c("admindistrict","adminvillage"), as.factor)
+      }
+      X<-dplyr::mutate(X,myown_income_scaled=as.numeric(scale(myown_income)))
 
-#選舉資料
-term_to_survey <- data.frame("term"=c(5,6,7,7,8,8,9), "SURVEY"=c("2004citizen","2004citizen","2010env","2010overall","2010env","2010overall","2016citizen"))
-gc(verbose=TRUE)
+      other_var_as_id<-base::setdiff(names(X),Y)
+      reshape2::melt(X, id.vars = other_var_as_id, variable.name = "SURVEYQUESTIONID", value.name = "SURVEYANSWERVALUE") %>%
+        dplyr::mutate_at("SURVEYANSWERVALUE", as.character)
+    },X=survey_data_imputed[needsurveys],Y=survey_q_ids[needsurveys]) %>%
+      {#節省欄位合併
+        common_var<-Reduce(base::intersect, lapply(., names )) %>%
+          base::setdiff(c("sd")) %>% c("psu","ssu","stratum")
+        lapply(., select_and_fill_nonexistcol, common_var)
+      } %>%
+      plyr::rbind.fill() %>%
+      #dplyr::bind_rows() %>%
+      dplyr::rename(ansv_and_label=SURVEYANSWERVALUE, imp=.imp, id_of_imp=.id) %>%
+      dplyr::mutate("value_on_q_variable"=paste0(SURVEY,"@",SURVEYQUESTIONID)) %>%
+      dplyr::select(-tidyselect::any_of(c("zip","village","wave","qtype","myown_industry","myown_job","villagefullname","myown_family_income_ingroup","SURVEYQUESTIONID"))) %>%
+      dplyr::select(-tidyselect::any_of(c("term1","term2","year","year_m","sm"))) %>%#,-sd,-myown_int_pol_efficacy,-myown_ext_pol_efficacy,-myown_constituency_party_vote
+      dplyr::select(!dplyr::ends_with("NA")) %>%
+      dplyr::select(-tidyselect::any_of(c("myown_eduyr","myown_occp","myown_ses","myown_income","myown_dad_ethgroup","myown_mom_ethgroup","myown_working_status","myown_job_status","myown_familymembers_num","myown_selfid_population","myown_hire_people_no","myown_manage_people_no","myown_constituency_party_vote","myown_online_time"))) %>%
+      dplyr::mutate_at(c("SURVEY","admincity","admindistrict","adminvillage","value_on_q_variable"),as.factor) %>%
+      dplyr::mutate_at("id", as.integer) %>%
+      dplyr::mutate_at(c("stratum","psu","ssu"), as.factor) %>%
+      dplyr::filter(SURVEY %in% c("2010overall","2016citizen")) %>%
+      dplyr::semi_join(needimps) %>%
+      dplyr::left_join(needimps)
+    #complete_survey_dataset %<>% data.table::as.data.table()
+    if (save==TRUE) {
+      save(complete_survey_dataset,file=self$complete_survey_dataset_filepath)
+    }
+    complete_survey_dataset
+  }
+))
 
-survey_imputation_and_measurement<-custom_ret_survey_imputation_and_measurement(paths_to_survey_imputation_and_measurement_file)
-survey_codebook<-openxlsx::read.xlsx(paste0(dataset_file_directory,"all_survey_questions_englished.xlsx"),sheet = 4)
-
-
-# 問卷使用說明 --------------------------------
+# 問卷使用說明（抽樣與加權文件，僅保留參考用） --------------------------------
 if (FALSE) {
   readme="
 SURVEY PACKAGE要用
@@ -290,48 +454,7 @@ C．選取合格者
   "
 }
 
-
-
-
-# 第七部份：把問卷資料變形以便串連及行政區、選舉資料 ---------------------------------
-load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
-load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"), verbose=TRUE)
-load(file=paste0(dataset_in_scriptsfile_directory,"survey_data_with_condensed_opinion.RData"), verbose=TRUE)
-
-recode_condense_label_basis<-dplyr::filter(survey_codebook,grepl(pattern="construct", ID)) %>% dplyr::mutate(newlabel=paste0("[",VALUE,"] ",LABEL))
-recode_condense_label_basislist<-magrittr::set_names(recode_condense_label_basis$newlabel,recode_condense_label_basis$LABEL)
-
-survey_data_imputed_with_newconstruct<-lapply(names(survey_data_imputed), function(surveykey, ...) {
-  retdf<-dplyr::left_join(survey_data_imputed[[surveykey]], survey_data_with_condensed_opinion[[surveykey]])
-  constructcols<-grep(pattern="construct", x=names(retdf), value=TRUE)
-  dplyr::mutate_at(retdf, constructcols, dplyr::recode_factor, !!!recode_condense_label_basislist)
-}, survey_data_imputed=survey_data_imputed, survey_data_with_condensed_opinion=survey_data_with_condensed_opinion, recode_condense_label_basislist=recode_condense_label_basislist)
-survey_data_imputed<-magrittr::set_names(survey_data_imputed_with_newconstruct, names(survey_data_imputed))
-#library(reshape2)
-#survey_oldq_id<-list(
-#  "2004citizen"=c("v25","v26","v27","v41","v42","v43","v44","v45","v46","v60","v61","v62","v65","v74","v91a","v91b","v92_1","v92_2","v92_3","v92_4","v92_5","v93a","v93b","v95","v96","v97","v105a","v105b","v105c","v106a","v106b","v106c","v107a","v107b","v107c","v114","v118a","v118b","v118c","v118d"),
-#  "2010env"=c("v39a", "v39b", "v39c", "v40", "v78a", "v78b", "v78c", "v78d", "v78e", "v78f", "v78g", "v78h", "v78i", "v90", "v91", "v92"),
-#  "2010overall"=c("kv21c_0", "kv31_0", "kv67_0", "v14a", "v14b", "v15a", "v15b", "v16a", "v16b", "v19", "v20a", "v20b", "v21c", "v22a", "v22b", "v22c", "v23a", "v23b", "v23c", "v24a", "v24b", "v24c", "v25a", "v25b", "v25c", "v26a", "v26b", "v26c", "v26d", "v26e", "v26f", "v26g", "v27a", "v27b", "v27c", "v27d", "v27e", "v27f", "v27g", "v28a", "v28b", "v29", "v30a", "v30b", "v31", "v32a", "v32b", "v32c", "v36a", "v36b", "v37a", "v37b", "v37c", "v37d", "v37e", "v37f", "v37g", "v37h", "v37i", "v38a1", "v38a2", "v38b1", "v38b2", "v38c1", "v38c2", "v38d1", "v38d2", "v38e1", "v38e2", "v39a", "v39b", "v39c", "v40", "v57", "v58", "v59", "v63", "v66c", "v66f", "v67", "v68", "v69", "v70b", "v70c", "v70d", "v70e", "v70f"),
-#  "2016citizen"=c("c1a",	"c1b",	"c1c",	"c1d",	"c1e",	"c2",	"c3",	"c4",	"c5",	"c6",	"c10",	"c11",	"c12",	"c13",	"c14",	"d1",	"d2a",	"d2b",	"d3a",	"d3b",	"d4",	"d5a",	"d5b",	"d5c",	"d5d",	"d5e",	"d5f",	"d6a",	"d6b",	"d6c",	"d6d",	"d6e",	"d6f",	"d6g",	"d6h",	"d7a",	"d7b",	"d7c",	"d7d",	"d7e",	"d7f",	"d7g",	"d7h",	"d7i",	"d7j",	"d7k",	"d8a",	"d8b",	"d8c",	"d11a",	"d11b",	"d12",	"d13a",	"d13b",	"d14a",	"d14b",	"d14c",	"d17a",	"d17b",	"d17c",	"e2a",	"e2b",	"e2c",	"e2d",	"e2e",	"e2f",	"e2g",	"e2h",	"e2i",	"f3",	"f4",	"f5",	"f8",	"f9",	"h10")
-#)
-extracting_topicitems_from_survey<-function(X,df,oldvec=c(), topickeyword=c("議題","議題（或民主價值與公民意識牽涉群體）","民主價值與公民意識")) {
-  if(identical(oldvec,c())) {
-    oldvec[[X]]=c()
-  }
-  needq<-dplyr::filter(df,SURVEY==X,CATEGORY %in% topickeyword) %>%
-    dplyr::select(ID) %>%
-    unlist() %>%
-    as.character() %>%
-    union(oldvec[[X]])
-  return(needq)
-}
-
-survey_q_ids<-sapply(survey_data_title,extracting_topicitems_from_survey,df=survey_imputation_and_measurement)
-survey_q_on_pp<-sapply(survey_data_title,extracting_topicitems_from_survey,df=survey_imputation_and_measurement, topickeyword=c("參與"))
-
-#有些資料在轉換過程中內容會變成label而非coding的資料，要把他變回來
-
-
+#有些資料在轉換過程中內容會變成label而非coding的資料，要把他變回來（僅保留參考用）
 if({covert_label_according_to_xls_codebook<-FALSE;covert_label_according_to_xls_codebook}) {
   mistakinglevelvars<-list(
     "2004citizen"=c('myown_indp_atti','v61','v62','v74','v91a','v91b','v93a','v93b','v95'),
@@ -349,7 +472,6 @@ if({covert_label_according_to_xls_codebook<-FALSE;covert_label_according_to_xls_
       c('SURVEY','ID','VALUE','LABEL')]#ID %in% Y
     dedf_keyvalues<-as.list(getElement(dfcodebook,'VALUE'))
     names(dedf_keyvalues)<-getElement(dfcodebook,'LABEL')
-    #result<-filter(dfcodebook,SURVEY==X,ID %in% Y)
     dedf_keyvalues
   },MoreArgs=list(survey_data_title=survey_data_title,dfcodebook=dfcodebook),
   SIMPLIFY=FALSE)
@@ -357,167 +479,14 @@ if({covert_label_according_to_xls_codebook<-FALSE;covert_label_according_to_xls_
   for (recodevar in mistakinglevelvars) {
     tplistforrecode <- getElement(prepare_for_label_adj_df,recodevar)
     X[[recodevar]] <- dplyr::recode(getElement(X,recodevar),!!!tplistforrecode)
-    #message("recodevar is ", recodevar," and length is ",length(X$recodevar)," and list is ",tplistforrecode," and names of list is",names(tplistforrecode))
   }
-  #X
 }
 
-needimps<-custom_ret_appro_kamila_clustering_parameters() %>%
-  dplyr::rename(SURVEY=survey) %>%
-  dplyr::select(-.imp)
-needsurveys<-names(survey_data_imputed)
-
-# test survey reliability --------------
-reliability_test_res<- custom_parallel_lapply(1:nrow(needimps), function(rowi, ...) {
-  needrow<-needimps[rowi,]
-  adj_survey_q_ids<-grep(pattern="construct", x=survey_q_ids[[needrow$SURVEY]], value=TRUE) %>%
-    base::setdiff(survey_q_ids[[needrow$SURVEY]], .)
-  basesurveydf<-dplyr::filter(survey_data_imputed[[needrow$SURVEY]], .imp==!!needrow$imp)
-  testres_q<-adj_survey_q_ids %>%
-    basesurveydf[,.] %>%
-    dplyr::mutate_all(unclass) %>%
-    psych::alpha(check.keys=TRUE)
-  #readline(paste("now in",needrow$SURVEY,needrow$imp,"testres_q, continue?"))
-  testres_pp<-survey_q_on_pp[[needrow$SURVEY]] %>%
-    basesurveydf[,.] %>%
-    dplyr::mutate_all(unclass) %>%
-    psych::alpha(check.keys=TRUE)
-  #print(testres_pp)
-  data.frame(survey=needrow$SURVEY, imp=needrow$imp, items=c("policy","pp"), alphares=c(testres_q$total$std.alpha, testres_pp$total$std.alpha))
-  #readline(paste("now in",needrow$SURVEY,needrow$imp,"testres_pp, continue?"))
-}, survey_data_imputed=survey_data_imputed, needimps=needimps, survey_q_on_pp=survey_q_on_pp, survey_q_ids=survey_q_ids, method=parallel_method) %>%
-  plyr::rbind.fill()
-write.csv(reliability_test_res, file=paste0("TMP.csv"))
-
-# test relation reliability with Krippendorff's alpha --------------
-
-newt<-openxlsx::read.xlsx(paste0(dataset_file_directory,"interrater.xlsx"), sheet=2)
-oldt<-openxlsx::read.xlsx(paste0(dataset_file_directory,"interrater.xlsx"), sheet=4)
-all_coding_option<-dplyr::bind_rows(newt,oldt)[,1] %>% unique()
-relation_reliability<-data.frame(both=all_coding_option) %>%
-  dplyr::mutate(in_newt=both %in% !!newt$relation) %>%
-  dplyr::mutate(in_oldt=both %in% !!oldt$relation)
-as.matrix(relation_reliability[,c("in_newt","in_oldt")]) %>%
-  irr::kripp.alpha(., method="nominal")
-
-# compacting (wide to long) surveys --------------
-
-#survey_data_melted
-complete_survey_dataset <- mapply(function(X,Y) {
-  survey_data_title<-X$SURVEY[1]
-  X<-dplyr::mutate_at(X,Y,as.character) %>%
-    dplyr::mutate(myown_age_grpscaled=as.numeric(scale(myown_age)))
-  if (survey_data_title=="2010overall") {
-    X %<>% dplyr::mutate(stratum=as.character(paste0("2010overall",stratum2)))
-  }
-  if (survey_data_title=="2016citizen") {
-    X %<>% dplyr::mutate(stratum=as.character(paste0("2016citizen",r_stratum2014))) %>%
-      mutate_cond(is.na(ssu), ssu="花東不抽樣")
-  }
-  if (survey_data_title %in% c("2010overall","2016citizen")) {
-    X %<>% dplyr::mutate_at(c("psu","ssu"),~as.character(paste0(!!survey_data_title,as.character(.))))
-  }
-  
-  if (survey_data_title %in% c("2010overall")) {
-    X %<>% dplyr::mutate_at(c("admindistrict","adminvillage"), as.character)
-    #內湖區 | 内湖區
-    #内湖區    端陽里
-    #板橋市 廣徳里 | 廣德里(legislator_with_elec)
-    #蘆竹鄉    内厝村 | 內厝村(legislator_with_elec)
-    #蘆竹鄉    瓦薰村 | 瓦窯村(legislator_with_elec)
-    #烏日鄉    仁徳村 | 仁德村(legislator_with_elec)
-    #西區    磚瑤里 | 磚磘里(legislator_with_elec)
-    #嘉義市 西區    西榮里 | 
-    #内埔鄉    東寧村 | 內埔鄉(legislator_with_elec)
-    #内埔鄉    内田村 | 內埔鄉(legislator_with_elec)
-    #崁頂鄉    圍内村 | 圍內村(legislator_with_elec)
-    #崁頂鄉    炭頂村 | 崁頂村(legislator_with_elec)
-    X %<>% mutate_cond(admindistrict=="内湖區", admindistrict="內湖區") %>%
-      mutate_cond(adminvillage=="端陽里", adminvillage="瑞陽里") %>%
-      mutate_cond(adminvillage=="廣徳里", adminvillage="廣德里") %>%
-      mutate_cond(adminvillage=="内厝村", adminvillage="內厝村") %>%
-      mutate_cond(adminvillage=="瓦薰村", adminvillage="瓦窯村") %>%
-      mutate_cond(adminvillage=="仁徳村", adminvillage="仁德村") %>%
-      mutate_cond(adminvillage=="磚瑤里", adminvillage="磚磘里") %>%
-      mutate_cond(admincity=="嘉義市" & admindistrict=="西區" & adminvillage=="西榮里", adminvillage="西平里") %>%
-      mutate_cond(adminvillage=="廣徳里", adminvillage="廣德里") %>%
-      mutate_cond(admindistrict=="内埔鄉", admindistrict="內埔鄉") %>%
-      mutate_cond(adminvillage=="内田村", adminvillage="內田村") %>%
-      mutate_cond(adminvillage=="圍内村", adminvillage="圍內村") %>%
-      mutate_cond(adminvillage=="炭頂村", adminvillage="崁頂村")
-    X %<>% dplyr::mutate_at(c("admindistrict","adminvillage"), as.factor)
-  }
-  
-  if (survey_data_title %in% c("2016citizen")) {
-    X %<>% dplyr::mutate_at(c("admindistrict","adminvillage"), as.character)
-    X %<>% mutate_cond(admincity=="屏東縣" & admindistrict=="屏東市" & adminvillage=="民權里", adminvillage="光榮里、民權里")
-    #屏東市    民權里 | 光榮里、民權里(legislator_with_elec)
-    X %<>% dplyr::mutate_at(c("admindistrict","adminvillage"), as.factor)
-  }
-  X<-dplyr::mutate(X,myown_income_scaled=as.numeric(scale(myown_income)))
-  
-  other_var_as_id<-base::setdiff(names(X),Y)
-  reshape2::melt(X, id.vars = other_var_as_id, variable.name = "SURVEYQUESTIONID", value.name = "SURVEYANSWERVALUE") %>%
-    dplyr::mutate_at("SURVEYANSWERVALUE", as.character)
-},X=survey_data_imputed[needsurveys],Y=survey_q_ids[needsurveys]) %>%
-  {#節省欄位合併
-    common_var<-Reduce(base::intersect, lapply(., names )) %>%
-      base::setdiff(c("sd")) %>% c("psu","ssu","stratum")
-    lapply(., select_and_fill_nonexistcol, common_var)
-  } %>%
-  plyr::rbind.fill() %>%
-  #dplyr::bind_rows() %>%
-  dplyr::rename(ansv_and_label=SURVEYANSWERVALUE, imp=.imp, id_of_imp=.id) %>%
-  dplyr::mutate("value_on_q_variable"=paste0(SURVEY,"@",SURVEYQUESTIONID)) %>%
-  dplyr::select(-tidyselect::any_of(c("zip","village","wave","qtype","myown_industry","myown_job","villagefullname","myown_family_income_ingroup","SURVEYQUESTIONID"))) %>%
-  dplyr::select(-tidyselect::any_of(c("term1","term2","year","year_m","sm"))) %>%#,-sd,-myown_int_pol_efficacy,-myown_ext_pol_efficacy,-myown_constituency_party_vote
-  dplyr::select(!dplyr::ends_with("NA")) %>%
-  dplyr::select(-tidyselect::any_of(c("myown_eduyr","myown_occp","myown_ses","myown_income","myown_dad_ethgroup","myown_mom_ethgroup","myown_working_status","myown_job_status","myown_familymembers_num","myown_selfid_population","myown_hire_people_no","myown_manage_people_no","myown_constituency_party_vote","myown_online_time"))) %>%
-  dplyr::mutate_at(c("SURVEY","admincity","admindistrict","adminvillage","value_on_q_variable"),as.factor) %>%
-  dplyr::mutate_at("id", as.integer) %>%
-  dplyr::mutate_at(c("stratum","psu","ssu"), as.factor) %>%
-  dplyr::filter(SURVEY %in% c("2010overall","2016citizen")) %>%
-  dplyr::semi_join(needimps) %>%
-  dplyr::left_join(needimps)
-
-# t <- complete_survey_dataset %>%
-#   #dplyr::semi_join(needimps) %>%
-#   #dplyr::left_join(needimps) %>%
-#   dplyr::filter(newimp==1) %>%
-#   dplyr::mutate(survey_with_id=paste0(SURVEY,id))
-# unique(t$survey_with_id) %>% length()
-
-#complete_survey_dataset %<>% data.table::as.data.table()
-#save(complete_survey_dataset,file=paste0(dataset_in_scriptsfile_directory, "complete_survey_dataset.RData"))
-
+#library(reshape2)
+#survey_oldq_id（各年度舊題號清單，僅保留參考用，見git歷史版本）
 #View(filter(complete_survey_dataset[[1]],SURVEYQUESTIONID=='myown_indp_atti'))
 #dplyr::recode(survey_data_test[[1]]$v61,!!!getElement(getElement(prepare_for_label_adj_df,"2004citizen"),"v61"))
-#vhead(mergedf_votes_bills_surveyanswer)
-#vhead(complete_survey_dataset)
 #以下是要把四份問卷合一，但這應該要放棄
-
-
-
-#survey_data_melted 沒有節省欄位直接合併
-#complete_survey_dataset<-Reduce(plyr::rbind.fill,complete_survey_dataset) %>%
-#  extract(common_var)
-#vhead(complete_survey_dataset)
-#survey_data_melted_names<-lapply(survey_data_melted,names)
-
-
 #factor to numeric method
 #survey_data_melted<-lapply(survey_data_melted,function(X) {
 #  X<-mutate_at(c(),as.numeric(levels(f))[f]
-
-#%>%
-#reshape2::melt(id.vars = setdiff(colnames(.),c("term1","term2")), variable.name = "variable_on_term", value.name = "term")
-#vhead(complete_survey_dataset %>% filter(SURVEYQUESTIONID=='myown_indp_atti'))
-#withoutlabelansv <- unique(complete_survey_dataset$ansv_and_label)[c(31,104:116,135:144,167:173,180:188,209:222,285:287,293:299)]
-#filter(complete_survey_dataset, ansv_and_label %in% withoutlabelansv) %>%
-#  distinct(SURVEY,SURVEYQUESTIONID,ansv_and_label) %>%
-#  View()
-#c(NA,"","以上皆非等待發明  不知道何種替代能源","用垃圾科技轉換能源",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,)
-
-##針對調查問卷資料處理變形，以便合併
-
-#"c1a","c1b","c1c","c1d","c1e","c2","c3","c4","c5","c6","c10","c11","c12","c13","c14","d1","d2a","d2b","d3a","d3b","d4","d5a","d5b","d5c","d5d","d5e","d5f","d6a","d6b","d6c","d6d","d6e","d6f","d6g","d6h","d7a","d7b","d7c","d7d","d7e","d7f","d7g","d7h","d7i","d7j","d7k","d8a","d8b","d8c","d11a","d11b","d12","d13a","d13b","d14a","d14b","d14c","d17a","d17b","d17c","e2a","e2b","e2c","e2d","e2e","e2f","e2g","e2h","e2i","f3","f4","f5","f8","f9","h10","kh10"

@@ -1,57 +1,421 @@
-# 第Ｏ部份：環境設定 --------------------------------
-if (!("benchmarkme" %in% rownames(installed.packages()))) try(install.packages("benchmarkme"))
-t_sessioninfo_running<-gsub("[>=()]","",gsub(" ","",sessionInfo()$running))
-t_sessioninfo_running_with_cpu<-try(paste0(t_sessioninfo_running,benchmarkme::get_cpu()$model))
-t_sessioninfo_running_with_cpu_locale<-try(gsub(pattern=" ",replacement = "", x=paste0(t_sessioninfo_running_with_cpu,unlist(strsplit(unlist(strsplit(sessionInfo()$locale,split=";"))[1], split="="))[2])))
-source_sharedfuncs_r_path<-try(here::here())
-if(is(source_sharedfuncs_r_path, 'try-error')) source_sharedfuncs_r_path<-"."
-source(file = paste0(source_sharedfuncs_r_path,"/shared_functions.R"), encoding="UTF-8")
-gc(verbose=TRUE)
-# if (!file.exists(paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt.RData"))) {
-#   dir.create(dataset_in_scriptsfile_directory,recursive=TRUE)
-#   download.file(
-#     "http://homepage.ntu.edu.tw/~r03a21033/voterecord/miced_survey_9_with_mirt_lca.RData",
-#     paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"))
-# }
-# load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca.RData"), verbose=TRUE)
-# load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering.RData"), verbose=TRUE)
-# load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt.RData"), verbose=TRUE)
-load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"), verbose=TRUE)
-change_survey_data_religion<-function(survey_data_imputed) {
-  survey_data_imputed$`2016citizen` %<>% mutate_cond(myown_religion=="[5] 回教(伊斯蘭教)", myown_religion="[9] 其他,請說明") %>%
-    dplyr::mutate_at("myown_religion", droplevels)
-  survey_data_imputed$`2010overall` %<>% dplyr::mutate_at("myown_religion", droplevels)
-  return(survey_data_imputed)
-}
-survey_data_imputed %<>% change_survey_data_religion()
-
-imps<-imputation_sample_i_s
-
-#"myown_dad_ethgroup","myown_mom_ethgroup","myown_working_status","myown_occp","myown_ses","myown_income","myown_family_income",
-
+source(file = "08_preprocessing_lca_analysis_process.R")
+# 第九部份：clustering =================================
 #clustering
 #clustrd
 #https://cran.r-project.org/web/packages/clustrd/clustrd.pdf
 #http://www.amarkos.gr/clustrd/
 #https://www.jamleecute.com/hierarchical-clustering-%E9%9A%8E%E5%B1%A4%E5%BC%8F%E5%88%86%E7%BE%A4/
 #weight https://sdaza.com/blog/2012/raking/
+clustering_process_class <- R6::R6Class("clustering_process", inherit=lca_analysis_process_class, public = list(
+  clustering_var = NULL,
+  nclusrange = NULL,
+  ndimrange = NULL,
+  reskamilaclusterfile = NULL,
+  reskamilaclusterbackupfile = NULL,
+  reskamilaclusterweightedfile = NULL,
+  kamila_clustering_parameters_filepath = NULL,
+  resvarselclusterfile = NULL,
+  clustrd_results_after_assesment_filepath = NULL,
+  initialize = function(dataset_in_scriptsfile_directory="/mnt", filespath="/mnt", dataset_file_directory="/mnt", debug_func_mode=TRUE) {
+    super$initialize(dataset_in_scriptsfile_directory=dataset_in_scriptsfile_directory, filespath=filespath, dataset_file_directory=dataset_file_directory, debug_func_mode=debug_func_mode)
+    #"myown_dad_ethgroup","myown_mom_ethgroup","myown_working_status","myown_occp","myown_ses","myown_income","myown_family_income",
+    self$clustering_var <- list(
+      "2004citizen"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_religion"),
+      "2010env"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_religion"),
+      "2010overall"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_religion"),
+      "2016citizen"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_religion")
+    )
+    self$nclusrange<-2:12
+    self$ndimrange<-1:6
+    #reskamilaclusterfile <- paste0(save_dataset_in_scriptsfile_directory, "kamilacluster.Rdata")
+    self$reskamilaclusterfile <- file.path(save_dataset_in_scriptsfile_directory, "kamilacluster_inflated.Rdata")
+    self$reskamilaclusterbackupfile <- file.path(save_dataset_in_scriptsfile_directory, "kamilacluster_inflated_backup.Rdata")
+    self$reskamilaclusterweightedfile <- file.path(save_dataset_in_scriptsfile_directory, "kamilacluster_weighted.Rdata")
+    self$kamila_clustering_parameters_filepath <- file.path(dataset_in_scriptsfile_directory, "kamila_clustering_parameters.Rdata")
+    self$resvarselclusterfile <- file.path(dataset_in_scriptsfile_directory, "varselcluster.Rdata")
+    self$clustrd_results_after_assesment_filepath <- file.path(dataset_in_scriptsfile_directory, "clustrd_results_after_assesment.RData")
+  },
+  change_survey_data_religion = function(survey_data_imputed) {
+    survey_data_imputed$`2016citizen` %<>% mutate_cond(myown_religion=="[5] 回教(伊斯蘭教)", myown_religion="[9] 其他,請說明") %>%
+      dplyr::mutate_at("myown_religion", droplevels)
+    survey_data_imputed$`2010overall` %<>% dplyr::mutate_at("myown_religion", droplevels)
+    return(survey_data_imputed)
+  },
+  # 讀入08階段輸出（mirt_lca）並整理宗教變數
+  get_survey_data_imputed_for_clustering = function() {
+    survey_data_imputed <- self$get_survey_data_imputed_stage(stage="mirt_lca")
+    survey_data_imputed %<>% self$change_survey_data_religion()
+    survey_data_imputed
+  },
+  get_clustrd_arguments_df = function(imps=self$imps) {
+    data.frame("survey"=survey_data_title) %>%
+      cbind(., imp = rep(imps, each = nrow(.))) %>%
+      cbind(., nclus = rep(self$nclusrange, each = nrow(.))) %>%
+      cbind(., ndim = rep(self$ndimrange, each = nrow(.))) %>%
+      cbind(., alpha = rep(c(0,0.25,0.5,0.75,1), each = nrow(.))) %>%
+      cbind(., method = rep(c("mixedRKM"), each = nrow(.))) %>% #,"mixedFKM"
+      cbind(., rotation = rep(c("none","varimax","promax"), each = nrow(.))) %>%
+      cbind(., criterion = rep(c("asw"), each = nrow(.))) %>%
+      cbind(., dst = rep(c("low"), each = nrow(.))) %>% #,"full"
+      filter(nclus>ndim)
+  },
+  # * model-based clustering by VarSelLCM ----------------
+  get_varsellcm_arguments_df = function(imps=self$imps) {
+    data.frame("survey"=survey_data_title) %>%
+      cbind(., imp = rep(imps, each = nrow(.))) %>%
+      cbind(., varsel = rep(c("wtho","wth"), each = nrow(.))) %>%
+      dplyr::mutate(keyprefix=paste0(survey,"_imp",imp)) %>%
+      dplyr::mutate(store_key=paste0(survey, "_imp", imp, "_", varsel)) #%>%
+      #dplyr::filter(survey %in% c("2010overall","2016citizen")) %>%
+      #dplyr::filter(!(store_key %in% !!names(varsellcm_results)) )
+  },
+  run_varsellcm = function(survey_data_imputed, varsellcm_arguments_df=self$get_varsellcm_arguments_df(), n_select_components=2:12) {
+    clustering_var<-self$clustering_var
+    resvarselclusterfile<-self$resvarselclusterfile
+    varsellcm_results<-list()
+    varsellcm_results<- varsellcm_arguments_df$store_key %>%
+      magrittr::set_names( custom_parallel_lapply(., function (fikey, varsellcm_arguments_df, ...) {
+        needrow <- dplyr::filter(varsellcm_arguments_df, store_key==!!fikey)
+        survey_key <- needrow$survey
+        needimp <- needrow$imp
+        needvarsel <- needrow$varsel
+        needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
+          dplyr::mutate_at("myown_age",scale) %>%
+          dplyr::mutate_at("myown_age",function (X) {X[,1]}) %>%
+          dplyr::mutate_at("myown_age",as.numeric)
+        surveyweight<-needdf$myown_wr
+        inputData<-dplyr::select(needdf, !!clustering_var[[survey_key]])
+        resmod <- if (needvarsel=="wtho") {
+          # Cluster analysis without variable selection
+          VarSelLCM::VarSelCluster(inputData, gvals = n_select_components, nbcores = parallel::detectCores(), vbleSelec = FALSE, crit.varsel = "BIC")
+        } else {
+          # Cluster analysis with variable selection (with parallelisation)
+          VarSelLCM::VarSelCluster(inputData, gvals = n_select_components, nbcores = parallel::detectCores(), crit.varsel = "BIC")
+        }
+        while (TRUE) {
+          loadsavestatus<-try({
+            load(file=resvarselclusterfile, verbose=TRUE)
+            varsellcm_results[[needrow$store_key]] <- resmod
+            save(varsellcm_results, file=resvarselclusterfile)
+          })
+          if(!is(loadsavestatus, 'try-error')) break
+        }
+        return(resmod)
+      }, varsellcm_arguments_df=varsellcm_arguments_df,
+      survey_data_imputed=survey_data_imputed,
+      clustering_var=clustering_var,
+      resvarselclusterfile=resvarselclusterfile, method=parallel_method), . )
+    save(varsellcm_results, file=resvarselclusterfile)
+    varsellcm_results
+  },
+  apply_varsellcm_results = function(survey_data_imputed, varsellcm_arguments_df=self$get_varsellcm_arguments_df()) {
+    load_env <- new.env()
+    load(file=self$resvarselclusterfile, envir=load_env, verbose=TRUE)
+    varsellcm_results <- load_env$varsellcm_results
+    for (varsellcm_results_key in unique(sort(varsellcm_arguments_df$keyprefix))) {
+      needrow<-dplyr::filter(varsellcm_arguments_df, keyprefix==!!varsellcm_results_key)
+      imp <- needrow$imp[1] %>% as.integer()
+      res_with <- paste0(varsellcm_results_key, "_wth") %>%
+        magrittr::extract2(varsellcm_results, .)
+      res_without <- paste0(varsellcm_results_key, "_wtho") %>%
+        magrittr::extract2(varsellcm_results, .)
+      resmodel<-if ( abs(VarSelLCM::BIC(res_without)) > abs(VarSelLCM::BIC(res_with)) ) res_with else res_without
+      #VarSelLCM::BIC(resmodel) %>% print()
+      #VarSelLCM::summary(resmodel) %>% print()
+      # Estimated probabilities of classification
+      #head(VarSelLCM::fitted(resmodel, type="probability")) %>% print()
+      table_of_cluster_dist_orig<-table(VarSelLCM::fitted(resmodel))
+      for (interpretvar in self$clustering_var[[needrow$survey[1]]]) {
+        #if (readline("next var:")=="N") break
+        #VarSelLCM::plot(x=resmodel, y=interpretvar)
+      }
+      factored_cluster<-VarSelLCM::fitted(resmodel) %>%
+        as.factor() %>%
+        forcats::fct_infreq() %>%
+        forcats::fct_recode(., !!!{
+          set_names(levels(.), as.list(sort(unique(.))))
+        })
+      table_of_cluster_dist<-table(factored_cluster)
+      message(paste0("distribution of cluster of ",varsellcm_results_key," is:"))
+      print(table_of_cluster_dist)
+      survey_data_imputed[[needrow$survey[1]]][survey_data_imputed[[needrow$survey[1]]]$.imp==imp,"cluster_varsellcm"] <- as.integer(as.character(factored_cluster))
+    }
+    survey_data_imputed
+  },
+  # * model-based clustering by KAMILA（論文定案方法）----------------
+  # 註：原始kamila不支援sample weights，此處以inflate_df_from_weight把觀察值依權重複製擴增近似
+  # （新版原生加權作法見下方run_kamila_clustering_weighted，使用external/kamila子模組）
+  get_kamila_arguments_df = function(imps=self$imps) {
+    data.frame("survey"=survey_data_title) %>%
+      cbind(., imp = rep(imps, each = nrow(.))) %>%
+      dplyr::mutate(store_key=paste0(survey,"_",imp)) %>%
+      dplyr::mutate_at(c("survey","store_key"),as.character) %>%
+      dplyr::mutate_at("imp", as.integer) %>%
+      dplyr::filter(survey %in% c("2010overall","2016citizen")) %>%
+      dplyr::arrange(survey, imp)
+  },
+  filter_processed_kamila = function(kamila_arguments_df) {
+    load_env <- new.env()
+    load(file=self$reskamilaclusterfile, envir=load_env, verbose=TRUE)
+    processed_kamila_key<-sapply(load_env$kamila_results, class) %>%
+      .[.=="list"] %>%
+      names()
+    kamila_arguments_df %>% dplyr::filter(!(store_key %in% !!processed_kamila_key))
+  },
+  run_kamila_clustering = function(survey_data_imputed, kamila_arguments_df=self$get_kamila_arguments_df(), inflate_rate=30, numClust=3:8, mc.cores=24) {
+    clustering_var<-self$clustering_var
+    reskamilaclusterfile<-self$reskamilaclusterfile
+    kamila_results<-list()
+    kamila_results<-dplyr::arrange(kamila_arguments_df, imp) %>% magrittr::use_series("store_key") %>%
+      magrittr::set_names( custom_parallel_lapply(., function (fikey, ...) {
+        message(paste("now in",fikey))
+        needrow<-dplyr::filter(kamila_arguments_df, store_key==!!fikey)
+        survey_key <- needrow$survey
+        needimp <- needrow$imp
+        resmodel <- dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
+          dplyr::mutate(myown_age=as.numeric(scale(myown_age))) %>%
+          dplyr::mutate(myown_factoredses=myown_factoredses_scaled) %>%
+          dplyr::select(tidyselect::any_of(c("myown_wr",clustering_var[[survey_key]]))) %>% #".imp",".id","id",
+          inflate_df_from_weight(rate=inflate_rate) %>%
+          dplyr::select(!!clustering_var[[survey_key]]) %>%
+          {kamila::kamila(conVar=.[,c("myown_age","myown_factoredses")],
+                          catFactor=.[c("myown_sex","myown_selfid","myown_marriage","myown_areakind","myown_religion")],
+                          numClust = numClust, numInit = 10, calcNumClust = "ps", numPredStrCvRun = 10,
+                          predStrThresh = 0.5, maxIter=1000, verbose=TRUE)}
+        tryn<-1
+        while (TRUE) {
+          loadsavestatus<-try({
+            load(file=reskamilaclusterfile, verbose=TRUE)
+            kamila_results[[fikey]]<-resmodel
+            save(kamila_results, file=reskamilaclusterfile)
+          })
+          tryn<-tryn+1
+          if(!is(loadsavestatus, 'try-error') | tryn>11) break
+        }
+        return(resmodel)
+        #return(kamila_results[[store_key]]$nClust$bestNClust)
+      }, kamila_arguments_df=kamila_arguments_df,
+      nclusrange=base::setdiff(self$nclusrange,1),
+      survey_data_imputed=survey_data_imputed,
+      clustering_var=clustering_var,
+      reskamilaclusterfile=reskamilaclusterfile,
+      mc.cores=mc.cores,
+      method=parallel_method)  , .)
+    #save(kamila_results, file=self$reskamilaclusterbackupfile)
+    #save(kamila_results, file=self$reskamilaclusterfile)
+    kamila_results
+  },
+  # * weighted KAMILA（external/kamila子模組版，原生支援sample weights）----------------
+  # 取代inflate_df_from_weight複製擴增的近似作法；submodule修改內容：
+  # 加權群心、加權radial KDE（Kish有效樣本數頻寬）、加權類別機率表、加權目標函數與prediction strength
+  install_weighted_kamila = function(force=FALSE) {
+    has_obsweights<-"obsWeights" %in% names(formals(kamila::kamila))
+    if (!has_obsweights | force) {
+      kamila_src<-here::here("external","kamila")
+      install.packages(kamila_src, repos=NULL, type="source")
+      message("已從external/kamila子模組安裝支援obsWeights之kamila；若原kamila已載入請重啟R session")
+    }
+    invisible("obsWeights" %in% names(formals(kamila::kamila)))
+  },
+  run_kamila_clustering_weighted = function(survey_data_imputed, kamila_arguments_df=self$get_kamila_arguments_df(), numClust=3:8, mc.cores=24) {
+    if (!self$install_weighted_kamila()) stop("kamila::kamila不支援obsWeights，請重啟R session後再執行")
+    clustering_var<-self$clustering_var
+    reskamilaclusterweightedfile<-self$reskamilaclusterweightedfile
+    kamila_results<-list()
+    kamila_results<-dplyr::arrange(kamila_arguments_df, imp) %>% magrittr::use_series("store_key") %>%
+      magrittr::set_names( custom_parallel_lapply(., function (fikey, ...) {
+        message(paste("now in",fikey))
+        needrow<-dplyr::filter(kamila_arguments_df, store_key==!!fikey)
+        survey_key <- needrow$survey
+        needimp <- needrow$imp
+        resmodel <- dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
+          dplyr::mutate(myown_age=as.numeric(scale(myown_age))) %>%
+          dplyr::mutate(myown_factoredses=myown_factoredses_scaled) %>%
+          dplyr::select(tidyselect::any_of(c("myown_wr",clustering_var[[survey_key]]))) %>%
+          {kamila::kamila(conVar=.[,c("myown_age","myown_factoredses")],
+                          catFactor=.[c("myown_sex","myown_selfid","myown_marriage","myown_areakind","myown_religion")],
+                          numClust = numClust, numInit = 10, calcNumClust = "ps", numPredStrCvRun = 10,
+                          predStrThresh = 0.5, maxIter=1000, verbose=TRUE,
+                          obsWeights=.$myown_wr)}
+        tryn<-1
+        while (TRUE) {
+          loadsavestatus<-try({
+            load(file=reskamilaclusterweightedfile, verbose=TRUE)
+            kamila_results[[fikey]]<-resmodel
+            save(kamila_results, file=reskamilaclusterweightedfile)
+          })
+          tryn<-tryn+1
+          if(!is(loadsavestatus, 'try-error') | tryn>11) break
+        }
+        return(resmodel)
+      }, kamila_arguments_df=kamila_arguments_df,
+      survey_data_imputed=survey_data_imputed,
+      clustering_var=clustering_var,
+      reskamilaclusterweightedfile=reskamilaclusterweightedfile,
+      mc.cores=mc.cores,
+      method=parallel_method)  , .)
+    kamila_results
+  },
+  # 加權版無擴增，finalMemb與原始觀察值一一對應，直接併回
+  apply_weighted_kamila_results_to_survey_data = function(survey_data_imputed=NULL) {
+    if (is.null(survey_data_imputed)) {
+      survey_data_imputed <- self$get_survey_data_imputed_for_clustering()
+    }
+    load_env <- new.env()
+    load(file=self$reskamilaclusterweightedfile, envir=load_env, verbose=TRUE)
+    kamila_results <- load_env$kamila_results
+    combine_kamila_df_lst<-names(kamila_results) %>%
+      magrittr::set_names(custom_parallel_lapply(., function(survey_imp_key, surveyd, ...) {
+        message(paste("now in",survey_imp_key))
+        survey_imp_key_i<-unlist(strsplit(survey_imp_key,"_"))
+        surveykey<-survey_imp_key_i[1]
+        imp<-as.integer(survey_imp_key_i[2])
+        kamila_model<-kamila_results[[survey_imp_key]]
+        needdf<-dplyr::filter(surveyd[[surveykey]], .imp==!!imp)
+        if (nrow(needdf)!=length(kamila_model$finalMemb)) stop(paste("列數與finalMemb長度不符：",survey_imp_key))
+        # 依原作法以出現頻率重新編號集群（最多者為1）
+        cluster_kamila<-as.factor(kamila_model$finalMemb) %>%
+          forcats::fct_infreq() %>%
+          forcats::fct_recode(., !!!{
+            magrittr::set_names(levels(.), as.list(sort(unique(.))))
+          }) %>% as.character() %>% as.integer()
+        dplyr::select(needdf, -tidyselect::any_of(c("cluster_kamila"))) %>%
+          dplyr::mutate(cluster_kamila=!!cluster_kamila) %>%
+          return()
+      }, kamila_results=kamila_results, surveyd=survey_data_imputed, method=parallel_method),.)
+    survey_data_imputed<-lapply(names(survey_data_imputed), grep, x=names(combine_kamila_df_lst), value=TRUE) %>%
+      lapply(FUN=function(n,tdflist) {magrittr::extract(tdflist, n)}, tdflist=combine_kamila_df_lst)  %>%
+      lapply(dplyr::bind_rows) %>%
+      lapply(FUN=function(X) {dplyr::arrange(X, .imp, id)}) %>%
+      magrittr::set_names(names(survey_data_imputed))
+    survey_data_imputed
+  },
+  # * applying kamila_results to survey data ----------------------------------------------
+  inflated_kamila_input_df_to_original_df = function(one_kamila_model, distinctall=FALSE) {
+    t<-dplyr::bind_cols(one_kamila_model$input$conVar, one_kamila_model$input$catFactor) %>%
+      data.frame(., "memb"=one_kamila_model$finalMemb)
+    if (distinctall==TRUE) {
+      t %<>% dplyr::distinct_all()
+    }
+    return(t)
+  },
+  kamila_inflated_results_filepath = function(rate=10) {
+    file.path(save_dataset_in_scriptsfile_directory, paste0("kamilacluster_inflated_times",rate,".Rdata"))
+  },
+  apply_kamila_results_to_survey_data = function(survey_data_imputed=NULL, rate=10, kamila_arguments_df=self$get_kamila_arguments_df()) {
+    if (is.null(survey_data_imputed)) {
+      survey_data_imputed <- self$get_survey_data_imputed_for_clustering()
+    }
+    inflated_kamila_input_df_to_original_df<-self$inflated_kamila_input_df_to_original_df
+    load_env <- new.env()
+    load(file=self$kamila_inflated_results_filepath(rate=rate), envir=load_env, verbose=TRUE)
+    kamila_results <- load_env$kamila_results
+    combine_kamila_df_lst<-names(kamila_results) %>%
+      magrittr::set_names(custom_parallel_lapply(., function(survey_imp_key, surveyd, ...) {
+        message(paste("now in",survey_imp_key))
+        survey_imp_key_i<-unlist(strsplit(survey_imp_key,"_"))
+        surveykey<-survey_imp_key_i[1]
+        imp<-as.integer(survey_imp_key_i[2])
+        kamila_model<-kamila_results[[survey_imp_key]]
+        kamilasrcdf<-inflated_kamila_input_df_to_original_df(kamila_model) %>%
+          dplyr::select(memb) %>%
+          dplyr::bind_cols(dplyr::filter(survey_data_imputed[[surveykey]], .imp==!!imp) %>%
+                             dplyr::select(id,.imp,myown_wr) %>%
+                             inflate_df_from_weight(rate=rate) ) %>%
+          dplyr::rename(cluster_kamila=memb) %>%
+          dplyr::distinct_all()
+        kamilasrcdf$cluster_kamila %<>% as.factor() %>%
+          forcats::fct_infreq() %>%
+          forcats::fct_recode(., !!!{
+            magrittr::set_names(levels(.), as.list(sort(unique(.))))
+          }) %>% as.character() %>% as.integer()
+        dplyr::filter(surveyd[[surveykey]], .imp==!!imp) %>%
+          dplyr::select(-tidyselect::any_of(c("cluster_kamila"))) %>%
+          dplyr::left_join(kamilasrcdf) %>%
+          return()
+      }, kamila_results=kamila_results, surveyd=survey_data_imputed, method=parallel_method),.)
+    survey_data_imputed<-lapply(names(survey_data_imputed), grep, x=names(combine_kamila_df_lst), value=TRUE) %>%
+      lapply(FUN=function(n,tdflist) {magrittr::extract(tdflist, n)}, tdflist=combine_kamila_df_lst)  %>%
+      lapply(dplyr::bind_rows) %>%
+      lapply(FUN=function(X) {dplyr::arrange(X, .imp, id)}) %>%
+      magrittr::set_names(names(survey_data_imputed))
+    for (survey_imp_key in names(kamila_results)) {
+      needrow<-dplyr::filter(kamila_arguments_df, store_key==survey_imp_key)
+      message(paste("now in", survey_imp_key))
+      unique(kamila_results[[needrow$store_key]]$finalMemb) %>% print()
+    }
+    survey_data_imputed
+  },
+  # * check kamila prob result ----------------------------------------------
+  build_kamila_clustering_parameters = function(rate=10, kamila_arguments_df=self$get_kamila_arguments_df(), save=TRUE) {
+    inflated_kamila_input_df_to_original_df<-self$inflated_kamila_input_df_to_original_df
+    load_env <- new.env()
+    load(file=self$kamila_inflated_results_filepath(rate=rate), envir=load_env, verbose=TRUE)
+    kamila_results <- load_env$kamila_results
+    kamila_clustering_parameters<-custom_parallel_lapply(names(kamila_results), function(fikey, ...) {
+      needkamilamodel<-kamila_results[[fikey]]
+      needargrow<-dplyr::filter(kamila_arguments_df, store_key==!!fikey)
+      ratiotable<-table(inflated_kamila_input_df_to_original_df(needkamilamodel)$memb) %>% prop.table() %>% as.data.frame() %>%
+        dplyr::rename(clustn=Var1, ratio=Freq) %>%
+        dplyr::arrange(dplyr::desc(ratio)) %>%
+        data.frame(., populationsize=1:nrow(.)) %>%
+        dplyr::mutate_at("clustn", as.integer)
+      # syvdes <- survey::svydesign(id=~1, weights=~myown_wr, data=baseinfdo)
+      # ratiotable<-survey::svymean(~memb, syvdes) %>%
+      #   as.data.frame() %>%
+      #   dplyr::arrange(dplyr::desc(mean)) %>%
+      #   dplyr::mutate(clustn=row.names(.)) %>%
+      #   dplyr::mutate_at("clustn", ~as.numeric(customgsub(clustn,"memb",""))) %>%
+      #   cbind(., clustsize = seq(1,nrow(.)))
+      catgnames<-colnames(needkamilamodel$input$catFactor) %>%
+        magrittr::set_names(names(needkamilamodel$finalProbs))
+      catglevels<-lapply(needkamilamodel$input$catFactor,levels)
+      continames<-colnames(needkamilamodel$input$conVar)
+      probtable<-lapply(names(needkamilamodel$finalProbs), function(X, ...) {
+        matchcatgvarname<-catgnames[[X]]
+        catgprob<-needkamilamodel$finalProbs[[X]] %>%
+          magrittr::set_colnames(catglevels[[matchcatgvarname]])
+      },needkamilamodel=needkamilamodel, catgnames=catgnames, catglevels=catglevels, continames=continames) %>%
+        do.call(cbind,.) %>%
+        cbind(needkamilamodel$finalCenters %>%
+                magrittr::set_colnames(continames), .)
+      data.frame("totlclusters"=needkamilamodel$nClust$bestNClust,"clustn"=1:needkamilamodel$nClust$bestNClust) %>%
+        cbind(needargrow,.) %>%
+        cbind(probtable) %>%
+        dplyr::left_join(ratiotable, .) %>%
+        dplyr::select(survey, imp, store_key, totlclusters, populationsize, dplyr::everything(), -clustn) %>%
+        return()
+    }, kamila_results=kamila_results, kamila_arguments_df=kamila_arguments_df, method=parallel_method, rate=rate) %>%
+      dplyr::bind_rows() %>%
+      dplyr::arrange(survey, imp)
+    if (save==TRUE) {
+      save(kamila_clustering_parameters, file=self$kamila_clustering_parameters_filepath)
+      #write.csv(kamila_clustering_parameters, file="TMP.csv")
+    }
+    kamila_clustering_parameters
+  },
+  check_cluster_distribution = function(survey_data_imputed, imps=self$imps) {
+    for (s in names(survey_data_imputed)) {
+      for (imp in imps) {  #"cluster_varsellcm" "cluster_clustrd" "cluster_kamila"
+        message(paste0("SURVEY is ",s," and imp is",imp))
+        dplyr::filter(survey_data_imputed[[s]], .imp==!!imp) %>%
+          magrittr::use_series("cluster_kamila") %>%
+          table() %>%
+          print()
+      }
+    }
+  }
+))
 
+# 以下皆為探索過程的其他分群方法與檢核，僅保留參考用（不會執行） ==========================================
 
-
-clustering_var <- list(
-  "2004citizen"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_religion"),
-  "2010env"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_religion"),
-  "2010overall"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_religion"),
-  "2016citizen"=c("myown_sex","myown_age","myown_selfid","myown_marriage","myown_areakind","myown_factoredses","myown_religion")
-)
-
-nclusrange<-2:12
-ndimrange<-1:6
-
+# * clustrd clustering single result --------------------------------
 if (FALSE) {
-  load_lib_or_install(c("rvest","rlist","parallel")) #,"future","future.apply"
-  load_lib_or_install(c("itertools","ggplot2")) #,"future","future.apply"
-  load_lib_or_install(c("RMariaDB","getPass")) #,"future","future.apply"
+  load_lib_or_install(c("clustrd")) #,"future","future.apply"
+  idx_process_ratio<-8
+  idx_process_ratio<-9.2
+  source("(ignore)09_clustering_clustrd_commonpart_smallrange.R")
+  stop() #setwd('/mnt/e/Software/scripts/R/vote_record')
 }
 
 ## Establishing connections --------------------------------
@@ -74,10 +438,7 @@ if (FALSE) {
   )
   con <- do.call(DBI::dbConnect, dbconnect_info)
   DBI::dbDisconnect(con)
-  
-  
-  
-  
+
   tryCatch({
     con <- do.call(DBI::dbConnect, dbconnect_info)
     clustering_result_to_infotable() %>%
@@ -88,37 +449,6 @@ if (FALSE) {
     }
   )
 }
-
-
-
-# 第九部份：clustering  =================================
-clustrd_arguments_df<-data.frame("survey"=names(survey_data_imputed)) %>%
-  cbind(., imp = rep(imps, each = nrow(.))) %>%
-  cbind(., nclus = rep(nclusrange, each = nrow(.))) %>%
-  cbind(., ndim = rep(ndimrange, each = nrow(.))) %>%
-  cbind(., alpha = rep(c(0,0.25,0.5,0.75,1), each = nrow(.))) %>%
-  cbind(., method = rep(c("mixedRKM"), each = nrow(.))) %>% #,"mixedFKM"
-  cbind(., rotation = rep(c("none","varimax","promax"), each = nrow(.))) %>%
-  cbind(., criterion = rep(c("asw"), each = nrow(.))) %>%
-  cbind(., dst = rep(c("low"), each = nrow(.))) %>% #,"full"
-  filter(nclus>ndim)
-clustrd_using_surveyweight<-FALSE
-clustrd_using_surveyweight<-TRUE
-target_impn<-imputation_sample_i_s
-weight_reptimes_n_integer<-1
-weight_reptimes_n_integer<-0.15
-
-
-# * clustrd clustering single result --------------------------------
-
-if (FALSE) {
-  load_lib_or_install(c("clustrd")) #,"future","future.apply"
-  idx_process_ratio<-8
-  idx_process_ratio<-9.2
-  source("09_clustering_clustrd_commonpart_smallrange.R")
-  stop() #setwd('/mnt/e/Software/scripts/R/vote_record')
-}
-
 
 # * loading clustrd cluster assement and applying --------------------------------
 if (FALSE) {
@@ -143,8 +473,7 @@ if (FALSE) {
     mutate_cond(is.na(nstart), nstart=100) %>%
     dplyr::mutate(title2=paste0(survey,"_imp",imp))
   DBI::dbDisconnect(con)
-  
-  
+
   i<-1
   clustrd_assesment_result_argu_df<-clustrd_assesment_result_argu_df_basis  %>%
     dplyr::inner_join({
@@ -164,8 +493,8 @@ if (FALSE) {
       needdf<-survey_data_imputed[[needsurvey]] %>%
         .[.$.imp==needrow$imp,magrittr::extract2(clustering_var,needsurvey)]
       clustrd_model<-try({needdf %>%
-          clustrd::cluspcamix(nclus=needrow$nclusbest, ndim=needrow$ndimbest, method=needrow$method, 
-                              center=as.logical(needrow$center), scale=as.logical(needrow$scale), alpha=as.logical(needrow$alpha), rotation=needrow$rotation, 
+          clustrd::cluspcamix(nclus=needrow$nclusbest, ndim=needrow$ndimbest, method=needrow$method,
+                              center=as.logical(needrow$center), scale=as.logical(needrow$scale), alpha=as.logical(needrow$alpha), rotation=needrow$rotation,
                               nstart=needrow$nstart)
       })
       if(is(clustrd_model, 'try-error')) {
@@ -194,8 +523,7 @@ if (FALSE) {
     clustrd_results_after_assesment_file=clustrd_results_after_assesment_file,
     method=parallel_method
     ), .)
-  
-  
+
   load(file=clustrd_results_after_assesment_file, verbose=TRUE)
   assign_results<-c()
   for (fi in 1:nrow(clustrd_assesment_result_argu_df)) {
@@ -213,30 +541,16 @@ if (FALSE) {
     if(is(assign_result, 'try-error')) {
       assign_results %<>% c(needrow$title2)
     }
-    #assign_results[[fi]]<-assign_result
-    # #table(clustrdmodel$cluster)
   }
   if (length(assign_results)==0) message(assign_results)
-  
-  
 }
-
-
-
-
-
-
-
-
-# * clustrd clustering ranging assement --------------------------------
 
 # * My own Using WeightedCluster Examples --------------------------------
 if (FALSE) {
   load_lib_or_install(c("rvest","rlist","parallel","itertools")) #,"future","future.apply"
   load_lib_or_install(c("RMariaDB","getPass"))
   load_lib_or_install(c("WeightedCluster","cluster","ggplot2"))
-  
-  
+
   k_range<-1:2#30
   hclustermethods<-c("single", "mcquitty", "complete", "ward.D", "ward.D2", "median", "centroid", "average")
   pclustermethods<-c("KMedoids", "PAMonce")
@@ -278,9 +592,6 @@ if (FALSE) {
       #fviz_dend(hclusterresults[[hclustermethod]], cex = 0.5)
       res.coph <- cophenetic(signlehclustresult)
       cophentic_distance_relation<-cor(G.dist, res.coph)
-      #grp <- cutree(signlehclustresult, k = k)
-      #head(grp, n = k) %>% print()
-      #table(grp) %>% print()
       return(data.frame(hmethod=as.character(signlehclustresult_idx),cor=as.numeric(cophentic_distance_relation)))
     },mc.cores = parallel::detectCores()) %>% #
       dplyr::bind_rows()
@@ -302,8 +613,6 @@ if (FALSE) {
         message("hmethod is ", hmethod, " and pmethod is ", pmethod, " and k is ", k)
         singlehclusterresult<-extract2(hclusterresults, hmethod)
         singlepamresult<-wcKMedoids(G.dist, k=k, weights=surveyweight, initialclust=singlehclusterresult, method=pmethod)
-        #return(clustqual4$stats)
-        #signleclustresult<-singlepamresult
         signleclustresult<-singlepamresult
         return(signleclustresult)
       }, hmethod=cluster_arguments_df$hmethod, pmethod=cluster_arguments_df$pmethod, k=cluster_arguments_df$k, SIMPLIFY = FALSE, MoreArgs = list(hclusterresults=hclusterresults), mc.cores = parallel::detectCores()) %>%
@@ -330,7 +639,7 @@ if (FALSE) {
         return()
     },mc.cores = parallel::detectCores()) %>%
       dplyr::bind_rows()
-    
+
     cluster_quality_resultsdf<-dplyr::bind_rows(cluster_quality_resultsdf,{
       dplyr::bind_rows(hcluster_quality_results,combine_hclust_pam_results_stats) %>%
         dplyr::filter(indicator %in% needindicator) %>%
@@ -359,126 +668,17 @@ if (FALSE) {
     ), error=function(e) {
       message(e)
     })
-    
   }
 }
-
 
 # http://fenyolab.org/presentations/Machine_Learning_2018/slides/2.%20Cluster%20Analysis.pdf
 
 # * loading processed hierarchical Kmed cluster quality examination ------------------------
 if (FALSE) {
-  
   load(file=(paste0(dataset_in_scriptsfile_directory,"weightedclustering_detect_results.RData")), verbose=TRUE )
   cluster_quality_resultsdf %<>% dplyr::mutate(title=paste0(survey, "_", "imp", imp, "_", hmethod, "_", pmethod, "_", k))
   View(dplyr::distinct(dplyr::arrange(cluster_quality_resultsdf, survey, imp, by, indicator, desc(stats), hmethod),survey, imp, by, indicator, stats, hmethod, k, cor, pmethod))
-  
-  "
-  1569	2004citizen	1	Partition	ASWw	0.6220064	ward.D	46	NA	PAMonce
-  1570	2004citizen	1	Partition	ASWw	0.6185019	ward.D2	50	NA	KMedoids
-  1571	2004citizen	1	Partition	ASWw	0.6168894	complete	45	NA	PAMonce
-  1572	2004citizen	1	Partition	ASWw	0.6168894	ward.D	45	NA	PAMonce
-  1573	2004citizen	1	Partition	ASWw	0.6167973	average	45	NA	PAMonce
-  6273	2004citizen	2	Partition	ASWw	0.6228385	ward.D2	50	NA	KMedoids
-  6274	2004citizen	2	Partition	ASWw	0.6187022	ward.D	44	NA	PAMonce
-  6275	2004citizen	2	Partition	ASWw	0.6187022	ward.D2	44	NA	PAMonce
-  6276	2004citizen	2	Partition	ASWw	0.6169955	ward.D2	49	NA	KMedoids
-  6277	2004citizen	2	Partition	ASWw	0.6147430	ward.D	43	NA	PAMonce
-  10977	2004citizen	3	Partition	ASWw	0.6215120	ward.D2	45	NA	PAMonce
-  10978	2004citizen	3	Partition	ASWw	0.6214041	mcquitty	45	NA	PAMonce
-  10979	2004citizen	3	Partition	ASWw	0.6209833	average	45	NA	PAMonce
-  10980	2004citizen	3	Partition	ASWw	0.6204365	ward.D2	50	NA	KMedoids
-  10981	2004citizen	3	Partition	ASWw	0.6180696	mcquitty	44	NA	PAMonce
-  15681	2004citizen	4	Partition	ASWw	0.6225769	ward.D2	50	NA	KMedoids
-  15682	2004citizen	4	Partition	ASWw	0.6187395	ward.D	44	NA	PAMonce
-  15683	2004citizen	4	Partition	ASWw	0.6187395	ward.D2	44	NA	PAMonce
-  15684	2004citizen	4	Partition	ASWw	0.6186682	average	44	NA	PAMonce
-  15685	2004citizen	4	Partition	ASWw	0.6186682	median	44	NA	PAMonce
-  20385	2004citizen	5	Partition	ASWw	0.6331580	average	47	NA	PAMonce
-  20386	2004citizen	5	Partition	ASWw	0.6331580	ward.D2	47	NA	PAMonce
-  20387	2004citizen	5	Partition	ASWw	0.6283608	ward.D	46	NA	PAMonce
-  20388	2004citizen	5	Partition	ASWw	0.6283608	ward.D2	46	NA	PAMonce
-  20389	2004citizen	5	Partition	ASWw	0.6280319	average	46	NA	PAMonce
-  
-  25089	2010env	1	Partition	ASWw	0.6204924	complete	50	NA	PAMonce
-  25090	2010env	1	Partition	ASWw	0.6204924	mcquitty	50	NA	PAMonce
-  25091	2010env	1	Partition	ASWw	0.6204924	ward.D	50	NA	PAMonce
-  25092	2010env	1	Partition	ASWw	0.6204924	ward.D2	50	NA	PAMonce
-  25093	2010env	1	Partition	ASWw	0.6167166	complete	49	NA	PAMonce
-  29793	2010env	2	Partition	ASWw	0.6225807	complete	50	NA	PAMonce
-  29794	2010env	2	Partition	ASWw	0.6225807	mcquitty	50	NA	PAMonce
-  29795	2010env	2	Partition	ASWw	0.6225807	ward.D	50	NA	PAMonce
-  29796	2010env	2	Partition	ASWw	0.6225807	ward.D2	50	NA	PAMonce
-  29797	2010env	2	Partition	ASWw	0.6183137	complete	49	NA	PAMonce
-  34497	2010env	3	Partition	ASWw	0.6213428	complete	50	NA	PAMonce
-  34498	2010env	3	Partition	ASWw	0.6213428	mcquitty	50	NA	PAMonce
-  34499	2010env	3	Partition	ASWw	0.6213428	ward.D	50	NA	PAMonce
-  34500	2010env	3	Partition	ASWw	0.6213428	ward.D2	50	NA	PAMonce
-  34501	2010env	3	Partition	ASWw	0.6174344	complete	49	NA	PAMonce
-  39201	2010env	4	Partition	ASWw	0.6239977	ward.D	50	NA	PAMonce
-  39202	2010env	4	Partition	ASWw	0.6239977	ward.D2	50	NA	PAMonce
-  39203	2010env	4	Partition	ASWw	0.6238165	complete	50	NA	PAMonce
-  39204	2010env	4	Partition	ASWw	0.6238165	mcquitty	50	NA	PAMonce
-  39205	2010env	4	Partition	ASWw	0.6195707	average	49	NA	PAMonce
-  43905	2010env	5	Partition	ASWw	0.6216690	complete	50	NA	PAMonce
-  43906	2010env	5	Partition	ASWw	0.6216690	ward.D	50	NA	PAMonce
-  43907	2010env	5	Partition	ASWw	0.6216690	ward.D2	50	NA	PAMonce
-  43908	2010env	5	Partition	ASWw	0.6213576	mcquitty	50	NA	PAMonce
-  43909	2010env	5	Partition	ASWw	0.6171964	complete	49	NA	PAMonce
-  
-  48609	2010overall	1	Partition	ASWw	0.5779079	average	50	NA	PAMonce
-  48610	2010overall	1	Partition	ASWw	0.5779079	mcquitty	50	NA	PAMonce
-  48611	2010overall	1	Partition	ASWw	0.5779079	ward.D	50	NA	PAMonce
-  48612	2010overall	1	Partition	ASWw	0.5775569	complete	50	NA	PAMonce
-  48613	2010overall	1	Partition	ASWw	0.5775569	ward.D2	50	NA	PAMonce
-  53313	2010overall	2	Partition	ASWw	0.5799655	median	50	NA	PAMonce
-  53314	2010overall	2	Partition	ASWw	0.5795645	average	50	NA	PAMonce
-  53315	2010overall	2	Partition	ASWw	0.5795645	complete	50	NA	PAMonce
-  53316	2010overall	2	Partition	ASWw	0.5795645	mcquitty	50	NA	PAMonce
-  53317	2010overall	2	Partition	ASWw	0.5795645	ward.D	50	NA	PAMonce
-  58017	2010overall	3	Partition	ASWw	0.5923895	median	50	NA	PAMonce
-  58018	2010overall	3	Partition	ASWw	0.5923895	ward.D	50	NA	PAMonce
-  58019	2010overall	3	Partition	ASWw	0.5923895	ward.D2	50	NA	PAMonce
-  58020	2010overall	3	Partition	ASWw	0.5917583	average	50	NA	PAMonce
-  58021	2010overall	3	Partition	ASWw	0.5917583	complete	50	NA	PAMonce
-  62721	2010overall	4	Partition	ASWw	0.5775224	average	50	NA	PAMonce
-  62722	2010overall	4	Partition	ASWw	0.5775224	complete	50	NA	PAMonce
-  62723	2010overall	4	Partition	ASWw	0.5775224	mcquitty	50	NA	PAMonce
-  62724	2010overall	4	Partition	ASWw	0.5775224	ward.D	50	NA	PAMonce
-  62725	2010overall	4	Partition	ASWw	0.5775224	ward.D2	50	NA	PAMonce
-  67425	2010overall	5	Partition	ASWw	0.5794807	ward.D	50	NA	PAMonce
-  67426	2010overall	5	Partition	ASWw	0.5793507	average	50	NA	PAMonce
-  67427	2010overall	5	Partition	ASWw	0.5793507	centroid	50	NA	PAMonce
-  67428	2010overall	5	Partition	ASWw	0.5793507	complete	50	NA	PAMonce
-  67429	2010overall	5	Partition	ASWw	0.5793507	mcquitty	50	NA	PAMonce
-  
-  72129	2016citizen	1	Partition	ASWw	0.5525072	complete	50	NA	PAMonce
-  72130	2016citizen	1	Partition	ASWw	0.5525072	mcquitty	50	NA	PAMonce
-  72131	2016citizen	1	Partition	ASWw	0.5509503	ward.D	50	NA	PAMonce
-  72132	2016citizen	1	Partition	ASWw	0.5509503	ward.D2	50	NA	PAMonce
-  72133	2016citizen	1	Partition	ASWw	0.5477929	complete	49	NA	PAMonce
-  76833	2016citizen	2	Partition	ASWw	0.5521460	median	50	NA	PAMonce
-  76834	2016citizen	2	Partition	ASWw	0.5499016	ward.D2	50	NA	PAMonce
-  76835	2016citizen	2	Partition	ASWw	0.5494650	ward.D	50	NA	PAMonce
-  76836	2016citizen	2	Partition	ASWw	0.5463512	median	49	NA	PAMonce
-  76837	2016citizen	2	Partition	ASWw	0.5447200	ward.D2	49	NA	PAMonce
-  81537	2016citizen	3	Partition	ASWw	0.5541979	complete	50	NA	PAMonce
-  81538	2016citizen	3	Partition	ASWw	0.5541979	ward.D	50	NA	PAMonce
-  81539	2016citizen	3	Partition	ASWw	0.5541979	ward.D2	50	NA	PAMonce
-  81540	2016citizen	3	Partition	ASWw	0.5495602	ward.D2	49	NA	PAMonce
-  81541	2016citizen	3	Partition	ASWw	0.5494957	complete	49	NA	PAMonce
-  86241	2016citizen	4	Partition	ASWw	0.5530140	ward.D	50	NA	PAMonce
-  86242	2016citizen	4	Partition	ASWw	0.5530140	ward.D2	50	NA	PAMonce
-  86243	2016citizen	4	Partition	ASWw	0.5474496	ward.D	49	NA	PAMonce
-  86244	2016citizen	4	Partition	ASWw	0.5474496	ward.D2	49	NA	PAMonce
-  86245	2016citizen	4	Partition	ASWw	0.5426122	average	48	NA	PAMonce
-  90945	2016citizen	5	Partition	ASWw	0.5524685	mcquitty	50	NA	PAMonce
-  90946	2016citizen	5	Partition	ASWw	0.5512658	complete	50	NA	PAMonce
-  90947	2016citizen	5	Partition	ASWw	0.5512658	ward.D	50	NA	PAMonce
-  90948	2016citizen	5	Partition	ASWw	0.5512658	ward.D2	50	NA	PAMonce
-  90949	2016citizen	5	Partition	ASWw	0.5472830	mcquitty	49	NA	PAMonce
-  "
-  
+  #（歷次檢核結果數據紀錄已省略，見git歷史版本）
 }
 
 # * DBSCAN ----------------
@@ -493,7 +693,6 @@ if (FALSE) {
   DBSCAN_results<-list()
   DBSCANclusterfile <- paste0(dataset_in_scriptsfile_directory, "DBSCANcluster.Rdata")
   #OPTICS
-  #DBSCAN_results<-lapply(1:nrow(DBSCAN_arguments_df), function(fi, ...)  {
   for (fi in 1:nrow(DBSCAN_arguments_df)) { #22
     survey_key <- DBSCAN_arguments_df$survey[fi]
     needimp <- DBSCAN_arguments_df$imp[fi]
@@ -510,22 +709,9 @@ if (FALSE) {
     gower_mat <- as.matrix(G.dist)
     #finding epsilon distance(eps)
     dbscan::kNNdistplot(G.dist, k = targetminpts-1)
-    #dbscan::kNNdist(G.dist, k=targetminpts)
     title(main = paste("survey",survey_key, "imp", needimp, "minpts", targetminpts))
     iteri <- 1
     repeat { #透過檢核有無dbscan分析出來的集群出現自動往上找eps參數
-      if (iteri==1) {
-        # repeat {
-        #   tryplotaxisylocation<-readline("where knee is at and try plot axis y location/or stop at:")
-        #   if (tryplotaxisylocation=="") {
-        #     break
-        #   }
-        # }
-        # tryplotaxisylocation<-.005
-        # assigned_dbscan_optimal_eps <- as.numeric(tryplotaxisylocation)
-      } else {
-        # assigned_dbscan_optimal_eps <- assigned_dbscan_optimal_eps + iteri*0.005
-      }
       assigned_dbscan_optimal_eps <- 2+.0025*iteri
       message(paste("now in iter", iteri,"of",store_key,"and try eps at",assigned_dbscan_optimal_eps))
       abline(h = as.numeric(assigned_dbscan_optimal_eps), lty = 2)
@@ -535,8 +721,6 @@ if (FALSE) {
       optic_obj<-dbscan::optics(gower_mat, minPts = targetminpts)
       dbcluster_obj<-dbscan::extractDBSCAN(optic_obj, eps_cl=assigned_dbscan_optimal_eps)
       if (length(unique(dbcluster_obj$cluster))<need_minclusters) next
-      #print(unique(dbcluster_obj$cluster))
-      #print(table(dbcluster_obj$cluster))
       silhouetteresult<-cluster::silhouette(dbcluster_obj$cluster, dmatrix=gower_mat)
       sil_avg_width<-tryCatch(
         summary(silhouetteresult)$avg.width,
@@ -549,13 +733,8 @@ if (FALSE) {
         break
       }
     }
-    #message("Silhouette is :")
-    #print(summary(silhouetteresult))
-    #if (readline("continue to change k-value?")=="N") break
     DBSCAN_results[[store_key]]<-dbcluster_obj
-    #clustrd_results_with_best_argument[[iterx$needsurvey]]$cluster<-dbcluster_obj$cluster
-  }#, DBSCAN_arguments_df=DBSCAN_arguments_df, survey_data_imputed=survey_data_imputed, clustering_var=clustering_var,
-  #DBSCANclusterfile=DBSCANclusterfile, method="fork")
+  }
   save(DBSCAN_results, DBSCAN_arguments_df, file=DBSCANclusterfile)
   load(file=DBSCANclusterfile, verbose=TRUE)
   for (fi in 1:nrow(DBSCAN_arguments_df)) {
@@ -570,268 +749,6 @@ if (FALSE) {
       readline(paste("now in",store_key,"and cluster is",cluster_i,"continue? "))
     }
   }
-}
-
-# * model-based clustering by VarSelLCM ----------------
-#load_lib_or_install(c("VarSelLCM"))
-varsellcm_results<-list()
-varsellcm_arguments_df<-data.frame("survey"=survey_data_title) %>%
-  cbind(., imp = rep(imps, each = nrow(.))) %>%
-  cbind(., varsel = rep(c("wtho","wth"), each = nrow(.))) %>%
-  dplyr::mutate(keyprefix=paste0(survey,"_imp",imp)) %>%
-  dplyr::mutate(store_key=paste0(survey, "_imp", imp, "_", varsel)) #%>%
-  #dplyr::filter(survey %in% c("2010overall","2016citizen")) %>%
-  #dplyr::filter(!(store_key %in% !!names(varsellcm_results)) )
-resvarselclusterfile <- paste0(dataset_in_scriptsfile_directory, "varselcluster.Rdata")
-if (FALSE) {
-  
-  
-  varsellcm_results<- varsellcm_arguments_df$store_key %>%
-    magrittr::set_names( custom_parallel_lapply(., function (fikey, varsellcm_arguments_df, ...) {
-      needrow <- dplyr::filter(varsellcm_arguments_df, store_key==!!fikey)
-      survey_key <- needrow$survey #iterx$needsurvey
-      needimp <- needrow$imp
-      needvarsel <- needrow$varsel
-      if (TRUE) {
-        needdf<-dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
-          dplyr::mutate_at("myown_age",scale) %>%
-          dplyr::mutate_at("myown_age",function (X) {X[,1]}) %>%
-          dplyr::mutate_at("myown_age",as.numeric)
-        surveyweight<-needdf$myown_wr
-        inputData<-dplyr::select(needdf, !!clustering_var[[survey_key]])
-        n_select_components<-2:12
-        
-        resmod <- if (needvarsel=="wtho") {
-          # Cluster analysis without variable selection
-          VarSelLCM::VarSelCluster(inputData, gvals = n_select_components, nbcores = parallel::detectCores(), vbleSelec = FALSE, crit.varsel = "BIC")
-        } else {
-          # Cluster analysis with variable selection (with parallelisation)
-          VarSelLCM::VarSelCluster(inputData, gvals = n_select_components, nbcores = parallel::detectCores(), crit.varsel = "BIC")
-        }
-        while (TRUE) {
-          loadsavestatus<-try({
-            load(file=resvarselclusterfile, verbose=TRUE)
-            varsellcm_results[[needrow$store_key]] <- resmod
-            save(varsellcm_results, file=resvarselclusterfile)
-          })
-          if(!is(loadsavestatus, 'try-error')) break
-        }
-        return(resmod)
-      }
-    }, varsellcm_arguments_df=varsellcm_arguments_df,
-    survey_data_imputed=survey_data_imputed,
-    clustering_var=clustering_var,
-    resvarselclusterfile=resvarselclusterfile, method=parallel_method), . )
-  
-  save(varsellcm_results, file=resvarselclusterfile)
-  load(file=resvarselclusterfile, verbose=TRUE)
-  for (varsellcm_results_key in unique(sort(varsellcm_arguments_df$keyprefix))) {
-    needrow<-dplyr::filter(varsellcm_arguments_df, keyprefix==!!varsellcm_results_key)
-    imp <- needrow$imp[1] %>% as.integer()
-    res_with <- paste0(varsellcm_results_key, "_wth") %>%
-      magrittr::extract2(varsellcm_results, .)
-    res_without <- paste0(varsellcm_results_key, "_wtho") %>%
-      magrittr::extract2(varsellcm_results, .)
-    resmodel<-if ( abs(VarSelLCM::BIC(res_without)) > abs(VarSelLCM::BIC(res_with)) ) res_with else res_without
-    
-    #VarSelLCM::BIC(resmodel) %>% print()
-    #VarSelLCM::summary(resmodel) %>% print()
-    # Estimated probabilities of classification
-    #head(VarSelLCM::fitted(resmodel, type="probability")) %>% print()
-    #print(resmodel)
-    #VarSelLCM::coef(resmodel) %>% print()
-    table_of_cluster_dist_orig<-table(VarSelLCM::fitted(resmodel))
-    for (interpretvar in clustering_var[[needrow$survey[1]]]) {
-      #if (readline("next var:")=="N") break
-      #VarSelLCM::plot(x=resmodel, y=interpretvar)
-    }
-    #factorlevelseq <- as.character(sort(unique(VarSelLCM::fitted(resmodel))))
-    factored_cluster<-VarSelLCM::fitted(resmodel) %>%
-      as.factor() %>%
-      forcats::fct_infreq() %>%
-      forcats::fct_recode(., !!!{
-        set_names(levels(.), as.list(sort(unique(.))))
-      })
-    table_of_cluster_dist<-table(factored_cluster)
-    message(paste0("distribution of cluster of ",varsellcm_results_key," is:"))
-    print(table_of_cluster_dist)
-    survey_data_imputed[[needrow$survey[1]]][survey_data_imputed[[needrow$survey[1]]]$.imp==imp,"cluster_varsellcm"] <- as.integer(as.character(factored_cluster))
-  }
-  
-  
-}
-
-
-# * model-based clustering by KAMILA ----------------
-kamila_results<-list()
-kamila_arguments_df<-data.frame("survey"=survey_data_title) %>%
-  cbind(., imp = rep(imps, each = nrow(.))) %>%
-  dplyr::mutate(store_key=paste0(survey,"_",imp)) %>%
-  dplyr::mutate_at(c("survey","store_key"),as.character) %>%
-  dplyr::mutate_at("imp", as.integer) %>%
-  dplyr::filter(survey %in% c("2010overall","2016citizen")) %>%
-  dplyr::arrange(survey, imp)
-reskamilaclusterfile <- paste0(save_dataset_in_scriptsfile_directory, "kamilacluster.Rdata")
-reskamilaclusterfile <- paste0(save_dataset_in_scriptsfile_directory, "kamilacluster_inflated.Rdata")
-reskamilaclusterbackupfile <- paste0(save_dataset_in_scriptsfile_directory, "kamilacluster_inflated_backup.Rdata")
-if ({skip_processed_kamila<-FALSE;skip_processed_kamila}) {
-  load(file=reskamilaclusterfile, verbose=TRUE)
-  processed_kamila_key<-sapply(kamila_results, class) %>%
-    .[.=="list"] %>%
-    names()
-  kamila_arguments_df %<>% dplyr::filter(!(store_key %in% !!processed_kamila_key))
-}
-if (FALSE) {
-  kamila_results<-dplyr::arrange(kamila_arguments_df, imp) %>% magrittr::use_series("store_key") %>%
-    #.[1:24] %>%
-    magrittr::set_names( custom_parallel_lapply(., function (fikey, ...) {
-      message(paste("now in",fikey))
-      needrow<-dplyr::filter(kamila_arguments_df, store_key==!!fikey)
-      survey_key <- needrow$survey
-      needimp <- needrow$imp
-      #needdf<-
-      #surveyweight<-needdf$myown_wr
-      resmodel <- dplyr::filter(survey_data_imputed[[survey_key]], .imp==!!needimp) %>%
-        dplyr::mutate(myown_age=as.numeric(scale(myown_age))) %>%
-        dplyr::mutate(myown_factoredses=myown_factoredses_scaled) %>%
-        dplyr::select(tidyselect::any_of(c("myown_wr",clustering_var[[survey_key]]))) %>% #".imp",".id","id",
-        inflate_df_from_weight(rate=30) %>%
-        dplyr::select(!!clustering_var[[survey_key]]) %>%
-        {kamila::kamila(conVar=.[,c("myown_age","myown_factoredses")],
-                       catFactor=.[c("myown_sex","myown_selfid","myown_marriage","myown_areakind","myown_religion")],
-                       numClust = 3:8, numInit = 10, calcNumClust = "ps", numPredStrCvRun = 10,
-                       predStrThresh = 0.5, maxIter=1000, verbose=TRUE)}
-      tryn<-1
-      while (TRUE) {
-        loadsavestatus<-try({
-          load(file=reskamilaclusterfile, verbose=TRUE)
-          kamila_results[[fikey]]<-resmodel
-          save(kamila_results, file=reskamilaclusterfile)
-        })
-        tryn<-tryn+1
-        if(!is(loadsavestatus, 'try-error') | tryn>11) break
-      }
-      return(resmodel)
-      #return(kamila_results[[store_key]]$nClust$bestNClust)
-    }, kamila_arguments_df=kamila_arguments_df,
-    nclusrange=base::setdiff(nclusrange,1),
-    survey_data_imputed=survey_data_imputed,
-    clustering_var=clustering_var,
-    reskamilaclusterfile=reskamilaclusterfile,
-    mc.cores=24,
-    method=parallel_method)  , .)
-}
-
-#save(kamila_results, file=reskamilaclusterbackupfile)
-#save(kamila_results, file=reskamilaclusterfile)
-
-# * applying kamila_results to survey data ----------------------------------------------
-
-inflated_kamila_input_df_to_original_df<-function(one_kamila_model, distinctall=FALSE) {
-  t<-dplyr::bind_cols(one_kamila_model$input$conVar, one_kamila_model$input$catFactor) %>%
-    data.frame(., "memb"=one_kamila_model$finalMemb) 
-  if (distinctall==TRUE) {
-    t %<>% dplyr::distinct_all()
-  }
-  return(t)
-}
-
-if (FALSE) {
-  load(file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca.RData"), verbose=TRUE)
-  survey_data_imputed %<>% change_survey_data_religion()
-  rate<-10
-  load(file=paste0(save_dataset_in_scriptsfile_directory,"kamilacluster_inflated_times",rate,".Rdata"), verbose=TRUE)
-  combine_kamila_df_lst<-names(kamila_results) %>%
-    magrittr::set_names(custom_parallel_lapply(., function(survey_imp_key, surveyd, ...) {
-      message(paste("now in",survey_imp_key))
-      survey_imp_key_i<-unlist(strsplit(survey_imp_key,"_"))
-      surveykey<-survey_imp_key_i[1]
-      imp<-as.integer(survey_imp_key_i[2])
-      kamila_model<-kamila_results[[survey_imp_key]]
-      kamilasrcdf<-inflated_kamila_input_df_to_original_df(kamila_model) %>%
-        dplyr::select(memb) %>%
-        dplyr::bind_cols(dplyr::filter(survey_data_imputed[[surveykey]], .imp==!!imp) %>%
-                           dplyr::select(id,.imp,myown_wr) %>%
-                           inflate_df_from_weight(rate=rate) ) %>%
-        dplyr::rename(cluster_kamila=memb) %>%
-        dplyr::distinct_all()
-      kamilasrcdf$cluster_kamila %<>% as.factor() %>%
-        forcats::fct_infreq() %>%
-        forcats::fct_recode(., !!!{
-          magrittr::set_names(levels(.), as.list(sort(unique(.))))
-        }) %>% as.character() %>% as.integer()
-      dplyr::filter(surveyd[[surveykey]], .imp==!!imp) %>%
-        dplyr::select(-tidyselect::any_of(c("cluster_kamila"))) %>%
-        dplyr::left_join(kamilasrcdf) %>%
-      # surveyd[[surveykey]] %>%
-      #   dplyr::filter(.imp!=!!imp) %>%
-      #   dplyr::bind_rows(t) %>%
-        return()
-      # merging_res<-try({survey_data_imputed[[surveykey]][survey_data_imputed[[surveykey]]$.imp==imp, "cluster_kamila"]<-kamilasrcdf$memb})
-      # if(!is(merging_res, 'try-error')) {
-      #   
-      # }
-    }, kamila_results=kamila_results, surveyd=survey_data_imputed, method=parallel_method),.)
-  survey_data_imputed<-lapply(names(survey_data_imputed), grep, x=names(combine_kamila_df_lst), value=TRUE) %>%
-    lapply(FUN=function(n,tdflist) {magrittr::extract(tdflist, n)}, tdflist=combine_kamila_df_lst)  %>%
-    lapply(dplyr::bind_rows) %>%
-    lapply(FUN=function(X) {dplyr::arrange(X, .imp, id)}) %>%
-    magrittr::set_names(names(survey_data_imputed))
-  for (survey_imp_key in names(kamila_results)) {
-    needrow<-dplyr::filter(kamila_arguments_df, store_key==survey_imp_key)
-    message(paste("now in", survey_imp_key))
-    unique(kamila_results[[needrow$store_key]]$finalMemb) %>% print()
-  }
-}
-
-# * check kamila prob result ----------------------------------------------
-if (FALSE) {
-  #load(file=reskamilaclusterfile, verbose=TRUE)
-  load(file=paste0(save_dataset_in_scriptsfile_directory,"kamilacluster_inflated_times",rate,".Rdata"), verbose=TRUE)
-  kamila_clustering_parameters<-custom_parallel_lapply(names(kamila_results), function(fikey, ...) {
-    needkamilamodel<-kamila_results[[fikey]]
-    needargrow<-dplyr::filter(kamila_arguments_df, store_key==!!fikey)
-    # baseinfdo<-dplyr::filter(survey_data_imputed[[needargrow$survey]], .imp==!!needargrow$imp) %>%
-    #   dplyr::select(id,.imp,myown_wr) %>%
-    #   inflate_df_from_weight(rate=rate) %>%
-    #   data.frame(., inflated_kamila_input_df_to_original_df(needkamilamodel) ) %>%
-    #   dplyr::mutate_at("memb", as.factor) %>%
-    #   dplyr::distinct_all()
-    ratiotable<-table(inflated_kamila_input_df_to_original_df(needkamilamodel)$memb) %>% prop.table() %>% as.data.frame() %>%
-      dplyr::rename(clustn=Var1, ratio=Freq) %>%
-      dplyr::arrange(dplyr::desc(ratio)) %>%
-      data.frame(., populationsize=1:nrow(.)) %>%
-      dplyr::mutate_at("clustn", as.integer)
-    # syvdes <- survey::svydesign(id=~1, weights=~myown_wr, data=baseinfdo)
-    # ratiotable<-survey::svymean(~memb, syvdes) %>%
-    #   as.data.frame() %>%
-    #   dplyr::arrange(dplyr::desc(mean)) %>%
-    #   dplyr::mutate(clustn=row.names(.)) %>%
-    #   dplyr::mutate_at("clustn", ~as.numeric(customgsub(clustn,"memb",""))) %>%
-    #   cbind(., clustsize = seq(1,nrow(.)))
-    catgnames<-colnames(needkamilamodel$input$catFactor) %>%
-      magrittr::set_names(names(needkamilamodel$finalProbs))
-    catglevels<-lapply(needkamilamodel$input$catFactor,levels)
-    continames<-colnames(needkamilamodel$input$conVar)
-    probtable<-lapply(names(needkamilamodel$finalProbs), function(X, ...) {
-      matchcatgvarname<-catgnames[[X]]
-      catgprob<-needkamilamodel$finalProbs[[X]] %>%
-        magrittr::set_colnames(catglevels[[matchcatgvarname]])
-    },needkamilamodel=needkamilamodel, catgnames=catgnames, catglevels=catglevels, continames=continames) %>%
-      do.call(cbind,.) %>%
-      cbind(needkamilamodel$finalCenters %>%
-              magrittr::set_colnames(continames), .)
-    data.frame("totlclusters"=needkamilamodel$nClust$bestNClust,"clustn"=1:needkamilamodel$nClust$bestNClust) %>%
-      cbind(needargrow,.) %>%
-      cbind(probtable) %>%
-      dplyr::left_join(ratiotable, .) %>%
-      dplyr::select(survey, imp, store_key, totlclusters, populationsize, dplyr::everything(), -clustn) %>%
-      return()
-  }, kamila_results=kamila_results, kamila_arguments_df=kamila_arguments_df, method=parallel_method, rate=10) %>%
-    dplyr::bind_rows() %>%
-    dplyr::arrange(survey, imp)
-  save(kamila_clustering_parameters, file=paste0(dataset_in_scriptsfile_directory, "kamila_clustering_parameters.Rdata"))
-  #write.csv(kamila_clustering_parameters, file="TMP.csv")
 }
 
 # * model-based clustering by mixtools and pdfCluster----------------
@@ -850,10 +767,8 @@ if (FALSE) {
     dplyr::select(!!clustering_var[[needrow$survey]])
 }
 
-
 # * model-based clustering by clustMD ----------------
 #load_lib_or_install(c("clustMD"))
-
 if (FALSE) {
   clustrd_results_with_best_argument<-list()
   it <- ihasNext(product(needsurvey = survey_data_title[1], needimp = 1))
@@ -897,15 +812,11 @@ if (FALSE) {
     }) %>% unlist()
     inputData <- dplyr::mutate_if(inputData, is.factor, forcats::fct_recode, !!!recode_factorvar_levellabels)
   }
-  
 }
 
 # Assessing Cluster clustrd Stability --------------------------------
 #https://zh-tw.coursera.org/lecture/cluster-analysis/6-9-cluster-stability-65y3a
 #https://www.cyut.edu.tw/~rcchen/research/html/ms/s8914617/cyut-8-324.pdf
-#load(file=paste0(dataset_in_scriptsfile_directory,"clustrd_results.RData"))
-#load(file=paste0(dataset_in_scriptsfile_directory,"small_clustrd_results.RData"))
-
 if (FALSE) {
   clustering_result_compare_table<-future_mapply(function(title,listelement) {
     df1<-data.frame("title"=c(title))
@@ -922,28 +833,23 @@ if (FALSE) {
     dplyr::bind_rows() %>%
     dplyr::arrange(survey, desc(critbest), crit, desc(criterion_in_obj))
   View(clustering_result_compare_table)
-  
+
   #The ASW index, which ranges from −1 to 1, reflects the compactness of the clusters and indicates whether a cluster structure is well separated or not.
   #The CH index is the ratio of between-cluster variance to within-cluster variance, corrected according to the number of clusters, and takes values between 0 and infinity.
   #In general, the higher the ASW and CH values, the better the cluster separation.
-  
-  
+
   for (i in 1:length(detect_best_results)) {
     message(names(detect_best_results)[[i]])
     print(detect_best_results[[i]])
   }
 }
 
-
-
-
 # Apply Clustrd results according to previously retrieved information db--------------------------------
-
 if (FALSE) {
   con <- do.call(DBI::dbConnect, dbconnect_info)
   already_in_sqltable_clustrd_records<-DBI::dbReadTable(con, db_table_name)
   DBI::dbDisconnect(con)
-  
+
   nclusbest_threshold<-3
   comparing_appro_clustrd_result<-lapply(names(clustering_var), function(survey) {
     dplyr::filter(already_in_sqltable_clustrd_records, survey==!!survey, criterion=="asw") %>% #, imp==needimp
@@ -973,8 +879,8 @@ if (FALSE) {
         .[1,]
     }) %>% set_names(names(clustering_var))
   }
-  
-  #for (survey in names(bestarguments_for_clustrd)) {
+
+  clustrd_using_surveyweight<-TRUE
   clustrd_results_with_best_argument<-parallel::mclapply(names(bestarguments_for_clustrd), function(survey) {
     needdata<-extract2(survey_data_imputed,survey) %>%
       dplyr::filter(.imp==1)
@@ -1000,7 +906,7 @@ if (FALSE) {
   }) %>%
     set_names(names(clustering_var))
   save(clustrd_results_with_best_argument,file=paste0(dataset_in_scriptsfile_directory,"clustrd_results_with_best_argument_nclus-threshold-",nclusbest_threshold,"_with_weight.RData"))
-  
+
   load(file=paste0(dataset_in_scriptsfile_directory,"clustrd_results_with_best_argument_nclus-threshold-",nclusbest_threshold,".RData"), verbose=TRUE)
   # for using in plotting
   it <- ihasNext(product(needsurveykey = survey_data_title, needimp = 1))
@@ -1020,11 +926,8 @@ if (FALSE) {
   }
 }
 
-
-
 # Factor analysis of mixed data and Graphing cluster result --------------------------------
 #load_lib_or_install(c("FactoMineR","factoextra","parallel","magrittr"))
-
 if (FALSE) {
   it <- ihasNext(product(needsurveykey = 1:4, needimp = 1))
   while(hasNext(it)) {
@@ -1088,11 +991,8 @@ if (FALSE) {
         break
       }
     }
-    #break
   }
 }
-
-
 
 # VAT (Visual Assessment of Tendency) assessing clustering tendency --------------------------------
 if (FALSE) {
@@ -1118,21 +1018,8 @@ if (FALSE) {
       break
     }
   }
-  
-  
-  for (s in names(survey_data_imputed)) {
-    for (imp in imps) {  #"cluster_varsellcm" "cluster_clustrd" "cluster_kamila"
-      message(paste0("SURVEY is ",s," and imp is",imp))
-      dplyr::filter(survey_data_imputed[[s]], .imp==!!imp) %>%
-        magrittr::use_series("cluster_kamila") %>%
-        table() %>%
-        print()
-    }
-  }
 }
-
 
 #save(survey_data_imputed,file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"))
 #save(survey_data_imputed,file=paste0(save_dataset_in_scriptsfile_directory,"miced_survey_2surveysonly_mirt_lca_clustering.RData"))
-
 #load(file=paste0(dataset_in_scriptsfile_directory,"miced_survey_9_with_mirt_lca_clustering",".RData"), verbose=TRUE)

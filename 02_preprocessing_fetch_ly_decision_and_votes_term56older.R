@@ -1,7 +1,7 @@
-source("01_fetch_ly_meeting_record.R")
+source("01_preprocessing_fetch_ly_meeting_record.R")
 lyterm56votes_class <- R6::R6Class("lyterm56votes", inherit=lymeetingfetcher_class, public = list(
-  initialize = function(dataset_in_scriptsfile_directory="/mnt",filespath="/mnt",dataset_file_directory="/mnt") {
-    super$initialize(dataset_in_scriptsfile_directory, filespath=filespath, dataset_file_directory=dataset_file_directory)
+  initialize = function(dataset_in_scriptsfile_directory="/mnt",filespath="/mnt",dataset_file_directory="/mnt", debug_func_mode=FALSE) {
+    super$initialize(dataset_in_scriptsfile_directory, filespath=filespath, dataset_file_directory=dataset_file_directory, debug_func_mode=debug_func_mode)
   },
   get_term56_voting_records = function(loadExisted=TRUE,save=FALSE) {
     if (loadExisted==TRUE) {

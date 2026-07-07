@@ -1,5 +1,5 @@
 
-source(file = "01_fetch_ly_meeting_record.R")
+source(file = "02_preprocessing_fetch_ly_decision_and_votes_term56older.R")
 lyvotes_class <- R6::R6Class("lyvotes", inherit=lyterm56votes_class, public = list( #lymeetingfetcher_class
   meetingdata = NULL,
   scan_leave_and_attend_legislators_area = NULL,
@@ -25,7 +25,7 @@ lyvotes_class <- R6::R6Class("lyvotes", inherit=lyterm56votes_class, public = li
     "謝衣."="謝衣鳯"
   ),
   initialize = function(dataset_in_scriptsfile_directory="/mnt", filespath="/mnt", dataset_file_directory="/mnt", debug_func_mode=FALSE) {
-    super$initialize(dataset_in_scriptsfile_directory, filespath=filespath, dataset_file_directory=dataset_file_directory)
+    super$initialize(dataset_in_scriptsfile_directory, filespath=filespath, dataset_file_directory=dataset_file_directory, debug_func_mode=debug_func_mode)
     self$scan_leave_and_attend_legislators_area <- 1:19
   },
   get_voting_records = function(loadExisted=TRUE,save=FALSE,startUrlN=1,endUrlN=-1) {

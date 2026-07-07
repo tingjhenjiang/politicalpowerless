@@ -463,14 +463,21 @@ mutate_cond <- function(data, condition, ..., envir = parent.frame()) {
     # https://stackoverflow.com/questions/70969830/how-do-i-correctly-use-the-env-variable-for-data-tables-within-a-function
     # dots <- eval(substitute(alist(...)), envir = envir)
     subsetcondition <- eval(substitute(condition), data, envir)
+    # print("subsetcondition is ", subsetcondition)
     subsetcondition[is.na(subsetcondition)] <- FALSE
     j_call <- substitute(`:=`(...))
     targetEnv <- envir
     targetEnv$data <- data
     targetEnv$.i <- subsetcondition
     targetEnv$.j <- j_call
+    # message("ls targetEnv is ", ls(targetEnv))
     dtq <- substitute(data[.i, .j],targetEnv)
-    eval(dtq)
+    # print(paste0("dtq is ", ls(targetEnv) ) )
+    tryCatch({
+      eval(dtq)
+    }, error = function(e) {
+      eval(dtq, envir=targetEnv)
+    })
     data
   } else if (inherits(data, what=c("dtplyr_step"))) {
     # message("mutate_cond in dtplyr_step mode")
@@ -495,19 +502,6 @@ mutate_cond <- function(data, condition, ..., envir = parent.frame()) {
 #  mutate_last(qty.exit = qty, cf = 0, delta.watts = 13) %>%
 #  ungroup() %>%
 #  select(-is.exit)
-paths_to_survey_imputation_and_measurement_file<-c(
-  paste0(dataset_file_directory,"merger_survey_dataset",slash,"imputationcomputingbasis.xlsx"),
-  paste0(dataset_in_scriptsfile_directory,"imputationcomputingbasis.xlsx")
-) %>%
-  .[sapply(., file.exists)]
-custom_ret_survey_imputation_and_measurement<-function(paths) {
-  survey_imputation_and_measurement<-try(openxlsx::read.xlsx(paths[1],sheet = 1))
-  if(is(survey_imputation_and_measurement, 'try-error')) {
-    survey_imputation_and_measurement<- paths[2] %>%
-      openxlsx::read.xlsx(sheet = 1)
-  }
-  return(survey_imputation_and_measurement)
-}
 
 kamila_clustering_parameters_path<-paste0(dataset_in_scriptsfile_directory, "kamila_clustering_parameters.Rdata")
 custom_ret_appro_kamila_clustering_parameters<-function(path=kamila_clustering_parameters_path, intact=FALSE) {
@@ -536,6 +530,7 @@ gcreset<-function() {
 }
 
 base_r6_class <- R6::R6Class("base_r6_class", public = list(
+  bills_answer_to_bill_bills_billcontent_filepath = NULL,
   dataset_file_directory = NULL,
   dataset_in_scriptsfile_directory = NULL,
   debug_func_mode = NULL,
@@ -545,32 +540,46 @@ base_r6_class <- R6::R6Class("base_r6_class", public = list(
   filespath = NULL,
   fullmeetingrecordlinks_filepath = NULL,
   legislatorsxlsxpath = NULL,
+  legislators_with_elections_filepath = NULL,
   ly_meeting_path = NULL,
   meetingdata_filepath = NULL,
   meetingdata_range = NULL,
   meetingurldata_filepath = NULL,
   meetingurldata_urlrange = NULL,
+  mccores = 1,
+  myown_vote_bills_filepath = NULL,
   myown_vote_record_df_filepath = NULL,
-  myown_vote_record_detailed_part_df_filepath = NULL,
+  myown_vote_record_detailed_part_df_filepath = NULL, #第5、6屆有比較詳盡的投票紀錄
+  myown_vote_record_df_across2004_filepath = NULL,
+  paths_to_survey_imputation_and_measurement_file = NULL,
   term56_filepaths = NULL,
   term56_meetingrecords_filenames = NULL,
-  mccores = 1,
+  zip3_filepath = NULL,
   initialize = function(dataset_in_scriptsfile_directory="/mnt",filespath="/mnt", dataset_file_directory="/mnt", debug_func_mode=TRUE) {
+    self$bills_answer_to_bill_bills_billcontent_filepath <- file.path(dataset_in_scriptsfile_directory, "bills_answer_to_bill_bills_billcontent.rds")
     self$dataset_file_directory <- dataset_file_directory
     self$dataset_in_scriptsfile_directory <- dataset_in_scriptsfile_directory
     self$debug_func_mode <- debug_func_mode
     self$error_vote_record_from_name_filepath <- file.path(dataset_in_scriptsfile_directory, "error_vote_record_from_name.xlsx")
     self$error_leave_and_attend_legislators_filepath <- file.path(dataset_in_scriptsfile_directory, "leave_and_attend_legislators.xlsx")
-    self$filespath <- filespath
     self$fetchmeetingdata_filepath <- file.path(dataset_in_scriptsfile_directory, "fetchmeetingdata.rds")
+    self$filespath <- filespath
     self$fullmeetingrecordlinks_filepath <- file.path(dataset_in_scriptsfile_directory, "fullmeetingrecordlinks.xlsx")
     self$legislatorsxlsxpath <- file.path(dataset_file_directory, "legislators.xlsx")
+    self$legislators_with_elections_filepath <- file.path(dataset_in_scriptsfile_directory, "legislators_with_elections.rds")
     self$ly_meeting_path <- file.path(filespath, "2004_meeting", "original")
     self$mccores <- base::ifelse(self$debug_func_mode==TRUE, 1, parallel::detectCores())
     self$meetingurldata_filepath<-file.path(dataset_in_scriptsfile_directory, "meetingrecord.xlsx")
     self$meetingdata_filepath <- file.path(dataset_in_scriptsfile_directory, "meetingdata.rds")
     self$myown_vote_record_df_filepath <- file.path(dataset_in_scriptsfile_directory,"myown_vote_record_df.rds")
     self$myown_vote_record_detailed_part_df_filepath <- file.path(dataset_in_scriptsfile_directory,"myown_vote_record_detailed_part_df.rds")
+    self$myown_vote_record_df_across2004_filepath <- file.path(dataset_in_scriptsfile_directory,"myown_vote_record_df_across2004.rds")
+    self$myown_vote_bills_filepath <- file.path(dataset_file_directory, "votingdf_datafile_myown_englished.xlsx")
+    self$paths_to_survey_imputation_and_measurement_file<-c(
+      file.path(dataset_file_directory,"merger_survey_dataset","imputationcomputingbasis.xlsx"),
+      file.path(dataset_in_scriptsfile_directory,"imputationcomputingbasis.xlsx")
+    ) %>%
+      .[sapply(., file.exists)]
     self$term56_meetingrecords_filenames<-c(#"立法院第5屆第5會期全院委員談話會紀錄.html",
       "立法院第5屆第5會期第1次臨時會第1次會議紀錄.html", #OK 九十三年八月十一日 立法院第93卷第36期 (3370)公報 https://lci.ly.gov.tw/LyLCEW/communique/final/pdf/93/36/LCIDC01_933601.pdf
       "立法院第5屆第5會期第1次臨時會第3次會議紀錄.html", #OK 九十三年八月二十三日 公報 93卷37期公報總號 3371上 https://lci.ly.gov.tw/LyLCEW/communique/final/pdf/93/37/LCIDC01_933701.pdf
@@ -588,8 +597,17 @@ base_r6_class <- R6::R6Class("base_r6_class", public = list(
       "立法院第6屆第3會期第8次會議紀錄.html", #14
       "立法院第6屆第3會期第10次會議紀錄.html") #15
     self$term56_filepaths <- file.path(self$ly_meeting_path,self$term56_meetingrecords_filenames)
-  }
+    self$zip3_filepath <- file.path(dataset_file_directory,"zip3.xlsx")
+  },
   
+  custom_ret_survey_imputation_and_measurement = function(paths) {
+    survey_imputation_and_measurement<-try(openxlsx::read.xlsx(paths[1],sheet = 1))
+    if(is(survey_imputation_and_measurement, 'try-error')) {
+      survey_imputation_and_measurement<- paths[2] %>%
+        openxlsx::read.xlsx(sheet = 1)
+    }
+    return(survey_imputation_and_measurement)
+  }
 ))
 
 #rJava安裝前要R CMD javareconf
@@ -814,6 +832,16 @@ custom_mirt_coef_to_df <- function(mirtmodel, rotate="varimax", printSE = FALSE,
 custom_pickcolnames_accordingtoclass<-function(df,needclass="factor") {
   colnames(df)[which(grepl(pattern=needclass, x=sapply(df,function(X) paste0(class(X),collapse=""))) )] %>%
     return()
+}
+
+#跨插補樣本模型結果pooling（Rubin's rules；mitools之missInfo併mice之summary）
+micombineresult<-function(mimodel) {
+  poolresult1<-mitools:::summary.MIresult(mitools::MIcombine(mimodel)) %>%
+    dplyr::select(missInfo)
+  pooresult2<-mice::pool(mimodel) %>%
+    mice:::summary.mipo(conf.int=TRUE)
+  poolresult<-dplyr::bind_cols(poolresult1,pooresult2)
+  return(poolresult)
 }
 
 

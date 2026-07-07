@@ -3,6 +3,57 @@
 # clustrd clustering single result --------------------------------
 
 
+generate_weight_repeated_data<-function(single_survey_df, weight_reptimes_n_integer=0.5, surveyweightvar="myown_wr", needvars="") {
+  #message(survey)
+  min_myownwr<-min(extract2(single_survey_df, surveyweightvar))
+  min_repeat_times<-1/min_myownwr #要讓最權重最小的觀察值出現一次的重複row倍數
+  min_rep_weighted_myownwr<-extract2(single_survey_df, surveyweightvar)*min_repeat_times #所有觀察值的重複倍數
+  #因為要讓最權重最小的觀察值出現一次的重複row倍數 套用在其他觀察值上 會出現小數，所以現在要計算重複row倍數的最小公倍數
+  n_digits<-max(sapply(min_rep_weighted_myownwr,function (x) nchar(sub('^0+','',sub('\\.','',x)))))
+  #n_digits<-9 #大於9似乎會有問題
+  repeat { #為了防止求最小公倍數時出現問題所以往下求整數
+    #message("n_digits is now ", n_digits)
+    continue_to_minus<-FALSE
+    ten_multiplier<-10^n_digits 
+    tryCatch({
+      integer_min_repeat_times<-min_rep_weighted_myownwr*ten_multiplier
+      integer_min_repeat_times<-round(integer_min_repeat_times,digits = 0)
+      integer_min_repeat_times<-as.integer(integer_min_repeat_times)
+      lcm<-Reduce(f=DescTools::LCM, x=integer_min_repeat_times)
+    }, warning=function (war) {
+      #message(war)
+      continue_to_minus<-TRUE
+      #return(TRUE)
+    }, error=function (err) {
+      #message(err)
+      continue_to_minus<-TRUE
+      #return(TRUE)
+    })
+    n_digits<-n_digits-1
+    if (continue_to_minus==TRUE) next
+    if (is.numeric(lcm) | is.integer(lcm)) break
+  }
+  #message("continue_to_minus is ", continue_to_minus, " and lcm is ", class(lcm))
+  lcm<-abs(lcm)
+  adj_min_repeat_times<-lcm/min_myownwr
+  adj_all_sample_rep_times<-extract2(single_survey_df, surveyweightvar)*adj_min_repeat_times
+  single_survey_df$repeat_sample_times<-adj_all_sample_rep_times
+  #message("adj_all_sample_rep_times is now ", length(adj_all_sample_rep_times))
+  #message("uniq adj_all_sample_rep_times is now ", length(unique(adj_all_sample_rep_times)))
+  weighted_adj_survey_data<-lapply(unique(adj_all_sample_rep_times), function(repeattimes, needvars, weight_reptimes_n_integer=1) {
+    needrows<-which(adj_all_sample_rep_times==repeattimes)
+    log_part<-log10(repeattimes)
+    integers_of_log_part<-trunc(log_part)
+    reptimes<-10^(log_part-integers_of_log_part+weight_reptimes_n_integer)
+    reptimes<-round(reptimes,digits = 0)
+    return(dplyr::slice(single_survey_df[,needvars], rep(needrows,reptimes)))
+  },needvars=needvars, weight_reptimes_n_integer=weight_reptimes_n_integer) %>% dplyr::bind_rows()
+  #needvars=c(clustering_var[[survey]],".imp")
+  #message("weighted_adj_survey_data has ", nrow(weighted_adj_survey_data), " rows")
+  return(weighted_adj_survey_data)
+}
+
+
 #repeat {
 #  if (nrow(already_in_sqltable_clustrd_records)>=nrow(already_in_sqltable_clustrd_records)) {
 #    break
